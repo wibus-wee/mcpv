@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"go.uber.org/zap"
 
+	"mcpd/internal/domain"
 	"mcpd/internal/infra/catalog"
 	"mcpd/internal/infra/lifecycle"
 	"mcpd/internal/infra/router"
@@ -50,6 +52,12 @@ func (a *App) Serve(ctx context.Context, cfg ServeConfig) error {
 	sched := scheduler.NewBasicScheduler(lc, specs)
 	rt := router.NewBasicRouter(sched)
 
+	sched.StartIdleManager(time.Second)
+	defer func() {
+		sched.StopIdleManager()
+		sched.StopAll(context.Background())
+	}()
+
 	if err := a.serveStdin(ctx, rt); err != nil {
 		return err
 	}
@@ -83,11 +91,25 @@ func (a *App) serveStdin(ctx context.Context, rt *router.BasicRouter) error {
 		}
 
 		var req stdinRequest
-		if err := dec.Decode(&req); err != nil {
-			if errors.Is(err, io.EOF) {
-				return nil
+		errCh := make(chan error, 1)
+		go func() {
+			if err := dec.Decode(&req); err != nil {
+				errCh <- err
+				return
 			}
-			return fmt.Errorf("decode stdin: %w", err)
+			errCh <- nil
+		}()
+
+		select {
+		case <-ctx.Done():
+			return nil
+		case err := <-errCh:
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					return nil
+				}
+				return fmt.Errorf("decode stdin: %w", err)
+			}
 		}
 
 		resp := a.handleRequest(ctx, rt, req)
@@ -128,20 +150,30 @@ func (a *App) handleRequest(ctx context.Context, rt *router.BasicRouter, req std
 
 	resp, err := rt.Route(ctx, req.Params.ServerType, req.Params.RoutingKey, req.Params.Payload)
 	if err != nil {
-		return stdinResponse{
-			JSONRPC: "2.0",
-			ID:      req.ID,
-			Error: &stdinError{
-				Code:    errRouteFailed,
-				Message: err.Error(),
-			},
-		}
+		return errorResponse(req.ID, mapRouterError(err))
 	}
 
 	return stdinResponse{
 		JSONRPC: "2.0",
 		ID:      req.ID,
 		Result:  resp,
+	}
+}
+
+func mapRouterError(err error) *stdinError {
+	switch {
+	case errors.Is(err, domain.ErrMethodNotAllowed):
+		return &stdinError{Code: -32601, Message: "method not allowed"}
+	default:
+		return &stdinError{Code: errRouteFailed, Message: err.Error()}
+	}
+}
+
+func errorResponse(id any, err *stdinError) stdinResponse {
+	return stdinResponse{
+		JSONRPC: "2.0",
+		ID:      id,
+		Error:   err,
 	}
 }
 

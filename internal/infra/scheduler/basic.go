@@ -22,6 +22,9 @@ type BasicScheduler struct {
 
 	instances map[string][]*trackedInstance
 	sticky    map[string]map[string]*trackedInstance // serverType -> routingKey -> instance
+
+	idleTicker *time.Ticker
+	stopIdle   chan struct{}
 }
 
 type trackedInstance struct {
@@ -34,6 +37,7 @@ func NewBasicScheduler(lifecycle domain.Lifecycle, specs map[string]domain.Serve
 		specs:     specs,
 		instances: make(map[string][]*trackedInstance),
 		sticky:    make(map[string]map[string]*trackedInstance),
+		stopIdle:  make(chan struct{}),
 	}
 }
 
@@ -116,4 +120,77 @@ func (s *BasicScheduler) markBusy(inst *trackedInstance, spec domain.ServerSpec)
 	}
 	inst.instance.LastActive = time.Now()
 	return inst.instance
+}
+
+// StartIdleManager begins periodic idle reap respecting idleSeconds/persistent/sticky/minReady.
+func (s *BasicScheduler) StartIdleManager(interval time.Duration) {
+	if interval <= 0 {
+		interval = time.Second
+	}
+	s.idleTicker = time.NewTicker(interval)
+	go func() {
+		for {
+			select {
+			case <-s.idleTicker.C:
+				s.reapIdle()
+			case <-s.stopIdle:
+				return
+			}
+		}
+	}()
+}
+
+func (s *BasicScheduler) StopIdleManager() {
+	if s.idleTicker != nil {
+		s.idleTicker.Stop()
+	}
+	close(s.stopIdle)
+}
+
+func (s *BasicScheduler) reapIdle() {
+	now := time.Now()
+	for serverType, list := range s.instances {
+		spec := s.specs[serverType]
+		readyCount := s.countReady(serverType)
+
+		for _, inst := range list {
+			if inst.instance.State != domain.InstanceStateReady {
+				continue
+			}
+			if spec.Persistent || spec.Sticky {
+				continue
+			}
+			if readyCount <= spec.MinReady {
+				continue
+			}
+			idleFor := now.Sub(inst.instance.LastActive)
+			if idleFor >= time.Duration(spec.IdleSeconds)*time.Second {
+				inst.instance.State = domain.InstanceStateDraining
+				_ = s.lifecycle.StopInstance(context.Background(), inst.instance, "idle timeout")
+				inst.instance.State = domain.InstanceStateStopped
+				readyCount--
+			}
+		}
+	}
+}
+
+// StopAll terminates all known instances for graceful shutdown.
+func (s *BasicScheduler) StopAll(ctx context.Context) {
+	for serverType, list := range s.instances {
+		for _, inst := range list {
+			_ = s.lifecycle.StopInstance(ctx, inst.instance, "shutdown")
+		}
+		delete(s.instances, serverType)
+		delete(s.sticky, serverType)
+	}
+}
+
+func (s *BasicScheduler) countReady(serverType string) int {
+	count := 0
+	for _, inst := range s.instances[serverType] {
+		if inst.instance.State == domain.InstanceStateReady {
+			count++
+		}
+	}
+	return count
 }

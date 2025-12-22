@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 )
 
@@ -60,6 +61,9 @@ type Lifecycle interface {
 type Scheduler interface {
 	Acquire(ctx context.Context, serverType, routingKey string) (*Instance, error)
 	Release(ctx context.Context, instance *Instance) error
+	StartIdleManager(interval time.Duration)
+	StopIdleManager()
+	StopAll(ctx context.Context)
 }
 
 type Router interface {
@@ -73,3 +77,5 @@ type CatalogLoader interface {
 type HealthProbe interface {
 	Ping(ctx context.Context, conn Conn) error
 }
+
+var ErrMethodNotAllowed = errors.New("method not allowed")

@@ -1,0 +1,20 @@
+实施路线（对齐 PRD / INITIAL_DESIGN）**
+- 核心基线（M1）
+  - 完成 catalog loader + 校验：YAML/JSON 解析、必填/范围/协议版本校验、env 覆盖；`mcpd validate` 打通。
+  - 落 stdio transport + initialize 握手 stub，定义超时配置。
+  - 在 app 层串起：加载 catalog → 创建 scheduler/router/lifecycle stub → `mcpd serve` 主循环的基本框架（可先仅打印日志）。
+- 调度与路由闭环（M2）
+  - 实现 Scheduler（实例表 + Acquire/Release 状态机 + Busy 计数 + sticky 绑定）。
+  - 实现 Lifecycle.Start/Stop：spawn 子进程、握手、状态迁移；Stop 支持优雅超时+强杀。
+  - 实现 Router.Route：选择实例、并发上限快速失败、启动保护；返回 JSON-RPC 响应。
+  - 打通单入口 JSON-RPC 路由（stdin），支持 starting/busy 错误。
+- 弹性与健康（M3）
+  - IdleManager：周期扫描 lastActive，尊重 sticky/persistent/minReady，Draining→Stop。
+  - Probe：定期 ping Ready/Busy，失败标记 Failed→回收或重建策略。
+  - Metrics：启动耗时、启动失败、活跃实例、回收计数、请求延迟/失败率；/metrics 端点。
+- 稳定性与观测（M4）
+  - zap 结构化日志字段统一（serverType、instanceID、state、duration_ms、error 等）。
+  - healthz 端点（goroutine 活性、自检），配置校验增强（CUE/JSONSchema）。
+  - 负面场景测试：启动超时、initialize 失败、ping 失败、并发超限、idle 回收。
+- 演进预留（M5+）
+  - HTTP/Streamable 入口、鉴权；预热池/优先级队列；远端/容器 runtime 适配；Wails UI 对接 app 层 API。

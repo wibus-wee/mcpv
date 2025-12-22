@@ -16,7 +16,7 @@ import (
 func TestManager_StartInstance_Success(t *testing.T) {
 	ft := &fakeTransport{
 		conn: &fakeConn{
-			recvPayload: json.RawMessage(`{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25"}}`),
+			recvPayload: json.RawMessage(`{"jsonrpc":"2.0","id":"mcpd-init","result":{"protocolVersion":"2025-11-25","serverInfo":{"name":"srv"},"capabilities":{}}}`),
 		},
 		stop: func(ctx context.Context) error { return nil },
 	}
@@ -46,7 +46,7 @@ func TestManager_StartInstance_Success(t *testing.T) {
 func TestManager_StartInstance_ProtocolMismatch(t *testing.T) {
 	ft := &fakeTransport{
 		conn: &fakeConn{
-			recvPayload: json.RawMessage(`{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-01-01"}}`),
+			recvPayload: json.RawMessage(`{"jsonrpc":"2.0","id":"mcpd-init","result":{"protocolVersion":"2024-01-01","serverInfo":{"name":"srv"},"capabilities":{}}}`),
 		},
 		stop: func(ctx context.Context) error { return nil },
 	}
@@ -109,7 +109,7 @@ func TestManager_StopInstance_Success(t *testing.T) {
 	stopped := false
 	ft := &fakeTransport{
 		conn: &fakeConn{
-			recvPayload: json.RawMessage(`{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25"}}`),
+			recvPayload: json.RawMessage(`{"jsonrpc":"2.0","id":"mcpd-init","result":{"protocolVersion":"2025-11-25","serverInfo":{"name":"srv"},"capabilities":{}}}`),
 		},
 		stop: func(ctx context.Context) error {
 			stopped = true
@@ -174,4 +174,24 @@ type fakeConn struct {
 	recvErr     error
 	closeErr    error
 	recvPayload json.RawMessage
+}
+
+func TestManager_InitializeMissingCapabilities(t *testing.T) {
+	ft := &fakeTransport{
+		conn: &fakeConn{
+			recvPayload: json.RawMessage(`{"jsonrpc":"2.0","id":"mcpd-init","result":{"protocolVersion":"2025-11-25","serverInfo":{"name":"srv"}}}`),
+		},
+	}
+	mgr := NewManager(ft, zap.NewNop())
+
+	spec := domain.ServerSpec{
+		Name:            "svc",
+		Cmd:             []string{"./svc"},
+		MaxConcurrent:   1,
+		ProtocolVersion: domain.DefaultProtocolVersion,
+	}
+
+	_, err := mgr.StartInstance(context.Background(), spec)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "capabilities")
 }

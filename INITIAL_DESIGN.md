@@ -7,6 +7,7 @@
 - Metrics/Tracing：OpenTelemetry Go SDK（`go.opentelemetry.io/otel/...`）+ Prometheus exporter（`go.opentelemetry.io/otel/exporters/prometheus`）。  
 - 测试：`github.com/stretchr/testify`（断言/require），`github.com/google/go-cmp/cmp`（结构对比）。  
 - 进程/JSON：标准库 `os/exec`、`encoding/json` 足够；如需更快序列化可选 `json-iterator/go`。
+- MCP SDK：model context protocol 官方推出了 go-sdk 方便我们开发，在开发中一定要绝对能用它就用它
 
 可选增强（看阶段和复杂度决定）  
 - HTTP 路由（未来接 Streamable HTTP）：`github.com/go-chi/chi`（轻量、可组合中间件）或 `gorilla/mux`（更重但老牌）。  
