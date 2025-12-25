@@ -6,17 +6,35 @@ services:
     ports:
       - "6274:6274"  # Inspector UI
       - "6277:6277"  # Inspector WebSocket
-      - "9090:9090"  # Prometheus metrics (from mcpd)
     environment:
       HOST: "0.0.0.0"
       MCP_AUTO_OPEN_ENABLED: "false"
-      MCPD_METRICS_ENABLED: "true"
     volumes:
       - ./:/app
       - go-data:/go/pkg/mod
       - go-build-data:/root/.cache/go-build
     stdin_open: true
     tty: true
+
+  core:
+    build:
+      context: .
+      dockerfile: ./dev/Dockerfile.dev
+    command:
+      - "go"
+      - "run"
+      - "./cmd/mcpd"
+      - "serve"
+      - "--config"
+      - "/app/dev/catalog.dev.yaml"
+    ports:
+      - "9090:9090"  # Prometheus metrics (from core)
+    environment:
+      MCPD_METRICS_ENABLED: "true"
+    volumes:
+      - ./:/app
+      - go-data:/go/pkg/mod
+      - go-build-data:/root/.cache/go-build
 
   prometheus:
     image: prom/prometheus:latest
@@ -30,7 +48,7 @@ services:
     ports:
       - "9500:9500"
     depends_on:
-      - dev
+      - core
     volumes:
       - prometheus-data:/prometheus
       - ./dev/prometheus.yaml:/etc/prometheus/prometheus.yaml
