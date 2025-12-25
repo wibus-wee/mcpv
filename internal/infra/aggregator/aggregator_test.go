@@ -14,7 +14,7 @@ import (
 	"mcpd/internal/domain"
 )
 
-func TestToolAggregator_RegistersPrefixedTool(t *testing.T) {
+func TestToolIndex_SnapshotPrefixedTool(t *testing.T) {
 	ctx := context.Background()
 	router := &fakeRouter{
 		tools: []*mcp.Tool{
@@ -38,30 +38,31 @@ func TestToolAggregator_RegistersPrefixedTool(t *testing.T) {
 		ToolRefreshSeconds:    0,
 	}
 
-	agg := NewToolAggregator(router, specs, cfg, zap.NewNop())
-	server := mcp.NewServer(&mcp.Implementation{Name: "mcpd", Version: "0.1.0"}, nil)
-	agg.RegisterServer(server)
-	agg.Start(ctx)
-	defer agg.Stop()
+	index := NewToolIndex(router, specs, cfg, zap.NewNop())
+	index.Start(ctx)
+	defer index.Stop()
 
-	_, session := connectClient(t, ctx, server)
-	defer session.Close()
+	snapshot := index.Snapshot()
+	require.Len(t, snapshot.Tools, 1)
+	require.Equal(t, "echo.echo", snapshot.Tools[0].Name)
 
-	res, err := session.ListTools(ctx, &mcp.ListToolsParams{})
+	var tool mcp.Tool
+	require.NoError(t, json.Unmarshal(snapshot.Tools[0].ToolJSON, &tool))
+	require.Equal(t, "echo.echo", tool.Name)
+
+	resultRaw, err := index.CallTool(ctx, "echo.echo", json.RawMessage(`{}`), "")
 	require.NoError(t, err)
-	require.Len(t, res.Tools, 1)
-	require.Equal(t, "echo.echo", res.Tools[0].Name)
 
-	callRes, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "echo.echo", Arguments: map[string]any{}})
-	require.NoError(t, err)
-	require.Len(t, callRes.Content, 1)
-	require.Equal(t, "ok", callRes.Content[0].(*mcp.TextContent).Text)
+	var result mcp.CallToolResult
+	require.NoError(t, json.Unmarshal(resultRaw, &result))
+	require.Len(t, result.Content, 1)
+	require.Equal(t, "ok", result.Content[0].(*mcp.TextContent).Text)
 
 	require.Equal(t, "tools/call", router.lastMethod)
 	require.Equal(t, "echo", router.lastServerType)
 }
 
-func TestToolAggregator_RespectsExposeToolsAllowlist(t *testing.T) {
+func TestToolIndex_RespectsExposeToolsAllowlist(t *testing.T) {
 	ctx := context.Background()
 	router := &fakeRouter{
 		tools: []*mcp.Tool{
@@ -79,19 +80,21 @@ func TestToolAggregator_RespectsExposeToolsAllowlist(t *testing.T) {
 	}
 	cfg := domain.RuntimeConfig{ExposeTools: true, ToolNamespaceStrategy: "prefix"}
 
-	agg := NewToolAggregator(router, specs, cfg, zap.NewNop())
-	server := mcp.NewServer(&mcp.Implementation{Name: "mcpd", Version: "0.1.0"}, nil)
-	agg.RegisterServer(server)
-	agg.Start(ctx)
-	defer agg.Stop()
+	index := NewToolIndex(router, specs, cfg, zap.NewNop())
+	index.Start(ctx)
+	defer index.Stop()
 
-	_, session := connectClient(t, ctx, server)
-	defer session.Close()
+	snapshot := index.Snapshot()
+	require.Len(t, snapshot.Tools, 1)
+	require.Equal(t, "echo.echo", snapshot.Tools[0].Name)
+}
 
-	res, err := session.ListTools(ctx, &mcp.ListToolsParams{})
-	require.NoError(t, err)
-	require.Len(t, res.Tools, 1)
-	require.Equal(t, "echo.echo", res.Tools[0].Name)
+func TestToolIndex_CallToolNotFound(t *testing.T) {
+	ctx := context.Background()
+	index := NewToolIndex(&fakeRouter{}, map[string]domain.ServerSpec{}, domain.RuntimeConfig{}, zap.NewNop())
+
+	_, err := index.CallTool(ctx, "missing", nil, "")
+	require.ErrorIs(t, err, domain.ErrToolNotFound)
 }
 
 type fakeRouter struct {
@@ -117,6 +120,9 @@ func (f *fakeRouter) Route(ctx context.Context, serverType, routingKey string, p
 	case "tools/list":
 		return encodeResponse(req.ID, &mcp.ListToolsResult{Tools: f.tools})
 	case "tools/call":
+		if f.callResult == nil {
+			f.callResult = &mcp.CallToolResult{}
+		}
 		return encodeResponse(req.ID, f.callResult)
 	default:
 		return nil, nil
@@ -134,16 +140,4 @@ func encodeResponse(id jsonrpc.ID, result any) (json.RawMessage, error) {
 		return nil, err
 	}
 	return json.RawMessage(wire), nil
-}
-
-func connectClient(t *testing.T, ctx context.Context, server *mcp.Server) (*mcp.Client, *mcp.ClientSession) {
-	t.Helper()
-	ct, st := mcp.NewInMemoryTransports()
-	_, err := server.Connect(ctx, st, nil)
-	require.NoError(t, err)
-
-	client := mcp.NewClient(&mcp.Implementation{Name: "client", Version: "0.1.0"}, nil)
-	session, err := client.Connect(ctx, ct, nil)
-	require.NoError(t, err)
-	return client, session
 }

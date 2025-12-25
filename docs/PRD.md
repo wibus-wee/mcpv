@@ -1,4 +1,5 @@
-> 这是最初版的设计，可能已经过时
+> 这是最初版的设计，可能已经过时  
+> 当前实现已拆分为 core/gateway：`mcpd` 提供 gRPC 控制面，`mcpd-gateway` 作为 MCP Server 入口。
 
 一、目标与定位
 - 目标：为 MCP servers 提供按需启动、自动缩容、scale-to-zero 的弹性运行时，统一入口路由，降低空闲资源浪费，简化配置管理。

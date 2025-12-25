@@ -21,7 +21,7 @@
 
 ## 🚀 What is mcpd?
 
-**mcpd** is a lightweight elastic orchestrator for [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) servers, providing on-demand startup, auto-scaling, and scale-to-zero capabilities to reduce local resource consumption and simplify multi-service management.
+**mcpd** is a lightweight elastic control plane for [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) servers, providing on-demand startup, auto-scaling, and scale-to-zero capabilities. A separate **mcpd-gateway** process exposes the MCP protocol and bridges requests to the core.
 
 ## 💡 Why mcpd?
 
@@ -35,7 +35,7 @@ As AI assistants integrate more MCP servers for extended capabilities, developer
 **mcpd solves these problems** by acting as a smart orchestrator that:
 - Launches servers only when needed, keeping your system lightweight
 - Automatically recycles idle instances, achieving true scale-to-zero efficiency  
-- Provides a single entry point for all MCP interactions with intelligent routing
+- Provides a gateway entry point for MCP interactions with intelligent routing
 - Aggregates tools from multiple servers into a unified, discoverable interface
 - Ensures service reliability through health monitoring and graceful lifecycle management
 
@@ -60,10 +60,22 @@ Think of it as **"Kubernetes for MCP servers on your laptop"**—bringing cloud-
 └────────────┬─────────────────────────────────────────────┘
              │ MCP Protocol (stdio)
              v
+┌──────────────────────────────────────────────────────────┐
+│                       MCP Client                         │
+│              (VS Code, Claude, etc.)                     │
+└────────────┬─────────────────────────────────────────────┘
+             │ MCP Protocol (stdio)
+             v
+┌──────────────────────────────────────────────────────────┐
+│                      mcpd-gateway                        │
+│            MCP Server + Tool Registry Bridge             │
+└────────────┬─────────────────────────────────────────────┘
+             │ gRPC
+             v
 ┌────────────────────────────────────────────────────────────┐
-│                         mcpd                               │
+│                         mcpd-core                          │
 │  ┌────────────┐  ┌────────────┐  ┌────────────────────┐  │
-│  │   Router   │  │ Scheduler  │  │   Tool Aggregator  │  │
+│  │   Router   │  │ Scheduler  │  │   Tool Index       │  │
 │  └────┬───────┘  └────┬───────┘  └────────────────────┘  │
 │       │               │                                    │
 │  ┌────v───────────────v─────┐     ┌────────────────┐     │
@@ -86,11 +98,13 @@ Think of it as **"Kubernetes for MCP servers on your laptop"**—bringing cloud-
 
 ### Core Components
 
+- **Gateway**: MCP protocol entry point, bridges tools/list and tools/call to core over gRPC
+- **RPC Control Plane**: gRPC API for tool snapshots, tool calls, and log streaming
 - **Router**: Request routing that selects or creates instances based on serverType
 - **Scheduler**: Instance scheduling with sticky session and concurrency limits
 - **Lifecycle Manager**: Handles instance startup, handshake, state transitions, and shutdown
 - **Probe**: Periodic health checks with automatic failure instance removal
-- **Tool Aggregator**: Collects and exposes unified tool lists from downstream MCP servers
+- **Tool Index**: Collects and exposes unified tool lists from downstream MCP servers
 - **Transport**: Currently supports stdio, with future HTTP/SSE expansion
 
 ## 📄 License

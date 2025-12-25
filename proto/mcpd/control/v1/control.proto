@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package mcpd.control.v1;
+
+option go_package = "mcpd/pkg/api/control/v1;controlv1";
+
+service ControlPlaneService {
+  rpc GetInfo(GetInfoRequest) returns (GetInfoResponse);
+  rpc ListTools(ListToolsRequest) returns (ListToolsResponse);
+  rpc WatchTools(WatchToolsRequest) returns (stream ToolsSnapshot);
+  rpc CallTool(CallToolRequest) returns (CallToolResponse);
+  rpc StreamLogs(StreamLogsRequest) returns (stream LogEntry);
+}
+
+message GetInfoRequest {}
+
+message GetInfoResponse {
+  string name = 1;
+  string version = 2;
+  string build = 3;
+}
+
+message ListToolsRequest {}
+
+message ListToolsResponse {
+  ToolsSnapshot snapshot = 1;
+}
+
+message WatchToolsRequest {
+  string last_etag = 1;
+}
+
+message ToolsSnapshot {
+  string etag = 1;
+  repeated ToolDefinition tools = 2;
+}
+
+message ToolDefinition {
+  string name = 1;
+  // JSON encoding of mcp.Tool.
+  bytes tool_json = 2;
+}
+
+message CallToolRequest {
+  string name = 1;
+  // JSON encoding of tool arguments (mcp.CallToolParams.Arguments).
+  bytes arguments_json = 2;
+  string routing_key = 3;
+}
+
+message CallToolResponse {
+  // JSON encoding of mcp.CallToolResult.
+  bytes result_json = 1;
+}
+
+message StreamLogsRequest {
+  LogLevel min_level = 1;
+}
+
+message LogEntry {
+  string logger = 1;
+  LogLevel level = 2;
+  int64 timestamp_unix_nano = 3;
+  // JSON encoding of mcp.LoggingMessageParams.Data.
+  bytes data_json = 4;
+}
+
+enum LogLevel {
+  LOG_LEVEL_UNSPECIFIED = 0;
+  LOG_LEVEL_DEBUG = 1;
+  LOG_LEVEL_INFO = 2;
+  LOG_LEVEL_NOTICE = 3;
+  LOG_LEVEL_WARNING = 4;
+  LOG_LEVEL_ERROR = 5;
+  LOG_LEVEL_CRITICAL = 6;
+  LOG_LEVEL_ALERT = 7;
+  LOG_LEVEL_EMERGENCY = 8;
+}

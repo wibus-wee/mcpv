@@ -28,7 +28,7 @@ func main() {
 
 	root := &cobra.Command{
 		Use:   "mcpd",
-		Short: "Elastic MCP server orchestrator with scale-to-zero runtime",
+		Short: "Elastic MCP control plane with scale-to-zero runtime",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// if !opts.logStderr {
 			// 	opts.logger = zap.NewNop()
@@ -66,7 +66,7 @@ func main() {
 func newServeCmd(opts *serveOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "serve",
-		Short: "Run the MCP orchestrator",
+		Short: "Run the MCP control plane",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			applyFlagBindings(cmd.Flags(), opts)
 			ctx, cancel := signalAwareContext(cmd.Context())

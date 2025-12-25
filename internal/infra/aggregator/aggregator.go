@@ -2,9 +2,12 @@ package aggregator
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -16,41 +19,44 @@ import (
 	"mcpd/internal/domain"
 )
 
-type ToolAggregator struct {
+type ToolIndex struct {
 	router domain.Router
 	specs  map[string]domain.ServerSpec
 	cfg    domain.RuntimeConfig
 	logger *zap.Logger
 
-	mu         sync.Mutex
-	server     *mcp.Server
-	registered map[string]struct{}
-	ticker     *time.Ticker
-	stop       chan struct{}
-	started    bool
+	mu          sync.RWMutex
+	started     bool
+	ticker      *time.Ticker
+	stop        chan struct{}
+	snapshot    domain.ToolSnapshot
+	targets     map[string]domain.ToolTarget
+	serverCache map[string]serverCache
+	subs        map[chan domain.ToolSnapshot]struct{}
 }
 
-func NewToolAggregator(rt domain.Router, specs map[string]domain.ServerSpec, cfg domain.RuntimeConfig, logger *zap.Logger) *ToolAggregator {
+type serverCache struct {
+	tools   []domain.ToolDefinition
+	targets map[string]domain.ToolTarget
+}
+
+func NewToolIndex(rt domain.Router, specs map[string]domain.ServerSpec, cfg domain.RuntimeConfig, logger *zap.Logger) *ToolIndex {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
-	return &ToolAggregator{
-		router:     rt,
-		specs:      specs,
-		cfg:        cfg,
-		logger:     logger.Named("aggregator"),
-		registered: make(map[string]struct{}),
-		stop:       make(chan struct{}),
+	return &ToolIndex{
+		router:      rt,
+		specs:       specs,
+		cfg:         cfg,
+		logger:      logger.Named("tool_index"),
+		stop:        make(chan struct{}),
+		targets:     make(map[string]domain.ToolTarget),
+		serverCache: make(map[string]serverCache),
+		subs:        make(map[chan domain.ToolSnapshot]struct{}),
 	}
 }
 
-func (a *ToolAggregator) RegisterServer(s *mcp.Server) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	a.server = s
-}
-
-func (a *ToolAggregator) Start(ctx context.Context) {
+func (a *ToolIndex) Start(ctx context.Context) {
 	if !a.cfg.ExposeTools {
 		return
 	}
@@ -96,7 +102,7 @@ func (a *ToolAggregator) Start(ctx context.Context) {
 	}()
 }
 
-func (a *ToolAggregator) Stop() {
+func (a *ToolIndex) Stop() {
 	a.mu.Lock()
 	if a.ticker != nil {
 		a.ticker.Stop()
@@ -110,87 +116,192 @@ func (a *ToolAggregator) Stop() {
 	a.mu.Unlock()
 }
 
-func (a *ToolAggregator) refresh(ctx context.Context) error {
+func (a *ToolIndex) Snapshot() domain.ToolSnapshot {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return copySnapshot(a.snapshot)
+}
+
+func (a *ToolIndex) Subscribe(ctx context.Context) <-chan domain.ToolSnapshot {
+	ch := make(chan domain.ToolSnapshot, 1)
+
 	a.mu.Lock()
-	server := a.server
+	a.subs[ch] = struct{}{}
+	snapshot := copySnapshot(a.snapshot)
 	a.mu.Unlock()
-	if server == nil {
-		return errors.New("server is not registered")
+
+	sendSnapshot(ch, snapshot)
+
+	go func() {
+		<-ctx.Done()
+		a.mu.Lock()
+		delete(a.subs, ch)
+		close(ch)
+		a.mu.Unlock()
+	}()
+
+	return ch
+}
+
+func (a *ToolIndex) Resolve(name string) (domain.ToolTarget, bool) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	target, ok := a.targets[name]
+	return target, ok
+}
+
+func (a *ToolIndex) CallTool(ctx context.Context, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
+	target, ok := a.Resolve(name)
+	if !ok {
+		return nil, domain.ErrToolNotFound
 	}
 
-	next := make(map[string]struct{})
+	params := &mcp.CallToolParams{
+		Name:      target.ToolName,
+		Arguments: json.RawMessage(args),
+	}
+	payload, err := buildJSONRPCRequest("tools/call", params)
+	if err != nil {
+		return nil, err
+	}
 
-	for serverType, spec := range a.specs {
-		tools, err := a.fetchTools(ctx, serverType)
+	resp, err := a.router.Route(ctx, target.ServerType, routingKey, payload)
+	if err != nil {
+		return marshalToolResult(errorResult(err))
+	}
+
+	result, err := decodeToolResult(resp)
+	if err != nil {
+		return nil, err
+	}
+	return marshalToolResult(result)
+}
+
+func (a *ToolIndex) refresh(ctx context.Context) error {
+	serverTypes := sortedServerTypes(a.specs)
+	var refreshed bool
+
+	for _, serverType := range serverTypes {
+		spec := a.specs[serverType]
+		tools, targets, err := a.fetchServerTools(ctx, serverType, spec)
 		if err != nil {
 			a.logger.Warn("tool list fetch failed", zap.String("serverType", serverType), zap.Error(err))
 			continue
 		}
 
-		allowed := allowedTools(spec)
-		for _, tool := range tools {
-			if tool == nil {
-				continue
-			}
-			if !allowed(tool.Name) {
-				continue
-			}
-			if !isObjectSchema(tool.InputSchema) {
-				a.logger.Warn("skip tool with invalid input schema", zap.String("serverType", serverType), zap.String("tool", tool.Name))
-				continue
-			}
-
-			name := a.namespaceTool(serverType, tool.Name)
-			if _, exists := next[name]; exists {
-				a.logger.Warn("tool name conflict", zap.String("serverType", serverType), zap.String("tool", tool.Name), zap.String("name", name))
-				continue
-			}
-
-			toolCopy := *tool
-			toolCopy.Name = name
-
-			server.AddTool(&toolCopy, a.forwardToolHandler(serverType, tool.Name))
-			next[name] = struct{}{}
+		a.mu.Lock()
+		a.serverCache[serverType] = serverCache{
+			tools:   tools,
+			targets: targets,
 		}
+		a.mu.Unlock()
+		refreshed = true
 	}
 
-	var remove []string
-	a.mu.Lock()
-	for name := range a.registered {
-		if _, ok := next[name]; !ok {
-			remove = append(remove, name)
-		}
+	if refreshed {
+		a.rebuildSnapshot()
 	}
-	a.registered = next
-	a.mu.Unlock()
-
-	if len(remove) > 0 {
-		server.RemoveTools(remove...)
-	}
-
 	return nil
 }
 
-func (a *ToolAggregator) forwardToolHandler(serverType, toolName string) mcp.ToolHandler {
-	return func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		params := &mcp.CallToolParams{
-			Name:      toolName,
-			Arguments: json.RawMessage(req.Params.Arguments),
-		}
-		payload, err := buildJSONRPCRequest("tools/call", params)
-		if err != nil {
-			return errorResult(err), nil
-		}
+func (a *ToolIndex) rebuildSnapshot() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
-		resp, err := a.router.Route(ctx, serverType, "", payload)
-		if err != nil {
-			return errorResult(err), nil
+	merged := make([]domain.ToolDefinition, 0)
+	targets := make(map[string]domain.ToolTarget)
+
+	serverTypes := sortedServerTypes(a.serverCache)
+	for _, serverType := range serverTypes {
+		cache := a.serverCache[serverType]
+		tools := append([]domain.ToolDefinition(nil), cache.tools...)
+		sort.Slice(tools, func(i, j int) bool { return tools[i].Name < tools[j].Name })
+
+		for _, tool := range tools {
+			if _, exists := targets[tool.Name]; exists {
+				a.logger.Warn("tool name conflict", zap.String("serverType", serverType), zap.String("tool", tool.Name))
+				continue
+			}
+			targets[tool.Name] = cache.targets[tool.Name]
+			merged = append(merged, tool)
 		}
-		return decodeToolResult(resp)
+	}
+
+	sort.Slice(merged, func(i, j int) bool { return merged[i].Name < merged[j].Name })
+
+	etag := hashTools(merged)
+	if etag == a.snapshot.ETag {
+		return
+	}
+
+	a.snapshot = domain.ToolSnapshot{
+		ETag:  etag,
+		Tools: merged,
+	}
+	a.targets = targets
+	a.broadcastLocked(a.snapshot)
+}
+
+func (a *ToolIndex) broadcastLocked(snapshot domain.ToolSnapshot) {
+	for ch := range a.subs {
+		sendSnapshot(ch, snapshot)
 	}
 }
 
-func (a *ToolAggregator) fetchTools(ctx context.Context, serverType string) ([]*mcp.Tool, error) {
+func (a *ToolIndex) fetchServerTools(ctx context.Context, serverType string, spec domain.ServerSpec) ([]domain.ToolDefinition, map[string]domain.ToolTarget, error) {
+	tools, err := a.fetchTools(ctx, serverType)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	allowed := allowedTools(spec)
+	result := make([]domain.ToolDefinition, 0, len(tools))
+	targets := make(map[string]domain.ToolTarget)
+
+	for _, tool := range tools {
+		if tool == nil {
+			continue
+		}
+		if !allowed(tool.Name) {
+			continue
+		}
+		if tool.Name == "" {
+			continue
+		}
+		if !isObjectSchema(tool.InputSchema) {
+			a.logger.Warn("skip tool with invalid input schema", zap.String("serverType", serverType), zap.String("tool", tool.Name))
+			continue
+		}
+		if tool.OutputSchema != nil && !isObjectSchema(tool.OutputSchema) {
+			a.logger.Warn("skip tool with invalid output schema", zap.String("serverType", serverType), zap.String("tool", tool.Name))
+			continue
+		}
+
+		name := a.namespaceTool(serverType, tool.Name)
+		toolCopy := *tool
+		toolCopy.Name = name
+
+		raw, err := json.Marshal(&toolCopy)
+		if err != nil {
+			a.logger.Warn("marshal tool failed", zap.String("serverType", serverType), zap.String("tool", tool.Name), zap.Error(err))
+			continue
+		}
+
+		result = append(result, domain.ToolDefinition{
+			Name:     name,
+			ToolJSON: raw,
+		})
+		targets[name] = domain.ToolTarget{
+			ServerType: serverType,
+			ToolName:   tool.Name,
+		}
+	}
+
+	sort.Slice(result, func(i, j int) bool { return result[i].Name < result[j].Name })
+	return result, targets, nil
+}
+
+func (a *ToolIndex) fetchTools(ctx context.Context, serverType string) ([]*mcp.Tool, error) {
 	var tools []*mcp.Tool
 	cursor := ""
 
@@ -220,11 +331,20 @@ func (a *ToolAggregator) fetchTools(ctx context.Context, serverType string) ([]*
 	return tools, nil
 }
 
-func (a *ToolAggregator) namespaceTool(serverType, toolName string) string {
+func (a *ToolIndex) namespaceTool(serverType, toolName string) string {
 	if a.cfg.ToolNamespaceStrategy == "flat" {
 		return toolName
 	}
 	return fmt.Sprintf("%s.%s", serverType, toolName)
+}
+
+func sortedServerTypes[T any](specs map[string]T) []string {
+	keys := make([]string, 0, len(specs))
+	for key := range specs {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func allowedTools(spec domain.ServerSpec) func(string) bool {
@@ -340,5 +460,47 @@ func errorResult(err error) *mcp.CallToolResult {
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: fmt.Sprintf("error: %s", err.Error())},
 		},
+	}
+}
+
+func marshalToolResult(result *mcp.CallToolResult) (json.RawMessage, error) {
+	raw, err := json.Marshal(result)
+	if err != nil {
+		return nil, err
+	}
+	return json.RawMessage(raw), nil
+}
+
+func hashTools(tools []domain.ToolDefinition) string {
+	hasher := sha256.New()
+	for _, tool := range tools {
+		_, _ = hasher.Write([]byte(tool.Name))
+		_, _ = hasher.Write([]byte{0})
+		_, _ = hasher.Write(tool.ToolJSON)
+		_, _ = hasher.Write([]byte{0})
+	}
+	return hex.EncodeToString(hasher.Sum(nil))
+}
+
+func copySnapshot(snapshot domain.ToolSnapshot) domain.ToolSnapshot {
+	out := domain.ToolSnapshot{
+		ETag:  snapshot.ETag,
+		Tools: make([]domain.ToolDefinition, 0, len(snapshot.Tools)),
+	}
+	for _, tool := range snapshot.Tools {
+		raw := make([]byte, len(tool.ToolJSON))
+		copy(raw, tool.ToolJSON)
+		out.Tools = append(out.Tools, domain.ToolDefinition{
+			Name:     tool.Name,
+			ToolJSON: raw,
+		})
+	}
+	return out
+}
+
+func sendSnapshot(ch chan domain.ToolSnapshot, snapshot domain.ToolSnapshot) {
+	select {
+	case ch <- copySnapshot(snapshot):
+	default:
 	}
 }

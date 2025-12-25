@@ -1,7 +1,8 @@
 GO ?= go
+PROTOC ?= protoc
 CONFIG ?= docs/catalog.example.yaml
 
-.PHONY: dev
+.PHONY: dev proto
 
 build:
 	$(GO) build ./...
@@ -11,6 +12,14 @@ test:
 
 fmt:
 	$(GO) fmt ./...
+
+proto:
+	$(PROTOC) -I proto \
+		--go_out=. \
+		--go-grpc_out=. \
+		--go_opt=module=mcpd \
+		--go-grpc_opt=module=mcpd \
+		proto/mcpd/control/v1/control.proto
 
 # Docker Compose development environment
 dev:

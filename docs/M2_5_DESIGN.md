@@ -1,5 +1,7 @@
 ## M2.5 设计：mcpd 作为标准 MCP Server 暴露
 
+> 该设计已被 core/gateway 拆分方案替代：mcpd 仅提供 gRPC 控制面，MCP Server 入口迁移至 mcpd-gateway。
+
 ### 目标
 - 将当前路由器（stdin JSON-RPC `route`）改为标准 MCP Server，实现 MCP initialize/ping/方法调用，由 go-sdk 管理会话与协议，客户端（MCP Client）可直接连接。
 - 继续复用现有 Scheduler/Router/Lifecycle/Transport，对外协议符合 MCP 2025-11-25。

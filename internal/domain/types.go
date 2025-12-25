@@ -22,11 +22,29 @@ type ServerSpec struct {
 }
 
 type RuntimeConfig struct {
-	RouteTimeoutSeconds   int    `json:"routeTimeoutSeconds"`
-	PingIntervalSeconds   int    `json:"pingIntervalSeconds"`
-	ToolRefreshSeconds    int    `json:"toolRefreshSeconds"`
-	ExposeTools           bool   `json:"exposeTools"`
-	ToolNamespaceStrategy string `json:"toolNamespaceStrategy"`
+	RouteTimeoutSeconds   int       `json:"routeTimeoutSeconds"`
+	PingIntervalSeconds   int       `json:"pingIntervalSeconds"`
+	ToolRefreshSeconds    int       `json:"toolRefreshSeconds"`
+	ExposeTools           bool      `json:"exposeTools"`
+	ToolNamespaceStrategy string    `json:"toolNamespaceStrategy"`
+	RPC                   RPCConfig `json:"rpc"`
+}
+
+type RPCConfig struct {
+	ListenAddress           string `json:"listenAddress"`
+	MaxRecvMsgSize          int    `json:"maxRecvMsgSize"`
+	MaxSendMsgSize          int    `json:"maxSendMsgSize"`
+	KeepaliveTimeSeconds    int    `json:"keepaliveTimeSeconds"`
+	KeepaliveTimeoutSeconds int    `json:"keepaliveTimeoutSeconds"`
+	TLS                     RPCTLSConfig
+}
+
+type RPCTLSConfig struct {
+	Enabled    bool   `json:"enabled"`
+	CertFile   string `json:"certFile"`
+	KeyFile    string `json:"keyFile"`
+	CAFile     string `json:"caFile"`
+	ClientAuth bool   `json:"clientAuth"`
 }
 
 type Catalog struct {
@@ -106,3 +124,4 @@ type HealthProbe interface {
 
 var ErrMethodNotAllowed = errors.New("method not allowed")
 var ErrInvalidRequest = errors.New("invalid request")
+var ErrToolNotFound = errors.New("tool not found")

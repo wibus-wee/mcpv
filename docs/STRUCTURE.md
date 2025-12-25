@@ -1,7 +1,8 @@
 ## 目录结构（当前骨架）
 
 ```
-cmd/mcpd            # CLI 入口（cobra）
+cmd/mcpd            # Core CLI 入口（cobra）
+cmd/mcpd-gateway    # MCP Gateway 入口（cobra）
 internal/app        # 应用编排层，供 CLI/Wails 复用
 internal/domain     # 领域模型与接口
 internal/infra      # 适配器实现（catalog/router/scheduler/transport/...）
@@ -13,9 +14,10 @@ INITIAL_DESIGN.md
 go.mod
 ```
 
-- `cmd/mcpd`：只做参数解析与日志初始化。
+- `cmd/mcpd`：只做参数解析与日志初始化，启动 core 控制面 RPC。
+- `cmd/mcpd-gateway`：只做参数解析与日志初始化，启动 MCP gateway 并连接 core。
 - `internal/app`：组合 catalog/scheduler/router/lifecycle/telemetry，用例编排。
 - `internal/domain`：ServerSpec、Instance、Transport、Scheduler 等接口与状态机常量。
-- `internal/infra`：具体实现按子目录分布（catalog loader、stdio transport、router、scheduler、lifecycle、probe、telemetry）。
+- `internal/infra`：具体实现按子目录分布（catalog loader、stdio transport、router、scheduler、lifecycle、probe、telemetry、rpc、gateway）。
 - `internal/ui`：未来 Wails 桥接，不侵入核心。
 - `pkg/api`：若需要对外复用类型或接口，从这里暴露。

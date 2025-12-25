@@ -27,6 +27,24 @@ type rawCatalog struct {
 	ToolRefreshSeconds    int                 `mapstructure:"toolRefreshSeconds"`
 	ExposeTools           bool                `mapstructure:"exposeTools"`
 	ToolNamespaceStrategy string              `mapstructure:"toolNamespaceStrategy"`
+	RPC                   rawRPCConfig        `mapstructure:"rpc"`
+}
+
+type rawRPCConfig struct {
+	ListenAddress           string          `mapstructure:"listenAddress"`
+	MaxRecvMsgSize          int             `mapstructure:"maxRecvMsgSize"`
+	MaxSendMsgSize          int             `mapstructure:"maxSendMsgSize"`
+	KeepaliveTimeSeconds    int             `mapstructure:"keepaliveTimeSeconds"`
+	KeepaliveTimeoutSeconds int             `mapstructure:"keepaliveTimeoutSeconds"`
+	TLS                     rawRPCTLSConfig `mapstructure:"tls"`
+}
+
+type rawRPCTLSConfig struct {
+	Enabled    bool   `mapstructure:"enabled"`
+	CertFile   string `mapstructure:"certFile"`
+	KeyFile    string `mapstructure:"keyFile"`
+	CAFile     string `mapstructure:"caFile"`
+	ClientAuth bool   `mapstructure:"clientAuth"`
 }
 
 func NewLoader(logger *zap.Logger) *Loader {
@@ -60,6 +78,11 @@ func (l *Loader) Load(ctx context.Context, path string) (domain.Catalog, error) 
 	v.SetDefault("toolRefreshSeconds", domain.DefaultToolRefreshSeconds)
 	v.SetDefault("exposeTools", domain.DefaultExposeTools)
 	v.SetDefault("toolNamespaceStrategy", domain.DefaultToolNamespaceStrategy)
+	v.SetDefault("rpc.listenAddress", domain.DefaultRPCListenAddress)
+	v.SetDefault("rpc.maxRecvMsgSize", domain.DefaultRPCMaxRecvMsgSize)
+	v.SetDefault("rpc.maxSendMsgSize", domain.DefaultRPCMaxSendMsgSize)
+	v.SetDefault("rpc.keepaliveTimeSeconds", domain.DefaultRPCKeepaliveTimeSeconds)
+	v.SetDefault("rpc.keepaliveTimeoutSeconds", domain.DefaultRPCKeepaliveTimeoutSeconds)
 
 	if err := v.ReadConfig(bytes.NewBufferString(expanded)); err != nil {
 		return domain.Catalog{}, fmt.Errorf("parse config: %w", err)
@@ -175,11 +198,62 @@ func normalizeRuntimeConfig(cfg rawCatalog) (domain.RuntimeConfig, []string) {
 		errs = append(errs, "toolNamespaceStrategy must be prefix or flat")
 	}
 
+	rpcCfg, rpcErrs := normalizeRPCConfig(cfg.RPC)
+	errs = append(errs, rpcErrs...)
+
 	return domain.RuntimeConfig{
 		RouteTimeoutSeconds:   routeTimeout,
 		PingIntervalSeconds:   pingInterval,
 		ToolRefreshSeconds:    toolRefresh,
 		ExposeTools:           cfg.ExposeTools,
 		ToolNamespaceStrategy: strategy,
+		RPC:                   rpcCfg,
+	}, errs
+}
+
+func normalizeRPCConfig(cfg rawRPCConfig) (domain.RPCConfig, []string) {
+	var errs []string
+
+	addr := strings.TrimSpace(cfg.ListenAddress)
+	if addr == "" {
+		errs = append(errs, "rpc.listenAddress is required")
+	}
+
+	if cfg.MaxRecvMsgSize <= 0 {
+		errs = append(errs, "rpc.maxRecvMsgSize must be > 0")
+	}
+	if cfg.MaxSendMsgSize <= 0 {
+		errs = append(errs, "rpc.maxSendMsgSize must be > 0")
+	}
+	if cfg.KeepaliveTimeSeconds < 0 {
+		errs = append(errs, "rpc.keepaliveTimeSeconds must be >= 0")
+	}
+	if cfg.KeepaliveTimeoutSeconds < 0 {
+		errs = append(errs, "rpc.keepaliveTimeoutSeconds must be >= 0")
+	}
+
+	tlsCfg := domain.RPCTLSConfig{
+		Enabled:    cfg.TLS.Enabled,
+		CertFile:   strings.TrimSpace(cfg.TLS.CertFile),
+		KeyFile:    strings.TrimSpace(cfg.TLS.KeyFile),
+		CAFile:     strings.TrimSpace(cfg.TLS.CAFile),
+		ClientAuth: cfg.TLS.ClientAuth,
+	}
+	if tlsCfg.Enabled {
+		if tlsCfg.CertFile == "" || tlsCfg.KeyFile == "" {
+			errs = append(errs, "rpc.tls.certFile and rpc.tls.keyFile are required when rpc.tls.enabled is true")
+		}
+		if tlsCfg.ClientAuth && tlsCfg.CAFile == "" {
+			errs = append(errs, "rpc.tls.caFile is required when rpc.tls.clientAuth is true")
+		}
+	}
+
+	return domain.RPCConfig{
+		ListenAddress:           addr,
+		MaxRecvMsgSize:          cfg.MaxRecvMsgSize,
+		MaxSendMsgSize:          cfg.MaxSendMsgSize,
+		KeepaliveTimeSeconds:    cfg.KeepaliveTimeSeconds,
+		KeepaliveTimeoutSeconds: cfg.KeepaliveTimeoutSeconds,
+		TLS:                     tlsCfg,
 	}, errs
 }

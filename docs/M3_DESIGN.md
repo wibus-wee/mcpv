@@ -1,5 +1,7 @@
 ## M3 技术设计（稳定性 + 能力管控 + 健康 + Tool 聚合）
 
+> 注：当前实现已拆分为 core/gateway，MCP Server 入口由 mcpd-gateway 提供，本文中涉及的 MCP Server 逻辑现已迁移到 gateway。
+
 ### 目标
 - 增强稳定性与协议正确性：能力白名单、生效的超时配置、健康探测。
 - 提升运行态弹性：完善 idle/minReady/persistent 回收策略和状态管理。

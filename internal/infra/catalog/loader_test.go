@@ -52,6 +52,11 @@ servers:
 	require.Equal(t, domain.DefaultToolRefreshSeconds, catalog.Runtime.ToolRefreshSeconds)
 	require.Equal(t, domain.DefaultExposeTools, catalog.Runtime.ExposeTools)
 	require.Equal(t, domain.DefaultToolNamespaceStrategy, catalog.Runtime.ToolNamespaceStrategy)
+	require.Equal(t, domain.DefaultRPCListenAddress, catalog.Runtime.RPC.ListenAddress)
+	require.Equal(t, domain.DefaultRPCMaxRecvMsgSize, catalog.Runtime.RPC.MaxRecvMsgSize)
+	require.Equal(t, domain.DefaultRPCMaxSendMsgSize, catalog.Runtime.RPC.MaxSendMsgSize)
+	require.Equal(t, domain.DefaultRPCKeepaliveTimeSeconds, catalog.Runtime.RPC.KeepaliveTimeSeconds)
+	require.Equal(t, domain.DefaultRPCKeepaliveTimeoutSeconds, catalog.Runtime.RPC.KeepaliveTimeoutSeconds)
 }
 
 func TestLoader_EnvExpansion(t *testing.T) {
@@ -182,6 +187,18 @@ routeTimeoutSeconds: 0
 pingIntervalSeconds: -1
 toolRefreshSeconds: -2
 toolNamespaceStrategy: "bad"
+rpc:
+  listenAddress: ""
+  maxRecvMsgSize: 0
+  maxSendMsgSize: 0
+  keepaliveTimeSeconds: -1
+  keepaliveTimeoutSeconds: -2
+  tls:
+    enabled: true
+    certFile: ""
+    keyFile: ""
+    caFile: ""
+    clientAuth: true
 servers:
   - name: ok
     cmd: ["./a"]
@@ -200,6 +217,13 @@ servers:
 	require.Contains(t, err.Error(), "pingIntervalSeconds")
 	require.Contains(t, err.Error(), "toolRefreshSeconds")
 	require.Contains(t, err.Error(), "toolNamespaceStrategy")
+	require.Contains(t, err.Error(), "rpc.listenAddress")
+	require.Contains(t, err.Error(), "rpc.maxRecvMsgSize")
+	require.Contains(t, err.Error(), "rpc.maxSendMsgSize")
+	require.Contains(t, err.Error(), "rpc.keepaliveTimeSeconds")
+	require.Contains(t, err.Error(), "rpc.keepaliveTimeoutSeconds")
+	require.Contains(t, err.Error(), "rpc.tls.certFile")
+	require.Contains(t, err.Error(), "rpc.tls.caFile")
 }
 
 func writeTempConfig(t *testing.T, content string) string {

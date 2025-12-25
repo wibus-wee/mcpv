@@ -13,8 +13,8 @@ import (
 	"mcpd/internal/infra/lifecycle"
 	"mcpd/internal/infra/probe"
 	"mcpd/internal/infra/router"
+	"mcpd/internal/infra/rpc"
 	"mcpd/internal/infra/scheduler"
-	"mcpd/internal/infra/server"
 	"mcpd/internal/infra/telemetry"
 	"mcpd/internal/infra/transport"
 )
@@ -41,9 +41,9 @@ func New(logger *zap.Logger) *App {
 }
 
 func (a *App) Serve(ctx context.Context, cfg ServeConfig) error {
-	logSink := telemetry.NewMCPLogSink("mcpd", zapcore.DebugLevel)
+	logs := telemetry.NewLogBroadcaster(zapcore.DebugLevel)
 	logger := a.logger.WithOptions(zap.WrapCore(func(core zapcore.Core) zapcore.Core {
-		return zapcore.NewTee(core, logSink.Core())
+		return zapcore.NewTee(core, logs.Core())
 	}))
 	loader := catalog.NewLoader(logger)
 
@@ -68,7 +68,9 @@ func (a *App) Serve(ctx context.Context, cfg ServeConfig) error {
 		Logger:  logger,
 		Metrics: metrics,
 	})
-	agg := aggregator.NewToolAggregator(rt, catalogData.Specs, catalogData.Runtime, logger)
+	toolIndex := aggregator.NewToolIndex(rt, catalogData.Specs, catalogData.Runtime, logger)
+	control := NewControlPlane(toolIndex, logs)
+	rpcServer := rpc.NewServer(control, catalogData.Runtime.RPC, logger)
 
 	// Optionally start metrics HTTP server
 	metricsEnabled := os.Getenv("MCPD_METRICS_ENABLED")
@@ -83,13 +85,15 @@ func (a *App) Serve(ctx context.Context, cfg ServeConfig) error {
 
 	sched.StartIdleManager(time.Second)
 	sched.StartPingManager(time.Duration(catalogData.Runtime.PingIntervalSeconds) * time.Second)
+	toolIndex.Start(ctx)
 	defer func() {
+		toolIndex.Stop()
 		sched.StopPingManager()
 		sched.StopIdleManager()
 		sched.StopAll(context.Background())
 	}()
 
-	return server.Run(ctx, rt, catalogData.Runtime, agg, logSink, logger)
+	return rpcServer.Run(ctx)
 }
 
 func (a *App) ValidateConfig(ctx context.Context, cfg ValidateConfig) error {

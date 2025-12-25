@@ -11,6 +11,18 @@ pingIntervalSeconds: 30
 toolRefreshSeconds: 60
 exposeTools: true
 toolNamespaceStrategy: "prefix"
+rpc:
+  listenAddress: "unix:///tmp/mcpd.sock"
+  maxRecvMsgSize: 16777216
+  maxSendMsgSize: 16777216
+  keepaliveTimeSeconds: 30
+  keepaliveTimeoutSeconds: 10
+  tls:
+    enabled: false
+    certFile: ""
+    keyFile: ""
+    caFile: ""
+    clientAuth: false
 servers:
   - name: weather
     cmd:
