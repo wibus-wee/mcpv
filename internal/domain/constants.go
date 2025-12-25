@@ -2,6 +2,7 @@ package domain
 
 const (
 	DefaultProtocolVersion            = "2025-11-25"
+	DefaultMaxConcurrent              = 1
 	DefaultRouteTimeoutSeconds        = 10
 	DefaultPingIntervalSeconds        = 30
 	DefaultToolRefreshSeconds         = 60

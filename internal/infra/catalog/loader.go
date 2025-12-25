@@ -112,6 +112,7 @@ func (l *Loader) Load(ctx context.Context, path string) (domain.Catalog, error) 
 	validationErrors = append(validationErrors, runtimeErrs...)
 
 	for i, spec := range cfg.Servers {
+		spec = normalizeServerSpec(spec)
 		if _, exists := nameSeen[spec.Name]; exists {
 			validationErrors = append(validationErrors, fmt.Sprintf("servers[%d]: duplicate name %q", i, spec.Name))
 		} else if spec.Name != "" {
@@ -134,6 +135,16 @@ func (l *Loader) Load(ctx context.Context, path string) (domain.Catalog, error) 
 		Specs:   specs,
 		Runtime: runtime,
 	}, nil
+}
+
+func normalizeServerSpec(spec domain.ServerSpec) domain.ServerSpec {
+	if spec.ProtocolVersion == "" {
+		spec.ProtocolVersion = domain.DefaultProtocolVersion
+	}
+	if spec.MaxConcurrent == 0 {
+		spec.MaxConcurrent = domain.DefaultMaxConcurrent
+	}
+	return spec
 }
 
 func validateServerSpec(spec domain.ServerSpec, index int) []string {

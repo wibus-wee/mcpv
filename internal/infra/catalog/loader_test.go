@@ -143,10 +143,8 @@ servers:
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "name is required")
 	require.Contains(t, err.Error(), "cmd is required")
-	require.Contains(t, err.Error(), "maxConcurrent must be")
 	require.Contains(t, err.Error(), "idleSeconds must be")
 	require.Contains(t, err.Error(), "minReady must be")
-	require.Contains(t, err.Error(), "protocolVersion is required")
 }
 
 func TestLoader_NoServers(t *testing.T) {
@@ -224,6 +222,22 @@ servers:
 	require.Contains(t, err.Error(), "rpc.keepaliveTimeoutSeconds")
 	require.Contains(t, err.Error(), "rpc.tls.certFile")
 	require.Contains(t, err.Error(), "rpc.tls.caFile")
+}
+
+func TestLoader_ServerSpecDefaults(t *testing.T) {
+	file := writeTempConfig(t, `
+servers:
+  - name: defaults
+    cmd: ["./svc"]
+`)
+
+	loader := NewLoader(zap.NewNop())
+	catalog, err := loader.Load(context.Background(), file)
+	require.NoError(t, err)
+
+	got := catalog.Specs["defaults"]
+	require.Equal(t, domain.DefaultProtocolVersion, got.ProtocolVersion)
+	require.Equal(t, domain.DefaultMaxConcurrent, got.MaxConcurrent)
 }
 
 func TestLoader_SchemaUnknownKey(t *testing.T) {

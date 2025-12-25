@@ -13,12 +13,6 @@
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=flat&logo=go)](https://go.dev)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-> This project is currently **on hold**. 
->
-> While I have many different ideas for its development, I noticed that **Mozilla AI** has also introduced their own version of `mcpd`.
->
-> Although our concepts differ, they share striking similarities. Perhaps this project will wait for a new beginning, blooming again in the future.
-
 ## 🚀 What is mcpd?
 
 **mcpd** is a lightweight elastic control plane for [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) servers, providing on-demand startup, auto-scaling, and scale-to-zero capabilities. A separate **mcpd-gateway** process exposes the MCP protocol and bridges requests to the core.
@@ -50,6 +44,61 @@ Think of it as **"Kubernetes for MCP servers on your laptop"**—bringing cloud-
 - **🔧 Tool Aggregation**: Dynamically collect and expose unified tool lists from all downstream MCP servers
 - **⚙️ Flexible Configuration**: Declarative YAML configuration with environment variable overrides and hot-reload support
 - **📊 Observability**: Structured JSON logging with reserved Prometheus metrics interface
+
+## ✅ Quick Start
+
+This is the minimum setup to get running with as little configuration as possible.
+
+1) Create `catalog.yaml` (only server name + cmd required).
+
+```yaml
+servers:
+  - name: weather
+    cmd: ["node", "./weather-demo-mcp/build/index.js"]
+```
+
+2) Start the core control plane.
+
+```bash
+go run ./cmd/mcpd serve --config catalog.yaml
+```
+
+3) Start the gateway (MCP Server entry).
+
+```bash
+go run ./cmd/mcpd-gateway --rpc unix:///tmp/mcpd.sock
+```
+
+4) In your MCP client (VS Code / Claude, etc.), connect the gateway as a stdio server.
+
+## 🧩 Minimal Config Notes
+
+- Runtime config (routeTimeout/ping/refresh/rpc) has defaults and can be omitted.
+- `servers[].maxConcurrent` defaults to 1; `servers[].protocolVersion` defaults to `2025-11-25`.
+- `servers[].idleSeconds` defaults to 0 (immediate reap). For stability, set it explicitly, e.g. 60.
+
+Recommended minimal config with two extra lines:
+
+```yaml
+servers:
+  - name: weather
+    cmd: ["node", "./weather-demo-mcp/build/index.js"]
+    idleSeconds: 60
+    maxConcurrent: 1
+```
+
+## 🔎 Optional Observability
+
+Enable metrics and healthz with env flags:
+
+```bash
+MCPD_METRICS_ENABLED=true MCPD_HEALTHZ_ENABLED=true \
+  go run ./cmd/mcpd serve --config catalog.yaml
+```
+
+Endpoints:
+- http://localhost:9090/metrics
+- http://localhost:9090/healthz
 
 ## 🏗️ Architecture Overview
 
