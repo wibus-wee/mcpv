@@ -33,15 +33,15 @@ type BasicScheduler struct {
 	lifecycle domain.Lifecycle
 	specs     map[string]domain.ServerSpec
 
-	mu        sync.Mutex
-	instances map[string][]*trackedInstance
-	sticky    map[string]map[string]*trackedInstance // serverType -> routingKey -> instance
+	serversMu sync.RWMutex
+	servers   map[string]*serverState
 
 	probe   domain.HealthProbe
 	logger  *zap.Logger
 	metrics domain.Metrics
 	health  *telemetry.HealthTracker
 
+	mu         sync.Mutex
 	idleTicker *time.Ticker
 	stopIdle   chan struct{}
 	pingTicker *time.Ticker
@@ -55,10 +55,22 @@ type trackedInstance struct {
 	instance *domain.Instance
 }
 
+type serverState struct {
+	mu        sync.Mutex
+	instances []*trackedInstance
+	sticky    map[string]*trackedInstance
+}
+
 type stopCandidate struct {
 	serverType string
+	state      *serverState
 	inst       *trackedInstance
 	reason     string
+}
+
+type serverEntry struct {
+	serverType string
+	state      *serverState
 }
 
 func NewBasicScheduler(lifecycle domain.Lifecycle, specs map[string]domain.ServerSpec, opts SchedulerOptions) *BasicScheduler {
@@ -69,8 +81,7 @@ func NewBasicScheduler(lifecycle domain.Lifecycle, specs map[string]domain.Serve
 	return &BasicScheduler{
 		lifecycle: lifecycle,
 		specs:     specs,
-		instances: make(map[string][]*trackedInstance),
-		sticky:    make(map[string]map[string]*trackedInstance),
+		servers:   make(map[string]*serverState),
 		probe:     opts.Probe,
 		logger:    logger.Named("scheduler"),
 		metrics:   opts.Metrics,
@@ -81,35 +92,35 @@ func NewBasicScheduler(lifecycle domain.Lifecycle, specs map[string]domain.Serve
 }
 
 func (s *BasicScheduler) Acquire(ctx context.Context, serverType, routingKey string) (*domain.Instance, error) {
-	s.mu.Lock()
 	spec, ok := s.specs[serverType]
 	if !ok {
-		s.mu.Unlock()
 		return nil, ErrUnknownServerType
 	}
 
+	state := s.getServerState(serverType)
+	state.mu.Lock()
 	if spec.Sticky && routingKey != "" {
-		if inst := s.lookupStickyLocked(serverType, routingKey); inst != nil {
+		if inst := state.lookupStickyLocked(routingKey); inst != nil {
 			if !isRoutable(inst.instance.State) {
-				s.unbindStickyLocked(serverType, routingKey)
+				state.unbindStickyLocked(routingKey)
 			} else {
 				if inst.instance.BusyCount >= spec.MaxConcurrent {
-					s.mu.Unlock()
+					state.mu.Unlock()
 					return nil, ErrStickyBusy
 				}
-				instance := s.markBusyLocked(inst)
-				s.mu.Unlock()
+				instance := state.markBusyLocked(inst)
+				state.mu.Unlock()
 				return instance, nil
 			}
 		}
 	}
 
-	if inst := s.findReadyInstanceLocked(serverType, spec); inst != nil {
-		instance := s.markBusyLocked(inst)
-		s.mu.Unlock()
+	if inst := state.findReadyInstanceLocked(spec); inst != nil {
+		instance := state.markBusyLocked(inst)
+		state.mu.Unlock()
 		return instance, nil
 	}
-	s.mu.Unlock()
+	state.mu.Unlock()
 
 	started := time.Now()
 	newInst, err := s.lifecycle.StartInstance(ctx, spec)
@@ -119,14 +130,14 @@ func (s *BasicScheduler) Acquire(ctx context.Context, serverType, routingKey str
 	}
 	tracked := &trackedInstance{instance: newInst}
 
-	s.mu.Lock()
-	s.instances[serverType] = append(s.instances[serverType], tracked)
+	state.mu.Lock()
+	state.instances = append(state.instances, tracked)
 	if spec.Sticky && routingKey != "" {
-		s.bindStickyLocked(serverType, routingKey, tracked)
+		state.bindStickyLocked(routingKey, tracked)
 	}
-	instance := s.markBusyLocked(tracked)
-	activeCount := len(s.instances[serverType])
-	s.mu.Unlock()
+	instance := state.markBusyLocked(tracked)
+	activeCount := len(state.instances)
+	state.mu.Unlock()
 	s.observeActiveInstances(serverType, activeCount)
 
 	return instance, nil
@@ -137,8 +148,9 @@ func (s *BasicScheduler) Release(ctx context.Context, instance *domain.Instance)
 		return errors.New("instance is nil")
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	state := s.getServerState(instance.Spec.Name)
+	state.mu.Lock()
+	defer state.mu.Unlock()
 
 	if instance.BusyCount > 0 {
 		instance.BusyCount--
@@ -150,32 +162,62 @@ func (s *BasicScheduler) Release(ctx context.Context, instance *domain.Instance)
 	return nil
 }
 
-func (s *BasicScheduler) lookupStickyLocked(serverType, routingKey string) *trackedInstance {
-	if m := s.sticky[serverType]; m != nil {
-		return m[routingKey]
+func (s *BasicScheduler) getServerState(serverType string) *serverState {
+	s.serversMu.RLock()
+	state := s.servers[serverType]
+	s.serversMu.RUnlock()
+
+	if state != nil {
+		return state
 	}
-	return nil
+
+	s.serversMu.Lock()
+	defer s.serversMu.Unlock()
+	state = s.servers[serverType]
+	if state == nil {
+		state = &serverState{}
+		s.servers[serverType] = state
+	}
+	return state
 }
 
-func (s *BasicScheduler) bindStickyLocked(serverType, routingKey string, inst *trackedInstance) {
-	if s.sticky[serverType] == nil {
-		s.sticky[serverType] = make(map[string]*trackedInstance)
+func (s *BasicScheduler) snapshotServers() []serverEntry {
+	s.serversMu.RLock()
+	defer s.serversMu.RUnlock()
+
+	entries := make([]serverEntry, 0, len(s.servers))
+	for serverType, state := range s.servers {
+		entries = append(entries, serverEntry{serverType: serverType, state: state})
 	}
-	s.sticky[serverType][routingKey] = inst
+	return entries
 }
 
-func (s *BasicScheduler) unbindStickyLocked(serverType, routingKey string) {
-	if s.sticky[serverType] == nil {
+func (s *serverState) lookupStickyLocked(routingKey string) *trackedInstance {
+	if s.sticky == nil {
+		return nil
+	}
+	return s.sticky[routingKey]
+}
+
+func (s *serverState) bindStickyLocked(routingKey string, inst *trackedInstance) {
+	if s.sticky == nil {
+		s.sticky = make(map[string]*trackedInstance)
+	}
+	s.sticky[routingKey] = inst
+}
+
+func (s *serverState) unbindStickyLocked(routingKey string) {
+	if s.sticky == nil {
 		return
 	}
-	delete(s.sticky[serverType], routingKey)
-	if len(s.sticky[serverType]) == 0 {
-		delete(s.sticky, serverType)
+	delete(s.sticky, routingKey)
+	if len(s.sticky) == 0 {
+		s.sticky = nil
 	}
 }
 
-func (s *BasicScheduler) findReadyInstanceLocked(serverType string, spec domain.ServerSpec) *trackedInstance {
-	for _, inst := range s.instances[serverType] {
+func (s *serverState) findReadyInstanceLocked(spec domain.ServerSpec) *trackedInstance {
+	for _, inst := range s.instances {
 		if inst.instance.BusyCount >= spec.MaxConcurrent {
 			continue
 		}
@@ -187,7 +229,7 @@ func (s *BasicScheduler) findReadyInstanceLocked(serverType string, spec domain.
 	return nil
 }
 
-func (s *BasicScheduler) markBusyLocked(inst *trackedInstance) *domain.Instance {
+func (s *serverState) markBusyLocked(inst *trackedInstance) *domain.Instance {
 	inst.instance.BusyCount++
 	inst.instance.State = domain.InstanceStateBusy
 	inst.instance.LastActive = time.Now()
@@ -299,12 +341,13 @@ func (s *BasicScheduler) reapIdle() {
 	now := time.Now()
 	var candidates []stopCandidate
 
-	s.mu.Lock()
-	for serverType, list := range s.instances {
-		spec := s.specs[serverType]
-		readyCount := s.countReadyLocked(serverType)
+	for _, entry := range s.snapshotServers() {
+		spec := s.specs[entry.serverType]
 
-		for _, inst := range list {
+		entry.state.mu.Lock()
+		readyCount := entry.state.countReadyLocked()
+
+		for _, inst := range entry.state.instances {
 			if inst.instance.State != domain.InstanceStateReady {
 				continue
 			}
@@ -319,24 +362,29 @@ func (s *BasicScheduler) reapIdle() {
 				inst.instance.State = domain.InstanceStateDraining
 				s.logger.Info("idle reap",
 					telemetry.EventField(telemetry.EventIdleReap),
-					telemetry.ServerTypeField(serverType),
+					telemetry.ServerTypeField(entry.serverType),
 					telemetry.InstanceIDField(inst.instance.ID),
 					telemetry.StateField(string(inst.instance.State)),
 					telemetry.DurationField(idleFor),
 				)
-				candidates = append(candidates, stopCandidate{serverType: serverType, inst: inst, reason: "idle timeout"})
+				candidates = append(candidates, stopCandidate{
+					serverType: entry.serverType,
+					state:      entry.state,
+					inst:       inst,
+					reason:     "idle timeout",
+				})
 				readyCount--
 			}
 		}
+		entry.state.mu.Unlock()
 	}
-	s.mu.Unlock()
 
 	for _, candidate := range candidates {
 		err := s.lifecycle.StopInstance(context.Background(), candidate.inst.instance, candidate.reason)
 		s.observeInstanceStop(candidate.serverType, err)
-		s.mu.Lock()
-		activeCount := s.removeInstanceLocked(candidate.serverType, candidate.inst)
-		s.mu.Unlock()
+		candidate.state.mu.Lock()
+		activeCount := candidate.state.removeInstanceLocked(candidate.inst)
+		candidate.state.mu.Unlock()
 		s.observeActiveInstances(candidate.serverType, activeCount)
 	}
 }
@@ -349,16 +397,21 @@ func (s *BasicScheduler) probeInstances() {
 	var candidates []stopCandidate
 	var checks []stopCandidate
 
-	s.mu.Lock()
-	for serverType, list := range s.instances {
-		for _, inst := range list {
+	for _, entry := range s.snapshotServers() {
+		entry.state.mu.Lock()
+		for _, inst := range entry.state.instances {
 			if !isRoutable(inst.instance.State) {
 				continue
 			}
-			checks = append(checks, stopCandidate{serverType: serverType, inst: inst, reason: "ping failure"})
+			checks = append(checks, stopCandidate{
+				serverType: entry.serverType,
+				state:      entry.state,
+				inst:       inst,
+				reason:     "ping failure",
+			})
 		}
+		entry.state.mu.Unlock()
 	}
-	s.mu.Unlock()
 
 	for _, candidate := range checks {
 		if err := s.probe.Ping(context.Background(), candidate.inst.instance.Conn); err != nil {
@@ -374,15 +427,15 @@ func (s *BasicScheduler) probeInstances() {
 	}
 
 	for _, candidate := range candidates {
-		s.mu.Lock()
+		candidate.state.mu.Lock()
 		candidate.inst.instance.State = domain.InstanceStateFailed
-		s.mu.Unlock()
+		candidate.state.mu.Unlock()
 
 		err := s.lifecycle.StopInstance(context.Background(), candidate.inst.instance, candidate.reason)
 		s.observeInstanceStop(candidate.serverType, err)
-		s.mu.Lock()
-		activeCount := s.removeInstanceLocked(candidate.serverType, candidate.inst)
-		s.mu.Unlock()
+		candidate.state.mu.Lock()
+		activeCount := candidate.state.removeInstanceLocked(candidate.inst)
+		candidate.state.mu.Unlock()
 		s.observeActiveInstances(candidate.serverType, activeCount)
 	}
 }
@@ -391,30 +444,35 @@ func (s *BasicScheduler) probeInstances() {
 func (s *BasicScheduler) StopAll(ctx context.Context) {
 	var candidates []stopCandidate
 
-	s.mu.Lock()
-	for serverType, list := range s.instances {
-		for _, inst := range list {
-			candidates = append(candidates, stopCandidate{serverType: serverType, inst: inst, reason: "shutdown"})
+	entries := s.snapshotServers()
+	for _, entry := range entries {
+		entry.state.mu.Lock()
+		for _, inst := range entry.state.instances {
+			candidates = append(candidates, stopCandidate{
+				serverType: entry.serverType,
+				state:      entry.state,
+				inst:       inst,
+				reason:     "shutdown",
+			})
 		}
+		entry.state.mu.Unlock()
 	}
-	s.mu.Unlock()
 
 	for _, candidate := range candidates {
 		err := s.lifecycle.StopInstance(ctx, candidate.inst.instance, candidate.reason)
 		s.observeInstanceStop(candidate.serverType, err)
 	}
 
-	s.mu.Lock()
-	for serverType := range s.instances {
-		s.observeActiveInstances(serverType, 0)
+	for _, entry := range entries {
+		s.observeActiveInstances(entry.serverType, 0)
 	}
-	s.instances = make(map[string][]*trackedInstance)
-	s.sticky = make(map[string]map[string]*trackedInstance)
-	s.mu.Unlock()
+	s.serversMu.Lock()
+	s.servers = make(map[string]*serverState)
+	s.serversMu.Unlock()
 }
 
-func (s *BasicScheduler) removeInstanceLocked(serverType string, inst *trackedInstance) int {
-	list := s.instances[serverType]
+func (s *serverState) removeInstanceLocked(inst *trackedInstance) int {
+	list := s.instances
 	if len(list) == 0 {
 		return 0
 	}
@@ -426,30 +484,30 @@ func (s *BasicScheduler) removeInstanceLocked(serverType string, inst *trackedIn
 		}
 	}
 	if len(out) == 0 {
-		delete(s.instances, serverType)
+		s.instances = nil
 	} else {
-		s.instances[serverType] = out
+		s.instances = out
 	}
 
-	if m := s.sticky[serverType]; m != nil {
-		for key, bound := range m {
+	if s.sticky != nil {
+		for key, bound := range s.sticky {
 			if bound == inst {
-				delete(m, key)
+				delete(s.sticky, key)
 			}
 		}
-		if len(m) == 0 {
-			delete(s.sticky, serverType)
+		if len(s.sticky) == 0 {
+			s.sticky = nil
 		}
 	}
-	if s.instances[serverType] == nil {
+	if s.instances == nil {
 		return 0
 	}
-	return len(s.instances[serverType])
+	return len(s.instances)
 }
 
-func (s *BasicScheduler) countReadyLocked(serverType string) int {
+func (s *serverState) countReadyLocked() int {
 	count := 0
-	for _, inst := range s.instances[serverType] {
+	for _, inst := range s.instances {
 		if inst.instance.State == domain.InstanceStateReady {
 			count++
 		}

@@ -138,7 +138,8 @@ func TestBasicScheduler_PingFailureStopsInstance(t *testing.T) {
 	s.probeInstances()
 
 	require.Equal(t, domain.InstanceStateStopped, inst.State)
-	require.Len(t, s.instances["svc"], 0)
+	state := s.getServerState("svc")
+	require.Len(t, state.instances, 0)
 }
 
 type fakeLifecycle struct {

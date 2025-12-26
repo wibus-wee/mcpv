@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -97,6 +99,61 @@ func TestToolIndex_CallToolNotFound(t *testing.T) {
 	require.ErrorIs(t, err, domain.ErrToolNotFound)
 }
 
+func TestToolIndex_RefreshConcurrentFetches(t *testing.T) {
+	ctx := context.Background()
+	slowBlock := make(chan struct{})
+	router := &blockingRouter{
+		responses: map[string]toolListResponse{
+			"fast": {tools: []*mcp.Tool{
+				{Name: "fast", InputSchema: map[string]any{"type": "object"}},
+			}},
+			"slow": {
+				tools: []*mcp.Tool{{Name: "slow", InputSchema: map[string]any{"type": "object"}}},
+				block: slowBlock,
+			},
+		},
+	}
+	specs := map[string]domain.ServerSpec{
+		"fast": {Name: "fast"},
+		"slow": {Name: "slow"},
+	}
+	cfg := domain.RuntimeConfig{ExposeTools: true, ToolNamespaceStrategy: "prefix"}
+
+	index := NewToolIndex(router, specs, cfg, zap.NewNop(), nil)
+
+	done := make(chan struct{})
+	go func() {
+		_ = index.refresh(ctx)
+		close(done)
+	}()
+
+	require.Eventually(t, func() bool {
+		snapshot := index.Snapshot()
+		return len(snapshot.Tools) == 1 && snapshot.Tools[0].Name == "fast.fast"
+	}, time.Second, 10*time.Millisecond, "fast server should refresh before slow server completes")
+
+	close(slowBlock)
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatalf("refresh did not complete after releasing slow server")
+	}
+
+	snapshot := index.Snapshot()
+	require.Len(t, snapshot.Tools, 2)
+	require.Equal(t, "fast.fast", snapshot.Tools[0].Name)
+	require.Equal(t, "slow.slow", snapshot.Tools[1].Name)
+}
+
+func TestIsObjectSchema(t *testing.T) {
+	require.True(t, isObjectSchema(map[string]any{"type": "object"}))
+	require.True(t, isObjectSchema(json.RawMessage(`{"type":["null","object"]}`)))
+	require.False(t, isObjectSchema(json.RawMessage(`{"type":"string"}`)))
+	require.False(t, isObjectSchema(nil))
+	require.False(t, isObjectSchema("not json"))
+}
+
 type fakeRouter struct {
 	tools          []*mcp.Tool
 	callResult     *mcp.CallToolResult
@@ -127,6 +184,41 @@ func (f *fakeRouter) Route(ctx context.Context, serverType, routingKey string, p
 	default:
 		return nil, nil
 	}
+}
+
+type toolListResponse struct {
+	tools []*mcp.Tool
+	block <-chan struct{}
+}
+
+type blockingRouter struct {
+	responses map[string]toolListResponse
+}
+
+func (b *blockingRouter) Route(ctx context.Context, serverType, routingKey string, payload json.RawMessage) (json.RawMessage, error) {
+	msg, err := jsonrpc.DecodeMessage(payload)
+	if err != nil {
+		return nil, err
+	}
+	req, ok := msg.(*jsonrpc.Request)
+	if !ok {
+		return nil, errors.New("invalid jsonrpc request")
+	}
+	if req.Method != "tools/list" {
+		return nil, errors.New("unsupported method")
+	}
+	resp, ok := b.responses[serverType]
+	if !ok {
+		return nil, fmt.Errorf("unknown server type: %s", serverType)
+	}
+	if resp.block != nil {
+		select {
+		case <-resp.block:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	return encodeResponse(req.ID, &mcp.ListToolsResult{Tools: resp.tools})
 }
 
 func encodeResponse(id jsonrpc.ID, result any) (json.RawMessage, error) {

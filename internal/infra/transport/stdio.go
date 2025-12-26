@@ -20,6 +20,8 @@ func NewStdioTransport() *StdioTransport {
 	return &StdioTransport{}
 }
 
+type processCleanup func()
+
 func (t *StdioTransport) Start(ctx context.Context, spec domain.ServerSpec) (domain.Conn, domain.StopFn, error) {
 	if len(spec.Cmd) == 0 {
 		return nil, nil, errors.New("cmd is required for stdio transport")
@@ -30,6 +32,7 @@ func (t *StdioTransport) Start(ctx context.Context, spec domain.ServerSpec) (dom
 		cmd.Dir = spec.Cwd
 	}
 	cmd.Env = append(os.Environ(), formatEnv(spec.Env)...)
+	groupCleanup := setupProcessHandling(cmd)
 
 	transport := &mcp.CommandTransport{
 		Command: cmd,
@@ -43,6 +46,9 @@ func (t *StdioTransport) Start(ctx context.Context, spec domain.ServerSpec) (dom
 	conn := &mcpConnAdapter{conn: mcpConn}
 	stop := func(stopCtx context.Context) error {
 		_ = mcpConn.Close()
+		if groupCleanup != nil {
+			groupCleanup()
+		}
 		return nil
 	}
 

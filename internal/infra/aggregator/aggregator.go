@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
@@ -27,16 +28,14 @@ type ToolIndex struct {
 	logger *zap.Logger
 	health *telemetry.HealthTracker
 
-	mu          sync.RWMutex
+	mu          sync.Mutex
 	started     bool
 	ticker      *time.Ticker
 	stop        chan struct{}
-	snapshot    domain.ToolSnapshot
-	targets     map[string]domain.ToolTarget
 	serverCache map[string]serverCache
 	subs        map[chan domain.ToolSnapshot]struct{}
-
 	refreshBeat *telemetry.Heartbeat
+	state       atomic.Value
 }
 
 type serverCache struct {
@@ -44,21 +43,30 @@ type serverCache struct {
 	targets map[string]domain.ToolTarget
 }
 
+type toolIndexState struct {
+	snapshot domain.ToolSnapshot
+	targets  map[string]domain.ToolTarget
+}
+
 func NewToolIndex(rt domain.Router, specs map[string]domain.ServerSpec, cfg domain.RuntimeConfig, logger *zap.Logger, health *telemetry.HealthTracker) *ToolIndex {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
-	return &ToolIndex{
+	index := &ToolIndex{
 		router:      rt,
 		specs:       specs,
 		cfg:         cfg,
 		logger:      logger.Named("tool_index"),
 		health:      health,
 		stop:        make(chan struct{}),
-		targets:     make(map[string]domain.ToolTarget),
 		serverCache: make(map[string]serverCache),
 		subs:        make(map[chan domain.ToolSnapshot]struct{}),
 	}
+	index.state.Store(toolIndexState{
+		snapshot: domain.ToolSnapshot{},
+		targets:  make(map[string]domain.ToolTarget),
+	})
+	return index
 }
 
 func (a *ToolIndex) Start(ctx context.Context) {
@@ -134,9 +142,8 @@ func (a *ToolIndex) Stop() {
 }
 
 func (a *ToolIndex) Snapshot() domain.ToolSnapshot {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return copySnapshot(a.snapshot)
+	state := a.state.Load().(toolIndexState)
+	return copySnapshot(state.snapshot)
 }
 
 func (a *ToolIndex) Subscribe(ctx context.Context) <-chan domain.ToolSnapshot {
@@ -144,16 +151,15 @@ func (a *ToolIndex) Subscribe(ctx context.Context) <-chan domain.ToolSnapshot {
 
 	a.mu.Lock()
 	a.subs[ch] = struct{}{}
-	snapshot := copySnapshot(a.snapshot)
 	a.mu.Unlock()
 
-	sendSnapshot(ch, snapshot)
+	state := a.state.Load().(toolIndexState)
+	sendSnapshot(ch, state.snapshot)
 
 	go func() {
 		<-ctx.Done()
 		a.mu.Lock()
 		delete(a.subs, ch)
-		close(ch)
 		a.mu.Unlock()
 	}()
 
@@ -161,9 +167,8 @@ func (a *ToolIndex) Subscribe(ctx context.Context) <-chan domain.ToolSnapshot {
 }
 
 func (a *ToolIndex) Resolve(name string) (domain.ToolTarget, bool) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	target, ok := a.targets[name]
+	state := a.state.Load().(toolIndexState)
+	target, ok := state.targets[name]
 	return target, ok
 }
 
@@ -196,42 +201,70 @@ func (a *ToolIndex) CallTool(ctx context.Context, name string, args json.RawMess
 
 func (a *ToolIndex) refresh(ctx context.Context) error {
 	serverTypes := sortedServerTypes(a.specs)
-	var refreshed bool
+	if len(serverTypes) == 0 {
+		return nil
+	}
 
+	type refreshResult struct {
+		serverType string
+		tools      []domain.ToolDefinition
+		targets    map[string]domain.ToolTarget
+		err        error
+	}
+
+	results := make(chan refreshResult, len(serverTypes))
+	timeout := a.refreshTimeout()
+
+	var wg sync.WaitGroup
 	for _, serverType := range serverTypes {
 		spec := a.specs[serverType]
-		tools, targets, err := a.fetchServerTools(ctx, serverType, spec)
-		if err != nil {
-			a.logger.Warn("tool list fetch failed", zap.String("serverType", serverType), zap.Error(err))
+		wg.Add(1)
+		go func(serverType string, spec domain.ServerSpec) {
+			defer wg.Done()
+			fetchCtx, cancel := context.WithTimeout(ctx, timeout)
+			defer cancel()
+
+			tools, targets, err := a.fetchServerTools(fetchCtx, serverType, spec)
+			results <- refreshResult{
+				serverType: serverType,
+				tools:      tools,
+				targets:    targets,
+				err:        err,
+			}
+		}(serverType, spec)
+	}
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	for res := range results {
+		if res.err != nil {
+			a.logger.Warn("tool list fetch failed", zap.String("serverType", res.serverType), zap.Error(res.err))
 			continue
 		}
 
 		a.mu.Lock()
-		a.serverCache[serverType] = serverCache{
-			tools:   tools,
-			targets: targets,
+		a.serverCache[res.serverType] = serverCache{
+			tools:   res.tools,
+			targets: res.targets,
 		}
 		a.mu.Unlock()
-		refreshed = true
-	}
-
-	if refreshed {
 		a.rebuildSnapshot()
 	}
 	return nil
 }
 
 func (a *ToolIndex) rebuildSnapshot() {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
+	cache := a.copyServerCache()
 	merged := make([]domain.ToolDefinition, 0)
 	targets := make(map[string]domain.ToolTarget)
 
-	serverTypes := sortedServerTypes(a.serverCache)
+	serverTypes := sortedServerTypes(cache)
 	for _, serverType := range serverTypes {
-		cache := a.serverCache[serverType]
-		tools := append([]domain.ToolDefinition(nil), cache.tools...)
+		server := cache[serverType]
+		tools := append([]domain.ToolDefinition(nil), server.tools...)
 		sort.Slice(tools, func(i, j int) bool { return tools[i].Name < tools[j].Name })
 
 		for _, tool := range tools {
@@ -239,7 +272,7 @@ func (a *ToolIndex) rebuildSnapshot() {
 				a.logger.Warn("tool name conflict", zap.String("serverType", serverType), zap.String("tool", tool.Name))
 				continue
 			}
-			targets[tool.Name] = cache.targets[tool.Name]
+			targets[tool.Name] = server.targets[tool.Name]
 			merged = append(merged, tool)
 		}
 	}
@@ -247,22 +280,49 @@ func (a *ToolIndex) rebuildSnapshot() {
 	sort.Slice(merged, func(i, j int) bool { return merged[i].Name < merged[j].Name })
 
 	etag := hashTools(merged)
-	if etag == a.snapshot.ETag {
+	state := a.state.Load().(toolIndexState)
+	if etag == state.snapshot.ETag {
 		return
 	}
 
-	a.snapshot = domain.ToolSnapshot{
+	snapshot := domain.ToolSnapshot{
 		ETag:  etag,
 		Tools: merged,
 	}
-	a.targets = targets
-	a.broadcastLocked(a.snapshot)
+	a.state.Store(toolIndexState{
+		snapshot: snapshot,
+		targets:  targets,
+	})
+	a.broadcast(snapshot)
 }
 
-func (a *ToolIndex) broadcastLocked(snapshot domain.ToolSnapshot) {
-	for ch := range a.subs {
+func (a *ToolIndex) broadcast(snapshot domain.ToolSnapshot) {
+	subs := a.copySubscribers()
+	for _, ch := range subs {
 		sendSnapshot(ch, snapshot)
 	}
+}
+
+func (a *ToolIndex) copyServerCache() map[string]serverCache {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	out := make(map[string]serverCache, len(a.serverCache))
+	for key, cache := range a.serverCache {
+		out[key] = cache
+	}
+	return out
+}
+
+func (a *ToolIndex) copySubscribers() []chan domain.ToolSnapshot {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	out := make([]chan domain.ToolSnapshot, 0, len(a.subs))
+	for ch := range a.subs {
+		out = append(out, ch)
+	}
+	return out
 }
 
 func (a *ToolIndex) fetchServerTools(ctx context.Context, serverType string, spec domain.ServerSpec) ([]domain.ToolDefinition, map[string]domain.ToolTarget, error) {
@@ -355,6 +415,14 @@ func (a *ToolIndex) namespaceTool(serverType, toolName string) string {
 	return fmt.Sprintf("%s.%s", serverType, toolName)
 }
 
+func (a *ToolIndex) refreshTimeout() time.Duration {
+	timeout := time.Duration(a.cfg.RouteTimeoutSeconds) * time.Second
+	if timeout <= 0 {
+		timeout = time.Duration(domain.DefaultRouteTimeoutSeconds) * time.Second
+	}
+	return timeout
+}
+
 func sortedServerTypes[T any](specs map[string]T) []string {
 	keys := make([]string, 0, len(specs))
 	for key := range specs {
@@ -384,17 +452,54 @@ func isObjectSchema(schema any) bool {
 		return false
 	}
 
-	raw, err := json.Marshal(schema)
-	if err != nil {
+	switch value := schema.(type) {
+	case map[string]any:
+		return hasObjectType(value["type"])
+	case json.RawMessage:
+		return hasObjectTypeJSON(value)
+	case []byte:
+		return hasObjectTypeJSON(value)
+	case string:
+		return hasObjectTypeJSON([]byte(value))
+	default:
+		raw, err := json.Marshal(value)
+		if err != nil {
+			return false
+		}
+		return hasObjectTypeJSON(raw)
+	}
+}
+
+type schemaTypeField struct {
+	Type any `json:"type"`
+}
+
+func hasObjectTypeJSON(raw []byte) bool {
+	if len(raw) == 0 {
 		return false
 	}
-	var obj map[string]any
-	if err := json.Unmarshal(raw, &obj); err != nil {
+	var schema schemaTypeField
+	if err := json.Unmarshal(raw, &schema); err != nil {
 		return false
 	}
-	if typ, ok := obj["type"]; ok {
-		if val, ok := typ.(string); ok {
-			return strings.EqualFold(val, "object")
+	return hasObjectType(schema.Type)
+}
+
+func hasObjectType(value any) bool {
+	switch typed := value.(type) {
+	case string:
+		return strings.EqualFold(typed, "object")
+	case []any:
+		for _, item := range typed {
+			if str, ok := item.(string); ok && strings.EqualFold(str, "object") {
+				return true
+			}
+		}
+	case []string:
+		for _, item := range typed {
+			if strings.EqualFold(item, "object") {
+				return true
+			}
 		}
 	}
 	return false
