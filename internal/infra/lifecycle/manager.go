@@ -133,7 +133,9 @@ func (m *Manager) initialize(ctx context.Context, conn domain.Conn) (domain.Serv
 			Name:    "mcpd",
 			Version: "0.1.0",
 		},
-		Capabilities: &mcp.ClientCapabilities{},
+		Capabilities: &mcp.ClientCapabilities{
+			Sampling: &mcp.SamplingCapabilities{},
+		},
 	}
 
 	id, err := jsonrpc.MakeID("mcpd-init")
@@ -257,11 +259,30 @@ func mapCapabilities(caps *mcp.ServerCapabilities) domain.ServerCapabilities {
 	if caps == nil {
 		return out
 	}
-	out.Tools = caps.Tools != nil
-	out.Resources = caps.Resources != nil
-	out.Prompts = caps.Prompts != nil
-	out.Logging = caps.Logging != nil
-	out.Completions = caps.Completions != nil
-	out.Experimental = len(caps.Experimental) > 0
+	if caps.Tools != nil {
+		out.Tools = &domain.ToolsCapability{
+			ListChanged: caps.Tools.ListChanged,
+		}
+	}
+	if caps.Resources != nil {
+		out.Resources = &domain.ResourcesCapability{
+			Subscribe:   caps.Resources.Subscribe,
+			ListChanged: caps.Resources.ListChanged,
+		}
+	}
+	if caps.Prompts != nil {
+		out.Prompts = &domain.PromptsCapability{
+			ListChanged: caps.Prompts.ListChanged,
+		}
+	}
+	if caps.Logging != nil {
+		out.Logging = &domain.LoggingCapability{}
+	}
+	if caps.Completions != nil {
+		out.Completions = &domain.CompletionsCapability{}
+	}
+	if len(caps.Experimental) > 0 {
+		out.Experimental = caps.Experimental
+	}
 	return out
 }

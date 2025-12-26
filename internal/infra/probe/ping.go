@@ -5,12 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 
 	"mcpd/internal/domain"
 )
+
+var pingIDSeq atomic.Uint64
 
 type PingProbe struct {
 	Timeout time.Duration
@@ -29,7 +32,8 @@ func (p *PingProbe) Ping(ctx context.Context, conn domain.Conn) error {
 	pingCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	id, err := jsonrpc.MakeID(fmt.Sprintf("ping-%d", time.Now().UnixNano()))
+	seq := pingIDSeq.Add(1)
+	id, err := jsonrpc.MakeID(fmt.Sprintf("ping-%d", seq))
 	if err != nil {
 		return fmt.Errorf("build ping id: %w", err)
 	}

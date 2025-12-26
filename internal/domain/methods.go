@@ -5,15 +5,15 @@ func MethodAllowed(caps ServerCapabilities, method string) bool {
 	case "ping":
 		return true
 	case "tools/list", "tools/call":
-		return caps.Tools
+		return caps.Tools != nil
 	case "resources/list", "resources/read", "resources/subscribe", "resources/unsubscribe", "resources/templates/list":
-		return caps.Resources
+		return caps.Resources != nil
 	case "prompts/list", "prompts/get":
-		return caps.Prompts
+		return caps.Prompts != nil
 	case "logging/setLevel", "notifications/message":
-		return caps.Logging
+		return caps.Logging != nil
 	case "completion/complete":
-		return caps.Completions
+		return caps.Completions != nil
 	default:
 		return false
 	}

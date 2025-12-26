@@ -36,6 +36,7 @@ type ToolIndex struct {
 	subs        map[chan domain.ToolSnapshot]struct{}
 	refreshBeat *telemetry.Heartbeat
 	state       atomic.Value
+	reqIDSeq    atomic.Uint64
 }
 
 type serverCache struct {
@@ -182,7 +183,7 @@ func (a *ToolIndex) CallTool(ctx context.Context, name string, args json.RawMess
 		Name:      target.ToolName,
 		Arguments: json.RawMessage(args),
 	}
-	payload, err := buildJSONRPCRequest("tools/call", params)
+	payload, err := a.buildJSONRPCRequest("tools/call", params)
 	if err != nil {
 		return nil, err
 	}
@@ -436,7 +437,7 @@ func (a *ToolIndex) fetchTools(ctx context.Context, serverType string) ([]*mcp.T
 
 	for {
 		params := &mcp.ListToolsParams{Cursor: cursor}
-		payload, err := buildJSONRPCRequest("tools/list", params)
+		payload, err := a.buildJSONRPCRequest("tools/list", params)
 		if err != nil {
 			return nil, err
 		}
@@ -557,8 +558,9 @@ func hasObjectType(value any) bool {
 	return false
 }
 
-func buildJSONRPCRequest(method string, params any) (json.RawMessage, error) {
-	id, err := jsonrpc.MakeID(fmt.Sprintf("mcpd-%s-%d", method, time.Now().UnixNano()))
+func (a *ToolIndex) buildJSONRPCRequest(method string, params any) (json.RawMessage, error) {
+	seq := a.reqIDSeq.Add(1)
+	id, err := jsonrpc.MakeID(fmt.Sprintf("mcpd-%s-%d", method, seq))
 	if err != nil {
 		return nil, fmt.Errorf("build request id: %w", err)
 	}

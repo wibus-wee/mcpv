@@ -59,13 +59,30 @@ type Catalog struct {
 }
 
 type ServerCapabilities struct {
-	Tools        bool
-	Resources    bool
-	Prompts      bool
-	Logging      bool
-	Completions  bool
-	Experimental bool
+	Tools        *ToolsCapability
+	Resources    *ResourcesCapability
+	Prompts      *PromptsCapability
+	Logging      *LoggingCapability
+	Completions  *CompletionsCapability
+	Experimental map[string]any
 }
+
+type ToolsCapability struct {
+	ListChanged bool
+}
+
+type ResourcesCapability struct {
+	Subscribe   bool
+	ListChanged bool
+}
+
+type PromptsCapability struct {
+	ListChanged bool
+}
+
+type LoggingCapability struct{}
+
+type CompletionsCapability struct{}
 
 type InstanceState string
 
