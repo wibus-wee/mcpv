@@ -8,9 +8,11 @@ const (
 	DefaultToolRefreshSeconds         = 60
 	DefaultExposeTools                = true
 	DefaultToolNamespaceStrategy      = "prefix"
+	DefaultObservabilityListenAddress = "0.0.0.0:9090"
 	DefaultRPCListenAddress           = "unix:///tmp/mcpd.sock"
 	DefaultRPCMaxRecvMsgSize          = 16 * 1024 * 1024
 	DefaultRPCMaxSendMsgSize          = 16 * 1024 * 1024
 	DefaultRPCKeepaliveTimeSeconds    = 30
 	DefaultRPCKeepaliveTimeoutSeconds = 10
+	DefaultRPCSocketMode              = "0660"
 )

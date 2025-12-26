@@ -52,15 +52,17 @@ servers:
 	require.Equal(t, domain.DefaultToolRefreshSeconds, catalog.Runtime.ToolRefreshSeconds)
 	require.Equal(t, domain.DefaultExposeTools, catalog.Runtime.ExposeTools)
 	require.Equal(t, domain.DefaultToolNamespaceStrategy, catalog.Runtime.ToolNamespaceStrategy)
+	require.Equal(t, domain.DefaultObservabilityListenAddress, catalog.Runtime.Observability.ListenAddress)
 	require.Equal(t, domain.DefaultRPCListenAddress, catalog.Runtime.RPC.ListenAddress)
 	require.Equal(t, domain.DefaultRPCMaxRecvMsgSize, catalog.Runtime.RPC.MaxRecvMsgSize)
 	require.Equal(t, domain.DefaultRPCMaxSendMsgSize, catalog.Runtime.RPC.MaxSendMsgSize)
 	require.Equal(t, domain.DefaultRPCKeepaliveTimeSeconds, catalog.Runtime.RPC.KeepaliveTimeSeconds)
 	require.Equal(t, domain.DefaultRPCKeepaliveTimeoutSeconds, catalog.Runtime.RPC.KeepaliveTimeoutSeconds)
+	require.Equal(t, domain.DefaultRPCSocketMode, catalog.Runtime.RPC.SocketMode)
 }
 
 func TestLoader_EnvExpansion(t *testing.T) {
-	t.Setenv("SERVER_CMD", "./from-env")
+	t.Setenv("SERVER_CMD", "./from-\"env\"")
 	file := writeTempConfig(t, `
 servers:
   - name: env-server
@@ -76,7 +78,28 @@ servers:
 	loader := NewLoader(zap.NewNop())
 	catalog, err := loader.Load(context.Background(), file)
 	require.NoError(t, err)
-	require.Equal(t, []string{"./from-env"}, catalog.Specs["env-server"].Cmd)
+	require.Equal(t, []string{"./from-\"env\""}, catalog.Specs["env-server"].Cmd)
+}
+
+func TestLoader_EnvExpansionNumeric(t *testing.T) {
+	t.Setenv("ROUTE_TIMEOUT", "15")
+	file := writeTempConfig(t, `
+routeTimeoutSeconds: ${ROUTE_TIMEOUT}
+servers:
+  - name: env-server
+    cmd: ["./from-env"]
+    idleSeconds: 0
+    maxConcurrent: 1
+    sticky: false
+    persistent: false
+    minReady: 0
+    protocolVersion: "2025-11-25"
+`)
+
+	loader := NewLoader(zap.NewNop())
+	catalog, err := loader.Load(context.Background(), file)
+	require.NoError(t, err)
+	require.Equal(t, 15, catalog.Runtime.RouteTimeoutSeconds)
 }
 
 func TestLoader_DuplicateName(t *testing.T) {
@@ -191,6 +214,7 @@ rpc:
   maxSendMsgSize: 0
   keepaliveTimeSeconds: -1
   keepaliveTimeoutSeconds: -2
+  socketMode: "bad"
   tls:
     enabled: true
     certFile: ""
@@ -220,6 +244,7 @@ servers:
 	require.Contains(t, err.Error(), "rpc.maxSendMsgSize")
 	require.Contains(t, err.Error(), "rpc.keepaliveTimeSeconds")
 	require.Contains(t, err.Error(), "rpc.keepaliveTimeoutSeconds")
+	require.Contains(t, err.Error(), "rpc.socketMode")
 	require.Contains(t, err.Error(), "rpc.tls.certFile")
 	require.Contains(t, err.Error(), "rpc.tls.caFile")
 }

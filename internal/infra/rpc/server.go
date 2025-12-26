@@ -69,6 +69,18 @@ func (s *Server) Run(ctx context.Context) error {
 	}
 	s.listener = lis
 
+	if network == "unix" {
+		mode, err := resolveSocketMode(s.cfg.SocketMode)
+		if err != nil {
+			return err
+		}
+		if mode != 0 {
+			if err := os.Chmod(addr, mode); err != nil {
+				return fmt.Errorf("chmod rpc socket: %w", err)
+			}
+		}
+	}
+
 	serverOpts := []grpc.ServerOption{
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		grpc.ChainUnaryInterceptor(otelgrpc.UnaryServerInterceptor()),

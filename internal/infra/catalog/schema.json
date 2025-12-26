@@ -9,6 +9,7 @@
     "toolRefreshSeconds": {"type": "integer"},
     "exposeTools": {"type": "boolean"},
     "toolNamespaceStrategy": {"type": "string"},
+    "observability": {"$ref": "#/$defs/observabilityConfig"},
     "rpc": {"$ref": "#/$defs/rpcConfig"},
     "servers": {
       "type": "array",
@@ -26,7 +27,15 @@
         "maxSendMsgSize": {"type": "integer"},
         "keepaliveTimeSeconds": {"type": "integer"},
         "keepaliveTimeoutSeconds": {"type": "integer"},
+        "socketMode": {"type": "string"},
         "tls": {"$ref": "#/$defs/tlsConfig"}
+      }
+    },
+    "observabilityConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "listenAddress": {"type": "string"}
       }
     },
     "tlsConfig": {

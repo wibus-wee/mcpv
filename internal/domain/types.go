@@ -22,12 +22,17 @@ type ServerSpec struct {
 }
 
 type RuntimeConfig struct {
-	RouteTimeoutSeconds   int       `json:"routeTimeoutSeconds"`
-	PingIntervalSeconds   int       `json:"pingIntervalSeconds"`
-	ToolRefreshSeconds    int       `json:"toolRefreshSeconds"`
-	ExposeTools           bool      `json:"exposeTools"`
-	ToolNamespaceStrategy string    `json:"toolNamespaceStrategy"`
-	RPC                   RPCConfig `json:"rpc"`
+	RouteTimeoutSeconds   int                 `json:"routeTimeoutSeconds"`
+	PingIntervalSeconds   int                 `json:"pingIntervalSeconds"`
+	ToolRefreshSeconds    int                 `json:"toolRefreshSeconds"`
+	ExposeTools           bool                `json:"exposeTools"`
+	ToolNamespaceStrategy string              `json:"toolNamespaceStrategy"`
+	Observability         ObservabilityConfig `json:"observability"`
+	RPC                   RPCConfig           `json:"rpc"`
+}
+
+type ObservabilityConfig struct {
+	ListenAddress string `json:"listenAddress"`
 }
 
 type RPCConfig struct {
@@ -36,6 +41,7 @@ type RPCConfig struct {
 	MaxSendMsgSize          int    `json:"maxSendMsgSize"`
 	KeepaliveTimeSeconds    int    `json:"keepaliveTimeSeconds"`
 	KeepaliveTimeoutSeconds int    `json:"keepaliveTimeoutSeconds"`
+	SocketMode              string `json:"socketMode"`
 	TLS                     RPCTLSConfig
 }
 

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -21,13 +20,18 @@ type Loader struct {
 }
 
 type rawCatalog struct {
-	Servers               []domain.ServerSpec `mapstructure:"servers"`
-	RouteTimeoutSeconds   int                 `mapstructure:"routeTimeoutSeconds"`
-	PingIntervalSeconds   int                 `mapstructure:"pingIntervalSeconds"`
-	ToolRefreshSeconds    int                 `mapstructure:"toolRefreshSeconds"`
-	ExposeTools           bool                `mapstructure:"exposeTools"`
-	ToolNamespaceStrategy string              `mapstructure:"toolNamespaceStrategy"`
-	RPC                   rawRPCConfig        `mapstructure:"rpc"`
+	Servers               []domain.ServerSpec    `mapstructure:"servers"`
+	RouteTimeoutSeconds   int                    `mapstructure:"routeTimeoutSeconds"`
+	PingIntervalSeconds   int                    `mapstructure:"pingIntervalSeconds"`
+	ToolRefreshSeconds    int                    `mapstructure:"toolRefreshSeconds"`
+	ExposeTools           bool                   `mapstructure:"exposeTools"`
+	ToolNamespaceStrategy string                 `mapstructure:"toolNamespaceStrategy"`
+	Observability         rawObservabilityConfig `mapstructure:"observability"`
+	RPC                   rawRPCConfig           `mapstructure:"rpc"`
+}
+
+type rawObservabilityConfig struct {
+	ListenAddress string `mapstructure:"listenAddress"`
 }
 
 type rawRPCConfig struct {
@@ -36,6 +40,7 @@ type rawRPCConfig struct {
 	MaxSendMsgSize          int             `mapstructure:"maxSendMsgSize"`
 	KeepaliveTimeSeconds    int             `mapstructure:"keepaliveTimeSeconds"`
 	KeepaliveTimeoutSeconds int             `mapstructure:"keepaliveTimeoutSeconds"`
+	SocketMode              string          `mapstructure:"socketMode"`
 	TLS                     rawRPCTLSConfig `mapstructure:"tls"`
 }
 
@@ -64,7 +69,10 @@ func (l *Loader) Load(ctx context.Context, path string) (domain.Catalog, error) 
 		return domain.Catalog{}, fmt.Errorf("read config: %w", err)
 	}
 
-	expanded := os.ExpandEnv(string(data))
+	expanded, err := expandConfigEnv(data)
+	if err != nil {
+		return domain.Catalog{}, err
+	}
 
 	if err := validateCatalogSchema(expanded); err != nil {
 		return domain.Catalog{}, err
@@ -72,21 +80,19 @@ func (l *Loader) Load(ctx context.Context, path string) (domain.Catalog, error) 
 
 	v := viper.New()
 
-	ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(path)), ".")
-	if ext == "" {
-		ext = "yaml"
-	}
-	v.SetConfigType(ext)
+	v.SetConfigType("yaml")
 	v.SetDefault("routeTimeoutSeconds", domain.DefaultRouteTimeoutSeconds)
 	v.SetDefault("pingIntervalSeconds", domain.DefaultPingIntervalSeconds)
 	v.SetDefault("toolRefreshSeconds", domain.DefaultToolRefreshSeconds)
 	v.SetDefault("exposeTools", domain.DefaultExposeTools)
 	v.SetDefault("toolNamespaceStrategy", domain.DefaultToolNamespaceStrategy)
+	v.SetDefault("observability.listenAddress", domain.DefaultObservabilityListenAddress)
 	v.SetDefault("rpc.listenAddress", domain.DefaultRPCListenAddress)
 	v.SetDefault("rpc.maxRecvMsgSize", domain.DefaultRPCMaxRecvMsgSize)
 	v.SetDefault("rpc.maxSendMsgSize", domain.DefaultRPCMaxSendMsgSize)
 	v.SetDefault("rpc.keepaliveTimeSeconds", domain.DefaultRPCKeepaliveTimeSeconds)
 	v.SetDefault("rpc.keepaliveTimeoutSeconds", domain.DefaultRPCKeepaliveTimeoutSeconds)
+	v.SetDefault("rpc.socketMode", domain.DefaultRPCSocketMode)
 
 	if err := v.ReadConfig(bytes.NewBufferString(expanded)); err != nil {
 		return domain.Catalog{}, fmt.Errorf("parse config: %w", err)
@@ -213,6 +219,9 @@ func normalizeRuntimeConfig(cfg rawCatalog) (domain.RuntimeConfig, []string) {
 		errs = append(errs, "toolNamespaceStrategy must be prefix or flat")
 	}
 
+	observabilityCfg, observabilityErrs := normalizeObservabilityConfig(cfg.Observability)
+	errs = append(errs, observabilityErrs...)
+
 	rpcCfg, rpcErrs := normalizeRPCConfig(cfg.RPC)
 	errs = append(errs, rpcErrs...)
 
@@ -222,8 +231,19 @@ func normalizeRuntimeConfig(cfg rawCatalog) (domain.RuntimeConfig, []string) {
 		ToolRefreshSeconds:    toolRefresh,
 		ExposeTools:           cfg.ExposeTools,
 		ToolNamespaceStrategy: strategy,
+		Observability:         observabilityCfg,
 		RPC:                   rpcCfg,
 	}, errs
+}
+
+func normalizeObservabilityConfig(cfg rawObservabilityConfig) (domain.ObservabilityConfig, []string) {
+	addr := strings.TrimSpace(cfg.ListenAddress)
+	if addr == "" {
+		addr = domain.DefaultObservabilityListenAddress
+	}
+	return domain.ObservabilityConfig{
+		ListenAddress: addr,
+	}, nil
 }
 
 func normalizeRPCConfig(cfg rawRPCConfig) (domain.RPCConfig, []string) {
@@ -245,6 +265,14 @@ func normalizeRPCConfig(cfg rawRPCConfig) (domain.RPCConfig, []string) {
 	}
 	if cfg.KeepaliveTimeoutSeconds < 0 {
 		errs = append(errs, "rpc.keepaliveTimeoutSeconds must be >= 0")
+	}
+
+	socketMode := strings.TrimSpace(cfg.SocketMode)
+	if socketMode == "" {
+		socketMode = domain.DefaultRPCSocketMode
+	}
+	if _, err := parseSocketMode(socketMode); err != nil {
+		errs = append(errs, err.Error())
 	}
 
 	tlsCfg := domain.RPCTLSConfig{
@@ -269,6 +297,7 @@ func normalizeRPCConfig(cfg rawRPCConfig) (domain.RPCConfig, []string) {
 		MaxSendMsgSize:          cfg.MaxSendMsgSize,
 		KeepaliveTimeSeconds:    cfg.KeepaliveTimeSeconds,
 		KeepaliveTimeoutSeconds: cfg.KeepaliveTimeoutSeconds,
+		SocketMode:              socketMode,
 		TLS:                     tlsCfg,
 	}, errs
 }

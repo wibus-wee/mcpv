@@ -79,9 +79,10 @@ func (a *App) Serve(ctx context.Context, cfg ServeConfig) error {
 	healthzEnabled := envBool("MCPD_HEALTHZ_ENABLED")
 	if metricsEnabled || healthzEnabled {
 		go func() {
-			logger.Info("starting observability server", zap.Int("port", 9090))
+			addr := catalogData.Runtime.Observability.ListenAddress
+			logger.Info("starting observability server", zap.String("addr", addr))
 			if err := telemetry.StartHTTPServer(ctx, telemetry.HTTPServerOptions{
-				Addr:          "0.0.0.0:9090",
+				Addr:          addr,
 				EnableMetrics: metricsEnabled,
 				EnableHealthz: healthzEnabled,
 				Health:        health,

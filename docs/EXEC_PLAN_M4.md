@@ -27,8 +27,8 @@ After this change, the core control plane emits structured logs with a consisten
   Rationale: The module already exists in go.mod, it validates draft 2020-12, and it keeps schema validation deterministic without adding new dependencies.
   Date/Author: 2025-12-25 / Codex.
 
-- Decision: Use env toggles MCPD_METRICS_ENABLED and MCPD_HEALTHZ_ENABLED on port 9090 for the observability HTTP server.
-  Rationale: This enables healthz without changing the catalog file format and keeps the existing metrics behavior intact.
+- Decision: Use env toggles MCPD_METRICS_ENABLED and MCPD_HEALTHZ_ENABLED, with listen address configured in catalog.
+  Rationale: This enables healthz without changing the env-based toggles while allowing port configuration to avoid conflicts.
   Date/Author: 2025-12-25 / Codex.
 
 - Decision: Track goroutine liveness via heartbeat timestamps from the idle manager, ping manager, and tool refresh loop.
@@ -86,13 +86,13 @@ If the Go build cache is restricted in this environment, set GOCACHE to a writab
 ## Validation and Acceptance
 
 - Config validation: running `mcpd validate --config <bad file>` fails with a schema error for unknown keys or wrong types, and still reports semantic errors like protocolVersion mismatch.
-- Healthz endpoint: with MCPD_HEALTHZ_ENABLED=true, starting `mcpd serve --config docs/catalog.example.yaml` exposes http://localhost:9090/healthz returning HTTP 200 with a JSON body that lists the registered checks. If a loop is intentionally stalled in a test, /healthz returns HTTP 503 with that check marked stale.
+- Healthz endpoint: with MCPD_HEALTHZ_ENABLED=true, starting `mcpd serve --config docs/catalog.example.yaml` exposes http://localhost:9090/healthz (or the address set in `observability.listenAddress`) returning HTTP 200 with a JSON body that lists the registered checks. If a loop is intentionally stalled in a test, /healthz returns HTTP 503 with that check marked stale.
 - Logging: lifecycle start/stop, ping failure, idle reap, and route errors include the fields event, serverType, instanceID (when available), state (when available), duration_ms (when available), and error (when applicable).
 - Tests: `go test ./...` (or `make test`) passes, and new tests covering schema validation and healthz behavior are present.
 
 ## Idempotence and Recovery
 
-Schema validation is a pure read and can be re-run without side effects. The health tracker uses in-memory timestamps and does not persist state, so restarting the process resets healthz state. The HTTP server binds to port 9090 only when enabled; if the port is in use, disable the env flags or stop the conflicting process and retry. All changes are additive and safe to reapply.
+Schema validation is a pure read and can be re-run without side effects. The health tracker uses in-memory timestamps and does not persist state, so restarting the process resets healthz state. The HTTP server binds to `observability.listenAddress` only when enabled; if the port is in use, adjust the config, disable the env flags, or stop the conflicting process and retry. All changes are additive and safe to reapply.
 
 ## Artifacts and Notes
 
