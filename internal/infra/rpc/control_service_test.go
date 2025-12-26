@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"mcpd/internal/domain"
+	"mcpd/internal/infra/scheduler"
 	controlv1 "mcpd/pkg/api/control/v1"
 )
 
@@ -30,6 +31,45 @@ func TestControlService_CallToolMissingName(t *testing.T) {
 	svc := NewControlService(&fakeControlPlane{}, nil)
 
 	_, err := svc.CallTool(context.Background(), &controlv1.CallToolRequest{})
+	require.Error(t, err)
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+}
+
+func TestControlService_CallToolDeadlineExceeded(t *testing.T) {
+	svc := NewControlService(&fakeControlPlane{
+		callToolErr: context.DeadlineExceeded,
+	}, nil)
+
+	_, err := svc.CallTool(context.Background(), &controlv1.CallToolRequest{
+		Name:          "echo.echo",
+		ArgumentsJson: json.RawMessage(`{}`),
+	})
+	require.Error(t, err)
+	require.Equal(t, codes.DeadlineExceeded, status.Code(err))
+}
+
+func TestControlService_CallToolUnavailable(t *testing.T) {
+	svc := NewControlService(&fakeControlPlane{
+		callToolErr: scheduler.ErrNoCapacity,
+	}, nil)
+
+	_, err := svc.CallTool(context.Background(), &controlv1.CallToolRequest{
+		Name:          "echo.echo",
+		ArgumentsJson: json.RawMessage(`{}`),
+	})
+	require.Error(t, err)
+	require.Equal(t, codes.Unavailable, status.Code(err))
+}
+
+func TestControlService_CallToolInvalidArgument(t *testing.T) {
+	svc := NewControlService(&fakeControlPlane{
+		callToolErr: domain.ErrInvalidRequest,
+	}, nil)
+
+	_, err := svc.CallTool(context.Background(), &controlv1.CallToolRequest{
+		Name:          "echo.echo",
+		ArgumentsJson: json.RawMessage(`{}`),
+	})
 	require.Error(t, err)
 	require.Equal(t, codes.InvalidArgument, status.Code(err))
 }

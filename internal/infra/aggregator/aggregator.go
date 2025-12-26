@@ -189,7 +189,7 @@ func (a *ToolIndex) CallTool(ctx context.Context, name string, args json.RawMess
 
 	resp, err := a.router.Route(ctx, target.ServerType, routingKey, payload)
 	if err != nil {
-		return marshalToolResult(errorResult(err))
+		return nil, err
 	}
 
 	result, err := decodeToolResult(resp)
@@ -268,12 +268,34 @@ func (a *ToolIndex) rebuildSnapshot() {
 		sort.Slice(tools, func(i, j int) bool { return tools[i].Name < tools[j].Name })
 
 		for _, tool := range tools {
-			if _, exists := targets[tool.Name]; exists {
-				a.logger.Warn("tool name conflict", zap.String("serverType", serverType), zap.String("tool", tool.Name))
-				continue
+			toolDef := tool
+			target := server.targets[tool.Name]
+
+			if existing, exists := targets[tool.Name]; exists {
+				if a.cfg.ToolNamespaceStrategy != "flat" {
+					a.logger.Warn("tool name conflict", zap.String("serverType", serverType), zap.String("tool", tool.Name))
+					continue
+				}
+				resolvedName, err := a.resolveFlatConflict(tool.Name, serverType, targets)
+				if err != nil {
+					a.logger.Warn("tool conflict resolution failed", zap.String("serverType", serverType), zap.String("tool", tool.Name), zap.Error(err))
+					continue
+				}
+				renamed, err := renameToolDefinition(tool, resolvedName)
+				if err != nil {
+					a.logger.Warn("tool rename failed", zap.String("serverType", serverType), zap.String("tool", tool.Name), zap.Error(err))
+					continue
+				}
+				toolDef = renamed
+				target = domain.ToolTarget{
+					ServerType: target.ServerType,
+					ToolName:   target.ToolName,
+				}
+				targets[tool.Name] = existing // keep existing binding
 			}
-			targets[tool.Name] = server.targets[tool.Name]
-			merged = append(merged, tool)
+
+			targets[toolDef.Name] = target
+			merged = append(merged, toolDef)
 		}
 	}
 
@@ -294,6 +316,36 @@ func (a *ToolIndex) rebuildSnapshot() {
 		targets:  targets,
 	})
 	a.broadcast(snapshot)
+}
+
+func (a *ToolIndex) resolveFlatConflict(name, serverType string, existing map[string]domain.ToolTarget) (string, error) {
+	base := fmt.Sprintf("%s_%s", name, serverType)
+	if _, ok := existing[base]; !ok {
+		return base, nil
+	}
+	for i := 2; i < 100; i++ {
+		candidate := fmt.Sprintf("%s_%s_%d", name, serverType, i)
+		if _, ok := existing[candidate]; !ok {
+			return candidate, nil
+		}
+	}
+	return "", fmt.Errorf("could not resolve conflict for %s", name)
+}
+
+func renameToolDefinition(def domain.ToolDefinition, newName string) (domain.ToolDefinition, error) {
+	var obj map[string]any
+	if err := json.Unmarshal(def.ToolJSON, &obj); err != nil {
+		return def, err
+	}
+	obj["name"] = newName
+	raw, err := json.Marshal(obj)
+	if err != nil {
+		return def, err
+	}
+	return domain.ToolDefinition{
+		Name:     newName,
+		ToolJSON: raw,
+	}, nil
 }
 
 func (a *ToolIndex) broadcast(snapshot domain.ToolSnapshot) {

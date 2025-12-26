@@ -121,10 +121,9 @@ func TestToolIndex_RefreshConcurrentFetches(t *testing.T) {
 
 	index := NewToolIndex(router, specs, cfg, zap.NewNop(), nil)
 
-	done := make(chan struct{})
+	done := make(chan error, 1)
 	go func() {
-		_ = index.refresh(ctx)
-		close(done)
+		done <- index.refresh(ctx)
 	}()
 
 	require.Eventually(t, func() bool {
@@ -135,7 +134,8 @@ func TestToolIndex_RefreshConcurrentFetches(t *testing.T) {
 	close(slowBlock)
 
 	select {
-	case <-done:
+	case err := <-done:
+		require.NoError(t, err)
 	case <-time.After(time.Second):
 		t.Fatalf("refresh did not complete after releasing slow server")
 	}
@@ -152,6 +152,50 @@ func TestIsObjectSchema(t *testing.T) {
 	require.False(t, isObjectSchema(json.RawMessage(`{"type":"string"}`)))
 	require.False(t, isObjectSchema(nil))
 	require.False(t, isObjectSchema("not json"))
+}
+
+func TestToolIndex_FlatNamespaceConflictsFailRefresh(t *testing.T) {
+	ctx := context.Background()
+	router := &blockingRouter{
+		responses: map[string]toolListResponse{
+			"a": {tools: []*mcp.Tool{
+				{Name: "dup", InputSchema: map[string]any{"type": "object"}},
+			}},
+			"b": {tools: []*mcp.Tool{
+				{Name: "dup", InputSchema: map[string]any{"type": "object"}},
+			}},
+		},
+	}
+	specs := map[string]domain.ServerSpec{
+		"a": {Name: "a"},
+		"b": {Name: "b"},
+	}
+	cfg := domain.RuntimeConfig{ExposeTools: true, ToolNamespaceStrategy: "flat"}
+
+	index := NewToolIndex(router, specs, cfg, zap.NewNop(), nil)
+
+	require.NoError(t, index.refresh(ctx))
+
+	snapshot := index.Snapshot()
+	require.Len(t, snapshot.Tools, 2)
+	require.Equal(t, "dup", snapshot.Tools[0].Name)
+	require.Equal(t, "dup_b", snapshot.Tools[1].Name)
+}
+
+func TestToolIndex_CallToolPropagatesRouteError(t *testing.T) {
+	ctx := context.Background()
+	index := NewToolIndex(&failingRouter{err: context.DeadlineExceeded}, nil, domain.RuntimeConfig{
+		ToolNamespaceStrategy: "prefix",
+	}, zap.NewNop(), nil)
+	index.state.Store(toolIndexState{
+		snapshot: domain.ToolSnapshot{},
+		targets: map[string]domain.ToolTarget{
+			"echo.echo": {ServerType: "echo", ToolName: "echo"},
+		},
+	})
+
+	_, err := index.CallTool(ctx, "echo.echo", json.RawMessage(`{}`), "")
+	require.ErrorIs(t, err, context.DeadlineExceeded)
 }
 
 type fakeRouter struct {
@@ -219,6 +263,14 @@ func (b *blockingRouter) Route(ctx context.Context, serverType, routingKey strin
 		}
 	}
 	return encodeResponse(req.ID, &mcp.ListToolsResult{Tools: resp.tools})
+}
+
+type failingRouter struct {
+	err error
+}
+
+func (f *failingRouter) Route(ctx context.Context, serverType, routingKey string, payload json.RawMessage) (json.RawMessage, error) {
+	return nil, f.err
 }
 
 func encodeResponse(id jsonrpc.ID, result any) (json.RawMessage, error) {

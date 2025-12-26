@@ -3,12 +3,14 @@ package rpc
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"mcpd/internal/domain"
+	"mcpd/internal/infra/scheduler"
 	controlv1 "mcpd/pkg/api/control/v1"
 )
 
@@ -94,10 +96,7 @@ func (s *ControlService) CallTool(ctx context.Context, req *controlv1.CallToolRe
 	}
 	result, err := s.control.CallTool(ctx, req.GetName(), req.GetArgumentsJson(), req.GetRoutingKey())
 	if err != nil {
-		if errors.Is(err, domain.ErrToolNotFound) {
-			return nil, status.Errorf(codes.NotFound, "tool not found: %s", req.GetName())
-		}
-		return nil, status.Errorf(codes.Internal, "call tool: %v", err)
+		return nil, mapCallToolError(req.GetName(), err)
 	}
 	if len(result) == 0 {
 		return nil, status.Error(codes.Internal, "call tool: empty result")
@@ -105,6 +104,25 @@ func (s *ControlService) CallTool(ctx context.Context, req *controlv1.CallToolRe
 	return &controlv1.CallToolResponse{
 		ResultJson: result,
 	}, nil
+}
+
+func mapCallToolError(name string, err error) error {
+	switch {
+	case errors.Is(err, domain.ErrToolNotFound):
+		return status.Errorf(codes.NotFound, "tool not found: %s", name)
+	case errors.Is(err, domain.ErrInvalidRequest), errors.Is(err, domain.ErrMethodNotAllowed):
+		return status.Errorf(codes.InvalidArgument, "call tool: %v", err)
+	case errors.Is(err, context.DeadlineExceeded):
+		return status.Errorf(codes.DeadlineExceeded, "call tool deadline exceeded")
+	case errors.Is(err, context.Canceled):
+		return status.Errorf(codes.Canceled, "call tool canceled")
+	case errors.Is(err, scheduler.ErrUnknownServerType):
+		return status.Errorf(codes.InvalidArgument, "call tool: %v", err)
+	case errors.Is(err, scheduler.ErrNoCapacity), errors.Is(err, scheduler.ErrStickyBusy):
+		return status.Errorf(codes.Unavailable, "call tool unavailable: %v", err)
+	default:
+		return status.Errorf(codes.Unavailable, "call tool: %v", fmt.Sprintf("%T: %v", err, err))
+	}
 }
 
 func (s *ControlService) StreamLogs(req *controlv1.StreamLogsRequest, stream controlv1.ControlPlaneService_StreamLogsServer) error {
