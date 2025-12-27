@@ -25,7 +25,6 @@ type gatewayOptions struct {
 	rpcTLSCertFile      string
 	rpcTLSKeyFile       string
 	rpcTLSCAFile        string
-	caller              string
 	logger              *zap.Logger
 }
 
@@ -40,8 +39,9 @@ func main() {
 	}
 
 	root := &cobra.Command{
-		Use:   "mcpd-gateway",
-		Short: "MCP gateway bridge for mcpd control plane",
+		Use:   "mcpdmcp <caller>",
+		Short: "MCP gateway entrypoint bound to a caller profile",
+		Args:  cobra.ExactArgs(1),
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			cfg := zap.NewProductionConfig()
 			log, err := cfg.Build()
@@ -73,7 +73,7 @@ func main() {
 				},
 			}
 
-			gw := gateway.NewGateway(clientCfg, opts.caller, opts.logger)
+			gw := gateway.NewGateway(clientCfg, args[0], opts.logger)
 			return gw.Run(ctx)
 		},
 	}
@@ -87,7 +87,6 @@ func main() {
 	root.PersistentFlags().StringVar(&opts.rpcTLSCertFile, "rpc-tls-cert", "", "client TLS certificate file")
 	root.PersistentFlags().StringVar(&opts.rpcTLSKeyFile, "rpc-tls-key", "", "client TLS key file")
 	root.PersistentFlags().StringVar(&opts.rpcTLSCAFile, "rpc-tls-ca", "", "RPC CA file")
-	root.PersistentFlags().StringVar(&opts.caller, "caller", "", "caller identifier for profile routing")
 
 	if err := root.Execute(); err != nil {
 		opts.logger.Fatal("command failed", zap.Error(err))
@@ -115,8 +114,6 @@ func applyGatewayFlagBindings(flags *pflag.FlagSet, opts *gatewayOptions) {
 			opts.rpcTLSKeyFile, _ = flags.GetString("rpc-tls-key")
 		case "rpc-tls-ca":
 			opts.rpcTLSCAFile, _ = flags.GetString("rpc-tls-ca")
-		case "caller":
-			opts.caller, _ = flags.GetString("caller")
 		}
 	})
 }

@@ -22,11 +22,12 @@ import (
 )
 
 type ToolIndex struct {
-	router domain.Router
-	specs  map[string]domain.ServerSpec
-	cfg    domain.RuntimeConfig
-	logger *zap.Logger
-	health *telemetry.HealthTracker
+	router   domain.Router
+	specs    map[string]domain.ServerSpec
+	specKeys map[string]string
+	cfg      domain.RuntimeConfig
+	logger   *zap.Logger
+	health   *telemetry.HealthTracker
 
 	mu          sync.Mutex
 	started     bool
@@ -36,7 +37,7 @@ type ToolIndex struct {
 	subs        map[chan domain.ToolSnapshot]struct{}
 	refreshBeat *telemetry.Heartbeat
 	state       atomic.Value
-	reqIDSeq    atomic.Uint64
+	reqBuilder  requestBuilder
 }
 
 type serverCache struct {
@@ -49,13 +50,17 @@ type toolIndexState struct {
 	targets  map[string]domain.ToolTarget
 }
 
-func NewToolIndex(rt domain.Router, specs map[string]domain.ServerSpec, cfg domain.RuntimeConfig, logger *zap.Logger, health *telemetry.HealthTracker) *ToolIndex {
+func NewToolIndex(rt domain.Router, specs map[string]domain.ServerSpec, specKeys map[string]string, cfg domain.RuntimeConfig, logger *zap.Logger, health *telemetry.HealthTracker) *ToolIndex {
 	if logger == nil {
 		logger = zap.NewNop()
+	}
+	if specKeys == nil {
+		specKeys = map[string]string{}
 	}
 	index := &ToolIndex{
 		router:      rt,
 		specs:       specs,
+		specKeys:    specKeys,
 		cfg:         cfg,
 		logger:      logger.Named("tool_index"),
 		health:      health,
@@ -183,12 +188,12 @@ func (a *ToolIndex) CallTool(ctx context.Context, name string, args json.RawMess
 		Name:      target.ToolName,
 		Arguments: json.RawMessage(args),
 	}
-	payload, err := a.buildJSONRPCRequest("tools/call", params)
+	payload, err := a.reqBuilder.Build("tools/call", params)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := a.router.Route(ctx, target.ServerType, routingKey, payload)
+	resp, err := a.router.Route(ctx, target.ServerType, target.SpecKey, routingKey, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +219,7 @@ func (a *ToolIndex) refresh(ctx context.Context) error {
 	}
 
 	results := make(chan refreshResult, len(serverTypes))
-	timeout := a.refreshTimeout()
+	timeout := refreshTimeout(a.cfg)
 
 	var wg sync.WaitGroup
 	for _, serverType := range serverTypes {
@@ -290,6 +295,7 @@ func (a *ToolIndex) rebuildSnapshot() {
 				toolDef = renamed
 				target = domain.ToolTarget{
 					ServerType: target.ServerType,
+					SpecKey:    target.SpecKey,
 					ToolName:   target.ToolName,
 				}
 				targets[tool.Name] = existing // keep existing binding
@@ -379,7 +385,11 @@ func (a *ToolIndex) copySubscribers() []chan domain.ToolSnapshot {
 }
 
 func (a *ToolIndex) fetchServerTools(ctx context.Context, serverType string, spec domain.ServerSpec) ([]domain.ToolDefinition, map[string]domain.ToolTarget, error) {
-	tools, err := a.fetchTools(ctx, serverType)
+	specKey := a.specKeys[serverType]
+	if specKey == "" {
+		return nil, nil, fmt.Errorf("missing spec key for server type %q", serverType)
+	}
+	tools, err := a.fetchTools(ctx, serverType, specKey)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -423,6 +433,7 @@ func (a *ToolIndex) fetchServerTools(ctx context.Context, serverType string, spe
 		})
 		targets[name] = domain.ToolTarget{
 			ServerType: serverType,
+			SpecKey:    specKey,
 			ToolName:   tool.Name,
 		}
 	}
@@ -431,18 +442,18 @@ func (a *ToolIndex) fetchServerTools(ctx context.Context, serverType string, spe
 	return result, targets, nil
 }
 
-func (a *ToolIndex) fetchTools(ctx context.Context, serverType string) ([]*mcp.Tool, error) {
+func (a *ToolIndex) fetchTools(ctx context.Context, serverType, specKey string) ([]*mcp.Tool, error) {
 	var tools []*mcp.Tool
 	cursor := ""
 
 	for {
 		params := &mcp.ListToolsParams{Cursor: cursor}
-		payload, err := a.buildJSONRPCRequest("tools/list", params)
+		payload, err := a.reqBuilder.Build("tools/list", params)
 		if err != nil {
 			return nil, err
 		}
 
-		resp, err := a.router.Route(ctx, serverType, "", payload)
+		resp, err := a.router.Route(ctx, serverType, specKey, "", payload)
 		if err != nil {
 			return nil, err
 		}
@@ -468,14 +479,6 @@ func (a *ToolIndex) namespaceTool(serverType, toolName string) string {
 	return fmt.Sprintf("%s.%s", serverType, toolName)
 }
 
-func (a *ToolIndex) refreshTimeout() time.Duration {
-	timeout := time.Duration(a.cfg.RouteTimeoutSeconds) * time.Second
-	if timeout <= 0 {
-		timeout = time.Duration(domain.DefaultRouteTimeoutSeconds) * time.Second
-	}
-	return timeout
-}
-
 func sortedServerTypes[T any](specs map[string]T) []string {
 	keys := make([]string, 0, len(specs))
 	for key := range specs {
@@ -483,6 +486,14 @@ func sortedServerTypes[T any](specs map[string]T) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func refreshTimeout(cfg domain.RuntimeConfig) time.Duration {
+	timeout := time.Duration(cfg.RouteTimeoutSeconds) * time.Second
+	if timeout <= 0 {
+		timeout = time.Duration(domain.DefaultRouteTimeoutSeconds) * time.Second
+	}
+	return timeout
 }
 
 func allowedTools(spec domain.ServerSpec) func(string) bool {
@@ -556,24 +567,6 @@ func hasObjectType(value any) bool {
 		}
 	}
 	return false
-}
-
-func (a *ToolIndex) buildJSONRPCRequest(method string, params any) (json.RawMessage, error) {
-	seq := a.reqIDSeq.Add(1)
-	id, err := jsonrpc.MakeID(fmt.Sprintf("mcpd-%s-%d", method, seq))
-	if err != nil {
-		return nil, fmt.Errorf("build request id: %w", err)
-	}
-	rawParams, err := json.Marshal(params)
-	if err != nil {
-		return nil, fmt.Errorf("marshal params: %w", err)
-	}
-	req := &jsonrpc.Request{ID: id, Method: method, Params: rawParams}
-	wire, err := jsonrpc.EncodeMessage(req)
-	if err != nil {
-		return nil, fmt.Errorf("encode request: %w", err)
-	}
-	return json.RawMessage(wire), nil
 }
 
 func decodeListToolsResult(raw json.RawMessage) (*mcp.ListToolsResult, error) {

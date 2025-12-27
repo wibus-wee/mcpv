@@ -24,7 +24,50 @@ type ToolSnapshot struct {
 
 type ToolTarget struct {
 	ServerType string
+	SpecKey    string
 	ToolName   string
+}
+
+type ResourceDefinition struct {
+	URI          string
+	ResourceJSON json.RawMessage
+}
+
+type ResourceSnapshot struct {
+	ETag      string
+	Resources []ResourceDefinition
+}
+
+type ResourceTarget struct {
+	ServerType string
+	SpecKey    string
+	URI        string
+}
+
+type ResourcePage struct {
+	Snapshot   ResourceSnapshot
+	NextCursor string
+}
+
+type PromptDefinition struct {
+	Name       string
+	PromptJSON json.RawMessage
+}
+
+type PromptSnapshot struct {
+	ETag    string
+	Prompts []PromptDefinition
+}
+
+type PromptTarget struct {
+	ServerType string
+	SpecKey    string
+	PromptName string
+}
+
+type PromptPage struct {
+	Snapshot   PromptSnapshot
+	NextCursor string
 }
 
 type LogLevel string
@@ -49,8 +92,14 @@ type LogEntry struct {
 
 type ControlPlane interface {
 	Info(ctx context.Context) (ControlPlaneInfo, error)
-	ListTools(ctx context.Context) (ToolSnapshot, error)
-	WatchTools(ctx context.Context) (<-chan ToolSnapshot, error)
-	CallTool(ctx context.Context, name string, args json.RawMessage, routingKey string) (json.RawMessage, error)
-	StreamLogs(ctx context.Context, minLevel LogLevel) (<-chan LogEntry, error)
+	ListTools(ctx context.Context, caller string) (ToolSnapshot, error)
+	WatchTools(ctx context.Context, caller string) (<-chan ToolSnapshot, error)
+	CallTool(ctx context.Context, caller, name string, args json.RawMessage, routingKey string) (json.RawMessage, error)
+	ListResources(ctx context.Context, caller string, cursor string) (ResourcePage, error)
+	WatchResources(ctx context.Context, caller string) (<-chan ResourceSnapshot, error)
+	ReadResource(ctx context.Context, caller, uri string) (json.RawMessage, error)
+	ListPrompts(ctx context.Context, caller string, cursor string) (PromptPage, error)
+	WatchPrompts(ctx context.Context, caller string) (<-chan PromptSnapshot, error)
+	GetPrompt(ctx context.Context, caller, name string, args json.RawMessage) (json.RawMessage, error)
+	StreamLogs(ctx context.Context, caller string, minLevel LogLevel) (<-chan LogEntry, error)
 }

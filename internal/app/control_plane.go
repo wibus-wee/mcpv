@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"runtime/debug"
 
 	"mcpd/internal/domain"
@@ -11,16 +12,25 @@ import (
 )
 
 type ControlPlane struct {
-	info  domain.ControlPlaneInfo
-	tools *aggregator.ToolIndex
-	logs  *telemetry.LogBroadcaster
+	info     domain.ControlPlaneInfo
+	profiles map[string]*profileRuntime
+	callers  map[string]string
+	logs     *telemetry.LogBroadcaster
 }
 
-func NewControlPlane(tools *aggregator.ToolIndex, logs *telemetry.LogBroadcaster) *ControlPlane {
+type profileRuntime struct {
+	name      string
+	tools     *aggregator.ToolIndex
+	resources *aggregator.ResourceIndex
+	prompts   *aggregator.PromptIndex
+}
+
+func NewControlPlane(profiles map[string]*profileRuntime, callers map[string]string, logs *telemetry.LogBroadcaster) *ControlPlane {
 	return &ControlPlane{
-		info:  defaultControlPlaneInfo(),
-		tools: tools,
-		logs:  logs,
+		info:     defaultControlPlaneInfo(),
+		profiles: profiles,
+		callers:  callers,
+		logs:     logs,
 	}
 }
 
@@ -28,30 +38,120 @@ func (c *ControlPlane) Info(ctx context.Context) (domain.ControlPlaneInfo, error
 	return c.info, nil
 }
 
-func (c *ControlPlane) ListTools(ctx context.Context) (domain.ToolSnapshot, error) {
-	if c.tools == nil {
+func (c *ControlPlane) ListTools(ctx context.Context, caller string) (domain.ToolSnapshot, error) {
+	profile, err := c.resolveProfile(caller)
+	if err != nil {
+		return domain.ToolSnapshot{}, err
+	}
+	if profile.tools == nil {
 		return domain.ToolSnapshot{}, nil
 	}
-	return c.tools.Snapshot(), nil
+	return profile.tools.Snapshot(), nil
 }
 
-func (c *ControlPlane) WatchTools(ctx context.Context) (<-chan domain.ToolSnapshot, error) {
-	if c.tools == nil {
+func (c *ControlPlane) WatchTools(ctx context.Context, caller string) (<-chan domain.ToolSnapshot, error) {
+	profile, err := c.resolveProfile(caller)
+	if err != nil {
+		ch := make(chan domain.ToolSnapshot)
+		close(ch)
+		return ch, err
+	}
+	if profile.tools == nil {
 		ch := make(chan domain.ToolSnapshot)
 		close(ch)
 		return ch, nil
 	}
-	return c.tools.Subscribe(ctx), nil
+	return profile.tools.Subscribe(ctx), nil
 }
 
-func (c *ControlPlane) CallTool(ctx context.Context, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
-	if c.tools == nil {
+func (c *ControlPlane) CallTool(ctx context.Context, caller, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
+	profile, err := c.resolveProfile(caller)
+	if err != nil {
+		return nil, err
+	}
+	if profile.tools == nil {
 		return nil, domain.ErrToolNotFound
 	}
-	return c.tools.CallTool(ctx, name, args, routingKey)
+	return profile.tools.CallTool(ctx, name, args, routingKey)
 }
 
-func (c *ControlPlane) StreamLogs(ctx context.Context, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
+func (c *ControlPlane) ListResources(ctx context.Context, caller string, cursor string) (domain.ResourcePage, error) {
+	profile, err := c.resolveProfile(caller)
+	if err != nil {
+		return domain.ResourcePage{}, err
+	}
+	if profile.resources == nil {
+		return domain.ResourcePage{Snapshot: domain.ResourceSnapshot{}}, nil
+	}
+	snapshot := profile.resources.Snapshot()
+	return paginateResources(snapshot, cursor)
+}
+
+func (c *ControlPlane) WatchResources(ctx context.Context, caller string) (<-chan domain.ResourceSnapshot, error) {
+	profile, err := c.resolveProfile(caller)
+	if err != nil {
+		ch := make(chan domain.ResourceSnapshot)
+		close(ch)
+		return ch, err
+	}
+	if profile.resources == nil {
+		ch := make(chan domain.ResourceSnapshot)
+		close(ch)
+		return ch, nil
+	}
+	return profile.resources.Subscribe(ctx), nil
+}
+
+func (c *ControlPlane) ReadResource(ctx context.Context, caller, uri string) (json.RawMessage, error) {
+	profile, err := c.resolveProfile(caller)
+	if err != nil {
+		return nil, err
+	}
+	if profile.resources == nil {
+		return nil, domain.ErrResourceNotFound
+	}
+	return profile.resources.ReadResource(ctx, uri)
+}
+
+func (c *ControlPlane) ListPrompts(ctx context.Context, caller string, cursor string) (domain.PromptPage, error) {
+	profile, err := c.resolveProfile(caller)
+	if err != nil {
+		return domain.PromptPage{}, err
+	}
+	if profile.prompts == nil {
+		return domain.PromptPage{Snapshot: domain.PromptSnapshot{}}, nil
+	}
+	snapshot := profile.prompts.Snapshot()
+	return paginatePrompts(snapshot, cursor)
+}
+
+func (c *ControlPlane) WatchPrompts(ctx context.Context, caller string) (<-chan domain.PromptSnapshot, error) {
+	profile, err := c.resolveProfile(caller)
+	if err != nil {
+		ch := make(chan domain.PromptSnapshot)
+		close(ch)
+		return ch, err
+	}
+	if profile.prompts == nil {
+		ch := make(chan domain.PromptSnapshot)
+		close(ch)
+		return ch, nil
+	}
+	return profile.prompts.Subscribe(ctx), nil
+}
+
+func (c *ControlPlane) GetPrompt(ctx context.Context, caller, name string, args json.RawMessage) (json.RawMessage, error) {
+	profile, err := c.resolveProfile(caller)
+	if err != nil {
+		return nil, err
+	}
+	if profile.prompts == nil {
+		return nil, domain.ErrPromptNotFound
+	}
+	return profile.prompts.GetPrompt(ctx, name, args)
+}
+
+func (c *ControlPlane) StreamLogs(ctx context.Context, caller string, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
 	if c.logs == nil {
 		ch := make(chan domain.LogEntry)
 		close(ch)
@@ -86,6 +186,20 @@ func (c *ControlPlane) StreamLogs(ctx context.Context, minLevel domain.LogLevel)
 	}()
 
 	return out, nil
+}
+
+func (c *ControlPlane) resolveProfile(caller string) (*profileRuntime, error) {
+	profileName := domain.DefaultProfileName
+	if caller != "" {
+		if mapped, ok := c.callers[caller]; ok {
+			profileName = mapped
+		}
+	}
+	profile, ok := c.profiles[profileName]
+	if !ok {
+		return nil, fmt.Errorf("profile %q not found", profileName)
+	}
+	return profile, nil
 }
 
 func defaultControlPlaneInfo() domain.ControlPlaneInfo {
@@ -142,6 +256,72 @@ func logLevelRank(level domain.LogLevel) int {
 	default:
 		return 0
 	}
+}
+
+const listPageSize = 200
+
+func paginateResources(snapshot domain.ResourceSnapshot, cursor string) (domain.ResourcePage, error) {
+	resources := snapshot.Resources
+	start, err := indexAfterCursor(resources, cursor, func(item domain.ResourceDefinition) string {
+		return item.URI
+	})
+	if err != nil {
+		return domain.ResourcePage{}, err
+	}
+	end := start + listPageSize
+	if end > len(resources) {
+		end = len(resources)
+	}
+	page := append([]domain.ResourceDefinition(nil), resources[start:end]...)
+	nextCursor := ""
+	if end < len(resources) {
+		nextCursor = resources[end-1].URI
+	}
+	return domain.ResourcePage{
+		Snapshot: domain.ResourceSnapshot{
+			ETag:      snapshot.ETag,
+			Resources: page,
+		},
+		NextCursor: nextCursor,
+	}, nil
+}
+
+func paginatePrompts(snapshot domain.PromptSnapshot, cursor string) (domain.PromptPage, error) {
+	prompts := snapshot.Prompts
+	start, err := indexAfterCursor(prompts, cursor, func(item domain.PromptDefinition) string {
+		return item.Name
+	})
+	if err != nil {
+		return domain.PromptPage{}, err
+	}
+	end := start + listPageSize
+	if end > len(prompts) {
+		end = len(prompts)
+	}
+	page := append([]domain.PromptDefinition(nil), prompts[start:end]...)
+	nextCursor := ""
+	if end < len(prompts) {
+		nextCursor = prompts[end-1].Name
+	}
+	return domain.PromptPage{
+		Snapshot: domain.PromptSnapshot{
+			ETag:    snapshot.ETag,
+			Prompts: page,
+		},
+		NextCursor: nextCursor,
+	}, nil
+}
+
+func indexAfterCursor[T any](items []T, cursor string, key func(T) string) (int, error) {
+	if cursor == "" {
+		return 0, nil
+	}
+	for i, item := range items {
+		if key(item) == cursor {
+			return i + 1, nil
+		}
+	}
+	return 0, domain.ErrInvalidCursor
 }
 
 var _ domain.ControlPlane = (*ControlPlane)(nil)

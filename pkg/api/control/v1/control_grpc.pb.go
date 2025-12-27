@@ -19,11 +19,17 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ControlPlaneService_GetInfo_FullMethodName    = "/mcpd.control.v1.ControlPlaneService/GetInfo"
-	ControlPlaneService_ListTools_FullMethodName  = "/mcpd.control.v1.ControlPlaneService/ListTools"
-	ControlPlaneService_WatchTools_FullMethodName = "/mcpd.control.v1.ControlPlaneService/WatchTools"
-	ControlPlaneService_CallTool_FullMethodName   = "/mcpd.control.v1.ControlPlaneService/CallTool"
-	ControlPlaneService_StreamLogs_FullMethodName = "/mcpd.control.v1.ControlPlaneService/StreamLogs"
+	ControlPlaneService_GetInfo_FullMethodName        = "/mcpd.control.v1.ControlPlaneService/GetInfo"
+	ControlPlaneService_ListTools_FullMethodName      = "/mcpd.control.v1.ControlPlaneService/ListTools"
+	ControlPlaneService_WatchTools_FullMethodName     = "/mcpd.control.v1.ControlPlaneService/WatchTools"
+	ControlPlaneService_CallTool_FullMethodName       = "/mcpd.control.v1.ControlPlaneService/CallTool"
+	ControlPlaneService_ListResources_FullMethodName  = "/mcpd.control.v1.ControlPlaneService/ListResources"
+	ControlPlaneService_WatchResources_FullMethodName = "/mcpd.control.v1.ControlPlaneService/WatchResources"
+	ControlPlaneService_ReadResource_FullMethodName   = "/mcpd.control.v1.ControlPlaneService/ReadResource"
+	ControlPlaneService_ListPrompts_FullMethodName    = "/mcpd.control.v1.ControlPlaneService/ListPrompts"
+	ControlPlaneService_WatchPrompts_FullMethodName   = "/mcpd.control.v1.ControlPlaneService/WatchPrompts"
+	ControlPlaneService_GetPrompt_FullMethodName      = "/mcpd.control.v1.ControlPlaneService/GetPrompt"
+	ControlPlaneService_StreamLogs_FullMethodName     = "/mcpd.control.v1.ControlPlaneService/StreamLogs"
 )
 
 // ControlPlaneServiceClient is the client API for ControlPlaneService service.
@@ -34,6 +40,12 @@ type ControlPlaneServiceClient interface {
 	ListTools(ctx context.Context, in *ListToolsRequest, opts ...grpc.CallOption) (*ListToolsResponse, error)
 	WatchTools(ctx context.Context, in *WatchToolsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ToolsSnapshot], error)
 	CallTool(ctx context.Context, in *CallToolRequest, opts ...grpc.CallOption) (*CallToolResponse, error)
+	ListResources(ctx context.Context, in *ListResourcesRequest, opts ...grpc.CallOption) (*ListResourcesResponse, error)
+	WatchResources(ctx context.Context, in *WatchResourcesRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ResourcesSnapshot], error)
+	ReadResource(ctx context.Context, in *ReadResourceRequest, opts ...grpc.CallOption) (*ReadResourceResponse, error)
+	ListPrompts(ctx context.Context, in *ListPromptsRequest, opts ...grpc.CallOption) (*ListPromptsResponse, error)
+	WatchPrompts(ctx context.Context, in *WatchPromptsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[PromptsSnapshot], error)
+	GetPrompt(ctx context.Context, in *GetPromptRequest, opts ...grpc.CallOption) (*GetPromptResponse, error)
 	StreamLogs(ctx context.Context, in *StreamLogsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[LogEntry], error)
 }
 
@@ -94,9 +106,87 @@ func (c *controlPlaneServiceClient) CallTool(ctx context.Context, in *CallToolRe
 	return out, nil
 }
 
+func (c *controlPlaneServiceClient) ListResources(ctx context.Context, in *ListResourcesRequest, opts ...grpc.CallOption) (*ListResourcesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListResourcesResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_ListResources_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) WatchResources(ctx context.Context, in *WatchResourcesRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ResourcesSnapshot], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &ControlPlaneService_ServiceDesc.Streams[1], ControlPlaneService_WatchResources_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[WatchResourcesRequest, ResourcesSnapshot]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ControlPlaneService_WatchResourcesClient = grpc.ServerStreamingClient[ResourcesSnapshot]
+
+func (c *controlPlaneServiceClient) ReadResource(ctx context.Context, in *ReadResourceRequest, opts ...grpc.CallOption) (*ReadResourceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReadResourceResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_ReadResource_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) ListPrompts(ctx context.Context, in *ListPromptsRequest, opts ...grpc.CallOption) (*ListPromptsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListPromptsResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_ListPrompts_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) WatchPrompts(ctx context.Context, in *WatchPromptsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[PromptsSnapshot], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &ControlPlaneService_ServiceDesc.Streams[2], ControlPlaneService_WatchPrompts_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[WatchPromptsRequest, PromptsSnapshot]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ControlPlaneService_WatchPromptsClient = grpc.ServerStreamingClient[PromptsSnapshot]
+
+func (c *controlPlaneServiceClient) GetPrompt(ctx context.Context, in *GetPromptRequest, opts ...grpc.CallOption) (*GetPromptResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetPromptResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_GetPrompt_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *controlPlaneServiceClient) StreamLogs(ctx context.Context, in *StreamLogsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[LogEntry], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &ControlPlaneService_ServiceDesc.Streams[1], ControlPlaneService_StreamLogs_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &ControlPlaneService_ServiceDesc.Streams[3], ControlPlaneService_StreamLogs_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -121,6 +211,12 @@ type ControlPlaneServiceServer interface {
 	ListTools(context.Context, *ListToolsRequest) (*ListToolsResponse, error)
 	WatchTools(*WatchToolsRequest, grpc.ServerStreamingServer[ToolsSnapshot]) error
 	CallTool(context.Context, *CallToolRequest) (*CallToolResponse, error)
+	ListResources(context.Context, *ListResourcesRequest) (*ListResourcesResponse, error)
+	WatchResources(*WatchResourcesRequest, grpc.ServerStreamingServer[ResourcesSnapshot]) error
+	ReadResource(context.Context, *ReadResourceRequest) (*ReadResourceResponse, error)
+	ListPrompts(context.Context, *ListPromptsRequest) (*ListPromptsResponse, error)
+	WatchPrompts(*WatchPromptsRequest, grpc.ServerStreamingServer[PromptsSnapshot]) error
+	GetPrompt(context.Context, *GetPromptRequest) (*GetPromptResponse, error)
 	StreamLogs(*StreamLogsRequest, grpc.ServerStreamingServer[LogEntry]) error
 	mustEmbedUnimplementedControlPlaneServiceServer()
 }
@@ -143,6 +239,24 @@ func (UnimplementedControlPlaneServiceServer) WatchTools(*WatchToolsRequest, grp
 }
 func (UnimplementedControlPlaneServiceServer) CallTool(context.Context, *CallToolRequest) (*CallToolResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CallTool not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) ListResources(context.Context, *ListResourcesRequest) (*ListResourcesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListResources not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) WatchResources(*WatchResourcesRequest, grpc.ServerStreamingServer[ResourcesSnapshot]) error {
+	return status.Errorf(codes.Unimplemented, "method WatchResources not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) ReadResource(context.Context, *ReadResourceRequest) (*ReadResourceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReadResource not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) ListPrompts(context.Context, *ListPromptsRequest) (*ListPromptsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListPrompts not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) WatchPrompts(*WatchPromptsRequest, grpc.ServerStreamingServer[PromptsSnapshot]) error {
+	return status.Errorf(codes.Unimplemented, "method WatchPrompts not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) GetPrompt(context.Context, *GetPromptRequest) (*GetPromptResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPrompt not implemented")
 }
 func (UnimplementedControlPlaneServiceServer) StreamLogs(*StreamLogsRequest, grpc.ServerStreamingServer[LogEntry]) error {
 	return status.Errorf(codes.Unimplemented, "method StreamLogs not implemented")
@@ -233,6 +347,100 @@ func _ControlPlaneService_CallTool_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ControlPlaneService_ListResources_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListResourcesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).ListResources(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_ListResources_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).ListResources(ctx, req.(*ListResourcesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_WatchResources_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(WatchResourcesRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ControlPlaneServiceServer).WatchResources(m, &grpc.GenericServerStream[WatchResourcesRequest, ResourcesSnapshot]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ControlPlaneService_WatchResourcesServer = grpc.ServerStreamingServer[ResourcesSnapshot]
+
+func _ControlPlaneService_ReadResource_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReadResourceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).ReadResource(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_ReadResource_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).ReadResource(ctx, req.(*ReadResourceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_ListPrompts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListPromptsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).ListPrompts(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_ListPrompts_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).ListPrompts(ctx, req.(*ListPromptsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_WatchPrompts_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(WatchPromptsRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ControlPlaneServiceServer).WatchPrompts(m, &grpc.GenericServerStream[WatchPromptsRequest, PromptsSnapshot]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ControlPlaneService_WatchPromptsServer = grpc.ServerStreamingServer[PromptsSnapshot]
+
+func _ControlPlaneService_GetPrompt_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPromptRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).GetPrompt(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_GetPrompt_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).GetPrompt(ctx, req.(*GetPromptRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ControlPlaneService_StreamLogs_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(StreamLogsRequest)
 	if err := stream.RecvMsg(m); err != nil {
@@ -263,11 +471,37 @@ var ControlPlaneService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "CallTool",
 			Handler:    _ControlPlaneService_CallTool_Handler,
 		},
+		{
+			MethodName: "ListResources",
+			Handler:    _ControlPlaneService_ListResources_Handler,
+		},
+		{
+			MethodName: "ReadResource",
+			Handler:    _ControlPlaneService_ReadResource_Handler,
+		},
+		{
+			MethodName: "ListPrompts",
+			Handler:    _ControlPlaneService_ListPrompts_Handler,
+		},
+		{
+			MethodName: "GetPrompt",
+			Handler:    _ControlPlaneService_GetPrompt_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "WatchTools",
 			Handler:       _ControlPlaneService_WatchTools_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "WatchResources",
+			Handler:       _ControlPlaneService_WatchResources_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "WatchPrompts",
+			Handler:       _ControlPlaneService_WatchPrompts_Handler,
 			ServerStreams: true,
 		},
 		{

@@ -26,7 +26,7 @@ services:
       - "./cmd/mcpd"
       - "serve"
       - "--config"
-      - "/app/dev/catalog.dev.yaml"
+      - "/app/dev"
     ports:
       - "9090:9090"  # Prometheus metrics (from core)
     environment:

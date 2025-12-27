@@ -4,7 +4,7 @@
   </p>
   <h1 align="center"><b>mcpd</b></h1>
   <p align="center">
-    <b>Lightweight Elastic Orchestrator for Model Context Protocol Servers</b>
+    <b>Lightweight MCP server orchestration core</b>
     <br />
     <br />
   </p>
@@ -15,71 +15,39 @@
 
 ## 🚀 What is mcpd?
 
-**mcpd** is a lightweight elastic control plane for [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) servers, providing on-demand startup, auto-scaling, and scale-to-zero capabilities. A separate **mcpd-gateway** process exposes the MCP protocol and bridges requests to the core.
+**mcpd** is a lightweight control plane for [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) servers. It starts servers on demand, scales them elastically, and supports scale-to-zero. The **mcpdmcp** gateway is the MCP entry point that bridges MCP requests into the mcpd core.
 
-## 💡 Why mcpd?
+## 💡 Why do we need it?
 
-As AI assistants integrate more MCP servers for extended capabilities, developers face growing resource management challenges:
+As the number of MCP servers grows, local setups often face:
 
-- **Resource Waste**: Running multiple MCP servers simultaneously consumes significant memory and CPU, even when idle
-- **Manual Complexity**: Starting, stopping, and monitoring each server individually becomes tedious and error-prone
-- **No Elasticity**: Traditional setups lack dynamic scaling—servers either run continuously or require manual intervention
-- **Poor Visibility**: Tracking health, performance, and tool availability across distributed servers is difficult
+- **Resource waste**: idle MCP servers consume CPU and memory
+- **Operational complexity**: start/stop/observe flows are fragmented
+- **Lack of elasticity**: no on-demand startup or idle reclamation
+- **Poor visibility**: no unified view for tools, resources, and prompts
 
-**mcpd solves these problems** by acting as a smart orchestrator that:
-- Launches servers only when needed, keeping your system lightweight
-- Automatically recycles idle instances, achieving true scale-to-zero efficiency  
-- Provides a gateway entry point for MCP interactions with intelligent routing
-- Aggregates tools from multiple servers into a unified, discoverable interface
-- Ensures service reliability through health monitoring and graceful lifecycle management
+**mcpd** addresses these issues by:
 
-Think of it as **"Kubernetes for MCP servers on your laptop"**—bringing cloud-native elasticity and observability to local AI development workflows.
+- Starting instances on demand and reclaiming them when idle
+- Exposing a single MCP entry point
+- Aggregating tools/resources/prompts with list-changed semantics
+- Using health probes and lifecycle management for stability
 
-## ✨ Core Features
+## ✨ Core capabilities
 
-- **⚡ On-Demand Startup**: Automatically launch MCP server instances on request without manual process management
-- **📉 Auto-Scaling**: Idle timeout-based instance recycling with scale-to-zero support for resource efficiency
-- **🎯 Unified Routing**: Single entry point for multiple MCP servers with sticky session and concurrency control
-- **🏥 Health Management**: Built-in health probes and instance lifecycle management for service stability
-- **🔧 Tool Aggregation**: Dynamically collect and expose unified tool lists from all downstream MCP servers
-- **⚙️ Flexible Configuration**: Declarative YAML configuration with environment variable overrides and hot-reload support
-- **📊 Observability**: Structured JSON logging with reserved Prometheus metrics interface
+- **On-demand startup**: requests trigger instance launch
+- **Elastic scaling**: idle reclamation + scale-to-zero
+- **Unified routing**: one entry point for multiple MCP servers, sticky and concurrency limits
+- **Resource and prompt aggregation**: unified view with list-changed updates
+- **Observability**: structured logs and Prometheus metrics
+- **Profile Store**: caller -> profile mapping with multi-profile support
 
-## ✅ Quick Start
+## ✅ Quick start
 
-This is the minimum setup to get running with as little configuration as possible.
-
-1) Create `catalog.yaml` (only server name + cmd required).
+1) Create profile directory and a default profile:
 
 ```yaml
-servers:
-  - name: weather
-    cmd: ["node", "./weather-demo-mcp/build/index.js"]
-```
-
-2) Start the core control plane.
-
-```bash
-go run ./cmd/mcpd serve --config catalog.yaml
-```
-
-3) Start the gateway (MCP Server entry).
-
-```bash
-go run ./cmd/mcpd-gateway --rpc unix:///tmp/mcpd.sock
-```
-
-4) In your MCP client (VS Code / Claude, etc.), connect the gateway as a stdio server.
-
-## 🧩 Minimal Config Notes
-
-- Runtime config (routeTimeout/ping/refresh/rpc) has defaults and can be omitted.
-- `servers[].maxConcurrent` defaults to 1; `servers[].protocolVersion` defaults to `2025-11-25`.
-- `servers[].idleSeconds` defaults to 0 (immediate reap). For stability, set it explicitly, e.g. 60.
-
-Recommended minimal config with two extra lines:
-
-```yaml
+# profiles/default.yaml
 servers:
   - name: weather
     cmd: ["node", "./weather-demo-mcp/build/index.js"]
@@ -87,54 +55,70 @@ servers:
     maxConcurrent: 1
 ```
 
-## 🔎 Optional Observability
+2) Create caller mapping:
 
-Enable metrics and healthz with env flags:
+```yaml
+# callers.yaml
+callers:
+  vscode: default
+```
+
+3) Start the core:
 
 ```bash
-MCPD_METRICS_ENABLED=true MCPD_HEALTHZ_ENABLED=true \
-  go run ./cmd/mcpd serve --config catalog.yaml
+go run ./cmd/mcpd serve --config .
 ```
 
-Endpoints:
-- http://localhost:9090/metrics
-- http://localhost:9090/healthz
+4) Start the MCP gateway:
 
-## 🏗️ Architecture Overview
+```bash
+go run ./cmd/mcpdmcp vscode
+```
+
+5) In your MCP client, launch `mcpdmcp` as a stdio server.
+
+## 🧩 Configuration layout
+
+Profile Store layout:
 
 ```
+<store-root>/
+  callers.yaml
+  profiles/
+    default.yaml
+    vscode.yaml
+```
+
+- `callers.yaml`: defines the `caller -> profile` mapping
+- `profiles/*.yaml`: each profile is a full catalog (servers + runtime)
+
+## 🏗️ Architecture overview
+
+```
+┌──────────────────────────────────────────────┐
+│                  MCP Client                  │
+└───────────────┬──────────────────────────────┘
+                │ MCP Protocol (stdio)
+                v
+┌──────────────────────────────────────────────┐
+│               mcpdmcp (gateway)              │
+└───────────────┬──────────────────────────────┘
+                │ gRPC
+                v
 ┌──────────────────────────────────────────────────────────┐
-│                       MCP Client                         │
-│              (VS Code, Claude, etc.)                     │
-└────────────┬─────────────────────────────────────────────┘
-             │ MCP Protocol (stdio)
-             v
-┌──────────────────────────────────────────────────────────┐
-│                       MCP Client                         │
-│              (VS Code, Claude, etc.)                     │
-└────────────┬─────────────────────────────────────────────┘
-             │ MCP Protocol (stdio)
-             v
-┌──────────────────────────────────────────────────────────┐
-│                      mcpd-gateway                        │
-│            MCP Server + Tool Registry Bridge             │
-└────────────┬─────────────────────────────────────────────┘
-             │ gRPC
-             v
-┌────────────────────────────────────────────────────────────┐
-│                         mcpd-core                          │
-│  ┌────────────┐  ┌────────────┐  ┌────────────────────┐  │
-│  │   Router   │  │ Scheduler  │  │   Tool Index       │  │
-│  └────┬───────┘  └────┬───────┘  └────────────────────┘  │
-│       │               │                                    │
-│  ┌────v───────────────v─────┐     ┌────────────────┐     │
-│  │   Lifecycle Manager      │────>│     Probe      │     │
-│  └────────┬─────────────────┘     └────────────────┘     │
-│           │                                                │
-│  ┌────────v─────────────────────────────────────────┐    │
-│  │            Transport Layer (stdio)               │    │
-│  └────────┬─────────────────────────────────────────┘    │
-└───────────┼─────────────────────────────────────────────┘
+│                         mcpd core                        │
+│  ┌──────────┐  ┌────────────┐  ┌──────────────────────┐ │
+│  │  Router  │  │ Scheduler  │  │ Tool/Resource/Prompt │ │
+│  └────┬─────┘  └────┬───────┘  │       Indexes        │ │
+│       │            │          └──────────────────────┘ │
+│  ┌────v────────────v─────┐      ┌────────────────────┐ │
+│  │    Lifecycle Manager   │────>│       Probe        │ │
+│  └────────┬────────────────┘      └──────────────────┘ │
+│           │                                              │
+│  ┌────────v───────────────────────────────────────────┐ │
+│  │                 Transport (stdio)                 │ │
+│  └────────┬───────────────────────────────────────────┘ │
+└───────────┼────────────────────────────────────────────┘
             │
     ┌───────┴───────┬───────────┬───────────┐
     v               v           v           v
@@ -145,22 +129,11 @@ Endpoints:
 └─────────┘   └─────────┘  └─────────┘  └─────────┘
 ```
 
-### Core Components
-
-- **Gateway**: MCP protocol entry point, bridges tools/list and tools/call to core over gRPC
-- **RPC Control Plane**: gRPC API for tool snapshots, tool calls, and log streaming
-- **Router**: Request routing that selects or creates instances based on serverType
-- **Scheduler**: Instance scheduling with sticky session and concurrency limits
-- **Lifecycle Manager**: Handles instance startup, handshake, state transitions, and shutdown
-- **Probe**: Periodic health checks with automatic failure instance removal
-- **Tool Index**: Collects and exposes unified tool lists from downstream MCP servers
-- **Transport**: Currently supports stdio, with future HTTP/SSE expansion
-
 ## 📄 License
 
 [MIT License](LICENSE)
 
-## 🔗 Resources
+## 🔗 References
 
 - [Model Context Protocol Specification](https://modelcontextprotocol.io/)
 - [MCP Go SDK](https://github.com/modelcontextprotocol/go-sdk)

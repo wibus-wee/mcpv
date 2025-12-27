@@ -1,11 +1,3 @@
-# Prometheus Metrics:
-# Set MCPD_METRICS_ENABLED=true to expose metrics on http://localhost:9090/metrics
-# Metrics include:
-#   - mcpd_route_duration_seconds: Request latency histogram
-#   - mcpd_instance_starts_total: Instance start counter
-#   - mcpd_instance_stops_total: Instance stop counter
-#   - mcpd_active_instances: Active instance gauge
-
 routeTimeoutSeconds: 10
 pingIntervalSeconds: 30
 toolRefreshSeconds: 60

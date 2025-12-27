@@ -19,6 +19,34 @@ func toProtoSnapshot(snapshot domain.ToolSnapshot) *controlv1.ToolsSnapshot {
 	}
 }
 
+func toProtoResourcesSnapshot(snapshot domain.ResourceSnapshot) *controlv1.ResourcesSnapshot {
+	resources := make([]*controlv1.ResourceDefinition, 0, len(snapshot.Resources))
+	for _, resource := range snapshot.Resources {
+		resources = append(resources, &controlv1.ResourceDefinition{
+			Uri:          resource.URI,
+			ResourceJson: resource.ResourceJSON,
+		})
+	}
+	return &controlv1.ResourcesSnapshot{
+		Etag:      snapshot.ETag,
+		Resources: resources,
+	}
+}
+
+func toProtoPromptsSnapshot(snapshot domain.PromptSnapshot) *controlv1.PromptsSnapshot {
+	prompts := make([]*controlv1.PromptDefinition, 0, len(snapshot.Prompts))
+	for _, prompt := range snapshot.Prompts {
+		prompts = append(prompts, &controlv1.PromptDefinition{
+			Name:       prompt.Name,
+			PromptJson: prompt.PromptJSON,
+		})
+	}
+	return &controlv1.PromptsSnapshot{
+		Etag:    snapshot.ETag,
+		Prompts: prompts,
+	}
+}
+
 func toProtoLogEntry(entry domain.LogEntry) *controlv1.LogEntry {
 	return &controlv1.LogEntry{
 		Logger:            entry.Logger,

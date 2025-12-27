@@ -1,100 +1,85 @@
-# Docker Compose Development Environment
+# Docker Compose 开发环境
 
-This directory contains configuration for local development with Docker Compose.
+本目录提供基于 Docker Compose 的本地开发配置。
 
-## Architecture
+## 架构
 
-- **dev**: MCP Inspector with Go environment - Inspector launches and manages mcpd-gateway
-- **core**: mcpd control plane (gRPC + metrics)
-- **prometheus**: Metrics collection and monitoring (http://localhost:9500)
+- **dev**：MCP Inspector + Go 环境（Inspector 会启动 mcpdmcp）
+- **core**：mcpd 控制面（gRPC + metrics）
+- **prometheus**：指标收集与可视化 (http://localhost:9500)
 
-## Quick Start
+## 快速开始
 
 ```bash
-# Build and start all services
 make dev
-
-# View logs
 docker compose logs -f dev
-
-# Stop all services
 make down
-
-# Rebuild after Dockerfile changes
-docker compose up --build
 ```
 
-## Services
+## 服务说明
 
-### MCP Inspector (dev service)
+### MCP Inspector（dev 服务）
 - **UI**: http://localhost:6274
 - **WebSocket**: ws://localhost:6277
-- **Purpose**: Debug MCP protocol, launch and manage mcpd-gateway
+- **用途**: 调试 MCP 协议、启动 mcpdmcp
 
-### mcpd-core (core service)
+### mcpd-core（core 服务）
 - **Metrics**: http://localhost:9090/metrics
-- **Purpose**: Control plane gRPC + orchestration
-
-### mcpd-gateway (launched by Inspector)
-- **Purpose**: MCP server bridge for tools/list and tools/call
+- **用途**: 控制面 + 编排
 
 ### Prometheus
 - **UI**: http://localhost:9500
-- **Purpose**: Scrape and visualize mcpd metrics
+- **用途**: 指标查询
 
-## Using MCP Inspector
+## 使用 MCP Inspector
 
-1. Start services: `make dev`
-2. Open Inspector UI: http://localhost:6274
-3. Configure gateway in Inspector:
-   - **Command**: `go run /app/cmd/mcpd-gateway --rpc core:9091`
-4. Click "Connect" to start mcpd-gateway
-5. Inspector will show all MCP protocol messages
+1) 启动服务：`make dev`
+2) 打开 Inspector UI：http://localhost:6274
+3) 在 Inspector 里配置启动命令：
 
-## Viewing Metrics
+```bash
+go run /app/cmd/mcpdmcp inspector --rpc core:9091
+```
 
-1. Ensure mcpd-core is running (started by Docker Compose)
-2. Open Prometheus: http://localhost:9500
-3. Query mcpd metrics:
+4) 点击 Connect，Inspector 会连接到 mcpdmcp
+5) Inspector 会展示 MCP 交互日志
+
+## 指标查看
+
+1) 确保 core 已运行
+2) 打开 Prometheus：http://localhost:9500
+3) 查询 mcpd 指标：
    - `mcpd_route_duration_seconds`
    - `mcpd_instance_starts_total`
    - `mcpd_instance_stops_total`
    - `mcpd_active_instances`
 
-## Development Workflow
+## 配置文件
 
-1. Make code changes in your local directory
-2. Changes are automatically reflected via volume mount
-3. Restart mcpd-gateway in Inspector UI (disconnect/reconnect)
-4. View protocol messages in Inspector
-5. View metrics in Prometheus
+- `dev/profiles/default.yaml`: 默认 profile 配置
+- `dev/callers.yaml`: caller 映射（默认包含 `inspector -> default`）
+- `dev/prometheus.yaml`: Prometheus scrape 配置
+- `dev/Dockerfile.dev`: 开发容器镜像
 
-## Configuration Files
-
-- `dev/catalog.dev.yaml`: mcpd-core configuration (includes RPC listen address)
-- `dev/prometheus.yaml`: Prometheus scrape configuration
-- `dev/Dockerfile.dev`: Development container with Go + Node.js + Inspector
-
-## Ports
+## 端口
 
 - `6274`: MCP Inspector UI
 - `6277`: MCP Inspector WebSocket
-- `9090`: mcpd-core Prometheus metrics
+- `9090`: mcpd-core metrics
 - `9500`: Prometheus UI
 
-## Troubleshooting
+## 排障
 
-**Inspector can't start mcpd-gateway:**
-- Check that the command path is correct: `/app/cmd/mcpd-gateway`
-- Ensure the core service is running: `docker compose ps core`
-- Verify the RPC address: `--rpc core:9091`
-- Check logs: `docker compose logs dev`
+**Inspector 无法连接 mcpdmcp：**
+- 确认命令路径：`/app/cmd/mcpdmcp`
+- 确认 core 正在运行：`docker compose ps core`
+- 确认 RPC 地址：`--rpc core:9091`
 
-**Prometheus shows no data:**
-- Ensure mcpd-core is running: `docker compose logs core`
-- Verify metrics endpoint: `curl http://localhost:9090/metrics`
-- Check Prometheus targets: http://localhost:9500/targets
+**Prometheus 无数据：**
+- 查看 core 日志：`docker compose logs core`
+- 检查 metrics：`curl http://localhost:9090/metrics`
+- 查看 targets：http://localhost:9500/targets
 
-**Port conflicts:**
-- Stop other services using ports 6274, 6277, 9090, or 9500
-- Or modify port mappings in `docker-compose.yml`
+**端口冲突：**
+- 停止占用 6274/6277/9090/9500 的进程
+- 或调整 `docker-compose.yml` 端口映射

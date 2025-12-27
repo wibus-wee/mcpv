@@ -124,7 +124,7 @@ type Lifecycle interface {
 }
 
 type Scheduler interface {
-	Acquire(ctx context.Context, serverType, routingKey string) (*Instance, error)
+	Acquire(ctx context.Context, specKey, routingKey string) (*Instance, error)
 	Release(ctx context.Context, instance *Instance) error
 	StartIdleManager(interval time.Duration)
 	StopIdleManager()
@@ -134,7 +134,7 @@ type Scheduler interface {
 }
 
 type Router interface {
-	Route(ctx context.Context, serverType, routingKey string, payload json.RawMessage) (json.RawMessage, error)
+	Route(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage) (json.RawMessage, error)
 }
 
 type CatalogLoader interface {
@@ -148,3 +148,6 @@ type HealthProbe interface {
 var ErrMethodNotAllowed = errors.New("method not allowed")
 var ErrInvalidRequest = errors.New("invalid request")
 var ErrToolNotFound = errors.New("tool not found")
+var ErrResourceNotFound = errors.New("resource not found")
+var ErrPromptNotFound = errors.New("prompt not found")
+var ErrInvalidCursor = errors.New("invalid cursor")

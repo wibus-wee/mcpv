@@ -43,7 +43,7 @@ func (s *ControlService) GetInfo(ctx context.Context, req *controlv1.GetInfoRequ
 }
 
 func (s *ControlService) ListTools(ctx context.Context, req *controlv1.ListToolsRequest) (*controlv1.ListToolsResponse, error) {
-	snapshot, err := s.control.ListTools(ctx)
+	snapshot, err := s.control.ListTools(ctx, req.GetCaller())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "list tools: %v", err)
 	}
@@ -54,7 +54,7 @@ func (s *ControlService) ListTools(ctx context.Context, req *controlv1.ListTools
 
 func (s *ControlService) WatchTools(req *controlv1.WatchToolsRequest, stream controlv1.ControlPlaneService_WatchToolsServer) error {
 	ctx := stream.Context()
-	current, err := s.control.ListTools(ctx)
+	current, err := s.control.ListTools(ctx, req.GetCaller())
 	if err != nil {
 		return status.Errorf(codes.Internal, "list tools: %v", err)
 	}
@@ -66,7 +66,7 @@ func (s *ControlService) WatchTools(req *controlv1.WatchToolsRequest, stream con
 		lastETag = current.ETag
 	}
 
-	updates, err := s.control.WatchTools(ctx)
+	updates, err := s.control.WatchTools(ctx, req.GetCaller())
 	if err != nil {
 		return status.Errorf(codes.Internal, "watch tools: %v", err)
 	}
@@ -94,7 +94,7 @@ func (s *ControlService) CallTool(ctx context.Context, req *controlv1.CallToolRe
 	if req.GetName() == "" {
 		return nil, status.Error(codes.InvalidArgument, "name is required")
 	}
-	result, err := s.control.CallTool(ctx, req.GetName(), req.GetArgumentsJson(), req.GetRoutingKey())
+	result, err := s.control.CallTool(ctx, req.GetCaller(), req.GetName(), req.GetArgumentsJson(), req.GetRoutingKey())
 	if err != nil {
 		return nil, mapCallToolError(req.GetName(), err)
 	}
@@ -102,6 +102,116 @@ func (s *ControlService) CallTool(ctx context.Context, req *controlv1.CallToolRe
 		return nil, status.Error(codes.Internal, "call tool: empty result")
 	}
 	return &controlv1.CallToolResponse{
+		ResultJson: result,
+	}, nil
+}
+
+func (s *ControlService) ListResources(ctx context.Context, req *controlv1.ListResourcesRequest) (*controlv1.ListResourcesResponse, error) {
+	page, err := s.control.ListResources(ctx, req.GetCaller(), req.GetCursor())
+	if err != nil {
+		return nil, mapListError("list resources", err)
+	}
+	return &controlv1.ListResourcesResponse{
+		Snapshot:   toProtoResourcesSnapshot(page.Snapshot),
+		NextCursor: page.NextCursor,
+	}, nil
+}
+
+func (s *ControlService) WatchResources(req *controlv1.WatchResourcesRequest, stream controlv1.ControlPlaneService_WatchResourcesServer) error {
+	ctx := stream.Context()
+	lastETag := req.GetLastEtag()
+
+	updates, err := s.control.WatchResources(ctx, req.GetCaller())
+	if err != nil {
+		return status.Errorf(codes.Internal, "watch resources: %v", err)
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case snapshot, ok := <-updates:
+			if !ok {
+				return nil
+			}
+			if lastETag == snapshot.ETag {
+				continue
+			}
+			if err := stream.Send(toProtoResourcesSnapshot(snapshot)); err != nil {
+				return err
+			}
+			lastETag = snapshot.ETag
+		}
+	}
+}
+
+func (s *ControlService) ReadResource(ctx context.Context, req *controlv1.ReadResourceRequest) (*controlv1.ReadResourceResponse, error) {
+	if req.GetUri() == "" {
+		return nil, status.Error(codes.InvalidArgument, "uri is required")
+	}
+	result, err := s.control.ReadResource(ctx, req.GetCaller(), req.GetUri())
+	if err != nil {
+		return nil, mapReadResourceError(req.GetUri(), err)
+	}
+	if len(result) == 0 {
+		return nil, status.Error(codes.Internal, "read resource: empty result")
+	}
+	return &controlv1.ReadResourceResponse{
+		ResultJson: result,
+	}, nil
+}
+
+func (s *ControlService) ListPrompts(ctx context.Context, req *controlv1.ListPromptsRequest) (*controlv1.ListPromptsResponse, error) {
+	page, err := s.control.ListPrompts(ctx, req.GetCaller(), req.GetCursor())
+	if err != nil {
+		return nil, mapListError("list prompts", err)
+	}
+	return &controlv1.ListPromptsResponse{
+		Snapshot:   toProtoPromptsSnapshot(page.Snapshot),
+		NextCursor: page.NextCursor,
+	}, nil
+}
+
+func (s *ControlService) WatchPrompts(req *controlv1.WatchPromptsRequest, stream controlv1.ControlPlaneService_WatchPromptsServer) error {
+	ctx := stream.Context()
+	lastETag := req.GetLastEtag()
+
+	updates, err := s.control.WatchPrompts(ctx, req.GetCaller())
+	if err != nil {
+		return status.Errorf(codes.Internal, "watch prompts: %v", err)
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case snapshot, ok := <-updates:
+			if !ok {
+				return nil
+			}
+			if lastETag == snapshot.ETag {
+				continue
+			}
+			if err := stream.Send(toProtoPromptsSnapshot(snapshot)); err != nil {
+				return err
+			}
+			lastETag = snapshot.ETag
+		}
+	}
+}
+
+func (s *ControlService) GetPrompt(ctx context.Context, req *controlv1.GetPromptRequest) (*controlv1.GetPromptResponse, error) {
+	if req.GetName() == "" {
+		return nil, status.Error(codes.InvalidArgument, "name is required")
+	}
+	result, err := s.control.GetPrompt(ctx, req.GetCaller(), req.GetName(), req.GetArgumentsJson())
+	if err != nil {
+		return nil, mapGetPromptError(req.GetName(), err)
+	}
+	if len(result) == 0 {
+		return nil, status.Error(codes.Internal, "get prompt: empty result")
+	}
+	return &controlv1.GetPromptResponse{
 		ResultJson: result,
 	}, nil
 }
@@ -116,7 +226,7 @@ func mapCallToolError(name string, err error) error {
 		return status.Errorf(codes.DeadlineExceeded, "call tool deadline exceeded")
 	case errors.Is(err, context.Canceled):
 		return status.Errorf(codes.Canceled, "call tool canceled")
-	case errors.Is(err, scheduler.ErrUnknownServerType):
+	case errors.Is(err, scheduler.ErrUnknownSpecKey):
 		return status.Errorf(codes.InvalidArgument, "call tool: %v", err)
 	case errors.Is(err, scheduler.ErrNoCapacity), errors.Is(err, scheduler.ErrStickyBusy):
 		return status.Errorf(codes.Unavailable, "call tool unavailable: %v", err)
@@ -125,10 +235,55 @@ func mapCallToolError(name string, err error) error {
 	}
 }
 
+func mapReadResourceError(uri string, err error) error {
+	switch {
+	case errors.Is(err, domain.ErrResourceNotFound):
+		return status.Errorf(codes.NotFound, "resource not found: %s", uri)
+	case errors.Is(err, domain.ErrInvalidRequest), errors.Is(err, domain.ErrMethodNotAllowed):
+		return status.Errorf(codes.InvalidArgument, "read resource: %v", err)
+	case errors.Is(err, context.DeadlineExceeded):
+		return status.Errorf(codes.DeadlineExceeded, "read resource deadline exceeded")
+	case errors.Is(err, context.Canceled):
+		return status.Errorf(codes.Canceled, "read resource canceled")
+	case errors.Is(err, scheduler.ErrUnknownSpecKey):
+		return status.Errorf(codes.InvalidArgument, "read resource: %v", err)
+	case errors.Is(err, scheduler.ErrNoCapacity), errors.Is(err, scheduler.ErrStickyBusy):
+		return status.Errorf(codes.Unavailable, "read resource unavailable: %v", err)
+	default:
+		return status.Errorf(codes.Unavailable, "read resource: %v", fmt.Sprintf("%T: %v", err, err))
+	}
+}
+
+func mapGetPromptError(name string, err error) error {
+	switch {
+	case errors.Is(err, domain.ErrPromptNotFound):
+		return status.Errorf(codes.NotFound, "prompt not found: %s", name)
+	case errors.Is(err, domain.ErrInvalidRequest), errors.Is(err, domain.ErrMethodNotAllowed):
+		return status.Errorf(codes.InvalidArgument, "get prompt: %v", err)
+	case errors.Is(err, context.DeadlineExceeded):
+		return status.Errorf(codes.DeadlineExceeded, "get prompt deadline exceeded")
+	case errors.Is(err, context.Canceled):
+		return status.Errorf(codes.Canceled, "get prompt canceled")
+	case errors.Is(err, scheduler.ErrUnknownSpecKey):
+		return status.Errorf(codes.InvalidArgument, "get prompt: %v", err)
+	case errors.Is(err, scheduler.ErrNoCapacity), errors.Is(err, scheduler.ErrStickyBusy):
+		return status.Errorf(codes.Unavailable, "get prompt unavailable: %v", err)
+	default:
+		return status.Errorf(codes.Unavailable, "get prompt: %v", fmt.Sprintf("%T: %v", err, err))
+	}
+}
+
+func mapListError(op string, err error) error {
+	if errors.Is(err, domain.ErrInvalidCursor) {
+		return status.Errorf(codes.InvalidArgument, "%s: invalid cursor", op)
+	}
+	return status.Errorf(codes.Internal, "%s: %v", op, err)
+}
+
 func (s *ControlService) StreamLogs(req *controlv1.StreamLogsRequest, stream controlv1.ControlPlaneService_StreamLogsServer) error {
 	ctx := stream.Context()
 	minLevel := fromProtoLogLevel(req.GetMinLevel())
-	entries, err := s.control.StreamLogs(ctx, minLevel)
+	entries, err := s.control.StreamLogs(ctx, req.GetCaller(), minLevel)
 	if err != nil {
 		return status.Errorf(codes.Internal, "stream logs: %v", err)
 	}

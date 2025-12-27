@@ -16,16 +16,18 @@ import (
 type logBridge struct {
 	server  *mcp.Server
 	clients *clientManager
+	caller  string
 	logger  *zap.Logger
 }
 
-func newLogBridge(server *mcp.Server, clients *clientManager, logger *zap.Logger) *logBridge {
+func newLogBridge(server *mcp.Server, clients *clientManager, caller string, logger *zap.Logger) *logBridge {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 	return &logBridge{
 		server:  server,
 		clients: clients,
+		caller:  caller,
 		logger:  logger.Named("log_bridge"),
 	}
 }
@@ -46,6 +48,7 @@ func (b *logBridge) Run(ctx context.Context) {
 		}
 
 		stream, err := client.Control().StreamLogs(ctx, &controlv1.StreamLogsRequest{
+			Caller:   b.caller,
 			MinLevel: controlv1.LogLevel_LOG_LEVEL_DEBUG,
 		})
 		if err != nil {

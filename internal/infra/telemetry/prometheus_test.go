@@ -34,9 +34,9 @@ func TestPrometheusMetrics_ObserveRoute(t *testing.T) {
 			},
 			[]string{"server_type", "status"},
 		),
-		instanceStarts:  prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_starts"}, []string{"server_type"}),
-		instanceStops:   prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_stops"}, []string{"server_type"}),
-		activeInstances: prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "test_active"}, []string{"server_type"}),
+		instanceStarts:  prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_starts"}, []string{"spec_key"}),
+		instanceStops:   prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_stops"}, []string{"spec_key"}),
+		activeInstances: prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "test_active"}, []string{"spec_key"}),
 	}
 	registry.MustRegister(m.routeDuration)
 
@@ -62,9 +62,9 @@ func TestPrometheusMetrics_ObserveRoute(t *testing.T) {
 func TestPrometheusMetrics_ObserveInstanceStart(t *testing.T) {
 	m := &PrometheusMetrics{
 		routeDuration:   prometheus.NewHistogramVec(prometheus.HistogramOpts{Name: "test_route2"}, []string{"server_type", "status"}),
-		instanceStarts:  prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_starts2"}, []string{"server_type"}),
-		instanceStops:   prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_stops2"}, []string{"server_type"}),
-		activeInstances: prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "test_active2"}, []string{"server_type"}),
+		instanceStarts:  prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_starts2"}, []string{"spec_key"}),
+		instanceStops:   prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_stops2"}, []string{"spec_key"}),
+		activeInstances: prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "test_active2"}, []string{"spec_key"}),
 	}
 	assert.NotPanics(t, func() {
 		m.ObserveInstanceStart("test-server", 1*time.Second, nil)
@@ -75,9 +75,9 @@ func TestPrometheusMetrics_ObserveInstanceStart(t *testing.T) {
 func TestPrometheusMetrics_ObserveInstanceStop(t *testing.T) {
 	m := &PrometheusMetrics{
 		routeDuration:   prometheus.NewHistogramVec(prometheus.HistogramOpts{Name: "test_route3"}, []string{"server_type", "status"}),
-		instanceStarts:  prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_starts3"}, []string{"server_type"}),
-		instanceStops:   prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_stops3"}, []string{"server_type"}),
-		activeInstances: prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "test_active3"}, []string{"server_type"}),
+		instanceStarts:  prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_starts3"}, []string{"spec_key"}),
+		instanceStops:   prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_stops3"}, []string{"spec_key"}),
+		activeInstances: prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "test_active3"}, []string{"spec_key"}),
 	}
 	assert.NotPanics(t, func() {
 		m.ObserveInstanceStop("test-server", nil)
@@ -88,9 +88,9 @@ func TestPrometheusMetrics_ObserveInstanceStop(t *testing.T) {
 func TestPrometheusMetrics_SetActiveInstances(t *testing.T) {
 	m := &PrometheusMetrics{
 		routeDuration:   prometheus.NewHistogramVec(prometheus.HistogramOpts{Name: "test_route4"}, []string{"server_type", "status"}),
-		instanceStarts:  prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_starts4"}, []string{"server_type"}),
-		instanceStops:   prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_stops4"}, []string{"server_type"}),
-		activeInstances: prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "test_active4"}, []string{"server_type"}),
+		instanceStarts:  prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_starts4"}, []string{"spec_key"}),
+		instanceStops:   prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_stops4"}, []string{"spec_key"}),
+		activeInstances: prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "test_active4"}, []string{"spec_key"}),
 	}
 	assert.NotPanics(t, func() {
 		m.SetActiveInstances("test-server", 0)

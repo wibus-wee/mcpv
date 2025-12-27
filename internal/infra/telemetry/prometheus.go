@@ -31,21 +31,21 @@ func NewPrometheusMetrics() *PrometheusMetrics {
 				Name: "mcpd_instance_starts_total",
 				Help: "Total number of instance start attempts",
 			},
-			[]string{"server_type"},
+			[]string{"spec_key"},
 		),
 		instanceStops: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "mcpd_instance_stops_total",
 				Help: "Total number of instance stops",
 			},
-			[]string{"server_type"},
+			[]string{"spec_key"},
 		),
 		activeInstances: promauto.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Name: "mcpd_active_instances",
 				Help: "Current number of active instances",
 			},
-			[]string{"server_type"},
+			[]string{"spec_key"},
 		),
 	}
 }
@@ -58,16 +58,16 @@ func (p *PrometheusMetrics) ObserveRoute(serverType string, duration time.Durati
 	p.routeDuration.WithLabelValues(serverType, status).Observe(duration.Seconds())
 }
 
-func (p *PrometheusMetrics) ObserveInstanceStart(serverType string, duration time.Duration, err error) {
-	p.instanceStarts.WithLabelValues(serverType).Inc()
+func (p *PrometheusMetrics) ObserveInstanceStart(specKey string, duration time.Duration, err error) {
+	p.instanceStarts.WithLabelValues(specKey).Inc()
 }
 
-func (p *PrometheusMetrics) ObserveInstanceStop(serverType string, err error) {
-	p.instanceStops.WithLabelValues(serverType).Inc()
+func (p *PrometheusMetrics) ObserveInstanceStop(specKey string, err error) {
+	p.instanceStops.WithLabelValues(specKey).Inc()
 }
 
-func (p *PrometheusMetrics) SetActiveInstances(serverType string, count int) {
-	p.activeInstances.WithLabelValues(serverType).Set(float64(count))
+func (p *PrometheusMetrics) SetActiveInstances(specKey string, count int) {
+	p.activeInstances.WithLabelValues(specKey).Set(float64(count))
 }
 
 var _ domain.Metrics = (*PrometheusMetrics)(nil)

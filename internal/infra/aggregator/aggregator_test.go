@@ -34,13 +34,16 @@ func TestToolIndex_SnapshotPrefixedTool(t *testing.T) {
 	specs := map[string]domain.ServerSpec{
 		"echo": {Name: "echo"},
 	}
+	specKeys := map[string]string{
+		"echo": "spec-echo",
+	}
 	cfg := domain.RuntimeConfig{
 		ExposeTools:           true,
 		ToolNamespaceStrategy: "prefix",
 		ToolRefreshSeconds:    0,
 	}
 
-	index := NewToolIndex(router, specs, cfg, zap.NewNop(), nil)
+	index := NewToolIndex(router, specs, specKeys, cfg, zap.NewNop(), nil)
 	index.Start(ctx)
 	defer index.Stop()
 
@@ -80,9 +83,12 @@ func TestToolIndex_RespectsExposeToolsAllowlist(t *testing.T) {
 			ExposeTools: []string{"echo"},
 		},
 	}
+	specKeys := map[string]string{
+		"echo": "spec-echo",
+	}
 	cfg := domain.RuntimeConfig{ExposeTools: true, ToolNamespaceStrategy: "prefix"}
 
-	index := NewToolIndex(router, specs, cfg, zap.NewNop(), nil)
+	index := NewToolIndex(router, specs, specKeys, cfg, zap.NewNop(), nil)
 	index.Start(ctx)
 	defer index.Stop()
 
@@ -93,7 +99,7 @@ func TestToolIndex_RespectsExposeToolsAllowlist(t *testing.T) {
 
 func TestToolIndex_CallToolNotFound(t *testing.T) {
 	ctx := context.Background()
-	index := NewToolIndex(&fakeRouter{}, map[string]domain.ServerSpec{}, domain.RuntimeConfig{}, zap.NewNop(), nil)
+	index := NewToolIndex(&fakeRouter{}, map[string]domain.ServerSpec{}, map[string]string{}, domain.RuntimeConfig{}, zap.NewNop(), nil)
 
 	_, err := index.CallTool(ctx, "missing", nil, "")
 	require.ErrorIs(t, err, domain.ErrToolNotFound)
@@ -117,9 +123,13 @@ func TestToolIndex_RefreshConcurrentFetches(t *testing.T) {
 		"fast": {Name: "fast"},
 		"slow": {Name: "slow"},
 	}
+	specKeys := map[string]string{
+		"fast": "spec-fast",
+		"slow": "spec-slow",
+	}
 	cfg := domain.RuntimeConfig{ExposeTools: true, ToolNamespaceStrategy: "prefix"}
 
-	index := NewToolIndex(router, specs, cfg, zap.NewNop(), nil)
+	index := NewToolIndex(router, specs, specKeys, cfg, zap.NewNop(), nil)
 
 	done := make(chan error, 1)
 	go func() {
@@ -170,9 +180,13 @@ func TestToolIndex_FlatNamespaceConflictsFailRefresh(t *testing.T) {
 		"a": {Name: "a"},
 		"b": {Name: "b"},
 	}
+	specKeys := map[string]string{
+		"a": "spec-a",
+		"b": "spec-b",
+	}
 	cfg := domain.RuntimeConfig{ExposeTools: true, ToolNamespaceStrategy: "flat"}
 
-	index := NewToolIndex(router, specs, cfg, zap.NewNop(), nil)
+	index := NewToolIndex(router, specs, specKeys, cfg, zap.NewNop(), nil)
 
 	require.NoError(t, index.refresh(ctx))
 
@@ -184,13 +198,13 @@ func TestToolIndex_FlatNamespaceConflictsFailRefresh(t *testing.T) {
 
 func TestToolIndex_CallToolPropagatesRouteError(t *testing.T) {
 	ctx := context.Background()
-	index := NewToolIndex(&failingRouter{err: context.DeadlineExceeded}, nil, domain.RuntimeConfig{
+	index := NewToolIndex(&failingRouter{err: context.DeadlineExceeded}, nil, map[string]string{}, domain.RuntimeConfig{
 		ToolNamespaceStrategy: "prefix",
 	}, zap.NewNop(), nil)
 	index.state.Store(toolIndexState{
 		snapshot: domain.ToolSnapshot{},
 		targets: map[string]domain.ToolTarget{
-			"echo.echo": {ServerType: "echo", ToolName: "echo"},
+			"echo.echo": {ServerType: "echo", SpecKey: "spec-echo", ToolName: "echo"},
 		},
 	})
 
@@ -205,7 +219,7 @@ type fakeRouter struct {
 	lastServerType string
 }
 
-func (f *fakeRouter) Route(ctx context.Context, serverType, routingKey string, payload json.RawMessage) (json.RawMessage, error) {
+func (f *fakeRouter) Route(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage) (json.RawMessage, error) {
 	msg, err := jsonrpc.DecodeMessage(payload)
 	if err != nil {
 		return nil, err
@@ -239,7 +253,7 @@ type blockingRouter struct {
 	responses map[string]toolListResponse
 }
 
-func (b *blockingRouter) Route(ctx context.Context, serverType, routingKey string, payload json.RawMessage) (json.RawMessage, error) {
+func (b *blockingRouter) Route(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage) (json.RawMessage, error) {
 	msg, err := jsonrpc.DecodeMessage(payload)
 	if err != nil {
 		return nil, err
@@ -269,7 +283,7 @@ type failingRouter struct {
 	err error
 }
 
-func (f *failingRouter) Route(ctx context.Context, serverType, routingKey string, payload json.RawMessage) (json.RawMessage, error) {
+func (f *failingRouter) Route(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage) (json.RawMessage, error) {
 	return nil, f.err
 }
 

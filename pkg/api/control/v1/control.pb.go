@@ -186,6 +186,7 @@ func (x *GetInfoResponse) GetBuild() string {
 
 type ListToolsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Caller        string                 `protobuf:"bytes,1,opt,name=caller,proto3" json:"caller,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -218,6 +219,13 @@ func (x *ListToolsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListToolsRequest.ProtoReflect.Descriptor instead.
 func (*ListToolsRequest) Descriptor() ([]byte, []int) {
 	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ListToolsRequest) GetCaller() string {
+	if x != nil {
+		return x.Caller
+	}
+	return ""
 }
 
 type ListToolsResponse struct {
@@ -266,7 +274,8 @@ func (x *ListToolsResponse) GetSnapshot() *ToolsSnapshot {
 
 type WatchToolsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	LastEtag      string                 `protobuf:"bytes,1,opt,name=last_etag,json=lastEtag,proto3" json:"last_etag,omitempty"`
+	Caller        string                 `protobuf:"bytes,1,opt,name=caller,proto3" json:"caller,omitempty"`
+	LastEtag      string                 `protobuf:"bytes,2,opt,name=last_etag,json=lastEtag,proto3" json:"last_etag,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -299,6 +308,13 @@ func (x *WatchToolsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use WatchToolsRequest.ProtoReflect.Descriptor instead.
 func (*WatchToolsRequest) Descriptor() ([]byte, []int) {
 	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *WatchToolsRequest) GetCaller() string {
+	if x != nil {
+		return x.Caller
+	}
+	return ""
 }
 
 func (x *WatchToolsRequest) GetLastEtag() string {
@@ -414,11 +430,12 @@ func (x *ToolDefinition) GetToolJson() []byte {
 }
 
 type CallToolRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Caller string                 `protobuf:"bytes,1,opt,name=caller,proto3" json:"caller,omitempty"`
+	Name   string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	// JSON encoding of tool arguments (mcp.CallToolParams.Arguments).
-	ArgumentsJson []byte `protobuf:"bytes,2,opt,name=arguments_json,json=argumentsJson,proto3" json:"arguments_json,omitempty"`
-	RoutingKey    string `protobuf:"bytes,3,opt,name=routing_key,json=routingKey,proto3" json:"routing_key,omitempty"`
+	ArgumentsJson []byte `protobuf:"bytes,3,opt,name=arguments_json,json=argumentsJson,proto3" json:"arguments_json,omitempty"`
+	RoutingKey    string `protobuf:"bytes,4,opt,name=routing_key,json=routingKey,proto3" json:"routing_key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -451,6 +468,13 @@ func (x *CallToolRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CallToolRequest.ProtoReflect.Descriptor instead.
 func (*CallToolRequest) Descriptor() ([]byte, []int) {
 	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *CallToolRequest) GetCaller() string {
+	if x != nil {
+		return x.Caller
+	}
+	return ""
 }
 
 func (x *CallToolRequest) GetName() string {
@@ -519,16 +543,742 @@ func (x *CallToolResponse) GetResultJson() []byte {
 	return nil
 }
 
+type ListResourcesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Caller        string                 `protobuf:"bytes,1,opt,name=caller,proto3" json:"caller,omitempty"`
+	Cursor        string                 `protobuf:"bytes,2,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListResourcesRequest) Reset() {
+	*x = ListResourcesRequest{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListResourcesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListResourcesRequest) ProtoMessage() {}
+
+func (x *ListResourcesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListResourcesRequest.ProtoReflect.Descriptor instead.
+func (*ListResourcesRequest) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ListResourcesRequest) GetCaller() string {
+	if x != nil {
+		return x.Caller
+	}
+	return ""
+}
+
+func (x *ListResourcesRequest) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
+type ListResourcesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Snapshot      *ResourcesSnapshot     `protobuf:"bytes,1,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
+	NextCursor    string                 `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListResourcesResponse) Reset() {
+	*x = ListResourcesResponse{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListResourcesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListResourcesResponse) ProtoMessage() {}
+
+func (x *ListResourcesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListResourcesResponse.ProtoReflect.Descriptor instead.
+func (*ListResourcesResponse) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ListResourcesResponse) GetSnapshot() *ResourcesSnapshot {
+	if x != nil {
+		return x.Snapshot
+	}
+	return nil
+}
+
+func (x *ListResourcesResponse) GetNextCursor() string {
+	if x != nil {
+		return x.NextCursor
+	}
+	return ""
+}
+
+type WatchResourcesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Caller        string                 `protobuf:"bytes,1,opt,name=caller,proto3" json:"caller,omitempty"`
+	LastEtag      string                 `protobuf:"bytes,2,opt,name=last_etag,json=lastEtag,proto3" json:"last_etag,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WatchResourcesRequest) Reset() {
+	*x = WatchResourcesRequest{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WatchResourcesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WatchResourcesRequest) ProtoMessage() {}
+
+func (x *WatchResourcesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WatchResourcesRequest.ProtoReflect.Descriptor instead.
+func (*WatchResourcesRequest) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *WatchResourcesRequest) GetCaller() string {
+	if x != nil {
+		return x.Caller
+	}
+	return ""
+}
+
+func (x *WatchResourcesRequest) GetLastEtag() string {
+	if x != nil {
+		return x.LastEtag
+	}
+	return ""
+}
+
+type ResourcesSnapshot struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Etag          string                 `protobuf:"bytes,1,opt,name=etag,proto3" json:"etag,omitempty"`
+	Resources     []*ResourceDefinition  `protobuf:"bytes,2,rep,name=resources,proto3" json:"resources,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResourcesSnapshot) Reset() {
+	*x = ResourcesSnapshot{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourcesSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourcesSnapshot) ProtoMessage() {}
+
+func (x *ResourcesSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourcesSnapshot.ProtoReflect.Descriptor instead.
+func (*ResourcesSnapshot) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ResourcesSnapshot) GetEtag() string {
+	if x != nil {
+		return x.Etag
+	}
+	return ""
+}
+
+func (x *ResourcesSnapshot) GetResources() []*ResourceDefinition {
+	if x != nil {
+		return x.Resources
+	}
+	return nil
+}
+
+type ResourceDefinition struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Uri   string                 `protobuf:"bytes,1,opt,name=uri,proto3" json:"uri,omitempty"`
+	// JSON encoding of mcp.Resource.
+	ResourceJson  []byte `protobuf:"bytes,2,opt,name=resource_json,json=resourceJson,proto3" json:"resource_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResourceDefinition) Reset() {
+	*x = ResourceDefinition{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourceDefinition) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourceDefinition) ProtoMessage() {}
+
+func (x *ResourceDefinition) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourceDefinition.ProtoReflect.Descriptor instead.
+func (*ResourceDefinition) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ResourceDefinition) GetUri() string {
+	if x != nil {
+		return x.Uri
+	}
+	return ""
+}
+
+func (x *ResourceDefinition) GetResourceJson() []byte {
+	if x != nil {
+		return x.ResourceJson
+	}
+	return nil
+}
+
+type ReadResourceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Caller        string                 `protobuf:"bytes,1,opt,name=caller,proto3" json:"caller,omitempty"`
+	Uri           string                 `protobuf:"bytes,2,opt,name=uri,proto3" json:"uri,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReadResourceRequest) Reset() {
+	*x = ReadResourceRequest{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReadResourceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReadResourceRequest) ProtoMessage() {}
+
+func (x *ReadResourceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReadResourceRequest.ProtoReflect.Descriptor instead.
+func (*ReadResourceRequest) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ReadResourceRequest) GetCaller() string {
+	if x != nil {
+		return x.Caller
+	}
+	return ""
+}
+
+func (x *ReadResourceRequest) GetUri() string {
+	if x != nil {
+		return x.Uri
+	}
+	return ""
+}
+
+type ReadResourceResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// JSON encoding of mcp.ReadResourceResult.
+	ResultJson    []byte `protobuf:"bytes,1,opt,name=result_json,json=resultJson,proto3" json:"result_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReadResourceResponse) Reset() {
+	*x = ReadResourceResponse{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReadResourceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReadResourceResponse) ProtoMessage() {}
+
+func (x *ReadResourceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReadResourceResponse.ProtoReflect.Descriptor instead.
+func (*ReadResourceResponse) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ReadResourceResponse) GetResultJson() []byte {
+	if x != nil {
+		return x.ResultJson
+	}
+	return nil
+}
+
+type ListPromptsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Caller        string                 `protobuf:"bytes,1,opt,name=caller,proto3" json:"caller,omitempty"`
+	Cursor        string                 `protobuf:"bytes,2,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListPromptsRequest) Reset() {
+	*x = ListPromptsRequest{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListPromptsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListPromptsRequest) ProtoMessage() {}
+
+func (x *ListPromptsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListPromptsRequest.ProtoReflect.Descriptor instead.
+func (*ListPromptsRequest) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ListPromptsRequest) GetCaller() string {
+	if x != nil {
+		return x.Caller
+	}
+	return ""
+}
+
+func (x *ListPromptsRequest) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
+type ListPromptsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Snapshot      *PromptsSnapshot       `protobuf:"bytes,1,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
+	NextCursor    string                 `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListPromptsResponse) Reset() {
+	*x = ListPromptsResponse{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListPromptsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListPromptsResponse) ProtoMessage() {}
+
+func (x *ListPromptsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListPromptsResponse.ProtoReflect.Descriptor instead.
+func (*ListPromptsResponse) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ListPromptsResponse) GetSnapshot() *PromptsSnapshot {
+	if x != nil {
+		return x.Snapshot
+	}
+	return nil
+}
+
+func (x *ListPromptsResponse) GetNextCursor() string {
+	if x != nil {
+		return x.NextCursor
+	}
+	return ""
+}
+
+type WatchPromptsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Caller        string                 `protobuf:"bytes,1,opt,name=caller,proto3" json:"caller,omitempty"`
+	LastEtag      string                 `protobuf:"bytes,2,opt,name=last_etag,json=lastEtag,proto3" json:"last_etag,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WatchPromptsRequest) Reset() {
+	*x = WatchPromptsRequest{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WatchPromptsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WatchPromptsRequest) ProtoMessage() {}
+
+func (x *WatchPromptsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WatchPromptsRequest.ProtoReflect.Descriptor instead.
+func (*WatchPromptsRequest) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *WatchPromptsRequest) GetCaller() string {
+	if x != nil {
+		return x.Caller
+	}
+	return ""
+}
+
+func (x *WatchPromptsRequest) GetLastEtag() string {
+	if x != nil {
+		return x.LastEtag
+	}
+	return ""
+}
+
+type PromptsSnapshot struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Etag          string                 `protobuf:"bytes,1,opt,name=etag,proto3" json:"etag,omitempty"`
+	Prompts       []*PromptDefinition    `protobuf:"bytes,2,rep,name=prompts,proto3" json:"prompts,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PromptsSnapshot) Reset() {
+	*x = PromptsSnapshot{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PromptsSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PromptsSnapshot) ProtoMessage() {}
+
+func (x *PromptsSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PromptsSnapshot.ProtoReflect.Descriptor instead.
+func (*PromptsSnapshot) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *PromptsSnapshot) GetEtag() string {
+	if x != nil {
+		return x.Etag
+	}
+	return ""
+}
+
+func (x *PromptsSnapshot) GetPrompts() []*PromptDefinition {
+	if x != nil {
+		return x.Prompts
+	}
+	return nil
+}
+
+type PromptDefinition struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// JSON encoding of mcp.Prompt.
+	PromptJson    []byte `protobuf:"bytes,2,opt,name=prompt_json,json=promptJson,proto3" json:"prompt_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PromptDefinition) Reset() {
+	*x = PromptDefinition{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PromptDefinition) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PromptDefinition) ProtoMessage() {}
+
+func (x *PromptDefinition) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PromptDefinition.ProtoReflect.Descriptor instead.
+func (*PromptDefinition) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *PromptDefinition) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *PromptDefinition) GetPromptJson() []byte {
+	if x != nil {
+		return x.PromptJson
+	}
+	return nil
+}
+
+type GetPromptRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Caller string                 `protobuf:"bytes,1,opt,name=caller,proto3" json:"caller,omitempty"`
+	Name   string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// JSON encoding of mcp.GetPromptParams.Arguments.
+	ArgumentsJson []byte `protobuf:"bytes,3,opt,name=arguments_json,json=argumentsJson,proto3" json:"arguments_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPromptRequest) Reset() {
+	*x = GetPromptRequest{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPromptRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPromptRequest) ProtoMessage() {}
+
+func (x *GetPromptRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPromptRequest.ProtoReflect.Descriptor instead.
+func (*GetPromptRequest) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *GetPromptRequest) GetCaller() string {
+	if x != nil {
+		return x.Caller
+	}
+	return ""
+}
+
+func (x *GetPromptRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *GetPromptRequest) GetArgumentsJson() []byte {
+	if x != nil {
+		return x.ArgumentsJson
+	}
+	return nil
+}
+
+type GetPromptResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// JSON encoding of mcp.GetPromptResult.
+	ResultJson    []byte `protobuf:"bytes,1,opt,name=result_json,json=resultJson,proto3" json:"result_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPromptResponse) Reset() {
+	*x = GetPromptResponse{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPromptResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPromptResponse) ProtoMessage() {}
+
+func (x *GetPromptResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPromptResponse.ProtoReflect.Descriptor instead.
+func (*GetPromptResponse) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *GetPromptResponse) GetResultJson() []byte {
+	if x != nil {
+		return x.ResultJson
+	}
+	return nil
+}
+
 type StreamLogsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	MinLevel      LogLevel               `protobuf:"varint,1,opt,name=min_level,json=minLevel,proto3,enum=mcpd.control.v1.LogLevel" json:"min_level,omitempty"`
+	Caller        string                 `protobuf:"bytes,1,opt,name=caller,proto3" json:"caller,omitempty"`
+	MinLevel      LogLevel               `protobuf:"varint,2,opt,name=min_level,json=minLevel,proto3,enum=mcpd.control.v1.LogLevel" json:"min_level,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StreamLogsRequest) Reset() {
 	*x = StreamLogsRequest{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[9]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -540,7 +1290,7 @@ func (x *StreamLogsRequest) String() string {
 func (*StreamLogsRequest) ProtoMessage() {}
 
 func (x *StreamLogsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[9]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -553,7 +1303,14 @@ func (x *StreamLogsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamLogsRequest.ProtoReflect.Descriptor instead.
 func (*StreamLogsRequest) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{9}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *StreamLogsRequest) GetCaller() string {
+	if x != nil {
+		return x.Caller
+	}
+	return ""
 }
 
 func (x *StreamLogsRequest) GetMinLevel() LogLevel {
@@ -576,7 +1333,7 @@ type LogEntry struct {
 
 func (x *LogEntry) Reset() {
 	*x = LogEntry{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[10]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -588,7 +1345,7 @@ func (x *LogEntry) String() string {
 func (*LogEntry) ProtoMessage() {}
 
 func (x *LogEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[10]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -601,7 +1358,7 @@ func (x *LogEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogEntry.ProtoReflect.Descriptor instead.
 func (*LogEntry) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{10}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *LogEntry) GetLogger() string {
@@ -641,28 +1398,78 @@ const file_mcpd_control_v1_control_proto_rawDesc = "" +
 	"\x0fGetInfoResponse\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x14\n" +
-	"\x05build\x18\x03 \x01(\tR\x05build\"\x12\n" +
-	"\x10ListToolsRequest\"O\n" +
+	"\x05build\x18\x03 \x01(\tR\x05build\"*\n" +
+	"\x10ListToolsRequest\x12\x16\n" +
+	"\x06caller\x18\x01 \x01(\tR\x06caller\"O\n" +
 	"\x11ListToolsResponse\x12:\n" +
-	"\bsnapshot\x18\x01 \x01(\v2\x1e.mcpd.control.v1.ToolsSnapshotR\bsnapshot\"0\n" +
-	"\x11WatchToolsRequest\x12\x1b\n" +
-	"\tlast_etag\x18\x01 \x01(\tR\blastEtag\"Z\n" +
+	"\bsnapshot\x18\x01 \x01(\v2\x1e.mcpd.control.v1.ToolsSnapshotR\bsnapshot\"H\n" +
+	"\x11WatchToolsRequest\x12\x16\n" +
+	"\x06caller\x18\x01 \x01(\tR\x06caller\x12\x1b\n" +
+	"\tlast_etag\x18\x02 \x01(\tR\blastEtag\"Z\n" +
 	"\rToolsSnapshot\x12\x12\n" +
 	"\x04etag\x18\x01 \x01(\tR\x04etag\x125\n" +
 	"\x05tools\x18\x02 \x03(\v2\x1f.mcpd.control.v1.ToolDefinitionR\x05tools\"A\n" +
 	"\x0eToolDefinition\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1b\n" +
-	"\ttool_json\x18\x02 \x01(\fR\btoolJson\"m\n" +
-	"\x0fCallToolRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12%\n" +
-	"\x0earguments_json\x18\x02 \x01(\fR\rargumentsJson\x12\x1f\n" +
-	"\vrouting_key\x18\x03 \x01(\tR\n" +
+	"\ttool_json\x18\x02 \x01(\fR\btoolJson\"\x85\x01\n" +
+	"\x0fCallToolRequest\x12\x16\n" +
+	"\x06caller\x18\x01 \x01(\tR\x06caller\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
+	"\x0earguments_json\x18\x03 \x01(\fR\rargumentsJson\x12\x1f\n" +
+	"\vrouting_key\x18\x04 \x01(\tR\n" +
 	"routingKey\"3\n" +
 	"\x10CallToolResponse\x12\x1f\n" +
 	"\vresult_json\x18\x01 \x01(\fR\n" +
-	"resultJson\"K\n" +
-	"\x11StreamLogsRequest\x126\n" +
-	"\tmin_level\x18\x01 \x01(\x0e2\x19.mcpd.control.v1.LogLevelR\bminLevel\"\xa0\x01\n" +
+	"resultJson\"F\n" +
+	"\x14ListResourcesRequest\x12\x16\n" +
+	"\x06caller\x18\x01 \x01(\tR\x06caller\x12\x16\n" +
+	"\x06cursor\x18\x02 \x01(\tR\x06cursor\"x\n" +
+	"\x15ListResourcesResponse\x12>\n" +
+	"\bsnapshot\x18\x01 \x01(\v2\".mcpd.control.v1.ResourcesSnapshotR\bsnapshot\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\tR\n" +
+	"nextCursor\"L\n" +
+	"\x15WatchResourcesRequest\x12\x16\n" +
+	"\x06caller\x18\x01 \x01(\tR\x06caller\x12\x1b\n" +
+	"\tlast_etag\x18\x02 \x01(\tR\blastEtag\"j\n" +
+	"\x11ResourcesSnapshot\x12\x12\n" +
+	"\x04etag\x18\x01 \x01(\tR\x04etag\x12A\n" +
+	"\tresources\x18\x02 \x03(\v2#.mcpd.control.v1.ResourceDefinitionR\tresources\"K\n" +
+	"\x12ResourceDefinition\x12\x10\n" +
+	"\x03uri\x18\x01 \x01(\tR\x03uri\x12#\n" +
+	"\rresource_json\x18\x02 \x01(\fR\fresourceJson\"?\n" +
+	"\x13ReadResourceRequest\x12\x16\n" +
+	"\x06caller\x18\x01 \x01(\tR\x06caller\x12\x10\n" +
+	"\x03uri\x18\x02 \x01(\tR\x03uri\"7\n" +
+	"\x14ReadResourceResponse\x12\x1f\n" +
+	"\vresult_json\x18\x01 \x01(\fR\n" +
+	"resultJson\"D\n" +
+	"\x12ListPromptsRequest\x12\x16\n" +
+	"\x06caller\x18\x01 \x01(\tR\x06caller\x12\x16\n" +
+	"\x06cursor\x18\x02 \x01(\tR\x06cursor\"t\n" +
+	"\x13ListPromptsResponse\x12<\n" +
+	"\bsnapshot\x18\x01 \x01(\v2 .mcpd.control.v1.PromptsSnapshotR\bsnapshot\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\tR\n" +
+	"nextCursor\"J\n" +
+	"\x13WatchPromptsRequest\x12\x16\n" +
+	"\x06caller\x18\x01 \x01(\tR\x06caller\x12\x1b\n" +
+	"\tlast_etag\x18\x02 \x01(\tR\blastEtag\"b\n" +
+	"\x0fPromptsSnapshot\x12\x12\n" +
+	"\x04etag\x18\x01 \x01(\tR\x04etag\x12;\n" +
+	"\aprompts\x18\x02 \x03(\v2!.mcpd.control.v1.PromptDefinitionR\aprompts\"G\n" +
+	"\x10PromptDefinition\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1f\n" +
+	"\vprompt_json\x18\x02 \x01(\fR\n" +
+	"promptJson\"e\n" +
+	"\x10GetPromptRequest\x12\x16\n" +
+	"\x06caller\x18\x01 \x01(\tR\x06caller\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
+	"\x0earguments_json\x18\x03 \x01(\fR\rargumentsJson\"4\n" +
+	"\x11GetPromptResponse\x12\x1f\n" +
+	"\vresult_json\x18\x01 \x01(\fR\n" +
+	"resultJson\"c\n" +
+	"\x11StreamLogsRequest\x12\x16\n" +
+	"\x06caller\x18\x01 \x01(\tR\x06caller\x126\n" +
+	"\tmin_level\x18\x02 \x01(\x0e2\x19.mcpd.control.v1.LogLevelR\bminLevel\"\xa0\x01\n" +
 	"\bLogEntry\x12\x16\n" +
 	"\x06logger\x18\x01 \x01(\tR\x06logger\x12/\n" +
 	"\x05level\x18\x02 \x01(\x0e2\x19.mcpd.control.v1.LogLevelR\x05level\x12.\n" +
@@ -677,13 +1484,19 @@ const file_mcpd_control_v1_control_proto_rawDesc = "" +
 	"\x0fLOG_LEVEL_ERROR\x10\x05\x12\x16\n" +
 	"\x12LOG_LEVEL_CRITICAL\x10\x06\x12\x13\n" +
 	"\x0fLOG_LEVEL_ALERT\x10\a\x12\x17\n" +
-	"\x13LOG_LEVEL_EMERGENCY\x10\b2\xab\x03\n" +
+	"\x13LOG_LEVEL_EMERGENCY\x10\b2\xd0\a\n" +
 	"\x13ControlPlaneService\x12L\n" +
 	"\aGetInfo\x12\x1f.mcpd.control.v1.GetInfoRequest\x1a .mcpd.control.v1.GetInfoResponse\x12R\n" +
 	"\tListTools\x12!.mcpd.control.v1.ListToolsRequest\x1a\".mcpd.control.v1.ListToolsResponse\x12R\n" +
 	"\n" +
 	"WatchTools\x12\".mcpd.control.v1.WatchToolsRequest\x1a\x1e.mcpd.control.v1.ToolsSnapshot0\x01\x12O\n" +
-	"\bCallTool\x12 .mcpd.control.v1.CallToolRequest\x1a!.mcpd.control.v1.CallToolResponse\x12M\n" +
+	"\bCallTool\x12 .mcpd.control.v1.CallToolRequest\x1a!.mcpd.control.v1.CallToolResponse\x12^\n" +
+	"\rListResources\x12%.mcpd.control.v1.ListResourcesRequest\x1a&.mcpd.control.v1.ListResourcesResponse\x12^\n" +
+	"\x0eWatchResources\x12&.mcpd.control.v1.WatchResourcesRequest\x1a\".mcpd.control.v1.ResourcesSnapshot0\x01\x12[\n" +
+	"\fReadResource\x12$.mcpd.control.v1.ReadResourceRequest\x1a%.mcpd.control.v1.ReadResourceResponse\x12X\n" +
+	"\vListPrompts\x12#.mcpd.control.v1.ListPromptsRequest\x1a$.mcpd.control.v1.ListPromptsResponse\x12X\n" +
+	"\fWatchPrompts\x12$.mcpd.control.v1.WatchPromptsRequest\x1a .mcpd.control.v1.PromptsSnapshot0\x01\x12R\n" +
+	"\tGetPrompt\x12!.mcpd.control.v1.GetPromptRequest\x1a\".mcpd.control.v1.GetPromptResponse\x12M\n" +
 	"\n" +
 	"StreamLogs\x12\".mcpd.control.v1.StreamLogsRequest\x1a\x19.mcpd.control.v1.LogEntry0\x01B#Z!mcpd/pkg/api/control/v1;controlv1b\x06proto3"
 
@@ -700,41 +1513,71 @@ func file_mcpd_control_v1_control_proto_rawDescGZIP() []byte {
 }
 
 var file_mcpd_control_v1_control_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_mcpd_control_v1_control_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_mcpd_control_v1_control_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_mcpd_control_v1_control_proto_goTypes = []any{
-	(LogLevel)(0),             // 0: mcpd.control.v1.LogLevel
-	(*GetInfoRequest)(nil),    // 1: mcpd.control.v1.GetInfoRequest
-	(*GetInfoResponse)(nil),   // 2: mcpd.control.v1.GetInfoResponse
-	(*ListToolsRequest)(nil),  // 3: mcpd.control.v1.ListToolsRequest
-	(*ListToolsResponse)(nil), // 4: mcpd.control.v1.ListToolsResponse
-	(*WatchToolsRequest)(nil), // 5: mcpd.control.v1.WatchToolsRequest
-	(*ToolsSnapshot)(nil),     // 6: mcpd.control.v1.ToolsSnapshot
-	(*ToolDefinition)(nil),    // 7: mcpd.control.v1.ToolDefinition
-	(*CallToolRequest)(nil),   // 8: mcpd.control.v1.CallToolRequest
-	(*CallToolResponse)(nil),  // 9: mcpd.control.v1.CallToolResponse
-	(*StreamLogsRequest)(nil), // 10: mcpd.control.v1.StreamLogsRequest
-	(*LogEntry)(nil),          // 11: mcpd.control.v1.LogEntry
+	(LogLevel)(0),                 // 0: mcpd.control.v1.LogLevel
+	(*GetInfoRequest)(nil),        // 1: mcpd.control.v1.GetInfoRequest
+	(*GetInfoResponse)(nil),       // 2: mcpd.control.v1.GetInfoResponse
+	(*ListToolsRequest)(nil),      // 3: mcpd.control.v1.ListToolsRequest
+	(*ListToolsResponse)(nil),     // 4: mcpd.control.v1.ListToolsResponse
+	(*WatchToolsRequest)(nil),     // 5: mcpd.control.v1.WatchToolsRequest
+	(*ToolsSnapshot)(nil),         // 6: mcpd.control.v1.ToolsSnapshot
+	(*ToolDefinition)(nil),        // 7: mcpd.control.v1.ToolDefinition
+	(*CallToolRequest)(nil),       // 8: mcpd.control.v1.CallToolRequest
+	(*CallToolResponse)(nil),      // 9: mcpd.control.v1.CallToolResponse
+	(*ListResourcesRequest)(nil),  // 10: mcpd.control.v1.ListResourcesRequest
+	(*ListResourcesResponse)(nil), // 11: mcpd.control.v1.ListResourcesResponse
+	(*WatchResourcesRequest)(nil), // 12: mcpd.control.v1.WatchResourcesRequest
+	(*ResourcesSnapshot)(nil),     // 13: mcpd.control.v1.ResourcesSnapshot
+	(*ResourceDefinition)(nil),    // 14: mcpd.control.v1.ResourceDefinition
+	(*ReadResourceRequest)(nil),   // 15: mcpd.control.v1.ReadResourceRequest
+	(*ReadResourceResponse)(nil),  // 16: mcpd.control.v1.ReadResourceResponse
+	(*ListPromptsRequest)(nil),    // 17: mcpd.control.v1.ListPromptsRequest
+	(*ListPromptsResponse)(nil),   // 18: mcpd.control.v1.ListPromptsResponse
+	(*WatchPromptsRequest)(nil),   // 19: mcpd.control.v1.WatchPromptsRequest
+	(*PromptsSnapshot)(nil),       // 20: mcpd.control.v1.PromptsSnapshot
+	(*PromptDefinition)(nil),      // 21: mcpd.control.v1.PromptDefinition
+	(*GetPromptRequest)(nil),      // 22: mcpd.control.v1.GetPromptRequest
+	(*GetPromptResponse)(nil),     // 23: mcpd.control.v1.GetPromptResponse
+	(*StreamLogsRequest)(nil),     // 24: mcpd.control.v1.StreamLogsRequest
+	(*LogEntry)(nil),              // 25: mcpd.control.v1.LogEntry
 }
 var file_mcpd_control_v1_control_proto_depIdxs = []int32{
 	6,  // 0: mcpd.control.v1.ListToolsResponse.snapshot:type_name -> mcpd.control.v1.ToolsSnapshot
 	7,  // 1: mcpd.control.v1.ToolsSnapshot.tools:type_name -> mcpd.control.v1.ToolDefinition
-	0,  // 2: mcpd.control.v1.StreamLogsRequest.min_level:type_name -> mcpd.control.v1.LogLevel
-	0,  // 3: mcpd.control.v1.LogEntry.level:type_name -> mcpd.control.v1.LogLevel
-	1,  // 4: mcpd.control.v1.ControlPlaneService.GetInfo:input_type -> mcpd.control.v1.GetInfoRequest
-	3,  // 5: mcpd.control.v1.ControlPlaneService.ListTools:input_type -> mcpd.control.v1.ListToolsRequest
-	5,  // 6: mcpd.control.v1.ControlPlaneService.WatchTools:input_type -> mcpd.control.v1.WatchToolsRequest
-	8,  // 7: mcpd.control.v1.ControlPlaneService.CallTool:input_type -> mcpd.control.v1.CallToolRequest
-	10, // 8: mcpd.control.v1.ControlPlaneService.StreamLogs:input_type -> mcpd.control.v1.StreamLogsRequest
-	2,  // 9: mcpd.control.v1.ControlPlaneService.GetInfo:output_type -> mcpd.control.v1.GetInfoResponse
-	4,  // 10: mcpd.control.v1.ControlPlaneService.ListTools:output_type -> mcpd.control.v1.ListToolsResponse
-	6,  // 11: mcpd.control.v1.ControlPlaneService.WatchTools:output_type -> mcpd.control.v1.ToolsSnapshot
-	9,  // 12: mcpd.control.v1.ControlPlaneService.CallTool:output_type -> mcpd.control.v1.CallToolResponse
-	11, // 13: mcpd.control.v1.ControlPlaneService.StreamLogs:output_type -> mcpd.control.v1.LogEntry
-	9,  // [9:14] is the sub-list for method output_type
-	4,  // [4:9] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	13, // 2: mcpd.control.v1.ListResourcesResponse.snapshot:type_name -> mcpd.control.v1.ResourcesSnapshot
+	14, // 3: mcpd.control.v1.ResourcesSnapshot.resources:type_name -> mcpd.control.v1.ResourceDefinition
+	20, // 4: mcpd.control.v1.ListPromptsResponse.snapshot:type_name -> mcpd.control.v1.PromptsSnapshot
+	21, // 5: mcpd.control.v1.PromptsSnapshot.prompts:type_name -> mcpd.control.v1.PromptDefinition
+	0,  // 6: mcpd.control.v1.StreamLogsRequest.min_level:type_name -> mcpd.control.v1.LogLevel
+	0,  // 7: mcpd.control.v1.LogEntry.level:type_name -> mcpd.control.v1.LogLevel
+	1,  // 8: mcpd.control.v1.ControlPlaneService.GetInfo:input_type -> mcpd.control.v1.GetInfoRequest
+	3,  // 9: mcpd.control.v1.ControlPlaneService.ListTools:input_type -> mcpd.control.v1.ListToolsRequest
+	5,  // 10: mcpd.control.v1.ControlPlaneService.WatchTools:input_type -> mcpd.control.v1.WatchToolsRequest
+	8,  // 11: mcpd.control.v1.ControlPlaneService.CallTool:input_type -> mcpd.control.v1.CallToolRequest
+	10, // 12: mcpd.control.v1.ControlPlaneService.ListResources:input_type -> mcpd.control.v1.ListResourcesRequest
+	12, // 13: mcpd.control.v1.ControlPlaneService.WatchResources:input_type -> mcpd.control.v1.WatchResourcesRequest
+	15, // 14: mcpd.control.v1.ControlPlaneService.ReadResource:input_type -> mcpd.control.v1.ReadResourceRequest
+	17, // 15: mcpd.control.v1.ControlPlaneService.ListPrompts:input_type -> mcpd.control.v1.ListPromptsRequest
+	19, // 16: mcpd.control.v1.ControlPlaneService.WatchPrompts:input_type -> mcpd.control.v1.WatchPromptsRequest
+	22, // 17: mcpd.control.v1.ControlPlaneService.GetPrompt:input_type -> mcpd.control.v1.GetPromptRequest
+	24, // 18: mcpd.control.v1.ControlPlaneService.StreamLogs:input_type -> mcpd.control.v1.StreamLogsRequest
+	2,  // 19: mcpd.control.v1.ControlPlaneService.GetInfo:output_type -> mcpd.control.v1.GetInfoResponse
+	4,  // 20: mcpd.control.v1.ControlPlaneService.ListTools:output_type -> mcpd.control.v1.ListToolsResponse
+	6,  // 21: mcpd.control.v1.ControlPlaneService.WatchTools:output_type -> mcpd.control.v1.ToolsSnapshot
+	9,  // 22: mcpd.control.v1.ControlPlaneService.CallTool:output_type -> mcpd.control.v1.CallToolResponse
+	11, // 23: mcpd.control.v1.ControlPlaneService.ListResources:output_type -> mcpd.control.v1.ListResourcesResponse
+	13, // 24: mcpd.control.v1.ControlPlaneService.WatchResources:output_type -> mcpd.control.v1.ResourcesSnapshot
+	16, // 25: mcpd.control.v1.ControlPlaneService.ReadResource:output_type -> mcpd.control.v1.ReadResourceResponse
+	18, // 26: mcpd.control.v1.ControlPlaneService.ListPrompts:output_type -> mcpd.control.v1.ListPromptsResponse
+	20, // 27: mcpd.control.v1.ControlPlaneService.WatchPrompts:output_type -> mcpd.control.v1.PromptsSnapshot
+	23, // 28: mcpd.control.v1.ControlPlaneService.GetPrompt:output_type -> mcpd.control.v1.GetPromptResponse
+	25, // 29: mcpd.control.v1.ControlPlaneService.StreamLogs:output_type -> mcpd.control.v1.LogEntry
+	19, // [19:30] is the sub-list for method output_type
+	8,  // [8:19] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_mcpd_control_v1_control_proto_init() }
@@ -748,7 +1591,7 @@ func file_mcpd_control_v1_control_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_mcpd_control_v1_control_proto_rawDesc), len(file_mcpd_control_v1_control_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   11,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -43,7 +43,7 @@ func NewBasicRouter(scheduler domain.Scheduler, opts RouterOptions) *BasicRouter
 	}
 }
 
-func (r *BasicRouter) Route(ctx context.Context, serverType, routingKey string, payload json.RawMessage) (json.RawMessage, error) {
+func (r *BasicRouter) Route(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage) (json.RawMessage, error) {
 	start := time.Now()
 
 	method, isCall, err := extractMethod(payload)
@@ -57,7 +57,7 @@ func (r *BasicRouter) Route(ctx context.Context, serverType, routingKey string, 
 		return nil, domain.ErrInvalidRequest
 	}
 
-	inst, err := r.scheduler.Acquire(ctx, serverType, routingKey)
+	inst, err := r.scheduler.Acquire(ctx, specKey, routingKey)
 	if err != nil {
 		r.observeRoute(serverType, start, err)
 		r.logRouteError(serverType, method, nil, start, err)
