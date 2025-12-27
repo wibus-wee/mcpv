@@ -92,6 +92,8 @@ type LogEntry struct {
 
 type ControlPlane interface {
 	Info(ctx context.Context) (ControlPlaneInfo, error)
+	RegisterCaller(ctx context.Context, caller string, pid int) (string, error)
+	UnregisterCaller(ctx context.Context, caller string) error
 	ListTools(ctx context.Context, caller string) (ToolSnapshot, error)
 	WatchTools(ctx context.Context, caller string) (<-chan ToolSnapshot, error)
 	CallTool(ctx context.Context, caller, name string, args json.RawMessage, routingKey string) (json.RawMessage, error)

@@ -42,10 +42,39 @@ func (s *ControlService) GetInfo(ctx context.Context, req *controlv1.GetInfoRequ
 	}, nil
 }
 
+func (s *ControlService) RegisterCaller(ctx context.Context, req *controlv1.RegisterCallerRequest) (*controlv1.RegisterCallerResponse, error) {
+	if req.GetCaller() == "" {
+		return nil, status.Error(codes.InvalidArgument, "caller is required")
+	}
+	if req.GetPid() <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "pid must be > 0")
+	}
+	profile, err := s.control.RegisterCaller(ctx, req.GetCaller(), int(req.GetPid()))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "register caller: %v", err)
+	}
+	return &controlv1.RegisterCallerResponse{
+		Profile: profile,
+	}, nil
+}
+
+func (s *ControlService) UnregisterCaller(ctx context.Context, req *controlv1.UnregisterCallerRequest) (*controlv1.UnregisterCallerResponse, error) {
+	if req.GetCaller() == "" {
+		return nil, status.Error(codes.InvalidArgument, "caller is required")
+	}
+	if err := s.control.UnregisterCaller(ctx, req.GetCaller()); err != nil {
+		if errors.Is(err, domain.ErrCallerNotRegistered) {
+			return nil, status.Error(codes.FailedPrecondition, "caller not registered")
+		}
+		return nil, status.Errorf(codes.Internal, "unregister caller: %v", err)
+	}
+	return &controlv1.UnregisterCallerResponse{}, nil
+}
+
 func (s *ControlService) ListTools(ctx context.Context, req *controlv1.ListToolsRequest) (*controlv1.ListToolsResponse, error) {
 	snapshot, err := s.control.ListTools(ctx, req.GetCaller())
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "list tools: %v", err)
+		return nil, mapCallerError("list tools", err)
 	}
 	return &controlv1.ListToolsResponse{
 		Snapshot: toProtoSnapshot(snapshot),
@@ -56,7 +85,7 @@ func (s *ControlService) WatchTools(req *controlv1.WatchToolsRequest, stream con
 	ctx := stream.Context()
 	current, err := s.control.ListTools(ctx, req.GetCaller())
 	if err != nil {
-		return status.Errorf(codes.Internal, "list tools: %v", err)
+		return mapCallerError("list tools", err)
 	}
 	lastETag := req.GetLastEtag()
 	if lastETag == "" || lastETag != current.ETag {
@@ -68,7 +97,7 @@ func (s *ControlService) WatchTools(req *controlv1.WatchToolsRequest, stream con
 
 	updates, err := s.control.WatchTools(ctx, req.GetCaller())
 	if err != nil {
-		return status.Errorf(codes.Internal, "watch tools: %v", err)
+		return mapCallerError("watch tools", err)
 	}
 
 	for {
@@ -123,7 +152,7 @@ func (s *ControlService) WatchResources(req *controlv1.WatchResourcesRequest, st
 
 	updates, err := s.control.WatchResources(ctx, req.GetCaller())
 	if err != nil {
-		return status.Errorf(codes.Internal, "watch resources: %v", err)
+		return mapCallerError("watch resources", err)
 	}
 
 	for {
@@ -178,7 +207,7 @@ func (s *ControlService) WatchPrompts(req *controlv1.WatchPromptsRequest, stream
 
 	updates, err := s.control.WatchPrompts(ctx, req.GetCaller())
 	if err != nil {
-		return status.Errorf(codes.Internal, "watch prompts: %v", err)
+		return mapCallerError("watch prompts", err)
 	}
 
 	for {
@@ -230,6 +259,8 @@ func mapCallToolError(name string, err error) error {
 		return status.Errorf(codes.InvalidArgument, "call tool: %v", err)
 	case errors.Is(err, scheduler.ErrNoCapacity), errors.Is(err, scheduler.ErrStickyBusy):
 		return status.Errorf(codes.Unavailable, "call tool unavailable: %v", err)
+	case errors.Is(err, domain.ErrCallerNotRegistered):
+		return status.Error(codes.FailedPrecondition, "caller not registered")
 	default:
 		return status.Errorf(codes.Unavailable, "call tool: %v", fmt.Sprintf("%T: %v", err, err))
 	}
@@ -249,6 +280,8 @@ func mapReadResourceError(uri string, err error) error {
 		return status.Errorf(codes.InvalidArgument, "read resource: %v", err)
 	case errors.Is(err, scheduler.ErrNoCapacity), errors.Is(err, scheduler.ErrStickyBusy):
 		return status.Errorf(codes.Unavailable, "read resource unavailable: %v", err)
+	case errors.Is(err, domain.ErrCallerNotRegistered):
+		return status.Error(codes.FailedPrecondition, "caller not registered")
 	default:
 		return status.Errorf(codes.Unavailable, "read resource: %v", fmt.Sprintf("%T: %v", err, err))
 	}
@@ -268,12 +301,17 @@ func mapGetPromptError(name string, err error) error {
 		return status.Errorf(codes.InvalidArgument, "get prompt: %v", err)
 	case errors.Is(err, scheduler.ErrNoCapacity), errors.Is(err, scheduler.ErrStickyBusy):
 		return status.Errorf(codes.Unavailable, "get prompt unavailable: %v", err)
+	case errors.Is(err, domain.ErrCallerNotRegistered):
+		return status.Error(codes.FailedPrecondition, "caller not registered")
 	default:
 		return status.Errorf(codes.Unavailable, "get prompt: %v", fmt.Sprintf("%T: %v", err, err))
 	}
 }
 
 func mapListError(op string, err error) error {
+	if errors.Is(err, domain.ErrCallerNotRegistered) {
+		return status.Errorf(codes.FailedPrecondition, "%s: caller not registered", op)
+	}
 	if errors.Is(err, domain.ErrInvalidCursor) {
 		return status.Errorf(codes.InvalidArgument, "%s: invalid cursor", op)
 	}
@@ -285,7 +323,7 @@ func (s *ControlService) StreamLogs(req *controlv1.StreamLogsRequest, stream con
 	minLevel := fromProtoLogLevel(req.GetMinLevel())
 	entries, err := s.control.StreamLogs(ctx, req.GetCaller(), minLevel)
 	if err != nil {
-		return status.Errorf(codes.Internal, "stream logs: %v", err)
+		return mapCallerError("stream logs", err)
 	}
 
 	for {
@@ -301,4 +339,11 @@ func (s *ControlService) StreamLogs(req *controlv1.StreamLogsRequest, stream con
 			}
 		}
 	}
+}
+
+func mapCallerError(op string, err error) error {
+	if errors.Is(err, domain.ErrCallerNotRegistered) {
+		return status.Errorf(codes.FailedPrecondition, "%s: caller not registered", op)
+	}
+	return status.Errorf(codes.Internal, "%s: %v", op, err)
 }

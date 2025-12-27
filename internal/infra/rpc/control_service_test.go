@@ -113,6 +113,29 @@ func TestControlService_ListTools(t *testing.T) {
 	require.Equal(t, "echo.echo", resp.Snapshot.Tools[0].Name)
 }
 
+func TestControlService_RegisterCaller(t *testing.T) {
+	svc := NewControlService(&fakeControlPlane{
+		registerProfile: "default",
+	}, nil)
+
+	resp, err := svc.RegisterCaller(context.Background(), &controlv1.RegisterCallerRequest{
+		Caller: "caller",
+		Pid:    1234,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "default", resp.Profile)
+}
+
+func TestControlService_ListToolsRequiresCaller(t *testing.T) {
+	svc := NewControlService(&fakeControlPlane{
+		listToolsErr: domain.ErrCallerNotRegistered,
+	}, nil)
+
+	_, err := svc.ListTools(context.Background(), &controlv1.ListToolsRequest{Caller: "caller"})
+	require.Error(t, err)
+	require.Equal(t, codes.FailedPrecondition, status.Code(err))
+}
+
 type fakeControlPlane struct {
 	snapshot        domain.ToolSnapshot
 	resourcePage    domain.ResourcePage
@@ -120,13 +143,34 @@ type fakeControlPlane struct {
 	callToolErr     error
 	readResourceErr error
 	getPromptErr    error
+	listToolsErr    error
+	registerProfile string
+	registerErr     error
+	unregisterErr   error
 }
 
 func (f *fakeControlPlane) Info(ctx context.Context) (domain.ControlPlaneInfo, error) {
 	return domain.ControlPlaneInfo{}, nil
 }
 
+func (f *fakeControlPlane) RegisterCaller(ctx context.Context, caller string, pid int) (string, error) {
+	if f.registerErr != nil {
+		return "", f.registerErr
+	}
+	if f.registerProfile == "" {
+		return "default", nil
+	}
+	return f.registerProfile, nil
+}
+
+func (f *fakeControlPlane) UnregisterCaller(ctx context.Context, caller string) error {
+	return f.unregisterErr
+}
+
 func (f *fakeControlPlane) ListTools(ctx context.Context, caller string) (domain.ToolSnapshot, error) {
+	if f.listToolsErr != nil {
+		return domain.ToolSnapshot{}, f.listToolsErr
+	}
 	return f.snapshot, nil
 }
 

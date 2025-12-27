@@ -3,8 +3,14 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"runtime/debug"
+	"sort"
+	"sync"
+	"time"
+
+	"go.uber.org/zap"
 
 	"mcpd/internal/domain"
 	"mcpd/internal/infra/aggregator"
@@ -12,30 +18,230 @@ import (
 )
 
 type ControlPlane struct {
-	info     domain.ControlPlaneInfo
-	profiles map[string]*profileRuntime
-	callers  map[string]string
-	logs     *telemetry.LogBroadcaster
+	info         domain.ControlPlaneInfo
+	profiles     map[string]*profileRuntime
+	callers      map[string]string
+	specRegistry map[string]domain.ServerSpec
+	scheduler    domain.Scheduler
+	runtime      domain.RuntimeConfig
+	logs         *telemetry.LogBroadcaster
+	logger       *zap.Logger
+	ctx          context.Context
+
+	mu             sync.Mutex
+	activeCallers  map[string]callerState
+	profileCounts  map[string]int
+	specCounts     map[string]int
+	monitorStarted bool
+}
+
+type callerState struct {
+	pid           int
+	profile       string
+	lastHeartbeat time.Time
 }
 
 type profileRuntime struct {
 	name      string
+	specKeys  []string
 	tools     *aggregator.ToolIndex
 	resources *aggregator.ResourceIndex
 	prompts   *aggregator.PromptIndex
+
+	mu     sync.Mutex
+	active bool
 }
 
-func NewControlPlane(profiles map[string]*profileRuntime, callers map[string]string, logs *telemetry.LogBroadcaster) *ControlPlane {
-	return &ControlPlane{
-		info:     defaultControlPlaneInfo(),
-		profiles: profiles,
-		callers:  callers,
-		logs:     logs,
+func (p *profileRuntime) Activate(ctx context.Context) {
+	p.mu.Lock()
+	if p.active {
+		p.mu.Unlock()
+		return
 	}
+	p.active = true
+	p.mu.Unlock()
+
+	if p.tools != nil {
+		p.tools.Start(ctx)
+	}
+	if p.resources != nil {
+		p.resources.Start(ctx)
+	}
+	if p.prompts != nil {
+		p.prompts.Start(ctx)
+	}
+}
+
+func (p *profileRuntime) Deactivate() {
+	p.mu.Lock()
+	if !p.active {
+		p.mu.Unlock()
+		return
+	}
+	p.active = false
+	p.mu.Unlock()
+
+	if p.tools != nil {
+		p.tools.Stop()
+	}
+	if p.resources != nil {
+		p.resources.Stop()
+	}
+	if p.prompts != nil {
+		p.prompts.Stop()
+	}
+}
+
+func NewControlPlane(
+	ctx context.Context,
+	profiles map[string]*profileRuntime,
+	callers map[string]string,
+	specRegistry map[string]domain.ServerSpec,
+	scheduler domain.Scheduler,
+	runtime domain.RuntimeConfig,
+	logs *telemetry.LogBroadcaster,
+	logger *zap.Logger,
+) *ControlPlane {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if callers == nil {
+		callers = map[string]string{}
+	}
+	return &ControlPlane{
+		info:          defaultControlPlaneInfo(),
+		profiles:      profiles,
+		callers:       callers,
+		specRegistry:  specRegistry,
+		scheduler:     scheduler,
+		runtime:       runtime,
+		logs:          logs,
+		logger:        logger.Named("control_plane"),
+		ctx:           ctx,
+		activeCallers: make(map[string]callerState),
+		profileCounts: make(map[string]int),
+		specCounts:    make(map[string]int),
+	}
+}
+
+func (c *ControlPlane) StartCallerMonitor(ctx context.Context) {
+	interval := time.Duration(c.runtime.CallerCheckSeconds) * time.Second
+	if interval <= 0 {
+		return
+	}
+
+	c.mu.Lock()
+	if c.monitorStarted {
+		c.mu.Unlock()
+		return
+	}
+	c.monitorStarted = true
+	c.mu.Unlock()
+
+	if ctx == nil {
+		ctx = c.ctx
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	ticker := time.NewTicker(interval)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				c.reapDeadCallers(ctx)
+			}
+		}
+	}()
 }
 
 func (c *ControlPlane) Info(ctx context.Context) (domain.ControlPlaneInfo, error) {
 	return c.info, nil
+}
+
+func (c *ControlPlane) RegisterCaller(ctx context.Context, caller string, pid int) (string, error) {
+	if caller == "" {
+		return "", errors.New("caller is required")
+	}
+	if pid <= 0 {
+		return "", errors.New("pid must be > 0")
+	}
+
+	profileName, err := c.resolveProfileName(caller)
+	if err != nil {
+		return "", err
+	}
+
+	var toStartProfiles []string
+	var toStopProfiles []string
+	var toActivateSpecs []string
+	var toDeactivateSpecs []string
+	now := time.Now()
+
+	c.mu.Lock()
+	if existing, ok := c.activeCallers[caller]; ok {
+		if existing.pid == pid && existing.profile == profileName {
+			existing.lastHeartbeat = now
+			c.activeCallers[caller] = existing
+			c.mu.Unlock()
+			return profileName, nil
+		}
+		if existing.profile == profileName {
+			existing.pid = pid
+			existing.lastHeartbeat = now
+			c.activeCallers[caller] = existing
+			c.mu.Unlock()
+			return profileName, nil
+		}
+		c.removeProfileLocked(existing.profile, &toStopProfiles, &toDeactivateSpecs)
+	}
+	c.activeCallers[caller] = callerState{pid: pid, profile: profileName, lastHeartbeat: now}
+	c.addProfileLocked(profileName, &toStartProfiles, &toActivateSpecs)
+	c.mu.Unlock()
+
+	toActivateSpecs, toDeactivateSpecs = filterOverlap(toActivateSpecs, toDeactivateSpecs)
+
+	if err := c.activateSpecs(ctx, toActivateSpecs); err != nil {
+		_ = c.UnregisterCaller(ctx, caller)
+		return "", err
+	}
+	c.activateProfiles(toStartProfiles)
+	c.deactivateProfiles(toStopProfiles)
+	_ = c.deactivateSpecs(ctx, toDeactivateSpecs)
+
+	c.logger.Info("caller registered", zap.String("caller", caller), zap.String("profile", profileName), zap.Int("pid", pid))
+	return profileName, nil
+}
+
+func (c *ControlPlane) UnregisterCaller(ctx context.Context, caller string) error {
+	if caller == "" {
+		return errors.New("caller is required")
+	}
+
+	var toStopProfiles []string
+	var toDeactivateSpecs []string
+
+	c.mu.Lock()
+	state, ok := c.activeCallers[caller]
+	if !ok {
+		c.mu.Unlock()
+		return domain.ErrCallerNotRegistered
+	}
+	delete(c.activeCallers, caller)
+	c.removeProfileLocked(state.profile, &toStopProfiles, &toDeactivateSpecs)
+	c.mu.Unlock()
+
+	c.deactivateProfiles(toStopProfiles)
+	deactivateErr := c.deactivateSpecs(ctx, toDeactivateSpecs)
+	c.logger.Info("caller unregistered", zap.String("caller", caller), zap.String("profile", state.profile))
+	return deactivateErr
 }
 
 func (c *ControlPlane) ListTools(ctx context.Context, caller string) (domain.ToolSnapshot, error) {
@@ -152,6 +358,11 @@ func (c *ControlPlane) GetPrompt(ctx context.Context, caller, name string, args 
 }
 
 func (c *ControlPlane) StreamLogs(ctx context.Context, caller string, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
+	if _, err := c.resolveProfile(caller); err != nil {
+		ch := make(chan domain.LogEntry)
+		close(ch)
+		return ch, err
+	}
 	if c.logs == nil {
 		ch := make(chan domain.LogEntry)
 		close(ch)
@@ -189,17 +400,255 @@ func (c *ControlPlane) StreamLogs(ctx context.Context, caller string, minLevel d
 }
 
 func (c *ControlPlane) resolveProfile(caller string) (*profileRuntime, error) {
+	if caller == "" {
+		return nil, domain.ErrCallerNotRegistered
+	}
+	c.mu.Lock()
+	state, ok := c.activeCallers[caller]
+	if ok {
+		state.lastHeartbeat = time.Now()
+		c.activeCallers[caller] = state
+	}
+	c.mu.Unlock()
+	if !ok {
+		return nil, domain.ErrCallerNotRegistered
+	}
+	profile, ok := c.profiles[state.profile]
+	if !ok {
+		return nil, fmt.Errorf("profile %q not found", state.profile)
+	}
+	return profile, nil
+}
+
+func (c *ControlPlane) resolveProfileName(caller string) (string, error) {
 	profileName := domain.DefaultProfileName
 	if caller != "" {
 		if mapped, ok := c.callers[caller]; ok {
 			profileName = mapped
 		}
 	}
-	profile, ok := c.profiles[profileName]
-	if !ok {
-		return nil, fmt.Errorf("profile %q not found", profileName)
+	if _, ok := c.profiles[profileName]; !ok {
+		return "", fmt.Errorf("profile %q not found", profileName)
 	}
-	return profile, nil
+	return profileName, nil
+}
+
+func paginateResources(snapshot domain.ResourceSnapshot, cursor string) (domain.ResourcePage, error) {
+	resources := snapshot.Resources
+	start := 0
+	if cursor != "" {
+		start = indexAfterResourceCursor(resources, cursor)
+		if start < 0 {
+			return domain.ResourcePage{}, domain.ErrInvalidCursor
+		}
+	}
+
+	end := start + 200
+	if end > len(resources) {
+		end = len(resources)
+	}
+	nextCursor := ""
+	if end < len(resources) {
+		nextCursor = resources[end-1].URI
+	}
+	page := domain.ResourceSnapshot{
+		ETag:      snapshot.ETag,
+		Resources: append([]domain.ResourceDefinition(nil), resources[start:end]...),
+	}
+	return domain.ResourcePage{Snapshot: page, NextCursor: nextCursor}, nil
+}
+
+func paginatePrompts(snapshot domain.PromptSnapshot, cursor string) (domain.PromptPage, error) {
+	prompts := snapshot.Prompts
+	start := 0
+	if cursor != "" {
+		start = indexAfterPromptCursor(prompts, cursor)
+		if start < 0 {
+			return domain.PromptPage{}, domain.ErrInvalidCursor
+		}
+	}
+
+	end := start + 200
+	if end > len(prompts) {
+		end = len(prompts)
+	}
+	nextCursor := ""
+	if end < len(prompts) {
+		nextCursor = prompts[end-1].Name
+	}
+	page := domain.PromptSnapshot{
+		ETag:    snapshot.ETag,
+		Prompts: append([]domain.PromptDefinition(nil), prompts[start:end]...),
+	}
+	return domain.PromptPage{Snapshot: page, NextCursor: nextCursor}, nil
+}
+
+func indexAfterResourceCursor(resources []domain.ResourceDefinition, cursor string) int {
+	idx := sort.Search(len(resources), func(i int) bool {
+		return resources[i].URI >= cursor
+	})
+	if idx >= len(resources) || resources[idx].URI != cursor {
+		return -1
+	}
+	return idx + 1
+}
+
+func indexAfterPromptCursor(prompts []domain.PromptDefinition, cursor string) int {
+	idx := sort.Search(len(prompts), func(i int) bool {
+		return prompts[i].Name >= cursor
+	})
+	if idx >= len(prompts) || prompts[idx].Name != cursor {
+		return -1
+	}
+	return idx + 1
+}
+
+func (c *ControlPlane) addProfileLocked(profile string, profileStarts *[]string, specStarts *[]string) {
+	runtime, ok := c.profiles[profile]
+	if !ok {
+		return
+	}
+	count := c.profileCounts[profile] + 1
+	c.profileCounts[profile] = count
+	if count == 1 {
+		*profileStarts = append(*profileStarts, profile)
+	}
+	for _, specKey := range runtime.specKeys {
+		specCount := c.specCounts[specKey] + 1
+		c.specCounts[specKey] = specCount
+		if specCount == 1 {
+			*specStarts = append(*specStarts, specKey)
+		}
+	}
+}
+
+func (c *ControlPlane) removeProfileLocked(profile string, profileStops *[]string, specStops *[]string) {
+	runtime, ok := c.profiles[profile]
+	if !ok {
+		return
+	}
+	count := c.profileCounts[profile]
+	switch {
+	case count <= 1:
+		delete(c.profileCounts, profile)
+		if count > 0 {
+			*profileStops = append(*profileStops, profile)
+		}
+	default:
+		c.profileCounts[profile] = count - 1
+	}
+	for _, specKey := range runtime.specKeys {
+		specCount := c.specCounts[specKey]
+		switch {
+		case specCount <= 1:
+			delete(c.specCounts, specKey)
+			if specCount > 0 {
+				*specStops = append(*specStops, specKey)
+			}
+		default:
+			c.specCounts[specKey] = specCount - 1
+		}
+	}
+}
+
+func (c *ControlPlane) activateSpecs(ctx context.Context, specKeys []string) error {
+	if len(specKeys) == 0 {
+		return nil
+	}
+	order := append([]string(nil), specKeys...)
+	sort.Strings(order)
+	for _, specKey := range order {
+		spec, ok := c.specRegistry[specKey]
+		if !ok {
+			return fmt.Errorf("unknown spec key %q", specKey)
+		}
+		minReady := spec.MinReady
+		if minReady < 1 {
+			minReady = 1
+		}
+		if err := c.scheduler.SetDesiredMinReady(ctx, specKey, minReady); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *ControlPlane) deactivateSpecs(ctx context.Context, specKeys []string) error {
+	if len(specKeys) == 0 {
+		return nil
+	}
+	order := append([]string(nil), specKeys...)
+	sort.Strings(order)
+	var firstErr error
+	for _, specKey := range order {
+		if err := c.scheduler.StopSpec(ctx, specKey, "caller inactive"); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
+}
+
+func (c *ControlPlane) activateProfiles(profiles []string) {
+	for _, profile := range profiles {
+		if runtime, ok := c.profiles[profile]; ok {
+			runtime.Activate(c.ctx)
+		}
+	}
+}
+
+func (c *ControlPlane) deactivateProfiles(profiles []string) {
+	for _, profile := range profiles {
+		if runtime, ok := c.profiles[profile]; ok {
+			runtime.Deactivate()
+		}
+	}
+}
+
+func (c *ControlPlane) reapDeadCallers(ctx context.Context) {
+	now := time.Now()
+	timeout := time.Duration(c.runtime.CallerCheckSeconds*2) * time.Second
+	c.mu.Lock()
+	callers := make([]string, 0, len(c.activeCallers))
+	for caller, state := range c.activeCallers {
+		if timeout > 0 && !state.lastHeartbeat.IsZero() && now.Sub(state.lastHeartbeat) <= timeout {
+			continue
+		}
+		if !pidAlive(state.pid) {
+			callers = append(callers, caller)
+		}
+	}
+	c.mu.Unlock()
+
+	for _, caller := range callers {
+		if err := c.UnregisterCaller(ctx, caller); err != nil {
+			c.logger.Warn("caller reap failed", zap.String("caller", caller), zap.Error(err))
+		}
+	}
+}
+
+func filterOverlap(activate []string, deactivate []string) ([]string, []string) {
+	if len(activate) == 0 || len(deactivate) == 0 {
+		return activate, deactivate
+	}
+	deactivateSet := make(map[string]struct{}, len(deactivate))
+	for _, key := range deactivate {
+		deactivateSet[key] = struct{}{}
+	}
+	filteredActivate := make([]string, 0, len(activate))
+	for _, key := range activate {
+		if _, ok := deactivateSet[key]; ok {
+			delete(deactivateSet, key)
+			continue
+		}
+		filteredActivate = append(filteredActivate, key)
+	}
+	filteredDeactivate := make([]string, 0, len(deactivateSet))
+	for _, key := range deactivate {
+		if _, ok := deactivateSet[key]; ok {
+			filteredDeactivate = append(filteredDeactivate, key)
+		}
+	}
+	return filteredActivate, filteredDeactivate
 }
 
 func defaultControlPlaneInfo() domain.ControlPlaneInfo {
@@ -257,71 +706,3 @@ func logLevelRank(level domain.LogLevel) int {
 		return 0
 	}
 }
-
-const listPageSize = 200
-
-func paginateResources(snapshot domain.ResourceSnapshot, cursor string) (domain.ResourcePage, error) {
-	resources := snapshot.Resources
-	start, err := indexAfterCursor(resources, cursor, func(item domain.ResourceDefinition) string {
-		return item.URI
-	})
-	if err != nil {
-		return domain.ResourcePage{}, err
-	}
-	end := start + listPageSize
-	if end > len(resources) {
-		end = len(resources)
-	}
-	page := append([]domain.ResourceDefinition(nil), resources[start:end]...)
-	nextCursor := ""
-	if end < len(resources) {
-		nextCursor = resources[end-1].URI
-	}
-	return domain.ResourcePage{
-		Snapshot: domain.ResourceSnapshot{
-			ETag:      snapshot.ETag,
-			Resources: page,
-		},
-		NextCursor: nextCursor,
-	}, nil
-}
-
-func paginatePrompts(snapshot domain.PromptSnapshot, cursor string) (domain.PromptPage, error) {
-	prompts := snapshot.Prompts
-	start, err := indexAfterCursor(prompts, cursor, func(item domain.PromptDefinition) string {
-		return item.Name
-	})
-	if err != nil {
-		return domain.PromptPage{}, err
-	}
-	end := start + listPageSize
-	if end > len(prompts) {
-		end = len(prompts)
-	}
-	page := append([]domain.PromptDefinition(nil), prompts[start:end]...)
-	nextCursor := ""
-	if end < len(prompts) {
-		nextCursor = prompts[end-1].Name
-	}
-	return domain.PromptPage{
-		Snapshot: domain.PromptSnapshot{
-			ETag:    snapshot.ETag,
-			Prompts: page,
-		},
-		NextCursor: nextCursor,
-	}, nil
-}
-
-func indexAfterCursor[T any](items []T, cursor string, key func(T) string) (int, error) {
-	if cursor == "" {
-		return 0, nil
-	}
-	for i, item := range items {
-		if key(item) == cursor {
-			return i + 1, nil
-		}
-	}
-	return 0, domain.ErrInvalidCursor
-}
-
-var _ domain.ControlPlane = (*ControlPlane)(nil)

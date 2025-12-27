@@ -43,7 +43,7 @@ func TestToolIndex_SnapshotPrefixedTool(t *testing.T) {
 		ToolRefreshSeconds:    0,
 	}
 
-	index := NewToolIndex(router, specs, specKeys, cfg, zap.NewNop(), nil)
+	index := NewToolIndex(router, specs, specKeys, cfg, zap.NewNop(), nil, nil)
 	index.Start(ctx)
 	defer index.Stop()
 
@@ -88,7 +88,7 @@ func TestToolIndex_RespectsExposeToolsAllowlist(t *testing.T) {
 	}
 	cfg := domain.RuntimeConfig{ExposeTools: true, ToolNamespaceStrategy: "prefix"}
 
-	index := NewToolIndex(router, specs, specKeys, cfg, zap.NewNop(), nil)
+	index := NewToolIndex(router, specs, specKeys, cfg, zap.NewNop(), nil, nil)
 	index.Start(ctx)
 	defer index.Stop()
 
@@ -99,7 +99,7 @@ func TestToolIndex_RespectsExposeToolsAllowlist(t *testing.T) {
 
 func TestToolIndex_CallToolNotFound(t *testing.T) {
 	ctx := context.Background()
-	index := NewToolIndex(&fakeRouter{}, map[string]domain.ServerSpec{}, map[string]string{}, domain.RuntimeConfig{}, zap.NewNop(), nil)
+	index := NewToolIndex(&fakeRouter{}, map[string]domain.ServerSpec{}, map[string]string{}, domain.RuntimeConfig{}, zap.NewNop(), nil, nil)
 
 	_, err := index.CallTool(ctx, "missing", nil, "")
 	require.ErrorIs(t, err, domain.ErrToolNotFound)
@@ -129,7 +129,7 @@ func TestToolIndex_RefreshConcurrentFetches(t *testing.T) {
 	}
 	cfg := domain.RuntimeConfig{ExposeTools: true, ToolNamespaceStrategy: "prefix"}
 
-	index := NewToolIndex(router, specs, specKeys, cfg, zap.NewNop(), nil)
+	index := NewToolIndex(router, specs, specKeys, cfg, zap.NewNop(), nil, nil)
 
 	done := make(chan error, 1)
 	go func() {
@@ -186,7 +186,7 @@ func TestToolIndex_FlatNamespaceConflictsFailRefresh(t *testing.T) {
 	}
 	cfg := domain.RuntimeConfig{ExposeTools: true, ToolNamespaceStrategy: "flat"}
 
-	index := NewToolIndex(router, specs, specKeys, cfg, zap.NewNop(), nil)
+	index := NewToolIndex(router, specs, specKeys, cfg, zap.NewNop(), nil, nil)
 
 	require.NoError(t, index.refresh(ctx))
 
@@ -200,7 +200,7 @@ func TestToolIndex_CallToolPropagatesRouteError(t *testing.T) {
 	ctx := context.Background()
 	index := NewToolIndex(&failingRouter{err: context.DeadlineExceeded}, nil, map[string]string{}, domain.RuntimeConfig{
 		ToolNamespaceStrategy: "prefix",
-	}, zap.NewNop(), nil)
+	}, zap.NewNop(), nil, nil)
 	index.state.Store(toolIndexState{
 		snapshot: domain.ToolSnapshot{},
 		targets: map[string]domain.ToolTarget{

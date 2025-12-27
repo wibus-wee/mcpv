@@ -24,6 +24,7 @@ type rawCatalog struct {
 	RouteTimeoutSeconds   int                    `mapstructure:"routeTimeoutSeconds"`
 	PingIntervalSeconds   int                    `mapstructure:"pingIntervalSeconds"`
 	ToolRefreshSeconds    int                    `mapstructure:"toolRefreshSeconds"`
+	CallerCheckSeconds    int                    `mapstructure:"callerCheckSeconds"`
 	ExposeTools           bool                   `mapstructure:"exposeTools"`
 	ToolNamespaceStrategy string                 `mapstructure:"toolNamespaceStrategy"`
 	Observability         rawObservabilityConfig `mapstructure:"observability"`
@@ -84,6 +85,7 @@ func (l *Loader) Load(ctx context.Context, path string) (domain.Catalog, error) 
 	v.SetDefault("routeTimeoutSeconds", domain.DefaultRouteTimeoutSeconds)
 	v.SetDefault("pingIntervalSeconds", domain.DefaultPingIntervalSeconds)
 	v.SetDefault("toolRefreshSeconds", domain.DefaultToolRefreshSeconds)
+	v.SetDefault("callerCheckSeconds", domain.DefaultCallerCheckSeconds)
 	v.SetDefault("exposeTools", domain.DefaultExposeTools)
 	v.SetDefault("toolNamespaceStrategy", domain.DefaultToolNamespaceStrategy)
 	v.SetDefault("observability.listenAddress", domain.DefaultObservabilityListenAddress)
@@ -211,6 +213,11 @@ func normalizeRuntimeConfig(cfg rawCatalog) (domain.RuntimeConfig, []string) {
 		errs = append(errs, "toolRefreshSeconds must be >= 0")
 	}
 
+	callerCheck := cfg.CallerCheckSeconds
+	if callerCheck <= 0 {
+		errs = append(errs, "callerCheckSeconds must be > 0")
+	}
+
 	strategy := strings.ToLower(strings.TrimSpace(cfg.ToolNamespaceStrategy))
 	if strategy == "" {
 		strategy = domain.DefaultToolNamespaceStrategy
@@ -229,6 +236,7 @@ func normalizeRuntimeConfig(cfg rawCatalog) (domain.RuntimeConfig, []string) {
 		RouteTimeoutSeconds:   routeTimeout,
 		PingIntervalSeconds:   pingInterval,
 		ToolRefreshSeconds:    toolRefresh,
+		CallerCheckSeconds:    callerCheck,
 		ExposeTools:           cfg.ExposeTools,
 		ToolNamespaceStrategy: strategy,
 		Observability:         observabilityCfg,

@@ -6,6 +6,8 @@ option go_package = "mcpd/pkg/api/control/v1;controlv1";
 
 service ControlPlaneService {
   rpc GetInfo(GetInfoRequest) returns (GetInfoResponse);
+  rpc RegisterCaller(RegisterCallerRequest) returns (RegisterCallerResponse);
+  rpc UnregisterCaller(UnregisterCallerRequest) returns (UnregisterCallerResponse);
   rpc ListTools(ListToolsRequest) returns (ListToolsResponse);
   rpc WatchTools(WatchToolsRequest) returns (stream ToolsSnapshot);
   rpc CallTool(CallToolRequest) returns (CallToolResponse);
@@ -25,6 +27,21 @@ message GetInfoResponse {
   string version = 2;
   string build = 3;
 }
+
+message RegisterCallerRequest {
+  string caller = 1;
+  int64 pid = 2;
+}
+
+message RegisterCallerResponse {
+  string profile = 1;
+}
+
+message UnregisterCallerRequest {
+  string caller = 1;
+}
+
+message UnregisterCallerResponse {}
 
 message ListToolsRequest {
   string caller = 1;

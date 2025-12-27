@@ -135,3 +135,4 @@ yarn-error.log*
 **/*.log
 package-lock.json
 **/*.bun-build
+.gocache

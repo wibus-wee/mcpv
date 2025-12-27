@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -16,15 +17,18 @@ import (
 )
 
 type Gateway struct {
-	cfg       rpc.ClientConfig
-	caller    string
-	logger    *zap.Logger
-	server    *mcp.Server
-	clients   *clientManager
-	registry  *toolRegistry
-	resources *resourceRegistry
-	prompts   *promptRegistry
+	cfg        rpc.ClientConfig
+	caller     string
+	logger     *zap.Logger
+	server     *mcp.Server
+	clients    *clientManager
+	registry   *toolRegistry
+	resources  *resourceRegistry
+	prompts    *promptRegistry
+	registered bool
 }
+
+const defaultHeartbeatInterval = 2 * time.Second
 
 func NewGateway(cfg rpc.ClientConfig, caller string, logger *zap.Logger) *Gateway {
 	if logger == nil {
@@ -51,6 +55,9 @@ func (g *Gateway) Run(ctx context.Context) error {
 		return errors.New("caller is required")
 	}
 
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	g.server = mcp.NewServer(&mcp.Implementation{
 		Name:    "mcpd-gateway",
 		Version: "0.1.0",
@@ -65,15 +72,79 @@ func (g *Gateway) Run(ctx context.Context) error {
 	g.resources = newResourceRegistry(g.server, g.resourceHandler, g.logger)
 	g.prompts = newPromptRegistry(g.server, g.promptHandler, g.logger)
 
-	go g.syncTools(ctx)
-	go g.syncResources(ctx)
-	go g.syncPrompts(ctx)
-	go newLogBridge(g.server, g.clients, g.caller, g.logger).Run(ctx)
+	if err := g.registerCaller(runCtx); err != nil {
+		return err
+	}
+	defer func() {
+		cancel()
+		_ = g.unregisterCaller(context.Background())
+	}()
+
+	go g.heartbeat(runCtx)
+	go g.syncTools(runCtx)
+	go g.syncResources(runCtx)
+	go g.syncPrompts(runCtx)
+	go newLogBridge(g.server, g.clients, g.caller, g.logger).Run(runCtx)
 
 	g.logger.Info("gateway starting (stdio transport)")
-	err := g.server.Run(ctx, &mcp.StdioTransport{})
+	err := g.server.Run(runCtx, &mcp.StdioTransport{})
 	g.clients.close()
 	return err
+}
+
+func (g *Gateway) heartbeat(ctx context.Context) {
+	ticker := time.NewTicker(defaultHeartbeatInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := g.registerCaller(ctx); err != nil {
+				g.logger.Warn("caller heartbeat failed", zap.Error(err))
+			}
+		}
+	}
+}
+
+func (g *Gateway) registerCaller(ctx context.Context) error {
+	client, err := g.clients.get(ctx)
+	if err != nil {
+		return err
+	}
+	resp, err := client.Control().RegisterCaller(ctx, &controlv1.RegisterCallerRequest{
+		Caller: g.caller,
+		Pid:    int64(os.Getpid()),
+	})
+	if err != nil {
+		if status.Code(err) == codes.Unavailable {
+			g.clients.reset()
+		}
+		return err
+	}
+	if !g.registered && resp != nil && resp.Profile != "" {
+		g.logger.Info("caller registered", zap.String("profile", resp.Profile))
+	}
+	g.registered = true
+	return nil
+}
+
+func (g *Gateway) unregisterCaller(ctx context.Context) error {
+	client, err := g.clients.get(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = client.Control().UnregisterCaller(ctx, &controlv1.UnregisterCallerRequest{
+		Caller: g.caller,
+	})
+	if err != nil {
+		if status.Code(err) == codes.Unavailable {
+			g.clients.reset()
+		}
+		return err
+	}
+	return nil
 }
 
 func (g *Gateway) toolHandler(name string) mcp.ToolHandler {
@@ -142,10 +213,21 @@ func (g *Gateway) callTool(ctx context.Context, name string, args json.RawMessag
 		ArgumentsJson: args,
 	})
 	if err != nil {
-		if status.Code(err) == codes.Unavailable {
-			g.clients.reset()
+		if status.Code(err) == codes.FailedPrecondition {
+			if regErr := g.registerCaller(ctx); regErr == nil {
+				resp, err = client.Control().CallTool(ctx, &controlv1.CallToolRequest{
+					Caller:        g.caller,
+					Name:          name,
+					ArgumentsJson: args,
+				})
+			}
 		}
-		return nil, err
+		if err != nil {
+			if status.Code(err) == codes.Unavailable {
+				g.clients.reset()
+			}
+			return nil, err
+		}
 	}
 	if resp == nil || len(resp.ResultJson) == 0 {
 		return nil, errors.New("empty call tool response")
@@ -164,10 +246,21 @@ func (g *Gateway) getPrompt(ctx context.Context, name string, args json.RawMessa
 		ArgumentsJson: args,
 	})
 	if err != nil {
-		if status.Code(err) == codes.Unavailable {
-			g.clients.reset()
+		if status.Code(err) == codes.FailedPrecondition {
+			if regErr := g.registerCaller(ctx); regErr == nil {
+				resp, err = client.Control().GetPrompt(ctx, &controlv1.GetPromptRequest{
+					Caller:        g.caller,
+					Name:          name,
+					ArgumentsJson: args,
+				})
+			}
 		}
-		return nil, err
+		if err != nil {
+			if status.Code(err) == codes.Unavailable {
+				g.clients.reset()
+			}
+			return nil, err
+		}
 	}
 	if resp == nil || len(resp.ResultJson) == 0 {
 		return nil, errors.New("empty get prompt response")
@@ -185,10 +278,20 @@ func (g *Gateway) readResource(ctx context.Context, uri string) (*controlv1.Read
 		Uri:    uri,
 	})
 	if err != nil {
-		if status.Code(err) == codes.Unavailable {
-			g.clients.reset()
+		if status.Code(err) == codes.FailedPrecondition {
+			if regErr := g.registerCaller(ctx); regErr == nil {
+				resp, err = client.Control().ReadResource(ctx, &controlv1.ReadResourceRequest{
+					Caller: g.caller,
+					Uri:    uri,
+				})
+			}
 		}
-		return nil, err
+		if err != nil {
+			if status.Code(err) == codes.Unavailable {
+				g.clients.reset()
+			}
+			return nil, err
+		}
 	}
 	if resp == nil || len(resp.ResultJson) == 0 {
 		return nil, errors.New("empty read resource response")
@@ -214,6 +317,11 @@ func (g *Gateway) syncTools(ctx context.Context) {
 
 		resp, err := client.Control().ListTools(ctx, &controlv1.ListToolsRequest{Caller: g.caller})
 		if err != nil {
+			if status.Code(err) == codes.FailedPrecondition {
+				if regErr := g.registerCaller(ctx); regErr == nil {
+					continue
+				}
+			}
 			g.logger.Warn("rpc list tools failed", zap.Error(err))
 			g.clients.reset()
 			backoff.Sleep(ctx)
@@ -229,6 +337,11 @@ func (g *Gateway) syncTools(ctx context.Context) {
 			LastEtag: lastETag,
 		})
 		if err != nil {
+			if status.Code(err) == codes.FailedPrecondition {
+				if regErr := g.registerCaller(ctx); regErr == nil {
+					continue
+				}
+			}
 			g.logger.Warn("rpc watch tools failed", zap.Error(err))
 			g.clients.reset()
 			backoff.Sleep(ctx)
@@ -277,6 +390,11 @@ func (g *Gateway) syncResources(ctx context.Context) {
 
 		snapshot, err := g.listAllResources(ctx, client)
 		if err != nil {
+			if status.Code(err) == codes.FailedPrecondition {
+				if regErr := g.registerCaller(ctx); regErr == nil {
+					continue
+				}
+			}
 			g.logger.Warn("rpc list resources failed", zap.Error(err))
 			g.clients.reset()
 			backoff.Sleep(ctx)
@@ -292,6 +410,11 @@ func (g *Gateway) syncResources(ctx context.Context) {
 			LastEtag: lastETag,
 		})
 		if err != nil {
+			if status.Code(err) == codes.FailedPrecondition {
+				if regErr := g.registerCaller(ctx); regErr == nil {
+					continue
+				}
+			}
 			g.logger.Warn("rpc watch resources failed", zap.Error(err))
 			g.clients.reset()
 			backoff.Sleep(ctx)
@@ -340,6 +463,11 @@ func (g *Gateway) syncPrompts(ctx context.Context) {
 
 		snapshot, err := g.listAllPrompts(ctx, client)
 		if err != nil {
+			if status.Code(err) == codes.FailedPrecondition {
+				if regErr := g.registerCaller(ctx); regErr == nil {
+					continue
+				}
+			}
 			g.logger.Warn("rpc list prompts failed", zap.Error(err))
 			g.clients.reset()
 			backoff.Sleep(ctx)
@@ -355,6 +483,11 @@ func (g *Gateway) syncPrompts(ctx context.Context) {
 			LastEtag: lastETag,
 		})
 		if err != nil {
+			if status.Code(err) == codes.FailedPrecondition {
+				if regErr := g.registerCaller(ctx); regErr == nil {
+					continue
+				}
+			}
 			g.logger.Warn("rpc watch prompts failed", zap.Error(err))
 			g.clients.reset()
 			backoff.Sleep(ctx)

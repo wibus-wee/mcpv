@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -52,6 +53,11 @@ func (b *logBridge) Run(ctx context.Context) {
 			MinLevel: controlv1.LogLevel_LOG_LEVEL_DEBUG,
 		})
 		if err != nil {
+			if status.Code(err) == codes.FailedPrecondition {
+				if regErr := b.registerCaller(ctx); regErr == nil {
+					continue
+				}
+			}
 			b.logger.Warn("rpc stream logs failed", zap.Error(err))
 			b.clients.reset()
 			backoff.Sleep(ctx)
@@ -77,6 +83,24 @@ func (b *logBridge) Run(ctx context.Context) {
 			b.publish(entry)
 		}
 	}
+}
+
+func (b *logBridge) registerCaller(ctx context.Context) error {
+	client, err := b.clients.get(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = client.Control().RegisterCaller(ctx, &controlv1.RegisterCallerRequest{
+		Caller: b.caller,
+		Pid:    int64(os.Getpid()),
+	})
+	if err != nil {
+		if status.Code(err) == codes.Unavailable {
+			b.clients.reset()
+		}
+		return err
+	}
+	return nil
 }
 
 func (b *logBridge) publish(entry *controlv1.LogEntry) {

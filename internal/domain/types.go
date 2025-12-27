@@ -25,6 +25,7 @@ type RuntimeConfig struct {
 	RouteTimeoutSeconds   int                 `json:"routeTimeoutSeconds"`
 	PingIntervalSeconds   int                 `json:"pingIntervalSeconds"`
 	ToolRefreshSeconds    int                 `json:"toolRefreshSeconds"`
+	CallerCheckSeconds    int                 `json:"callerCheckSeconds"`
 	ExposeTools           bool                `json:"exposeTools"`
 	ToolNamespaceStrategy string              `json:"toolNamespaceStrategy"`
 	Observability         ObservabilityConfig `json:"observability"`
@@ -126,6 +127,8 @@ type Lifecycle interface {
 type Scheduler interface {
 	Acquire(ctx context.Context, specKey, routingKey string) (*Instance, error)
 	Release(ctx context.Context, instance *Instance) error
+	SetDesiredMinReady(ctx context.Context, specKey string, minReady int) error
+	StopSpec(ctx context.Context, specKey, reason string) error
 	StartIdleManager(interval time.Duration)
 	StopIdleManager()
 	StartPingManager(interval time.Duration)
@@ -151,3 +154,4 @@ var ErrToolNotFound = errors.New("tool not found")
 var ErrResourceNotFound = errors.New("resource not found")
 var ErrPromptNotFound = errors.New("prompt not found")
 var ErrInvalidCursor = errors.New("invalid cursor")
+var ErrCallerNotRegistered = errors.New("caller not registered")

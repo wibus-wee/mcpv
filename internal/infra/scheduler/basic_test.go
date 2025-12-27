@@ -3,6 +3,7 @@ package scheduler
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -87,6 +88,7 @@ func TestBasicScheduler_IdleReapRespectsMinReady(t *testing.T) {
 	}
 	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
 	require.NoError(t, err)
+	require.NoError(t, s.SetDesiredMinReady(context.Background(), "svc", 1))
 
 	inst, err := s.Acquire(context.Background(), "svc", "")
 	require.NoError(t, err)
@@ -200,6 +202,87 @@ func TestBasicScheduler_SharedPool(t *testing.T) {
 	require.Same(t, instA, instB)
 }
 
+func TestBasicScheduler_SetDesiredMinReadyStartsInstance(t *testing.T) {
+	lc := &fakeLifecycle{}
+	spec := domain.ServerSpec{
+		Name:            "svc",
+		Cmd:             []string{"./svc"},
+		MaxConcurrent:   1,
+		ProtocolVersion: domain.DefaultProtocolVersion,
+	}
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
+	require.NoError(t, err)
+
+	require.NoError(t, s.SetDesiredMinReady(context.Background(), "svc", 1))
+
+	state := s.getPool("svc", spec)
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	require.Len(t, state.instances, 1)
+}
+
+func TestBasicScheduler_StopSpecStopsInstances(t *testing.T) {
+	lc := &fakeLifecycle{}
+	spec := domain.ServerSpec{
+		Name:            "svc",
+		Cmd:             []string{"./svc"},
+		MaxConcurrent:   1,
+		ProtocolVersion: domain.DefaultProtocolVersion,
+	}
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
+	require.NoError(t, err)
+
+	inst, err := s.Acquire(context.Background(), "svc", "")
+	require.NoError(t, err)
+
+	require.NoError(t, s.StopSpec(context.Background(), "svc", "caller inactive"))
+	require.Equal(t, domain.InstanceStateStopped, inst.State)
+
+	state := s.getPool("svc", spec)
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	require.Len(t, state.instances, 0)
+}
+
+func TestBasicScheduler_StartGateSingleflight(t *testing.T) {
+	started := make(chan struct{}, 3)
+	release := make(chan struct{})
+	lc := &blockingLifecycle{
+		started: started,
+		release: release,
+	}
+	spec := domain.ServerSpec{
+		Name:            "svc",
+		Cmd:             []string{"./svc"},
+		MaxConcurrent:   3,
+		ProtocolVersion: domain.DefaultProtocolVersion,
+	}
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
+	require.NoError(t, err)
+
+	results := make(chan *domain.Instance, 3)
+	errorsCh := make(chan error, 3)
+	for i := 0; i < 3; i++ {
+		go func() {
+			inst, err := s.Acquire(context.Background(), "svc", "")
+			results <- inst
+			errorsCh <- err
+		}()
+	}
+
+	<-started
+	close(release)
+
+	var instances []*domain.Instance
+	for i := 0; i < 3; i++ {
+		require.NoError(t, <-errorsCh)
+		instances = append(instances, <-results)
+	}
+	require.Equal(t, 1, lc.starts())
+	require.Same(t, instances[0], instances[1])
+	require.Same(t, instances[0], instances[2])
+}
+
 type fakeLifecycle struct {
 	counter int
 }
@@ -227,4 +310,42 @@ type fakeProbe struct {
 
 func (f *fakeProbe) Ping(ctx context.Context, conn domain.Conn) error {
 	return f.err
+}
+
+type blockingLifecycle struct {
+	mu      sync.Mutex
+	started chan struct{}
+	release chan struct{}
+	count   int
+}
+
+func (b *blockingLifecycle) StartInstance(ctx context.Context, spec domain.ServerSpec) (*domain.Instance, error) {
+	b.mu.Lock()
+	b.count++
+	b.mu.Unlock()
+	if b.started != nil {
+		b.started <- struct{}{}
+	}
+	if b.release != nil {
+		<-b.release
+	}
+	return &domain.Instance{
+		ID:         spec.Name + "-inst",
+		Spec:       spec,
+		State:      domain.InstanceStateReady,
+		LastActive: time.Now(),
+	}, nil
+}
+
+func (b *blockingLifecycle) StopInstance(ctx context.Context, instance *domain.Instance, reason string) error {
+	if instance != nil {
+		instance.State = domain.InstanceStateStopped
+	}
+	return nil
+}
+
+func (b *blockingLifecycle) starts() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.count
 }

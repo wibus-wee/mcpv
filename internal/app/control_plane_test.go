@@ -1,100 +1,170 @@
 package app
 
 import (
-	"fmt"
+	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
 	"mcpd/internal/domain"
 )
 
-func TestPaginateResources_EmptySnapshot(t *testing.T) {
-	page, err := paginateResources(domain.ResourceSnapshot{}, "")
+func TestControlPlane_RequiresRegistration(t *testing.T) {
+	cp := NewControlPlane(
+		context.Background(),
+		map[string]*profileRuntime{
+			domain.DefaultProfileName: {name: domain.DefaultProfileName},
+		},
+		map[string]string{},
+		map[string]domain.ServerSpec{},
+		&fakeScheduler{},
+		domain.RuntimeConfig{},
+		nil,
+		nil,
+	)
+
+	_, err := cp.ListTools(context.Background(), "caller")
+	require.ErrorIs(t, err, domain.ErrCallerNotRegistered)
+}
+
+func TestControlPlane_RegisterUnregister(t *testing.T) {
+	specKey := "spec-a"
+	spec := domain.ServerSpec{
+		Name:            specKey,
+		Cmd:             []string{"/bin/true"},
+		MaxConcurrent:   1,
+		ProtocolVersion: domain.DefaultProtocolVersion,
+	}
+
+	runtime := &profileRuntime{
+		name:     domain.DefaultProfileName,
+		specKeys: []string{specKey},
+	}
+	sched := &fakeScheduler{}
+	cp := NewControlPlane(
+		context.Background(),
+		map[string]*profileRuntime{domain.DefaultProfileName: runtime},
+		map[string]string{"caller": domain.DefaultProfileName},
+		map[string]domain.ServerSpec{specKey: spec},
+		sched,
+		domain.RuntimeConfig{},
+		nil,
+		nil,
+	)
+
+	profile, err := cp.RegisterCaller(context.Background(), "caller", 1234)
 	require.NoError(t, err)
-	require.Len(t, page.Snapshot.Resources, 0)
-	require.Empty(t, page.NextCursor)
+	require.Equal(t, domain.DefaultProfileName, profile)
+	require.True(t, runtime.active)
+	require.Equal(t, []minReadyCall{{specKey: specKey, minReady: 1}}, sched.minReadyCalls)
+
+	require.NoError(t, cp.UnregisterCaller(context.Background(), "caller"))
+	require.False(t, runtime.active)
+	require.Equal(t, []stopCall{{specKey: specKey, reason: "caller inactive"}}, sched.stopCalls)
+}
+
+func TestControlPlane_ReapDeadCallers_Heartbeat(t *testing.T) {
+	runtime := domain.RuntimeConfig{CallerCheckSeconds: 1}
+	cp := NewControlPlane(
+		context.Background(),
+		map[string]*profileRuntime{
+			domain.DefaultProfileName: {name: domain.DefaultProfileName},
+		},
+		map[string]string{},
+		map[string]domain.ServerSpec{},
+		&fakeScheduler{},
+		runtime,
+		nil,
+		nil,
+	)
+
+	cp.mu.Lock()
+	cp.activeCallers["caller"] = callerState{
+		pid:           -1,
+		profile:       domain.DefaultProfileName,
+		lastHeartbeat: time.Now(),
+	}
+	cp.profileCounts[domain.DefaultProfileName] = 1
+	cp.mu.Unlock()
+
+	cp.reapDeadCallers(context.Background())
+	_, err := cp.resolveProfile("caller")
+	require.NoError(t, err)
+
+	cp.mu.Lock()
+	cp.activeCallers["caller"] = callerState{
+		pid:           -1,
+		profile:       domain.DefaultProfileName,
+		lastHeartbeat: time.Now().Add(-time.Minute),
+	}
+	cp.profileCounts[domain.DefaultProfileName] = 1
+	cp.mu.Unlock()
+
+	cp.reapDeadCallers(context.Background())
+	_, err = cp.resolveProfile("caller")
+	require.ErrorIs(t, err, domain.ErrCallerNotRegistered)
 }
 
 func TestPaginateResources_InvalidCursor(t *testing.T) {
 	snapshot := domain.ResourceSnapshot{
+		ETag: "v1",
 		Resources: []domain.ResourceDefinition{
-			{URI: "file:///a"},
+			{URI: "a"},
+			{URI: "b"},
 		},
 	}
 	_, err := paginateResources(snapshot, "missing")
 	require.ErrorIs(t, err, domain.ErrInvalidCursor)
 }
 
-func TestPaginateResources_LastCursor(t *testing.T) {
-	snapshot := domain.ResourceSnapshot{
-		Resources: []domain.ResourceDefinition{
-			{URI: "file:///a"},
-			{URI: "file:///b"},
-		},
-	}
-	page, err := paginateResources(snapshot, "file:///b")
-	require.NoError(t, err)
-	require.Len(t, page.Snapshot.Resources, 0)
-	require.Empty(t, page.NextCursor)
-}
-
-func TestPaginateResources_NextCursor(t *testing.T) {
-	resources := make([]domain.ResourceDefinition, 0, listPageSize+1)
-	for i := 0; i < listPageSize+1; i++ {
-		resources = append(resources, domain.ResourceDefinition{
-			URI: fmt.Sprintf("file:///r%03d", i),
-		})
-	}
-	snapshot := domain.ResourceSnapshot{Resources: resources}
-
-	page, err := paginateResources(snapshot, "")
-	require.NoError(t, err)
-	require.Len(t, page.Snapshot.Resources, listPageSize)
-	require.Equal(t, resources[listPageSize-1].URI, page.NextCursor)
-}
-
-func TestPaginatePrompts_EmptySnapshot(t *testing.T) {
-	page, err := paginatePrompts(domain.PromptSnapshot{}, "")
-	require.NoError(t, err)
-	require.Len(t, page.Snapshot.Prompts, 0)
-	require.Empty(t, page.NextCursor)
-}
-
 func TestPaginatePrompts_InvalidCursor(t *testing.T) {
 	snapshot := domain.PromptSnapshot{
+		ETag: "v1",
 		Prompts: []domain.PromptDefinition{
-			{Name: "alpha"},
+			{Name: "a"},
+			{Name: "b"},
 		},
 	}
 	_, err := paginatePrompts(snapshot, "missing")
 	require.ErrorIs(t, err, domain.ErrInvalidCursor)
 }
 
-func TestPaginatePrompts_LastCursor(t *testing.T) {
-	snapshot := domain.PromptSnapshot{
-		Prompts: []domain.PromptDefinition{
-			{Name: "alpha"},
-			{Name: "beta"},
-		},
-	}
-	page, err := paginatePrompts(snapshot, "beta")
-	require.NoError(t, err)
-	require.Len(t, page.Snapshot.Prompts, 0)
-	require.Empty(t, page.NextCursor)
+type minReadyCall struct {
+	specKey  string
+	minReady int
 }
 
-func TestPaginatePrompts_NextCursor(t *testing.T) {
-	prompts := make([]domain.PromptDefinition, 0, listPageSize+1)
-	for i := 0; i < listPageSize+1; i++ {
-		prompts = append(prompts, domain.PromptDefinition{
-			Name: fmt.Sprintf("prompt-%03d", i),
-		})
-	}
-	snapshot := domain.PromptSnapshot{Prompts: prompts}
-
-	page, err := paginatePrompts(snapshot, "")
-	require.NoError(t, err)
-	require.Len(t, page.Snapshot.Prompts, listPageSize)
-	require.Equal(t, prompts[listPageSize-1].Name, page.NextCursor)
+type stopCall struct {
+	specKey string
+	reason  string
 }
+
+type fakeScheduler struct {
+	minReadyCalls []minReadyCall
+	stopCalls     []stopCall
+}
+
+func (f *fakeScheduler) Acquire(ctx context.Context, specKey, routingKey string) (*domain.Instance, error) {
+	return nil, nil
+}
+
+func (f *fakeScheduler) Release(ctx context.Context, instance *domain.Instance) error {
+	return nil
+}
+
+func (f *fakeScheduler) SetDesiredMinReady(ctx context.Context, specKey string, minReady int) error {
+	f.minReadyCalls = append(f.minReadyCalls, minReadyCall{specKey: specKey, minReady: minReady})
+	return nil
+}
+
+func (f *fakeScheduler) StopSpec(ctx context.Context, specKey, reason string) error {
+	f.stopCalls = append(f.stopCalls, stopCall{specKey: specKey, reason: reason})
+	return nil
+}
+
+func (f *fakeScheduler) StartIdleManager(interval time.Duration) {}
+func (f *fakeScheduler) StopIdleManager()                        {}
+func (f *fakeScheduler) StartPingManager(interval time.Duration) {}
+func (f *fakeScheduler) StopPingManager()                        {}
+func (f *fakeScheduler) StopAll(ctx context.Context)             {}

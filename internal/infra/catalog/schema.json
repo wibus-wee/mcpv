@@ -7,6 +7,7 @@
     "routeTimeoutSeconds": {"type": "integer"},
     "pingIntervalSeconds": {"type": "integer"},
     "toolRefreshSeconds": {"type": "integer"},
+    "callerCheckSeconds": {"type": "integer"},
     "exposeTools": {"type": "boolean"},
     "toolNamespaceStrategy": {"type": "string"},
     "observability": {"$ref": "#/$defs/observabilityConfig"},

@@ -74,6 +74,14 @@ func (f *fakeScheduler) Release(ctx context.Context, instance *domain.Instance) 
 	return nil
 }
 
+func (f *fakeScheduler) SetDesiredMinReady(ctx context.Context, specKey string, minReady int) error {
+	return nil
+}
+
+func (f *fakeScheduler) StopSpec(ctx context.Context, specKey, reason string) error {
+	return nil
+}
+
 func (f *fakeScheduler) StartIdleManager(interval time.Duration) {}
 func (f *fakeScheduler) StopIdleManager()                        {}
 func (f *fakeScheduler) StartPingManager(interval time.Duration) {}

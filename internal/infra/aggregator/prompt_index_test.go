@@ -33,7 +33,7 @@ func TestPromptIndex_NamespacedPrompt(t *testing.T) {
 		ToolRefreshSeconds:    0,
 	}
 
-	index := NewPromptIndex(router, specs, specKeys, cfg, zap.NewNop(), nil)
+	index := NewPromptIndex(router, specs, specKeys, cfg, zap.NewNop(), nil, nil)
 	index.Start(ctx)
 	defer index.Stop()
 

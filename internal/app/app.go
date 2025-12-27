@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -99,23 +100,26 @@ func (a *App) Serve(ctx context.Context, cfg ServeConfig) error {
 	profiles := make(map[string]*profileRuntime, len(summary.configs))
 	for name, cfg := range summary.configs {
 		profileLogger := logger.With(zap.String("profile", name))
+		refreshGate := aggregator.NewRefreshGate()
 		rt := router.NewBasicRouter(sched, router.RouterOptions{
 			Timeout: time.Duration(cfg.profile.Catalog.Runtime.RouteTimeoutSeconds) * time.Second,
 			Logger:  profileLogger,
 			Metrics: metrics,
 		})
-		toolIndex := aggregator.NewToolIndex(rt, cfg.profile.Catalog.Specs, cfg.specKeys, cfg.profile.Catalog.Runtime, profileLogger, health)
-		resourceIndex := aggregator.NewResourceIndex(rt, cfg.profile.Catalog.Specs, cfg.specKeys, cfg.profile.Catalog.Runtime, profileLogger, health)
-		promptIndex := aggregator.NewPromptIndex(rt, cfg.profile.Catalog.Specs, cfg.specKeys, cfg.profile.Catalog.Runtime, profileLogger, health)
+		toolIndex := aggregator.NewToolIndex(rt, cfg.profile.Catalog.Specs, cfg.specKeys, cfg.profile.Catalog.Runtime, profileLogger, health, refreshGate)
+		resourceIndex := aggregator.NewResourceIndex(rt, cfg.profile.Catalog.Specs, cfg.specKeys, cfg.profile.Catalog.Runtime, profileLogger, health, refreshGate)
+		promptIndex := aggregator.NewPromptIndex(rt, cfg.profile.Catalog.Specs, cfg.specKeys, cfg.profile.Catalog.Runtime, profileLogger, health, refreshGate)
 		profiles[name] = &profileRuntime{
 			name:      name,
+			specKeys:  collectSpecKeys(cfg.specKeys),
 			tools:     toolIndex,
 			resources: resourceIndex,
 			prompts:   promptIndex,
 		}
 	}
 
-	control := NewControlPlane(profiles, store.Callers, logs)
+	control := NewControlPlane(ctx, profiles, store.Callers, summary.specRegistry, sched, summary.defaultRuntime, logs, logger)
+	control.StartCallerMonitor(ctx)
 	rpcServer := rpc.NewServer(control, summary.defaultRuntime.RPC, logger)
 
 	metricsEnabled := envBool("MCPD_METRICS_ENABLED")
@@ -139,28 +143,9 @@ func (a *App) Serve(ctx context.Context, cfg ServeConfig) error {
 	if summary.minPingInterval > 0 {
 		sched.StartPingManager(time.Duration(summary.minPingInterval) * time.Second)
 	}
-	for _, runtime := range profiles {
-		if runtime.tools != nil {
-			runtime.tools.Start(ctx)
-		}
-		if runtime.resources != nil {
-			runtime.resources.Start(ctx)
-		}
-		if runtime.prompts != nil {
-			runtime.prompts.Start(ctx)
-		}
-	}
 	defer func() {
 		for _, runtime := range profiles {
-			if runtime.tools != nil {
-				runtime.tools.Stop()
-			}
-			if runtime.resources != nil {
-				runtime.resources.Stop()
-			}
-			if runtime.prompts != nil {
-				runtime.prompts.Stop()
-			}
+			runtime.Deactivate()
 		}
 		sched.StopPingManager()
 		sched.StopIdleManager()
@@ -260,6 +245,25 @@ func buildSpecKeys(specs map[string]domain.ServerSpec) (map[string]string, error
 		keys[serverType] = specKey
 	}
 	return keys, nil
+}
+
+func collectSpecKeys(specKeys map[string]string) []string {
+	if len(specKeys) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(specKeys))
+	for _, key := range specKeys {
+		if key == "" {
+			continue
+		}
+		seen[key] = struct{}{}
+	}
+	out := make([]string, 0, len(seen))
+	for key := range seen {
+		out = append(out, key)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func validateSharedRuntime(base domain.RuntimeConfig, current domain.RuntimeConfig) error {

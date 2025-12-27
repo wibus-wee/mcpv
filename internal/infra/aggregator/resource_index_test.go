@@ -33,7 +33,7 @@ func TestResourceIndex_SnapshotAndRead(t *testing.T) {
 		ToolRefreshSeconds: 0,
 	}
 
-	index := NewResourceIndex(router, specs, specKeys, cfg, zap.NewNop(), nil)
+	index := NewResourceIndex(router, specs, specKeys, cfg, zap.NewNop(), nil, nil)
 	index.Start(ctx)
 	defer index.Stop()
 

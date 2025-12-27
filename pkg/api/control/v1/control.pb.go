@@ -184,6 +184,182 @@ func (x *GetInfoResponse) GetBuild() string {
 	return ""
 }
 
+type RegisterCallerRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Caller        string                 `protobuf:"bytes,1,opt,name=caller,proto3" json:"caller,omitempty"`
+	Pid           int64                  `protobuf:"varint,2,opt,name=pid,proto3" json:"pid,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RegisterCallerRequest) Reset() {
+	*x = RegisterCallerRequest{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RegisterCallerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegisterCallerRequest) ProtoMessage() {}
+
+func (x *RegisterCallerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegisterCallerRequest.ProtoReflect.Descriptor instead.
+func (*RegisterCallerRequest) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *RegisterCallerRequest) GetCaller() string {
+	if x != nil {
+		return x.Caller
+	}
+	return ""
+}
+
+func (x *RegisterCallerRequest) GetPid() int64 {
+	if x != nil {
+		return x.Pid
+	}
+	return 0
+}
+
+type RegisterCallerResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Profile       string                 `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RegisterCallerResponse) Reset() {
+	*x = RegisterCallerResponse{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RegisterCallerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegisterCallerResponse) ProtoMessage() {}
+
+func (x *RegisterCallerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegisterCallerResponse.ProtoReflect.Descriptor instead.
+func (*RegisterCallerResponse) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *RegisterCallerResponse) GetProfile() string {
+	if x != nil {
+		return x.Profile
+	}
+	return ""
+}
+
+type UnregisterCallerRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Caller        string                 `protobuf:"bytes,1,opt,name=caller,proto3" json:"caller,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnregisterCallerRequest) Reset() {
+	*x = UnregisterCallerRequest{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnregisterCallerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnregisterCallerRequest) ProtoMessage() {}
+
+func (x *UnregisterCallerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnregisterCallerRequest.ProtoReflect.Descriptor instead.
+func (*UnregisterCallerRequest) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *UnregisterCallerRequest) GetCaller() string {
+	if x != nil {
+		return x.Caller
+	}
+	return ""
+}
+
+type UnregisterCallerResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnregisterCallerResponse) Reset() {
+	*x = UnregisterCallerResponse{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnregisterCallerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnregisterCallerResponse) ProtoMessage() {}
+
+func (x *UnregisterCallerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnregisterCallerResponse.ProtoReflect.Descriptor instead.
+func (*UnregisterCallerResponse) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{5}
+}
+
 type ListToolsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Caller        string                 `protobuf:"bytes,1,opt,name=caller,proto3" json:"caller,omitempty"`
@@ -193,7 +369,7 @@ type ListToolsRequest struct {
 
 func (x *ListToolsRequest) Reset() {
 	*x = ListToolsRequest{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[2]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -205,7 +381,7 @@ func (x *ListToolsRequest) String() string {
 func (*ListToolsRequest) ProtoMessage() {}
 
 func (x *ListToolsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[2]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -218,7 +394,7 @@ func (x *ListToolsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListToolsRequest.ProtoReflect.Descriptor instead.
 func (*ListToolsRequest) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{2}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListToolsRequest) GetCaller() string {
@@ -237,7 +413,7 @@ type ListToolsResponse struct {
 
 func (x *ListToolsResponse) Reset() {
 	*x = ListToolsResponse{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[3]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -249,7 +425,7 @@ func (x *ListToolsResponse) String() string {
 func (*ListToolsResponse) ProtoMessage() {}
 
 func (x *ListToolsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[3]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -262,7 +438,7 @@ func (x *ListToolsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListToolsResponse.ProtoReflect.Descriptor instead.
 func (*ListToolsResponse) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{3}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListToolsResponse) GetSnapshot() *ToolsSnapshot {
@@ -282,7 +458,7 @@ type WatchToolsRequest struct {
 
 func (x *WatchToolsRequest) Reset() {
 	*x = WatchToolsRequest{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[4]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -294,7 +470,7 @@ func (x *WatchToolsRequest) String() string {
 func (*WatchToolsRequest) ProtoMessage() {}
 
 func (x *WatchToolsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[4]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -307,7 +483,7 @@ func (x *WatchToolsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchToolsRequest.ProtoReflect.Descriptor instead.
 func (*WatchToolsRequest) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{4}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *WatchToolsRequest) GetCaller() string {
@@ -334,7 +510,7 @@ type ToolsSnapshot struct {
 
 func (x *ToolsSnapshot) Reset() {
 	*x = ToolsSnapshot{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[5]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -346,7 +522,7 @@ func (x *ToolsSnapshot) String() string {
 func (*ToolsSnapshot) ProtoMessage() {}
 
 func (x *ToolsSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[5]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -359,7 +535,7 @@ func (x *ToolsSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolsSnapshot.ProtoReflect.Descriptor instead.
 func (*ToolsSnapshot) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{5}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ToolsSnapshot) GetEtag() string {
@@ -387,7 +563,7 @@ type ToolDefinition struct {
 
 func (x *ToolDefinition) Reset() {
 	*x = ToolDefinition{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[6]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -399,7 +575,7 @@ func (x *ToolDefinition) String() string {
 func (*ToolDefinition) ProtoMessage() {}
 
 func (x *ToolDefinition) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[6]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -412,7 +588,7 @@ func (x *ToolDefinition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolDefinition.ProtoReflect.Descriptor instead.
 func (*ToolDefinition) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{6}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ToolDefinition) GetName() string {
@@ -442,7 +618,7 @@ type CallToolRequest struct {
 
 func (x *CallToolRequest) Reset() {
 	*x = CallToolRequest{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[7]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -454,7 +630,7 @@ func (x *CallToolRequest) String() string {
 func (*CallToolRequest) ProtoMessage() {}
 
 func (x *CallToolRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[7]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -467,7 +643,7 @@ func (x *CallToolRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CallToolRequest.ProtoReflect.Descriptor instead.
 func (*CallToolRequest) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{7}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *CallToolRequest) GetCaller() string {
@@ -508,7 +684,7 @@ type CallToolResponse struct {
 
 func (x *CallToolResponse) Reset() {
 	*x = CallToolResponse{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[8]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -520,7 +696,7 @@ func (x *CallToolResponse) String() string {
 func (*CallToolResponse) ProtoMessage() {}
 
 func (x *CallToolResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[8]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -533,7 +709,7 @@ func (x *CallToolResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CallToolResponse.ProtoReflect.Descriptor instead.
 func (*CallToolResponse) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{8}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *CallToolResponse) GetResultJson() []byte {
@@ -553,7 +729,7 @@ type ListResourcesRequest struct {
 
 func (x *ListResourcesRequest) Reset() {
 	*x = ListResourcesRequest{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[9]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -565,7 +741,7 @@ func (x *ListResourcesRequest) String() string {
 func (*ListResourcesRequest) ProtoMessage() {}
 
 func (x *ListResourcesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[9]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -578,7 +754,7 @@ func (x *ListResourcesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListResourcesRequest.ProtoReflect.Descriptor instead.
 func (*ListResourcesRequest) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{9}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ListResourcesRequest) GetCaller() string {
@@ -605,7 +781,7 @@ type ListResourcesResponse struct {
 
 func (x *ListResourcesResponse) Reset() {
 	*x = ListResourcesResponse{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[10]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -617,7 +793,7 @@ func (x *ListResourcesResponse) String() string {
 func (*ListResourcesResponse) ProtoMessage() {}
 
 func (x *ListResourcesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[10]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -630,7 +806,7 @@ func (x *ListResourcesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListResourcesResponse.ProtoReflect.Descriptor instead.
 func (*ListResourcesResponse) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{10}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListResourcesResponse) GetSnapshot() *ResourcesSnapshot {
@@ -657,7 +833,7 @@ type WatchResourcesRequest struct {
 
 func (x *WatchResourcesRequest) Reset() {
 	*x = WatchResourcesRequest{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[11]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -669,7 +845,7 @@ func (x *WatchResourcesRequest) String() string {
 func (*WatchResourcesRequest) ProtoMessage() {}
 
 func (x *WatchResourcesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[11]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -682,7 +858,7 @@ func (x *WatchResourcesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchResourcesRequest.ProtoReflect.Descriptor instead.
 func (*WatchResourcesRequest) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{11}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *WatchResourcesRequest) GetCaller() string {
@@ -709,7 +885,7 @@ type ResourcesSnapshot struct {
 
 func (x *ResourcesSnapshot) Reset() {
 	*x = ResourcesSnapshot{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[12]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -721,7 +897,7 @@ func (x *ResourcesSnapshot) String() string {
 func (*ResourcesSnapshot) ProtoMessage() {}
 
 func (x *ResourcesSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[12]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -734,7 +910,7 @@ func (x *ResourcesSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourcesSnapshot.ProtoReflect.Descriptor instead.
 func (*ResourcesSnapshot) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{12}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ResourcesSnapshot) GetEtag() string {
@@ -762,7 +938,7 @@ type ResourceDefinition struct {
 
 func (x *ResourceDefinition) Reset() {
 	*x = ResourceDefinition{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[13]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -774,7 +950,7 @@ func (x *ResourceDefinition) String() string {
 func (*ResourceDefinition) ProtoMessage() {}
 
 func (x *ResourceDefinition) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[13]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -787,7 +963,7 @@ func (x *ResourceDefinition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceDefinition.ProtoReflect.Descriptor instead.
 func (*ResourceDefinition) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{13}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ResourceDefinition) GetUri() string {
@@ -814,7 +990,7 @@ type ReadResourceRequest struct {
 
 func (x *ReadResourceRequest) Reset() {
 	*x = ReadResourceRequest{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[14]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -826,7 +1002,7 @@ func (x *ReadResourceRequest) String() string {
 func (*ReadResourceRequest) ProtoMessage() {}
 
 func (x *ReadResourceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[14]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -839,7 +1015,7 @@ func (x *ReadResourceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadResourceRequest.ProtoReflect.Descriptor instead.
 func (*ReadResourceRequest) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{14}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ReadResourceRequest) GetCaller() string {
@@ -866,7 +1042,7 @@ type ReadResourceResponse struct {
 
 func (x *ReadResourceResponse) Reset() {
 	*x = ReadResourceResponse{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[15]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -878,7 +1054,7 @@ func (x *ReadResourceResponse) String() string {
 func (*ReadResourceResponse) ProtoMessage() {}
 
 func (x *ReadResourceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[15]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -891,7 +1067,7 @@ func (x *ReadResourceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadResourceResponse.ProtoReflect.Descriptor instead.
 func (*ReadResourceResponse) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{15}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ReadResourceResponse) GetResultJson() []byte {
@@ -911,7 +1087,7 @@ type ListPromptsRequest struct {
 
 func (x *ListPromptsRequest) Reset() {
 	*x = ListPromptsRequest{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[16]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -923,7 +1099,7 @@ func (x *ListPromptsRequest) String() string {
 func (*ListPromptsRequest) ProtoMessage() {}
 
 func (x *ListPromptsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[16]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -936,7 +1112,7 @@ func (x *ListPromptsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPromptsRequest.ProtoReflect.Descriptor instead.
 func (*ListPromptsRequest) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{16}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ListPromptsRequest) GetCaller() string {
@@ -963,7 +1139,7 @@ type ListPromptsResponse struct {
 
 func (x *ListPromptsResponse) Reset() {
 	*x = ListPromptsResponse{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[17]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -975,7 +1151,7 @@ func (x *ListPromptsResponse) String() string {
 func (*ListPromptsResponse) ProtoMessage() {}
 
 func (x *ListPromptsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[17]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -988,7 +1164,7 @@ func (x *ListPromptsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPromptsResponse.ProtoReflect.Descriptor instead.
 func (*ListPromptsResponse) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{17}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ListPromptsResponse) GetSnapshot() *PromptsSnapshot {
@@ -1015,7 +1191,7 @@ type WatchPromptsRequest struct {
 
 func (x *WatchPromptsRequest) Reset() {
 	*x = WatchPromptsRequest{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[18]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1027,7 +1203,7 @@ func (x *WatchPromptsRequest) String() string {
 func (*WatchPromptsRequest) ProtoMessage() {}
 
 func (x *WatchPromptsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[18]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1040,7 +1216,7 @@ func (x *WatchPromptsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchPromptsRequest.ProtoReflect.Descriptor instead.
 func (*WatchPromptsRequest) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{18}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *WatchPromptsRequest) GetCaller() string {
@@ -1067,7 +1243,7 @@ type PromptsSnapshot struct {
 
 func (x *PromptsSnapshot) Reset() {
 	*x = PromptsSnapshot{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[19]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1079,7 +1255,7 @@ func (x *PromptsSnapshot) String() string {
 func (*PromptsSnapshot) ProtoMessage() {}
 
 func (x *PromptsSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[19]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1092,7 +1268,7 @@ func (x *PromptsSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PromptsSnapshot.ProtoReflect.Descriptor instead.
 func (*PromptsSnapshot) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{19}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *PromptsSnapshot) GetEtag() string {
@@ -1120,7 +1296,7 @@ type PromptDefinition struct {
 
 func (x *PromptDefinition) Reset() {
 	*x = PromptDefinition{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[20]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1132,7 +1308,7 @@ func (x *PromptDefinition) String() string {
 func (*PromptDefinition) ProtoMessage() {}
 
 func (x *PromptDefinition) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[20]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1145,7 +1321,7 @@ func (x *PromptDefinition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PromptDefinition.ProtoReflect.Descriptor instead.
 func (*PromptDefinition) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{20}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *PromptDefinition) GetName() string {
@@ -1174,7 +1350,7 @@ type GetPromptRequest struct {
 
 func (x *GetPromptRequest) Reset() {
 	*x = GetPromptRequest{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[21]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1186,7 +1362,7 @@ func (x *GetPromptRequest) String() string {
 func (*GetPromptRequest) ProtoMessage() {}
 
 func (x *GetPromptRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[21]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1199,7 +1375,7 @@ func (x *GetPromptRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPromptRequest.ProtoReflect.Descriptor instead.
 func (*GetPromptRequest) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{21}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *GetPromptRequest) GetCaller() string {
@@ -1233,7 +1409,7 @@ type GetPromptResponse struct {
 
 func (x *GetPromptResponse) Reset() {
 	*x = GetPromptResponse{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[22]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1245,7 +1421,7 @@ func (x *GetPromptResponse) String() string {
 func (*GetPromptResponse) ProtoMessage() {}
 
 func (x *GetPromptResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[22]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1258,7 +1434,7 @@ func (x *GetPromptResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPromptResponse.ProtoReflect.Descriptor instead.
 func (*GetPromptResponse) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{22}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *GetPromptResponse) GetResultJson() []byte {
@@ -1278,7 +1454,7 @@ type StreamLogsRequest struct {
 
 func (x *StreamLogsRequest) Reset() {
 	*x = StreamLogsRequest{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[23]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1290,7 +1466,7 @@ func (x *StreamLogsRequest) String() string {
 func (*StreamLogsRequest) ProtoMessage() {}
 
 func (x *StreamLogsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[23]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1303,7 +1479,7 @@ func (x *StreamLogsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamLogsRequest.ProtoReflect.Descriptor instead.
 func (*StreamLogsRequest) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{23}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *StreamLogsRequest) GetCaller() string {
@@ -1333,7 +1509,7 @@ type LogEntry struct {
 
 func (x *LogEntry) Reset() {
 	*x = LogEntry{}
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[24]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1345,7 +1521,7 @@ func (x *LogEntry) String() string {
 func (*LogEntry) ProtoMessage() {}
 
 func (x *LogEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_mcpd_control_v1_control_proto_msgTypes[24]
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1358,7 +1534,7 @@ func (x *LogEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogEntry.ProtoReflect.Descriptor instead.
 func (*LogEntry) Descriptor() ([]byte, []int) {
-	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{24}
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *LogEntry) GetLogger() string {
@@ -1398,7 +1574,15 @@ const file_mcpd_control_v1_control_proto_rawDesc = "" +
 	"\x0fGetInfoResponse\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x14\n" +
-	"\x05build\x18\x03 \x01(\tR\x05build\"*\n" +
+	"\x05build\x18\x03 \x01(\tR\x05build\"A\n" +
+	"\x15RegisterCallerRequest\x12\x16\n" +
+	"\x06caller\x18\x01 \x01(\tR\x06caller\x12\x10\n" +
+	"\x03pid\x18\x02 \x01(\x03R\x03pid\"2\n" +
+	"\x16RegisterCallerResponse\x12\x18\n" +
+	"\aprofile\x18\x01 \x01(\tR\aprofile\"1\n" +
+	"\x17UnregisterCallerRequest\x12\x16\n" +
+	"\x06caller\x18\x01 \x01(\tR\x06caller\"\x1a\n" +
+	"\x18UnregisterCallerResponse\"*\n" +
 	"\x10ListToolsRequest\x12\x16\n" +
 	"\x06caller\x18\x01 \x01(\tR\x06caller\"O\n" +
 	"\x11ListToolsResponse\x12:\n" +
@@ -1484,9 +1668,11 @@ const file_mcpd_control_v1_control_proto_rawDesc = "" +
 	"\x0fLOG_LEVEL_ERROR\x10\x05\x12\x16\n" +
 	"\x12LOG_LEVEL_CRITICAL\x10\x06\x12\x13\n" +
 	"\x0fLOG_LEVEL_ALERT\x10\a\x12\x17\n" +
-	"\x13LOG_LEVEL_EMERGENCY\x10\b2\xd0\a\n" +
+	"\x13LOG_LEVEL_EMERGENCY\x10\b2\x9c\t\n" +
 	"\x13ControlPlaneService\x12L\n" +
-	"\aGetInfo\x12\x1f.mcpd.control.v1.GetInfoRequest\x1a .mcpd.control.v1.GetInfoResponse\x12R\n" +
+	"\aGetInfo\x12\x1f.mcpd.control.v1.GetInfoRequest\x1a .mcpd.control.v1.GetInfoResponse\x12a\n" +
+	"\x0eRegisterCaller\x12&.mcpd.control.v1.RegisterCallerRequest\x1a'.mcpd.control.v1.RegisterCallerResponse\x12g\n" +
+	"\x10UnregisterCaller\x12(.mcpd.control.v1.UnregisterCallerRequest\x1a).mcpd.control.v1.UnregisterCallerResponse\x12R\n" +
 	"\tListTools\x12!.mcpd.control.v1.ListToolsRequest\x1a\".mcpd.control.v1.ListToolsResponse\x12R\n" +
 	"\n" +
 	"WatchTools\x12\".mcpd.control.v1.WatchToolsRequest\x1a\x1e.mcpd.control.v1.ToolsSnapshot0\x01\x12O\n" +
@@ -1513,68 +1699,76 @@ func file_mcpd_control_v1_control_proto_rawDescGZIP() []byte {
 }
 
 var file_mcpd_control_v1_control_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_mcpd_control_v1_control_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_mcpd_control_v1_control_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_mcpd_control_v1_control_proto_goTypes = []any{
-	(LogLevel)(0),                 // 0: mcpd.control.v1.LogLevel
-	(*GetInfoRequest)(nil),        // 1: mcpd.control.v1.GetInfoRequest
-	(*GetInfoResponse)(nil),       // 2: mcpd.control.v1.GetInfoResponse
-	(*ListToolsRequest)(nil),      // 3: mcpd.control.v1.ListToolsRequest
-	(*ListToolsResponse)(nil),     // 4: mcpd.control.v1.ListToolsResponse
-	(*WatchToolsRequest)(nil),     // 5: mcpd.control.v1.WatchToolsRequest
-	(*ToolsSnapshot)(nil),         // 6: mcpd.control.v1.ToolsSnapshot
-	(*ToolDefinition)(nil),        // 7: mcpd.control.v1.ToolDefinition
-	(*CallToolRequest)(nil),       // 8: mcpd.control.v1.CallToolRequest
-	(*CallToolResponse)(nil),      // 9: mcpd.control.v1.CallToolResponse
-	(*ListResourcesRequest)(nil),  // 10: mcpd.control.v1.ListResourcesRequest
-	(*ListResourcesResponse)(nil), // 11: mcpd.control.v1.ListResourcesResponse
-	(*WatchResourcesRequest)(nil), // 12: mcpd.control.v1.WatchResourcesRequest
-	(*ResourcesSnapshot)(nil),     // 13: mcpd.control.v1.ResourcesSnapshot
-	(*ResourceDefinition)(nil),    // 14: mcpd.control.v1.ResourceDefinition
-	(*ReadResourceRequest)(nil),   // 15: mcpd.control.v1.ReadResourceRequest
-	(*ReadResourceResponse)(nil),  // 16: mcpd.control.v1.ReadResourceResponse
-	(*ListPromptsRequest)(nil),    // 17: mcpd.control.v1.ListPromptsRequest
-	(*ListPromptsResponse)(nil),   // 18: mcpd.control.v1.ListPromptsResponse
-	(*WatchPromptsRequest)(nil),   // 19: mcpd.control.v1.WatchPromptsRequest
-	(*PromptsSnapshot)(nil),       // 20: mcpd.control.v1.PromptsSnapshot
-	(*PromptDefinition)(nil),      // 21: mcpd.control.v1.PromptDefinition
-	(*GetPromptRequest)(nil),      // 22: mcpd.control.v1.GetPromptRequest
-	(*GetPromptResponse)(nil),     // 23: mcpd.control.v1.GetPromptResponse
-	(*StreamLogsRequest)(nil),     // 24: mcpd.control.v1.StreamLogsRequest
-	(*LogEntry)(nil),              // 25: mcpd.control.v1.LogEntry
+	(LogLevel)(0),                    // 0: mcpd.control.v1.LogLevel
+	(*GetInfoRequest)(nil),           // 1: mcpd.control.v1.GetInfoRequest
+	(*GetInfoResponse)(nil),          // 2: mcpd.control.v1.GetInfoResponse
+	(*RegisterCallerRequest)(nil),    // 3: mcpd.control.v1.RegisterCallerRequest
+	(*RegisterCallerResponse)(nil),   // 4: mcpd.control.v1.RegisterCallerResponse
+	(*UnregisterCallerRequest)(nil),  // 5: mcpd.control.v1.UnregisterCallerRequest
+	(*UnregisterCallerResponse)(nil), // 6: mcpd.control.v1.UnregisterCallerResponse
+	(*ListToolsRequest)(nil),         // 7: mcpd.control.v1.ListToolsRequest
+	(*ListToolsResponse)(nil),        // 8: mcpd.control.v1.ListToolsResponse
+	(*WatchToolsRequest)(nil),        // 9: mcpd.control.v1.WatchToolsRequest
+	(*ToolsSnapshot)(nil),            // 10: mcpd.control.v1.ToolsSnapshot
+	(*ToolDefinition)(nil),           // 11: mcpd.control.v1.ToolDefinition
+	(*CallToolRequest)(nil),          // 12: mcpd.control.v1.CallToolRequest
+	(*CallToolResponse)(nil),         // 13: mcpd.control.v1.CallToolResponse
+	(*ListResourcesRequest)(nil),     // 14: mcpd.control.v1.ListResourcesRequest
+	(*ListResourcesResponse)(nil),    // 15: mcpd.control.v1.ListResourcesResponse
+	(*WatchResourcesRequest)(nil),    // 16: mcpd.control.v1.WatchResourcesRequest
+	(*ResourcesSnapshot)(nil),        // 17: mcpd.control.v1.ResourcesSnapshot
+	(*ResourceDefinition)(nil),       // 18: mcpd.control.v1.ResourceDefinition
+	(*ReadResourceRequest)(nil),      // 19: mcpd.control.v1.ReadResourceRequest
+	(*ReadResourceResponse)(nil),     // 20: mcpd.control.v1.ReadResourceResponse
+	(*ListPromptsRequest)(nil),       // 21: mcpd.control.v1.ListPromptsRequest
+	(*ListPromptsResponse)(nil),      // 22: mcpd.control.v1.ListPromptsResponse
+	(*WatchPromptsRequest)(nil),      // 23: mcpd.control.v1.WatchPromptsRequest
+	(*PromptsSnapshot)(nil),          // 24: mcpd.control.v1.PromptsSnapshot
+	(*PromptDefinition)(nil),         // 25: mcpd.control.v1.PromptDefinition
+	(*GetPromptRequest)(nil),         // 26: mcpd.control.v1.GetPromptRequest
+	(*GetPromptResponse)(nil),        // 27: mcpd.control.v1.GetPromptResponse
+	(*StreamLogsRequest)(nil),        // 28: mcpd.control.v1.StreamLogsRequest
+	(*LogEntry)(nil),                 // 29: mcpd.control.v1.LogEntry
 }
 var file_mcpd_control_v1_control_proto_depIdxs = []int32{
-	6,  // 0: mcpd.control.v1.ListToolsResponse.snapshot:type_name -> mcpd.control.v1.ToolsSnapshot
-	7,  // 1: mcpd.control.v1.ToolsSnapshot.tools:type_name -> mcpd.control.v1.ToolDefinition
-	13, // 2: mcpd.control.v1.ListResourcesResponse.snapshot:type_name -> mcpd.control.v1.ResourcesSnapshot
-	14, // 3: mcpd.control.v1.ResourcesSnapshot.resources:type_name -> mcpd.control.v1.ResourceDefinition
-	20, // 4: mcpd.control.v1.ListPromptsResponse.snapshot:type_name -> mcpd.control.v1.PromptsSnapshot
-	21, // 5: mcpd.control.v1.PromptsSnapshot.prompts:type_name -> mcpd.control.v1.PromptDefinition
+	10, // 0: mcpd.control.v1.ListToolsResponse.snapshot:type_name -> mcpd.control.v1.ToolsSnapshot
+	11, // 1: mcpd.control.v1.ToolsSnapshot.tools:type_name -> mcpd.control.v1.ToolDefinition
+	17, // 2: mcpd.control.v1.ListResourcesResponse.snapshot:type_name -> mcpd.control.v1.ResourcesSnapshot
+	18, // 3: mcpd.control.v1.ResourcesSnapshot.resources:type_name -> mcpd.control.v1.ResourceDefinition
+	24, // 4: mcpd.control.v1.ListPromptsResponse.snapshot:type_name -> mcpd.control.v1.PromptsSnapshot
+	25, // 5: mcpd.control.v1.PromptsSnapshot.prompts:type_name -> mcpd.control.v1.PromptDefinition
 	0,  // 6: mcpd.control.v1.StreamLogsRequest.min_level:type_name -> mcpd.control.v1.LogLevel
 	0,  // 7: mcpd.control.v1.LogEntry.level:type_name -> mcpd.control.v1.LogLevel
 	1,  // 8: mcpd.control.v1.ControlPlaneService.GetInfo:input_type -> mcpd.control.v1.GetInfoRequest
-	3,  // 9: mcpd.control.v1.ControlPlaneService.ListTools:input_type -> mcpd.control.v1.ListToolsRequest
-	5,  // 10: mcpd.control.v1.ControlPlaneService.WatchTools:input_type -> mcpd.control.v1.WatchToolsRequest
-	8,  // 11: mcpd.control.v1.ControlPlaneService.CallTool:input_type -> mcpd.control.v1.CallToolRequest
-	10, // 12: mcpd.control.v1.ControlPlaneService.ListResources:input_type -> mcpd.control.v1.ListResourcesRequest
-	12, // 13: mcpd.control.v1.ControlPlaneService.WatchResources:input_type -> mcpd.control.v1.WatchResourcesRequest
-	15, // 14: mcpd.control.v1.ControlPlaneService.ReadResource:input_type -> mcpd.control.v1.ReadResourceRequest
-	17, // 15: mcpd.control.v1.ControlPlaneService.ListPrompts:input_type -> mcpd.control.v1.ListPromptsRequest
-	19, // 16: mcpd.control.v1.ControlPlaneService.WatchPrompts:input_type -> mcpd.control.v1.WatchPromptsRequest
-	22, // 17: mcpd.control.v1.ControlPlaneService.GetPrompt:input_type -> mcpd.control.v1.GetPromptRequest
-	24, // 18: mcpd.control.v1.ControlPlaneService.StreamLogs:input_type -> mcpd.control.v1.StreamLogsRequest
-	2,  // 19: mcpd.control.v1.ControlPlaneService.GetInfo:output_type -> mcpd.control.v1.GetInfoResponse
-	4,  // 20: mcpd.control.v1.ControlPlaneService.ListTools:output_type -> mcpd.control.v1.ListToolsResponse
-	6,  // 21: mcpd.control.v1.ControlPlaneService.WatchTools:output_type -> mcpd.control.v1.ToolsSnapshot
-	9,  // 22: mcpd.control.v1.ControlPlaneService.CallTool:output_type -> mcpd.control.v1.CallToolResponse
-	11, // 23: mcpd.control.v1.ControlPlaneService.ListResources:output_type -> mcpd.control.v1.ListResourcesResponse
-	13, // 24: mcpd.control.v1.ControlPlaneService.WatchResources:output_type -> mcpd.control.v1.ResourcesSnapshot
-	16, // 25: mcpd.control.v1.ControlPlaneService.ReadResource:output_type -> mcpd.control.v1.ReadResourceResponse
-	18, // 26: mcpd.control.v1.ControlPlaneService.ListPrompts:output_type -> mcpd.control.v1.ListPromptsResponse
-	20, // 27: mcpd.control.v1.ControlPlaneService.WatchPrompts:output_type -> mcpd.control.v1.PromptsSnapshot
-	23, // 28: mcpd.control.v1.ControlPlaneService.GetPrompt:output_type -> mcpd.control.v1.GetPromptResponse
-	25, // 29: mcpd.control.v1.ControlPlaneService.StreamLogs:output_type -> mcpd.control.v1.LogEntry
-	19, // [19:30] is the sub-list for method output_type
-	8,  // [8:19] is the sub-list for method input_type
+	3,  // 9: mcpd.control.v1.ControlPlaneService.RegisterCaller:input_type -> mcpd.control.v1.RegisterCallerRequest
+	5,  // 10: mcpd.control.v1.ControlPlaneService.UnregisterCaller:input_type -> mcpd.control.v1.UnregisterCallerRequest
+	7,  // 11: mcpd.control.v1.ControlPlaneService.ListTools:input_type -> mcpd.control.v1.ListToolsRequest
+	9,  // 12: mcpd.control.v1.ControlPlaneService.WatchTools:input_type -> mcpd.control.v1.WatchToolsRequest
+	12, // 13: mcpd.control.v1.ControlPlaneService.CallTool:input_type -> mcpd.control.v1.CallToolRequest
+	14, // 14: mcpd.control.v1.ControlPlaneService.ListResources:input_type -> mcpd.control.v1.ListResourcesRequest
+	16, // 15: mcpd.control.v1.ControlPlaneService.WatchResources:input_type -> mcpd.control.v1.WatchResourcesRequest
+	19, // 16: mcpd.control.v1.ControlPlaneService.ReadResource:input_type -> mcpd.control.v1.ReadResourceRequest
+	21, // 17: mcpd.control.v1.ControlPlaneService.ListPrompts:input_type -> mcpd.control.v1.ListPromptsRequest
+	23, // 18: mcpd.control.v1.ControlPlaneService.WatchPrompts:input_type -> mcpd.control.v1.WatchPromptsRequest
+	26, // 19: mcpd.control.v1.ControlPlaneService.GetPrompt:input_type -> mcpd.control.v1.GetPromptRequest
+	28, // 20: mcpd.control.v1.ControlPlaneService.StreamLogs:input_type -> mcpd.control.v1.StreamLogsRequest
+	2,  // 21: mcpd.control.v1.ControlPlaneService.GetInfo:output_type -> mcpd.control.v1.GetInfoResponse
+	4,  // 22: mcpd.control.v1.ControlPlaneService.RegisterCaller:output_type -> mcpd.control.v1.RegisterCallerResponse
+	6,  // 23: mcpd.control.v1.ControlPlaneService.UnregisterCaller:output_type -> mcpd.control.v1.UnregisterCallerResponse
+	8,  // 24: mcpd.control.v1.ControlPlaneService.ListTools:output_type -> mcpd.control.v1.ListToolsResponse
+	10, // 25: mcpd.control.v1.ControlPlaneService.WatchTools:output_type -> mcpd.control.v1.ToolsSnapshot
+	13, // 26: mcpd.control.v1.ControlPlaneService.CallTool:output_type -> mcpd.control.v1.CallToolResponse
+	15, // 27: mcpd.control.v1.ControlPlaneService.ListResources:output_type -> mcpd.control.v1.ListResourcesResponse
+	17, // 28: mcpd.control.v1.ControlPlaneService.WatchResources:output_type -> mcpd.control.v1.ResourcesSnapshot
+	20, // 29: mcpd.control.v1.ControlPlaneService.ReadResource:output_type -> mcpd.control.v1.ReadResourceResponse
+	22, // 30: mcpd.control.v1.ControlPlaneService.ListPrompts:output_type -> mcpd.control.v1.ListPromptsResponse
+	24, // 31: mcpd.control.v1.ControlPlaneService.WatchPrompts:output_type -> mcpd.control.v1.PromptsSnapshot
+	27, // 32: mcpd.control.v1.ControlPlaneService.GetPrompt:output_type -> mcpd.control.v1.GetPromptResponse
+	29, // 33: mcpd.control.v1.ControlPlaneService.StreamLogs:output_type -> mcpd.control.v1.LogEntry
+	21, // [21:34] is the sub-list for method output_type
+	8,  // [8:21] is the sub-list for method input_type
 	8,  // [8:8] is the sub-list for extension type_name
 	8,  // [8:8] is the sub-list for extension extendee
 	0,  // [0:8] is the sub-list for field type_name
@@ -1591,7 +1785,7 @@ func file_mcpd_control_v1_control_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_mcpd_control_v1_control_proto_rawDesc), len(file_mcpd_control_v1_control_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   25,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -12,6 +12,7 @@
 - [x] (2025-03-08 15:30Z) 引入 spec fingerprint 与共享实例池，确保 identical spec 才复用（spec 指纹排除 Name，scheduler 按 specKey 池化实例，新增共享池测试与指标语义调整）。
 - [x] (2025-03-08 18:10Z) 将 control plane 全量引入 caller，新增 mcpdmcp CLI 与 gateway 贯通（proto/cp/gateway caller 贯通，profile 级 tool index，scheduler 使用 specKey 池化）。
 - [x] (2025-03-08 21:20Z) 增加 resources/prompts 控制面与 gateway 透传，完成分页与 list-changed 语义（资源/提示索引、read/get 路由、分页 cursor、gateway registry 同步）。
+- [x] (2025-03-09 10:30Z) 引入 caller 注册/注销与 ref-count 生命周期，按 profile 启停索引、按 spec 激活与停止实例池，并加入 PID 探活与 gateway 注册流程。
 - [ ] 引入 App 托管 core 的生命周期与 URL scheme，提供最小 UI（tools/logs/resources/prompts）。
 - [ ] 运行测试与最小端到端验证，补齐文档与示例。
 
@@ -21,6 +22,8 @@
   Evidence: 增加 etagSet 并在分页中严格比较。
 - Observation: ErrMethodNotAllowed 需要清理 server cache，否则旧快照会在能力撤回后残留。
   Evidence: 对应 serverType 的缓存删除并触发快照重建。
+- Observation: stdio transport 需要 CommandContext 才能设置 Cancel，避免请求级 ctx 误杀进程的同时仍需满足 exec 约束。
+  Evidence: 使用 CommandContext(context.Background()) + StopFn 维持进程生命周期控制。
 
 ## Decision Log（决策记录）
 
@@ -72,6 +75,18 @@
 - Decision: 增加 resources/read 与 prompts/get 的控制面与 gateway 透传。
   Rationale: gateway 需要 read/get handler 才能正确暴露 resources/prompts 能力。
   Date/Author: 2025-03-08 / Codex.
+- Decision: MCP Server 生命周期改为 caller ref-count 驱动，ref_count==0 立即停止实例池，激活时 minReady=Max(1, spec.MinReady)。
+  Rationale: 与 caller 在线需求强绑定，避免空闲资源占用与实例重复拉起。
+  Date/Author: 2025-03-09 / Codex.
+- Decision: caller 离线探测使用 PID + signal(0) 定期校验。
+  Rationale: 不依赖 caller 主动上报，崩溃退出也可被回收。
+  Date/Author: 2025-03-09 / Codex.
+- Decision: scheduler Acquire 增加 per-spec start gate，避免并发 refresh 触发并行启动。
+  Rationale: 保证首次启动只创建一条实例链路，减少无意义的启动竞争。
+  Date/Author: 2025-03-09 / Codex.
+- Decision: tools/resources/prompts refresh 通过 profile 级 refresh gate 串行化。
+  Rationale: refresh 本身无需低延迟，串行化能避免并行 list 触发多实例扩容。
+  Date/Author: 2025-03-09 / Codex.
 
 ## Outcomes & Retrospective（结果与回顾）
 
@@ -198,4 +213,7 @@ profile store 定义应集中在 `internal/domain/profile.go`，并由 `internal
 
 Plan Update Note: Marked phase 3 complete with caller-aware control plane and mcpdmcp entry, recorded specKey routing and shared runtime rules, and updated progress to reflect RPC/gateway/app refactor.
 Plan Update Note: Marked phase 4 complete with resources/prompts control plane + gateway passthrough, added pagination/read/get interfaces, and recorded pagination and naming decisions.
+Plan Update Note: Added caller ref-count lifecycle, PID liveness probing, scheduler activation/stop semantics, and gateway registration flow to align core lifecycle with active callers.
+Plan Update Note: Added scheduler start gate to dedupe concurrent StartInstance when pools are empty.
+Plan Update Note: Added refresh gate shared across tool/resource/prompt indexes to serialize list refresh operations.
 Plan Update Note: Addressed pagination ETag consistency, capability removal cache cleanup, and added pagination/cursor tests based on review feedback.

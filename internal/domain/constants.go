@@ -6,6 +6,7 @@ const (
 	DefaultRouteTimeoutSeconds        = 10
 	DefaultPingIntervalSeconds        = 30
 	DefaultToolRefreshSeconds         = 60
+	DefaultCallerCheckSeconds         = 5
 	DefaultExposeTools                = true
 	DefaultToolNamespaceStrategy      = "prefix"
 	DefaultObservabilityListenAddress = "0.0.0.0:9090"

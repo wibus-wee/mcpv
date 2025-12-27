@@ -26,6 +26,7 @@ type PromptIndex struct {
 	cfg      domain.RuntimeConfig
 	logger   *zap.Logger
 	health   *telemetry.HealthTracker
+	gate     *RefreshGate
 
 	mu          sync.Mutex
 	started     bool
@@ -48,7 +49,7 @@ type promptIndexState struct {
 	targets  map[string]domain.PromptTarget
 }
 
-func NewPromptIndex(rt domain.Router, specs map[string]domain.ServerSpec, specKeys map[string]string, cfg domain.RuntimeConfig, logger *zap.Logger, health *telemetry.HealthTracker) *PromptIndex {
+func NewPromptIndex(rt domain.Router, specs map[string]domain.ServerSpec, specKeys map[string]string, cfg domain.RuntimeConfig, logger *zap.Logger, health *telemetry.HealthTracker, gate *RefreshGate) *PromptIndex {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -62,6 +63,7 @@ func NewPromptIndex(rt domain.Router, specs map[string]domain.ServerSpec, specKe
 		cfg:         cfg,
 		logger:      logger.Named("prompt_index"),
 		health:      health,
+		gate:        gate,
 		stop:        make(chan struct{}),
 		serverCache: make(map[string]promptCache),
 		subs:        make(map[chan domain.PromptSnapshot]struct{}),
@@ -80,6 +82,9 @@ func (a *PromptIndex) Start(ctx context.Context) {
 		return
 	}
 	a.started = true
+	if a.stop == nil {
+		a.stop = make(chan struct{})
+	}
 	a.mu.Unlock()
 
 	interval := time.Duration(a.cfg.ToolRefreshSeconds) * time.Second
@@ -133,11 +138,11 @@ func (a *PromptIndex) Stop() {
 		a.refreshBeat.Stop()
 		a.refreshBeat = nil
 	}
-	select {
-	case <-a.stop:
-	default:
+	if a.stop != nil {
 		close(a.stop)
+		a.stop = nil
 	}
+	a.started = false
 	a.mu.Unlock()
 }
 
@@ -207,6 +212,11 @@ func (a *PromptIndex) GetPrompt(ctx context.Context, name string, args json.RawM
 }
 
 func (a *PromptIndex) refresh(ctx context.Context) error {
+	if err := a.gate.Acquire(ctx); err != nil {
+		return err
+	}
+	defer a.gate.Release()
+
 	serverTypes := sortedServerTypes(a.specs)
 	if len(serverTypes) == 0 {
 		return nil
