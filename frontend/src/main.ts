@@ -1,5 +1,6 @@
 import {Events} from "@wailsio/runtime";
-import {GreetService} from "../bindings/changeme";
+import { GetVersion } from "../bindings/mcpd/internal/ui/wailsservice";
+
 
 const resultElement = document.getElementById('result');
 const timeElement = document.getElementById('time');
@@ -10,7 +11,7 @@ window.doGreet = async () => {
         name = 'anonymous';
     }
     try {
-        resultElement.innerText = await GreetService.Greet(name);
+        resultElement.innerText = await GetVersion();
     } catch (err) {
         console.error(err);
     }

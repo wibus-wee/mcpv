@@ -1,6 +1,7 @@
 GO ?= go
 PROTOC ?= protoc
 CONFIG ?= docs/catalog.example.yaml
+WAILS ?= wails3
 
 .PHONY: dev proto
 
@@ -30,3 +31,13 @@ down:
 
 reload:
 	docker compose restart core
+
+# Wails application targets
+wails-bindings:
+	$(WAILS) generate bindings -ts ./cmd/mcpd-wails
+
+wails-dev:
+	$(WAILS) dev
+
+wails-build:
+	$(WAILS) build
