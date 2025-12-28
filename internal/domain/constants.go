@@ -6,6 +6,7 @@ const (
 	DefaultRouteTimeoutSeconds        = 10
 	DefaultPingIntervalSeconds        = 30
 	DefaultToolRefreshSeconds         = 60
+	DefaultToolRefreshConcurrency     = 4
 	DefaultCallerCheckSeconds         = 5
 	DefaultDrainTimeoutSeconds        = 30
 	DefaultExposeTools                = true

@@ -63,14 +63,15 @@ type ProfileDetail struct {
 
 // RuntimeConfigDetail contains runtime configuration for frontend
 type RuntimeConfigDetail struct {
-	RouteTimeoutSeconds   int                       `json:"routeTimeoutSeconds"`
-	PingIntervalSeconds   int                       `json:"pingIntervalSeconds"`
-	ToolRefreshSeconds    int                       `json:"toolRefreshSeconds"`
-	CallerCheckSeconds    int                       `json:"callerCheckSeconds"`
-	ExposeTools           bool                      `json:"exposeTools"`
-	ToolNamespaceStrategy string                    `json:"toolNamespaceStrategy"`
-	Observability         ObservabilityConfigDetail `json:"observability"`
-	RPC                   RPCConfigDetail           `json:"rpc"`
+	RouteTimeoutSeconds    int                       `json:"routeTimeoutSeconds"`
+	PingIntervalSeconds    int                       `json:"pingIntervalSeconds"`
+	ToolRefreshSeconds     int                       `json:"toolRefreshSeconds"`
+	ToolRefreshConcurrency int                       `json:"toolRefreshConcurrency"`
+	CallerCheckSeconds     int                       `json:"callerCheckSeconds"`
+	ExposeTools            bool                      `json:"exposeTools"`
+	ToolNamespaceStrategy  string                    `json:"toolNamespaceStrategy"`
+	Observability          ObservabilityConfigDetail `json:"observability"`
+	RPC                    RPCConfigDetail           `json:"rpc"`
 }
 
 // ObservabilityConfigDetail for frontend

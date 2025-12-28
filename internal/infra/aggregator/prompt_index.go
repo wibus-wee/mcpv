@@ -231,25 +231,46 @@ func (a *PromptIndex) refresh(ctx context.Context) error {
 
 	results := make(chan refreshResult, len(serverTypes))
 	timeout := refreshTimeout(a.cfg)
-
-	var wg sync.WaitGroup
-	for _, serverType := range serverTypes {
-		spec := a.specs[serverType]
-		wg.Add(1)
-		go func(serverType string, spec domain.ServerSpec) {
-			defer wg.Done()
-			fetchCtx, cancel := context.WithTimeout(ctx, timeout)
-			defer cancel()
-
-			prompts, targets, err := a.fetchServerPrompts(fetchCtx, serverType, spec)
-			results <- refreshResult{
-				serverType: serverType,
-				prompts:    prompts,
-				targets:    targets,
-				err:        err,
-			}
-		}(serverType, spec)
+	workerCount := refreshWorkerCount(a.cfg, len(serverTypes))
+	if workerCount == 0 {
+		return nil
 	}
+
+	jobs := make(chan string)
+	var wg sync.WaitGroup
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case serverType, ok := <-jobs:
+					if !ok {
+						return
+					}
+					spec := a.specs[serverType]
+					fetchCtx, cancel := context.WithTimeout(ctx, timeout)
+					prompts, targets, err := a.fetchServerPrompts(fetchCtx, serverType, spec)
+					cancel()
+					results <- refreshResult{
+						serverType: serverType,
+						prompts:    prompts,
+						targets:    targets,
+						err:        err,
+					}
+				}
+			}
+		}()
+	}
+
+	go func() {
+		for _, serverType := range serverTypes {
+			jobs <- serverType
+		}
+		close(jobs)
+	}()
 
 	go func() {
 		wg.Wait()
@@ -258,6 +279,9 @@ func (a *PromptIndex) refresh(ctx context.Context) error {
 
 	for res := range results {
 		if res.err != nil {
+			if errors.Is(res.err, domain.ErrNoReadyInstance) {
+				continue
+			}
 			if errors.Is(res.err, domain.ErrMethodNotAllowed) {
 				a.mu.Lock()
 				delete(a.serverCache, res.serverType)
@@ -458,7 +482,7 @@ func (a *PromptIndex) fetchPrompts(ctx context.Context, serverType, specKey stri
 			return nil, err
 		}
 
-		resp, err := a.router.Route(ctx, serverType, specKey, "", payload)
+		resp, err := a.router.RouteWithOptions(ctx, serverType, specKey, "", payload, domain.RouteOptions{AllowStart: false})
 		if err != nil {
 			return nil, err
 		}

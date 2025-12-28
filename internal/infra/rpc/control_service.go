@@ -347,3 +347,54 @@ func mapCallerError(op string, err error) error {
 	}
 	return status.Errorf(codes.Internal, "%s: %v", op, err)
 }
+
+func (s *ControlService) WatchRuntimeStatus(req *controlv1.WatchRuntimeStatusRequest, stream controlv1.ControlPlaneService_WatchRuntimeStatusServer) error {
+	ctx := stream.Context()
+	lastETag := req.GetLastEtag()
+
+	updates, err := s.control.WatchRuntimeStatus(ctx, req.GetCaller())
+	if err != nil {
+		return mapCallerError("watch runtime status", err)
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case snapshot, ok := <-updates:
+			if !ok {
+				return nil
+			}
+			if lastETag == snapshot.ETag {
+				continue
+			}
+			if err := stream.Send(toProtoRuntimeStatusSnapshot(snapshot)); err != nil {
+				return err
+			}
+			lastETag = snapshot.ETag
+		}
+	}
+}
+
+func (s *ControlService) WatchServerInitStatus(req *controlv1.WatchServerInitStatusRequest, stream controlv1.ControlPlaneService_WatchServerInitStatusServer) error {
+	ctx := stream.Context()
+
+	updates, err := s.control.WatchServerInitStatus(ctx, req.GetCaller())
+	if err != nil {
+		return mapCallerError("watch server init status", err)
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case snapshot, ok := <-updates:
+			if !ok {
+				return nil
+			}
+			if err := stream.Send(toProtoServerInitStatusSnapshot(snapshot)); err != nil {
+				return err
+			}
+		}
+	}
+}

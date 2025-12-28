@@ -1565,6 +1565,534 @@ func (x *LogEntry) GetDataJson() []byte {
 	return nil
 }
 
+type WatchRuntimeStatusRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Caller        string                 `protobuf:"bytes,1,opt,name=caller,proto3" json:"caller,omitempty"`
+	LastEtag      string                 `protobuf:"bytes,2,opt,name=last_etag,json=lastEtag,proto3" json:"last_etag,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WatchRuntimeStatusRequest) Reset() {
+	*x = WatchRuntimeStatusRequest{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WatchRuntimeStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WatchRuntimeStatusRequest) ProtoMessage() {}
+
+func (x *WatchRuntimeStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WatchRuntimeStatusRequest.ProtoReflect.Descriptor instead.
+func (*WatchRuntimeStatusRequest) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *WatchRuntimeStatusRequest) GetCaller() string {
+	if x != nil {
+		return x.Caller
+	}
+	return ""
+}
+
+func (x *WatchRuntimeStatusRequest) GetLastEtag() string {
+	if x != nil {
+		return x.LastEtag
+	}
+	return ""
+}
+
+type RuntimeStatusSnapshot struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Etag                string                 `protobuf:"bytes,1,opt,name=etag,proto3" json:"etag,omitempty"`
+	Statuses            []*ServerRuntimeStatus `protobuf:"bytes,2,rep,name=statuses,proto3" json:"statuses,omitempty"`
+	GeneratedAtUnixNano int64                  `protobuf:"varint,3,opt,name=generated_at_unix_nano,json=generatedAtUnixNano,proto3" json:"generated_at_unix_nano,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *RuntimeStatusSnapshot) Reset() {
+	*x = RuntimeStatusSnapshot{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RuntimeStatusSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RuntimeStatusSnapshot) ProtoMessage() {}
+
+func (x *RuntimeStatusSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RuntimeStatusSnapshot.ProtoReflect.Descriptor instead.
+func (*RuntimeStatusSnapshot) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *RuntimeStatusSnapshot) GetEtag() string {
+	if x != nil {
+		return x.Etag
+	}
+	return ""
+}
+
+func (x *RuntimeStatusSnapshot) GetStatuses() []*ServerRuntimeStatus {
+	if x != nil {
+		return x.Statuses
+	}
+	return nil
+}
+
+func (x *RuntimeStatusSnapshot) GetGeneratedAtUnixNano() int64 {
+	if x != nil {
+		return x.GeneratedAtUnixNano
+	}
+	return 0
+}
+
+type ServerRuntimeStatus struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SpecKey       string                 `protobuf:"bytes,1,opt,name=spec_key,json=specKey,proto3" json:"spec_key,omitempty"`
+	ServerName    string                 `protobuf:"bytes,2,opt,name=server_name,json=serverName,proto3" json:"server_name,omitempty"`
+	Instances     []*InstanceStatus      `protobuf:"bytes,3,rep,name=instances,proto3" json:"instances,omitempty"`
+	Stats         *PoolStats             `protobuf:"bytes,4,opt,name=stats,proto3" json:"stats,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ServerRuntimeStatus) Reset() {
+	*x = ServerRuntimeStatus{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerRuntimeStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerRuntimeStatus) ProtoMessage() {}
+
+func (x *ServerRuntimeStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerRuntimeStatus.ProtoReflect.Descriptor instead.
+func (*ServerRuntimeStatus) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *ServerRuntimeStatus) GetSpecKey() string {
+	if x != nil {
+		return x.SpecKey
+	}
+	return ""
+}
+
+func (x *ServerRuntimeStatus) GetServerName() string {
+	if x != nil {
+		return x.ServerName
+	}
+	return ""
+}
+
+func (x *ServerRuntimeStatus) GetInstances() []*InstanceStatus {
+	if x != nil {
+		return x.Instances
+	}
+	return nil
+}
+
+func (x *ServerRuntimeStatus) GetStats() *PoolStats {
+	if x != nil {
+		return x.Stats
+	}
+	return nil
+}
+
+type InstanceStatus struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Id                 string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	State              string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	BusyCount          int32                  `protobuf:"varint,3,opt,name=busy_count,json=busyCount,proto3" json:"busy_count,omitempty"`
+	LastActiveUnixNano int64                  `protobuf:"varint,4,opt,name=last_active_unix_nano,json=lastActiveUnixNano,proto3" json:"last_active_unix_nano,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *InstanceStatus) Reset() {
+	*x = InstanceStatus{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InstanceStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InstanceStatus) ProtoMessage() {}
+
+func (x *InstanceStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InstanceStatus.ProtoReflect.Descriptor instead.
+func (*InstanceStatus) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *InstanceStatus) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *InstanceStatus) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *InstanceStatus) GetBusyCount() int32 {
+	if x != nil {
+		return x.BusyCount
+	}
+	return 0
+}
+
+func (x *InstanceStatus) GetLastActiveUnixNano() int64 {
+	if x != nil {
+		return x.LastActiveUnixNano
+	}
+	return 0
+}
+
+type PoolStats struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Total         int32                  `protobuf:"varint,1,opt,name=total,proto3" json:"total,omitempty"`
+	Ready         int32                  `protobuf:"varint,2,opt,name=ready,proto3" json:"ready,omitempty"`
+	Busy          int32                  `protobuf:"varint,3,opt,name=busy,proto3" json:"busy,omitempty"`
+	Starting      int32                  `protobuf:"varint,4,opt,name=starting,proto3" json:"starting,omitempty"`
+	Draining      int32                  `protobuf:"varint,5,opt,name=draining,proto3" json:"draining,omitempty"`
+	Failed        int32                  `protobuf:"varint,6,opt,name=failed,proto3" json:"failed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PoolStats) Reset() {
+	*x = PoolStats{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PoolStats) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PoolStats) ProtoMessage() {}
+
+func (x *PoolStats) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PoolStats.ProtoReflect.Descriptor instead.
+func (*PoolStats) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *PoolStats) GetTotal() int32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+func (x *PoolStats) GetReady() int32 {
+	if x != nil {
+		return x.Ready
+	}
+	return 0
+}
+
+func (x *PoolStats) GetBusy() int32 {
+	if x != nil {
+		return x.Busy
+	}
+	return 0
+}
+
+func (x *PoolStats) GetStarting() int32 {
+	if x != nil {
+		return x.Starting
+	}
+	return 0
+}
+
+func (x *PoolStats) GetDraining() int32 {
+	if x != nil {
+		return x.Draining
+	}
+	return 0
+}
+
+func (x *PoolStats) GetFailed() int32 {
+	if x != nil {
+		return x.Failed
+	}
+	return 0
+}
+
+type WatchServerInitStatusRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Caller        string                 `protobuf:"bytes,1,opt,name=caller,proto3" json:"caller,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WatchServerInitStatusRequest) Reset() {
+	*x = WatchServerInitStatusRequest{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WatchServerInitStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WatchServerInitStatusRequest) ProtoMessage() {}
+
+func (x *WatchServerInitStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WatchServerInitStatusRequest.ProtoReflect.Descriptor instead.
+func (*WatchServerInitStatusRequest) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *WatchServerInitStatusRequest) GetCaller() string {
+	if x != nil {
+		return x.Caller
+	}
+	return ""
+}
+
+type ServerInitStatusSnapshot struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Statuses            []*ServerInitStatus    `protobuf:"bytes,1,rep,name=statuses,proto3" json:"statuses,omitempty"`
+	GeneratedAtUnixNano int64                  `protobuf:"varint,2,opt,name=generated_at_unix_nano,json=generatedAtUnixNano,proto3" json:"generated_at_unix_nano,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *ServerInitStatusSnapshot) Reset() {
+	*x = ServerInitStatusSnapshot{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerInitStatusSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerInitStatusSnapshot) ProtoMessage() {}
+
+func (x *ServerInitStatusSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerInitStatusSnapshot.ProtoReflect.Descriptor instead.
+func (*ServerInitStatusSnapshot) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *ServerInitStatusSnapshot) GetStatuses() []*ServerInitStatus {
+	if x != nil {
+		return x.Statuses
+	}
+	return nil
+}
+
+func (x *ServerInitStatusSnapshot) GetGeneratedAtUnixNano() int64 {
+	if x != nil {
+		return x.GeneratedAtUnixNano
+	}
+	return 0
+}
+
+type ServerInitStatus struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	SpecKey           string                 `protobuf:"bytes,1,opt,name=spec_key,json=specKey,proto3" json:"spec_key,omitempty"`
+	ServerName        string                 `protobuf:"bytes,2,opt,name=server_name,json=serverName,proto3" json:"server_name,omitempty"`
+	MinReady          int32                  `protobuf:"varint,3,opt,name=min_ready,json=minReady,proto3" json:"min_ready,omitempty"`
+	Ready             int32                  `protobuf:"varint,4,opt,name=ready,proto3" json:"ready,omitempty"`
+	Failed            int32                  `protobuf:"varint,5,opt,name=failed,proto3" json:"failed,omitempty"`
+	State             string                 `protobuf:"bytes,6,opt,name=state,proto3" json:"state,omitempty"`
+	LastError         string                 `protobuf:"bytes,7,opt,name=last_error,json=lastError,proto3" json:"last_error,omitempty"`
+	UpdatedAtUnixNano int64                  `protobuf:"varint,8,opt,name=updated_at_unix_nano,json=updatedAtUnixNano,proto3" json:"updated_at_unix_nano,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ServerInitStatus) Reset() {
+	*x = ServerInitStatus{}
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerInitStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerInitStatus) ProtoMessage() {}
+
+func (x *ServerInitStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_mcpd_control_v1_control_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerInitStatus.ProtoReflect.Descriptor instead.
+func (*ServerInitStatus) Descriptor() ([]byte, []int) {
+	return file_mcpd_control_v1_control_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *ServerInitStatus) GetSpecKey() string {
+	if x != nil {
+		return x.SpecKey
+	}
+	return ""
+}
+
+func (x *ServerInitStatus) GetServerName() string {
+	if x != nil {
+		return x.ServerName
+	}
+	return ""
+}
+
+func (x *ServerInitStatus) GetMinReady() int32 {
+	if x != nil {
+		return x.MinReady
+	}
+	return 0
+}
+
+func (x *ServerInitStatus) GetReady() int32 {
+	if x != nil {
+		return x.Ready
+	}
+	return 0
+}
+
+func (x *ServerInitStatus) GetFailed() int32 {
+	if x != nil {
+		return x.Failed
+	}
+	return 0
+}
+
+func (x *ServerInitStatus) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *ServerInitStatus) GetLastError() string {
+	if x != nil {
+		return x.LastError
+	}
+	return ""
+}
+
+func (x *ServerInitStatus) GetUpdatedAtUnixNano() int64 {
+	if x != nil {
+		return x.UpdatedAtUnixNano
+	}
+	return 0
+}
+
 var File_mcpd_control_v1_control_proto protoreflect.FileDescriptor
 
 const file_mcpd_control_v1_control_proto_rawDesc = "" +
@@ -1658,7 +2186,49 @@ const file_mcpd_control_v1_control_proto_rawDesc = "" +
 	"\x06logger\x18\x01 \x01(\tR\x06logger\x12/\n" +
 	"\x05level\x18\x02 \x01(\x0e2\x19.mcpd.control.v1.LogLevelR\x05level\x12.\n" +
 	"\x13timestamp_unix_nano\x18\x03 \x01(\x03R\x11timestampUnixNano\x12\x1b\n" +
-	"\tdata_json\x18\x04 \x01(\fR\bdataJson*\xd6\x01\n" +
+	"\tdata_json\x18\x04 \x01(\fR\bdataJson\"P\n" +
+	"\x19WatchRuntimeStatusRequest\x12\x16\n" +
+	"\x06caller\x18\x01 \x01(\tR\x06caller\x12\x1b\n" +
+	"\tlast_etag\x18\x02 \x01(\tR\blastEtag\"\xa2\x01\n" +
+	"\x15RuntimeStatusSnapshot\x12\x12\n" +
+	"\x04etag\x18\x01 \x01(\tR\x04etag\x12@\n" +
+	"\bstatuses\x18\x02 \x03(\v2$.mcpd.control.v1.ServerRuntimeStatusR\bstatuses\x123\n" +
+	"\x16generated_at_unix_nano\x18\x03 \x01(\x03R\x13generatedAtUnixNano\"\xc2\x01\n" +
+	"\x13ServerRuntimeStatus\x12\x19\n" +
+	"\bspec_key\x18\x01 \x01(\tR\aspecKey\x12\x1f\n" +
+	"\vserver_name\x18\x02 \x01(\tR\n" +
+	"serverName\x12=\n" +
+	"\tinstances\x18\x03 \x03(\v2\x1f.mcpd.control.v1.InstanceStatusR\tinstances\x120\n" +
+	"\x05stats\x18\x04 \x01(\v2\x1a.mcpd.control.v1.PoolStatsR\x05stats\"\x88\x01\n" +
+	"\x0eInstanceStatus\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\x12\x1d\n" +
+	"\n" +
+	"busy_count\x18\x03 \x01(\x05R\tbusyCount\x121\n" +
+	"\x15last_active_unix_nano\x18\x04 \x01(\x03R\x12lastActiveUnixNano\"\x9b\x01\n" +
+	"\tPoolStats\x12\x14\n" +
+	"\x05total\x18\x01 \x01(\x05R\x05total\x12\x14\n" +
+	"\x05ready\x18\x02 \x01(\x05R\x05ready\x12\x12\n" +
+	"\x04busy\x18\x03 \x01(\x05R\x04busy\x12\x1a\n" +
+	"\bstarting\x18\x04 \x01(\x05R\bstarting\x12\x1a\n" +
+	"\bdraining\x18\x05 \x01(\x05R\bdraining\x12\x16\n" +
+	"\x06failed\x18\x06 \x01(\x05R\x06failed\"6\n" +
+	"\x1cWatchServerInitStatusRequest\x12\x16\n" +
+	"\x06caller\x18\x01 \x01(\tR\x06caller\"\x8e\x01\n" +
+	"\x18ServerInitStatusSnapshot\x12=\n" +
+	"\bstatuses\x18\x01 \x03(\v2!.mcpd.control.v1.ServerInitStatusR\bstatuses\x123\n" +
+	"\x16generated_at_unix_nano\x18\x02 \x01(\x03R\x13generatedAtUnixNano\"\xff\x01\n" +
+	"\x10ServerInitStatus\x12\x19\n" +
+	"\bspec_key\x18\x01 \x01(\tR\aspecKey\x12\x1f\n" +
+	"\vserver_name\x18\x02 \x01(\tR\n" +
+	"serverName\x12\x1b\n" +
+	"\tmin_ready\x18\x03 \x01(\x05R\bminReady\x12\x14\n" +
+	"\x05ready\x18\x04 \x01(\x05R\x05ready\x12\x16\n" +
+	"\x06failed\x18\x05 \x01(\x05R\x06failed\x12\x14\n" +
+	"\x05state\x18\x06 \x01(\tR\x05state\x12\x1d\n" +
+	"\n" +
+	"last_error\x18\a \x01(\tR\tlastError\x12/\n" +
+	"\x14updated_at_unix_nano\x18\b \x01(\x03R\x11updatedAtUnixNano*\xd6\x01\n" +
 	"\bLogLevel\x12\x19\n" +
 	"\x15LOG_LEVEL_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fLOG_LEVEL_DEBUG\x10\x01\x12\x12\n" +
@@ -1668,7 +2238,8 @@ const file_mcpd_control_v1_control_proto_rawDesc = "" +
 	"\x0fLOG_LEVEL_ERROR\x10\x05\x12\x16\n" +
 	"\x12LOG_LEVEL_CRITICAL\x10\x06\x12\x13\n" +
 	"\x0fLOG_LEVEL_ALERT\x10\a\x12\x17\n" +
-	"\x13LOG_LEVEL_EMERGENCY\x10\b2\x9c\t\n" +
+	"\x13LOG_LEVEL_EMERGENCY\x10\b2\xfd\n" +
+	"\n" +
 	"\x13ControlPlaneService\x12L\n" +
 	"\aGetInfo\x12\x1f.mcpd.control.v1.GetInfoRequest\x1a .mcpd.control.v1.GetInfoResponse\x12a\n" +
 	"\x0eRegisterCaller\x12&.mcpd.control.v1.RegisterCallerRequest\x1a'.mcpd.control.v1.RegisterCallerResponse\x12g\n" +
@@ -1684,7 +2255,9 @@ const file_mcpd_control_v1_control_proto_rawDesc = "" +
 	"\fWatchPrompts\x12$.mcpd.control.v1.WatchPromptsRequest\x1a .mcpd.control.v1.PromptsSnapshot0\x01\x12R\n" +
 	"\tGetPrompt\x12!.mcpd.control.v1.GetPromptRequest\x1a\".mcpd.control.v1.GetPromptResponse\x12M\n" +
 	"\n" +
-	"StreamLogs\x12\".mcpd.control.v1.StreamLogsRequest\x1a\x19.mcpd.control.v1.LogEntry0\x01B#Z!mcpd/pkg/api/control/v1;controlv1b\x06proto3"
+	"StreamLogs\x12\".mcpd.control.v1.StreamLogsRequest\x1a\x19.mcpd.control.v1.LogEntry0\x01\x12j\n" +
+	"\x12WatchRuntimeStatus\x12*.mcpd.control.v1.WatchRuntimeStatusRequest\x1a&.mcpd.control.v1.RuntimeStatusSnapshot0\x01\x12s\n" +
+	"\x15WatchServerInitStatus\x12-.mcpd.control.v1.WatchServerInitStatusRequest\x1a).mcpd.control.v1.ServerInitStatusSnapshot0\x01B#Z!mcpd/pkg/api/control/v1;controlv1b\x06proto3"
 
 var (
 	file_mcpd_control_v1_control_proto_rawDescOnce sync.Once
@@ -1699,38 +2272,46 @@ func file_mcpd_control_v1_control_proto_rawDescGZIP() []byte {
 }
 
 var file_mcpd_control_v1_control_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_mcpd_control_v1_control_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
+var file_mcpd_control_v1_control_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
 var file_mcpd_control_v1_control_proto_goTypes = []any{
-	(LogLevel)(0),                    // 0: mcpd.control.v1.LogLevel
-	(*GetInfoRequest)(nil),           // 1: mcpd.control.v1.GetInfoRequest
-	(*GetInfoResponse)(nil),          // 2: mcpd.control.v1.GetInfoResponse
-	(*RegisterCallerRequest)(nil),    // 3: mcpd.control.v1.RegisterCallerRequest
-	(*RegisterCallerResponse)(nil),   // 4: mcpd.control.v1.RegisterCallerResponse
-	(*UnregisterCallerRequest)(nil),  // 5: mcpd.control.v1.UnregisterCallerRequest
-	(*UnregisterCallerResponse)(nil), // 6: mcpd.control.v1.UnregisterCallerResponse
-	(*ListToolsRequest)(nil),         // 7: mcpd.control.v1.ListToolsRequest
-	(*ListToolsResponse)(nil),        // 8: mcpd.control.v1.ListToolsResponse
-	(*WatchToolsRequest)(nil),        // 9: mcpd.control.v1.WatchToolsRequest
-	(*ToolsSnapshot)(nil),            // 10: mcpd.control.v1.ToolsSnapshot
-	(*ToolDefinition)(nil),           // 11: mcpd.control.v1.ToolDefinition
-	(*CallToolRequest)(nil),          // 12: mcpd.control.v1.CallToolRequest
-	(*CallToolResponse)(nil),         // 13: mcpd.control.v1.CallToolResponse
-	(*ListResourcesRequest)(nil),     // 14: mcpd.control.v1.ListResourcesRequest
-	(*ListResourcesResponse)(nil),    // 15: mcpd.control.v1.ListResourcesResponse
-	(*WatchResourcesRequest)(nil),    // 16: mcpd.control.v1.WatchResourcesRequest
-	(*ResourcesSnapshot)(nil),        // 17: mcpd.control.v1.ResourcesSnapshot
-	(*ResourceDefinition)(nil),       // 18: mcpd.control.v1.ResourceDefinition
-	(*ReadResourceRequest)(nil),      // 19: mcpd.control.v1.ReadResourceRequest
-	(*ReadResourceResponse)(nil),     // 20: mcpd.control.v1.ReadResourceResponse
-	(*ListPromptsRequest)(nil),       // 21: mcpd.control.v1.ListPromptsRequest
-	(*ListPromptsResponse)(nil),      // 22: mcpd.control.v1.ListPromptsResponse
-	(*WatchPromptsRequest)(nil),      // 23: mcpd.control.v1.WatchPromptsRequest
-	(*PromptsSnapshot)(nil),          // 24: mcpd.control.v1.PromptsSnapshot
-	(*PromptDefinition)(nil),         // 25: mcpd.control.v1.PromptDefinition
-	(*GetPromptRequest)(nil),         // 26: mcpd.control.v1.GetPromptRequest
-	(*GetPromptResponse)(nil),        // 27: mcpd.control.v1.GetPromptResponse
-	(*StreamLogsRequest)(nil),        // 28: mcpd.control.v1.StreamLogsRequest
-	(*LogEntry)(nil),                 // 29: mcpd.control.v1.LogEntry
+	(LogLevel)(0),                        // 0: mcpd.control.v1.LogLevel
+	(*GetInfoRequest)(nil),               // 1: mcpd.control.v1.GetInfoRequest
+	(*GetInfoResponse)(nil),              // 2: mcpd.control.v1.GetInfoResponse
+	(*RegisterCallerRequest)(nil),        // 3: mcpd.control.v1.RegisterCallerRequest
+	(*RegisterCallerResponse)(nil),       // 4: mcpd.control.v1.RegisterCallerResponse
+	(*UnregisterCallerRequest)(nil),      // 5: mcpd.control.v1.UnregisterCallerRequest
+	(*UnregisterCallerResponse)(nil),     // 6: mcpd.control.v1.UnregisterCallerResponse
+	(*ListToolsRequest)(nil),             // 7: mcpd.control.v1.ListToolsRequest
+	(*ListToolsResponse)(nil),            // 8: mcpd.control.v1.ListToolsResponse
+	(*WatchToolsRequest)(nil),            // 9: mcpd.control.v1.WatchToolsRequest
+	(*ToolsSnapshot)(nil),                // 10: mcpd.control.v1.ToolsSnapshot
+	(*ToolDefinition)(nil),               // 11: mcpd.control.v1.ToolDefinition
+	(*CallToolRequest)(nil),              // 12: mcpd.control.v1.CallToolRequest
+	(*CallToolResponse)(nil),             // 13: mcpd.control.v1.CallToolResponse
+	(*ListResourcesRequest)(nil),         // 14: mcpd.control.v1.ListResourcesRequest
+	(*ListResourcesResponse)(nil),        // 15: mcpd.control.v1.ListResourcesResponse
+	(*WatchResourcesRequest)(nil),        // 16: mcpd.control.v1.WatchResourcesRequest
+	(*ResourcesSnapshot)(nil),            // 17: mcpd.control.v1.ResourcesSnapshot
+	(*ResourceDefinition)(nil),           // 18: mcpd.control.v1.ResourceDefinition
+	(*ReadResourceRequest)(nil),          // 19: mcpd.control.v1.ReadResourceRequest
+	(*ReadResourceResponse)(nil),         // 20: mcpd.control.v1.ReadResourceResponse
+	(*ListPromptsRequest)(nil),           // 21: mcpd.control.v1.ListPromptsRequest
+	(*ListPromptsResponse)(nil),          // 22: mcpd.control.v1.ListPromptsResponse
+	(*WatchPromptsRequest)(nil),          // 23: mcpd.control.v1.WatchPromptsRequest
+	(*PromptsSnapshot)(nil),              // 24: mcpd.control.v1.PromptsSnapshot
+	(*PromptDefinition)(nil),             // 25: mcpd.control.v1.PromptDefinition
+	(*GetPromptRequest)(nil),             // 26: mcpd.control.v1.GetPromptRequest
+	(*GetPromptResponse)(nil),            // 27: mcpd.control.v1.GetPromptResponse
+	(*StreamLogsRequest)(nil),            // 28: mcpd.control.v1.StreamLogsRequest
+	(*LogEntry)(nil),                     // 29: mcpd.control.v1.LogEntry
+	(*WatchRuntimeStatusRequest)(nil),    // 30: mcpd.control.v1.WatchRuntimeStatusRequest
+	(*RuntimeStatusSnapshot)(nil),        // 31: mcpd.control.v1.RuntimeStatusSnapshot
+	(*ServerRuntimeStatus)(nil),          // 32: mcpd.control.v1.ServerRuntimeStatus
+	(*InstanceStatus)(nil),               // 33: mcpd.control.v1.InstanceStatus
+	(*PoolStats)(nil),                    // 34: mcpd.control.v1.PoolStats
+	(*WatchServerInitStatusRequest)(nil), // 35: mcpd.control.v1.WatchServerInitStatusRequest
+	(*ServerInitStatusSnapshot)(nil),     // 36: mcpd.control.v1.ServerInitStatusSnapshot
+	(*ServerInitStatus)(nil),             // 37: mcpd.control.v1.ServerInitStatus
 }
 var file_mcpd_control_v1_control_proto_depIdxs = []int32{
 	10, // 0: mcpd.control.v1.ListToolsResponse.snapshot:type_name -> mcpd.control.v1.ToolsSnapshot
@@ -1741,37 +2322,45 @@ var file_mcpd_control_v1_control_proto_depIdxs = []int32{
 	25, // 5: mcpd.control.v1.PromptsSnapshot.prompts:type_name -> mcpd.control.v1.PromptDefinition
 	0,  // 6: mcpd.control.v1.StreamLogsRequest.min_level:type_name -> mcpd.control.v1.LogLevel
 	0,  // 7: mcpd.control.v1.LogEntry.level:type_name -> mcpd.control.v1.LogLevel
-	1,  // 8: mcpd.control.v1.ControlPlaneService.GetInfo:input_type -> mcpd.control.v1.GetInfoRequest
-	3,  // 9: mcpd.control.v1.ControlPlaneService.RegisterCaller:input_type -> mcpd.control.v1.RegisterCallerRequest
-	5,  // 10: mcpd.control.v1.ControlPlaneService.UnregisterCaller:input_type -> mcpd.control.v1.UnregisterCallerRequest
-	7,  // 11: mcpd.control.v1.ControlPlaneService.ListTools:input_type -> mcpd.control.v1.ListToolsRequest
-	9,  // 12: mcpd.control.v1.ControlPlaneService.WatchTools:input_type -> mcpd.control.v1.WatchToolsRequest
-	12, // 13: mcpd.control.v1.ControlPlaneService.CallTool:input_type -> mcpd.control.v1.CallToolRequest
-	14, // 14: mcpd.control.v1.ControlPlaneService.ListResources:input_type -> mcpd.control.v1.ListResourcesRequest
-	16, // 15: mcpd.control.v1.ControlPlaneService.WatchResources:input_type -> mcpd.control.v1.WatchResourcesRequest
-	19, // 16: mcpd.control.v1.ControlPlaneService.ReadResource:input_type -> mcpd.control.v1.ReadResourceRequest
-	21, // 17: mcpd.control.v1.ControlPlaneService.ListPrompts:input_type -> mcpd.control.v1.ListPromptsRequest
-	23, // 18: mcpd.control.v1.ControlPlaneService.WatchPrompts:input_type -> mcpd.control.v1.WatchPromptsRequest
-	26, // 19: mcpd.control.v1.ControlPlaneService.GetPrompt:input_type -> mcpd.control.v1.GetPromptRequest
-	28, // 20: mcpd.control.v1.ControlPlaneService.StreamLogs:input_type -> mcpd.control.v1.StreamLogsRequest
-	2,  // 21: mcpd.control.v1.ControlPlaneService.GetInfo:output_type -> mcpd.control.v1.GetInfoResponse
-	4,  // 22: mcpd.control.v1.ControlPlaneService.RegisterCaller:output_type -> mcpd.control.v1.RegisterCallerResponse
-	6,  // 23: mcpd.control.v1.ControlPlaneService.UnregisterCaller:output_type -> mcpd.control.v1.UnregisterCallerResponse
-	8,  // 24: mcpd.control.v1.ControlPlaneService.ListTools:output_type -> mcpd.control.v1.ListToolsResponse
-	10, // 25: mcpd.control.v1.ControlPlaneService.WatchTools:output_type -> mcpd.control.v1.ToolsSnapshot
-	13, // 26: mcpd.control.v1.ControlPlaneService.CallTool:output_type -> mcpd.control.v1.CallToolResponse
-	15, // 27: mcpd.control.v1.ControlPlaneService.ListResources:output_type -> mcpd.control.v1.ListResourcesResponse
-	17, // 28: mcpd.control.v1.ControlPlaneService.WatchResources:output_type -> mcpd.control.v1.ResourcesSnapshot
-	20, // 29: mcpd.control.v1.ControlPlaneService.ReadResource:output_type -> mcpd.control.v1.ReadResourceResponse
-	22, // 30: mcpd.control.v1.ControlPlaneService.ListPrompts:output_type -> mcpd.control.v1.ListPromptsResponse
-	24, // 31: mcpd.control.v1.ControlPlaneService.WatchPrompts:output_type -> mcpd.control.v1.PromptsSnapshot
-	27, // 32: mcpd.control.v1.ControlPlaneService.GetPrompt:output_type -> mcpd.control.v1.GetPromptResponse
-	29, // 33: mcpd.control.v1.ControlPlaneService.StreamLogs:output_type -> mcpd.control.v1.LogEntry
-	21, // [21:34] is the sub-list for method output_type
-	8,  // [8:21] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	32, // 8: mcpd.control.v1.RuntimeStatusSnapshot.statuses:type_name -> mcpd.control.v1.ServerRuntimeStatus
+	33, // 9: mcpd.control.v1.ServerRuntimeStatus.instances:type_name -> mcpd.control.v1.InstanceStatus
+	34, // 10: mcpd.control.v1.ServerRuntimeStatus.stats:type_name -> mcpd.control.v1.PoolStats
+	37, // 11: mcpd.control.v1.ServerInitStatusSnapshot.statuses:type_name -> mcpd.control.v1.ServerInitStatus
+	1,  // 12: mcpd.control.v1.ControlPlaneService.GetInfo:input_type -> mcpd.control.v1.GetInfoRequest
+	3,  // 13: mcpd.control.v1.ControlPlaneService.RegisterCaller:input_type -> mcpd.control.v1.RegisterCallerRequest
+	5,  // 14: mcpd.control.v1.ControlPlaneService.UnregisterCaller:input_type -> mcpd.control.v1.UnregisterCallerRequest
+	7,  // 15: mcpd.control.v1.ControlPlaneService.ListTools:input_type -> mcpd.control.v1.ListToolsRequest
+	9,  // 16: mcpd.control.v1.ControlPlaneService.WatchTools:input_type -> mcpd.control.v1.WatchToolsRequest
+	12, // 17: mcpd.control.v1.ControlPlaneService.CallTool:input_type -> mcpd.control.v1.CallToolRequest
+	14, // 18: mcpd.control.v1.ControlPlaneService.ListResources:input_type -> mcpd.control.v1.ListResourcesRequest
+	16, // 19: mcpd.control.v1.ControlPlaneService.WatchResources:input_type -> mcpd.control.v1.WatchResourcesRequest
+	19, // 20: mcpd.control.v1.ControlPlaneService.ReadResource:input_type -> mcpd.control.v1.ReadResourceRequest
+	21, // 21: mcpd.control.v1.ControlPlaneService.ListPrompts:input_type -> mcpd.control.v1.ListPromptsRequest
+	23, // 22: mcpd.control.v1.ControlPlaneService.WatchPrompts:input_type -> mcpd.control.v1.WatchPromptsRequest
+	26, // 23: mcpd.control.v1.ControlPlaneService.GetPrompt:input_type -> mcpd.control.v1.GetPromptRequest
+	28, // 24: mcpd.control.v1.ControlPlaneService.StreamLogs:input_type -> mcpd.control.v1.StreamLogsRequest
+	30, // 25: mcpd.control.v1.ControlPlaneService.WatchRuntimeStatus:input_type -> mcpd.control.v1.WatchRuntimeStatusRequest
+	35, // 26: mcpd.control.v1.ControlPlaneService.WatchServerInitStatus:input_type -> mcpd.control.v1.WatchServerInitStatusRequest
+	2,  // 27: mcpd.control.v1.ControlPlaneService.GetInfo:output_type -> mcpd.control.v1.GetInfoResponse
+	4,  // 28: mcpd.control.v1.ControlPlaneService.RegisterCaller:output_type -> mcpd.control.v1.RegisterCallerResponse
+	6,  // 29: mcpd.control.v1.ControlPlaneService.UnregisterCaller:output_type -> mcpd.control.v1.UnregisterCallerResponse
+	8,  // 30: mcpd.control.v1.ControlPlaneService.ListTools:output_type -> mcpd.control.v1.ListToolsResponse
+	10, // 31: mcpd.control.v1.ControlPlaneService.WatchTools:output_type -> mcpd.control.v1.ToolsSnapshot
+	13, // 32: mcpd.control.v1.ControlPlaneService.CallTool:output_type -> mcpd.control.v1.CallToolResponse
+	15, // 33: mcpd.control.v1.ControlPlaneService.ListResources:output_type -> mcpd.control.v1.ListResourcesResponse
+	17, // 34: mcpd.control.v1.ControlPlaneService.WatchResources:output_type -> mcpd.control.v1.ResourcesSnapshot
+	20, // 35: mcpd.control.v1.ControlPlaneService.ReadResource:output_type -> mcpd.control.v1.ReadResourceResponse
+	22, // 36: mcpd.control.v1.ControlPlaneService.ListPrompts:output_type -> mcpd.control.v1.ListPromptsResponse
+	24, // 37: mcpd.control.v1.ControlPlaneService.WatchPrompts:output_type -> mcpd.control.v1.PromptsSnapshot
+	27, // 38: mcpd.control.v1.ControlPlaneService.GetPrompt:output_type -> mcpd.control.v1.GetPromptResponse
+	29, // 39: mcpd.control.v1.ControlPlaneService.StreamLogs:output_type -> mcpd.control.v1.LogEntry
+	31, // 40: mcpd.control.v1.ControlPlaneService.WatchRuntimeStatus:output_type -> mcpd.control.v1.RuntimeStatusSnapshot
+	36, // 41: mcpd.control.v1.ControlPlaneService.WatchServerInitStatus:output_type -> mcpd.control.v1.ServerInitStatusSnapshot
+	27, // [27:42] is the sub-list for method output_type
+	12, // [12:27] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_mcpd_control_v1_control_proto_init() }
@@ -1785,7 +2374,7 @@ func file_mcpd_control_v1_control_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_mcpd_control_v1_control_proto_rawDesc), len(file_mcpd_control_v1_control_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   29,
+			NumMessages:   37,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

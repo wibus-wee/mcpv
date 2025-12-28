@@ -87,3 +87,7 @@ func (r *promptRouter) Route(ctx context.Context, serverType, specKey, routingKe
 		return nil, nil
 	}
 }
+
+func (r *promptRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, opts domain.RouteOptions) (json.RawMessage, error) {
+	return r.Route(ctx, serverType, specKey, routingKey, payload)
+}

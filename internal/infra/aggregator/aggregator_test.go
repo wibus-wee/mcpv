@@ -244,6 +244,10 @@ func (f *fakeRouter) Route(ctx context.Context, serverType, specKey, routingKey 
 	}
 }
 
+func (f *fakeRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, opts domain.RouteOptions) (json.RawMessage, error) {
+	return f.Route(ctx, serverType, specKey, routingKey, payload)
+}
+
 type toolListResponse struct {
 	tools []*mcp.Tool
 	block <-chan struct{}
@@ -279,12 +283,20 @@ func (b *blockingRouter) Route(ctx context.Context, serverType, specKey, routing
 	return encodeResponse(req.ID, &mcp.ListToolsResult{Tools: resp.tools})
 }
 
+func (b *blockingRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, opts domain.RouteOptions) (json.RawMessage, error) {
+	return b.Route(ctx, serverType, specKey, routingKey, payload)
+}
+
 type failingRouter struct {
 	err error
 }
 
 func (f *failingRouter) Route(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage) (json.RawMessage, error) {
 	return nil, f.err
+}
+
+func (f *failingRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, opts domain.RouteOptions) (json.RawMessage, error) {
+	return f.Route(ctx, serverType, specKey, routingKey, payload)
 }
 
 func encodeResponse(id jsonrpc.ID, result any) (json.RawMessage, error) {

@@ -101,3 +101,60 @@ func toProtoLogLevel(level domain.LogLevel) controlv1.LogLevel {
 		return controlv1.LogLevel_LOG_LEVEL_DEBUG
 	}
 }
+
+func toProtoRuntimeStatusSnapshot(snapshot domain.RuntimeStatusSnapshot) *controlv1.RuntimeStatusSnapshot {
+	statuses := make([]*controlv1.ServerRuntimeStatus, 0, len(snapshot.Statuses))
+	for _, s := range snapshot.Statuses {
+		statuses = append(statuses, toProtoServerRuntimeStatus(s))
+	}
+	return &controlv1.RuntimeStatusSnapshot{
+		Etag:                snapshot.ETag,
+		Statuses:            statuses,
+		GeneratedAtUnixNano: snapshot.GeneratedAt.UnixNano(),
+	}
+}
+
+func toProtoServerRuntimeStatus(s domain.ServerRuntimeStatus) *controlv1.ServerRuntimeStatus {
+	instances := make([]*controlv1.InstanceStatus, 0, len(s.Instances))
+	for _, inst := range s.Instances {
+		instances = append(instances, &controlv1.InstanceStatus{
+			Id:                 inst.ID,
+			State:              string(inst.State),
+			BusyCount:          int32(inst.BusyCount),
+			LastActiveUnixNano: inst.LastActive.UnixNano(),
+		})
+	}
+	return &controlv1.ServerRuntimeStatus{
+		SpecKey:    s.SpecKey,
+		ServerName: s.ServerName,
+		Instances:  instances,
+		Stats: &controlv1.PoolStats{
+			Total:    int32(s.Stats.Total),
+			Ready:    int32(s.Stats.Ready),
+			Busy:     int32(s.Stats.Busy),
+			Starting: int32(s.Stats.Starting),
+			Draining: int32(s.Stats.Draining),
+			Failed:   int32(s.Stats.Failed),
+		},
+	}
+}
+
+func toProtoServerInitStatusSnapshot(snapshot domain.ServerInitStatusSnapshot) *controlv1.ServerInitStatusSnapshot {
+	statuses := make([]*controlv1.ServerInitStatus, 0, len(snapshot.Statuses))
+	for _, s := range snapshot.Statuses {
+		statuses = append(statuses, &controlv1.ServerInitStatus{
+			SpecKey:           s.SpecKey,
+			ServerName:        s.ServerName,
+			MinReady:          int32(s.MinReady),
+			Ready:             int32(s.Ready),
+			Failed:            int32(s.Failed),
+			State:             string(s.State),
+			LastError:         s.LastError,
+			UpdatedAtUnixNano: s.UpdatedAt.UnixNano(),
+		})
+	}
+	return &controlv1.ServerInitStatusSnapshot{
+		Statuses:            statuses,
+		GeneratedAtUnixNano: snapshot.GeneratedAt.UnixNano(),
+	}
+}

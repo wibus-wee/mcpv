@@ -18,6 +18,8 @@ service ControlPlaneService {
   rpc WatchPrompts(WatchPromptsRequest) returns (stream PromptsSnapshot);
   rpc GetPrompt(GetPromptRequest) returns (GetPromptResponse);
   rpc StreamLogs(StreamLogsRequest) returns (stream LogEntry);
+  rpc WatchRuntimeStatus(WatchRuntimeStatusRequest) returns (stream RuntimeStatusSnapshot);
+  rpc WatchServerInitStatus(WatchServerInitStatusRequest) returns (stream ServerInitStatusSnapshot);
 }
 
 message GetInfoRequest {}
@@ -177,4 +179,66 @@ enum LogLevel {
   LOG_LEVEL_CRITICAL = 6;
   LOG_LEVEL_ALERT = 7;
   LOG_LEVEL_EMERGENCY = 8;
+}
+
+// =============================================================================
+// Runtime Status Watch
+// =============================================================================
+
+message WatchRuntimeStatusRequest {
+  string caller = 1;
+  string last_etag = 2;
+}
+
+message RuntimeStatusSnapshot {
+  string etag = 1;
+  repeated ServerRuntimeStatus statuses = 2;
+  int64 generated_at_unix_nano = 3;
+}
+
+message ServerRuntimeStatus {
+  string spec_key = 1;
+  string server_name = 2;
+  repeated InstanceStatus instances = 3;
+  PoolStats stats = 4;
+}
+
+message InstanceStatus {
+  string id = 1;
+  string state = 2;
+  int32 busy_count = 3;
+  int64 last_active_unix_nano = 4;
+}
+
+message PoolStats {
+  int32 total = 1;
+  int32 ready = 2;
+  int32 busy = 3;
+  int32 starting = 4;
+  int32 draining = 5;
+  int32 failed = 6;
+}
+
+// =============================================================================
+// Server Init Status Watch
+// =============================================================================
+
+message WatchServerInitStatusRequest {
+  string caller = 1;
+}
+
+message ServerInitStatusSnapshot {
+  repeated ServerInitStatus statuses = 1;
+  int64 generated_at_unix_nano = 2;
+}
+
+message ServerInitStatus {
+  string spec_key = 1;
+  string server_name = 2;
+  int32 min_ready = 3;
+  int32 ready = 4;
+  int32 failed = 5;
+  string state = 6;
+  string last_error = 7;
+  int64 updated_at_unix_nano = 8;
 }

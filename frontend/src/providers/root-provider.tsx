@@ -1,10 +1,10 @@
 // Input: Wails runtime events, SWR cache, theme/motion providers
 // Output: RootProvider component with Wails event bridge
-// Position: App-level providers and core/log event integration
+// Position: App-level providers and core/log/status event integration
 
 'use client'
 
-import type { CoreStateResponse } from '@bindings/mcpd/internal/ui'
+import type { CoreStateResponse, ServerInitStatus, ServerRuntimeStatus } from '@bindings/mcpd/internal/ui'
 import { WailsService } from '@bindings/mcpd/internal/ui'
 import { Events } from '@wailsio/runtime'
 import { Provider, useAtomValue } from 'jotai'
@@ -95,6 +95,28 @@ function WailsEventsBridge() {
           }),
           { revalidate: false },
         )
+      }
+    })
+    return () => unbind()
+  }, [mutate])
+
+  // Listen for runtime:status events from backend
+  useEffect(() => {
+    const unbind = Events.On('runtime:status', (event) => {
+      const data = event?.data as { statuses?: ServerRuntimeStatus[] } | undefined
+      if (data?.statuses) {
+        mutate('runtime-status', data.statuses, { revalidate: false })
+      }
+    })
+    return () => unbind()
+  }, [mutate])
+
+  // Listen for server-init:status events from backend
+  useEffect(() => {
+    const unbind = Events.On('server-init:status', (event) => {
+      const data = event?.data as { statuses?: ServerInitStatus[] } | undefined
+      if (data?.statuses) {
+        mutate('server-init-status', data.statuses, { revalidate: false })
       }
     })
     return () => unbind()

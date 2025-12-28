@@ -18,6 +18,10 @@ const (
 	EventResourcesUpdated = "resources:updated"
 	EventPromptsUpdated   = "prompts:updated"
 
+	// Status update events
+	EventRuntimeStatusUpdated = "runtime:status"
+	EventServerInitUpdated    = "server-init:status"
+
 	// Log streaming events
 	EventLogEntry = "logs:entry"
 
@@ -63,6 +67,17 @@ type ErrorEvent struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
 	Details string `json:"details,omitempty"`
+}
+
+// RuntimeStatusUpdatedEvent represents runtime status updates
+type RuntimeStatusUpdatedEvent struct {
+	ETag     string                `json:"etag"`
+	Statuses []ServerRuntimeStatus `json:"statuses"`
+}
+
+// ServerInitUpdatedEvent represents server init status updates
+type ServerInitUpdatedEvent struct {
+	Statuses []ServerInitStatus `json:"statuses"`
 }
 
 // Helper functions for event emission
@@ -158,4 +173,63 @@ func emitError(app *application.App, code, message, details string) {
 		Details: details,
 	}
 	app.Event.Emit(EventError, event)
+}
+
+func emitRuntimeStatusUpdated(app *application.App, snapshot domain.RuntimeStatusSnapshot) {
+	if app == nil {
+		return
+	}
+	statuses := make([]ServerRuntimeStatus, 0, len(snapshot.Statuses))
+	for _, s := range snapshot.Statuses {
+		instances := make([]InstanceStatus, 0, len(s.Instances))
+		for _, inst := range s.Instances {
+			instances = append(instances, InstanceStatus{
+				ID:         inst.ID,
+				State:      string(inst.State),
+				BusyCount:  inst.BusyCount,
+				LastActive: inst.LastActive.Format("2006-01-02T15:04:05.000Z07:00"),
+			})
+		}
+		statuses = append(statuses, ServerRuntimeStatus{
+			SpecKey:    s.SpecKey,
+			ServerName: s.ServerName,
+			Instances:  instances,
+			Stats: PoolStats{
+				Total:    s.Stats.Total,
+				Ready:    s.Stats.Ready,
+				Busy:     s.Stats.Busy,
+				Starting: s.Stats.Starting,
+				Draining: s.Stats.Draining,
+				Failed:   s.Stats.Failed,
+			},
+		})
+	}
+	event := RuntimeStatusUpdatedEvent{
+		ETag:     snapshot.ETag,
+		Statuses: statuses,
+	}
+	app.Event.Emit(EventRuntimeStatusUpdated, event)
+}
+
+func emitServerInitUpdated(app *application.App, snapshot domain.ServerInitStatusSnapshot) {
+	if app == nil {
+		return
+	}
+	statuses := make([]ServerInitStatus, 0, len(snapshot.Statuses))
+	for _, s := range snapshot.Statuses {
+		statuses = append(statuses, ServerInitStatus{
+			SpecKey:    s.SpecKey,
+			ServerName: s.ServerName,
+			MinReady:   s.MinReady,
+			Ready:      s.Ready,
+			Failed:     s.Failed,
+			State:      string(s.State),
+			LastError:  s.LastError,
+			UpdatedAt:  s.UpdatedAt.Format("2006-01-02T15:04:05.000Z07:00"),
+		})
+	}
+	event := ServerInitUpdatedEvent{
+		Statuses: statuses,
+	}
+	app.Event.Emit(EventServerInitUpdated, event)
 }

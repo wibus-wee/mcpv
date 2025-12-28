@@ -51,6 +51,7 @@ servers:
 	require.Equal(t, domain.DefaultRouteTimeoutSeconds, catalog.Runtime.RouteTimeoutSeconds)
 	require.Equal(t, domain.DefaultPingIntervalSeconds, catalog.Runtime.PingIntervalSeconds)
 	require.Equal(t, domain.DefaultToolRefreshSeconds, catalog.Runtime.ToolRefreshSeconds)
+	require.Equal(t, domain.DefaultToolRefreshConcurrency, catalog.Runtime.ToolRefreshConcurrency)
 	require.Equal(t, domain.DefaultCallerCheckSeconds, catalog.Runtime.CallerCheckSeconds)
 	require.Equal(t, domain.DefaultExposeTools, catalog.Runtime.ExposeTools)
 	require.Equal(t, domain.DefaultToolNamespaceStrategy, catalog.Runtime.ToolNamespaceStrategy)

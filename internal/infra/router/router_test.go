@@ -26,6 +26,7 @@ func TestBasicRouter_RouteSuccess(t *testing.T) {
 	require.NoError(t, err)
 	require.JSONEq(t, string(respPayload), string(resp))
 	require.True(t, sched.released)
+	require.True(t, sched.acquireCalled)
 }
 
 func TestBasicRouter_AcquireError(t *testing.T) {
@@ -59,14 +60,44 @@ func TestBasicRouter_MethodNotAllowed(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestBasicRouter_RouteWithOptions_NoStart(t *testing.T) {
+	respPayload := json.RawMessage(`{"ok":true}`)
+	sched := &fakeScheduler{
+		readyInstance: &domain.Instance{
+			ID:   "inst-ready",
+			Conn: &fakeConn{resp: respPayload},
+		},
+	}
+	r := NewBasicRouter(sched, RouterOptions{})
+
+	resp, err := r.RouteWithOptions(context.Background(), "svc", "spec", "", json.RawMessage(`{"jsonrpc":"2.0","id":1,"method":"ping"}`), domain.RouteOptions{AllowStart: false})
+	require.NoError(t, err)
+	require.JSONEq(t, string(respPayload), string(resp))
+	require.True(t, sched.acquireReadyCalled)
+	require.False(t, sched.acquireCalled)
+}
+
 type fakeScheduler struct {
-	instance   *domain.Instance
-	acquireErr error
-	released   bool
+	instance           *domain.Instance
+	readyInstance      *domain.Instance
+	acquireErr         error
+	acquireReadyErr    error
+	acquireCalled      bool
+	acquireReadyCalled bool
+	released           bool
 }
 
 func (f *fakeScheduler) Acquire(ctx context.Context, specKey, routingKey string) (*domain.Instance, error) {
+	f.acquireCalled = true
 	return f.instance, f.acquireErr
+}
+
+func (f *fakeScheduler) AcquireReady(ctx context.Context, specKey, routingKey string) (*domain.Instance, error) {
+	f.acquireReadyCalled = true
+	if f.readyInstance != nil {
+		return f.readyInstance, f.acquireReadyErr
+	}
+	return f.instance, f.acquireReadyErr
 }
 
 func (f *fakeScheduler) Release(ctx context.Context, instance *domain.Instance) error {

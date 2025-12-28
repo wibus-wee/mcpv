@@ -27,5 +27,5 @@ servers:
     maxConcurrent: 1
     sticky: false
     persistent: false
-    minReady: 0
+    minReady: 1
     protocolVersion: "2025-11-25"

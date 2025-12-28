@@ -58,15 +58,17 @@ type trackedInstance struct {
 }
 
 type poolState struct {
-	mu        sync.Mutex
-	spec      domain.ServerSpec
-	specKey   string
-	minReady  int
-	starting  int
-	startCh   chan struct{}
-	instances []*trackedInstance
-	draining  []*trackedInstance
-	sticky    map[string]*trackedInstance
+	mu          sync.Mutex
+	spec        domain.ServerSpec
+	specKey     string
+	minReady    int
+	starting    int
+	startCh     chan struct{}
+	startCancel context.CancelFunc
+	generation  uint64
+	instances   []*trackedInstance
+	draining    []*trackedInstance
+	sticky      map[string]*trackedInstance
 }
 
 type stopCandidate struct {
@@ -100,6 +102,9 @@ func NewBasicScheduler(lifecycle domain.Lifecycle, specs map[string]domain.Serve
 }
 
 func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string) (*domain.Instance, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	spec, ok := s.specs[specKey]
 	if !ok {
 		return nil, ErrUnknownSpecKey
@@ -108,26 +113,14 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 	state := s.getPool(specKey, spec)
 	for {
 		state.mu.Lock()
-		if state.spec.Sticky && routingKey != "" {
-			if inst := state.lookupStickyLocked(routingKey); inst != nil {
-				if !isRoutable(inst.instance.State) {
-					state.unbindStickyLocked(routingKey)
-				} else {
-					if inst.instance.BusyCount >= state.spec.MaxConcurrent {
-						state.mu.Unlock()
-						return nil, ErrStickyBusy
-					}
-					instance := state.markBusyLocked(inst)
-					state.mu.Unlock()
-					return instance, nil
-				}
-			}
-		}
-
-		if inst := state.findReadyInstanceLocked(); inst != nil {
-			instance := state.markBusyLocked(inst)
+		inst, err := state.acquireReadyLocked(routingKey)
+		if err == nil {
 			state.mu.Unlock()
-			return instance, nil
+			return inst, nil
+		}
+		if err == ErrStickyBusy {
+			state.mu.Unlock()
+			return nil, err
 		}
 
 		if state.startCh != nil {
@@ -141,27 +134,47 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 			}
 		}
 
+		startGen := state.generation
 		state.startCh = make(chan struct{})
+		startCtx, cancel := context.WithCancel(ctx)
+		state.startCancel = cancel
 		state.starting++
 		state.mu.Unlock()
 
 		started := time.Now()
-		newInst, err := s.lifecycle.StartInstance(ctx, state.spec)
+		newInst, err := s.lifecycle.StartInstance(startCtx, state.spec)
 		s.observeInstanceStart(specKey, started, err)
 
 		state.mu.Lock()
 		waitCh := state.startCh
 		state.startCh = nil
+		startCancel := state.startCancel
+		state.startCancel = nil
 		state.starting--
 		if err != nil {
 			state.mu.Unlock()
 			if waitCh != nil {
 				close(waitCh)
 			}
+			if startCancel != nil {
+				startCancel()
+			}
 			return nil, fmt.Errorf("start instance: %w", err)
+		}
+		if startCancel != nil {
+			startCancel()
 		}
 		newInst.SpecKey = specKey
 		tracked := &trackedInstance{instance: newInst}
+		if state.generation != startGen {
+			state.mu.Unlock()
+			if waitCh != nil {
+				close(waitCh)
+			}
+			stopErr := s.lifecycle.StopInstance(context.Background(), newInst, "start superseded")
+			s.observeInstanceStop(specKey, stopErr)
+			return nil, ErrNoCapacity
+		}
 		state.instances = append(state.instances, tracked)
 		if state.spec.Sticky && routingKey != "" {
 			state.bindStickyLocked(routingKey, tracked)
@@ -176,6 +189,21 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 
 		return instance, nil
 	}
+}
+
+func (s *BasicScheduler) AcquireReady(ctx context.Context, specKey, routingKey string) (*domain.Instance, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	spec, ok := s.specs[specKey]
+	if !ok {
+		return nil, ErrUnknownSpecKey
+	}
+
+	state := s.getPool(specKey, spec)
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	return state.acquireReadyLocked(routingKey)
 }
 
 func (s *BasicScheduler) Release(ctx context.Context, instance *domain.Instance) error {
@@ -235,6 +263,10 @@ func (s *BasicScheduler) SetDesiredMinReady(ctx context.Context, specKey string,
 
 	var firstErr error
 	for i := 0; i < toStart; i++ {
+		state.mu.Lock()
+		startGen := state.generation
+		state.mu.Unlock()
+
 		started := time.Now()
 		inst, err := s.lifecycle.StartInstance(ctx, state.spec)
 		s.observeInstanceStart(specKey, started, err)
@@ -242,6 +274,12 @@ func (s *BasicScheduler) SetDesiredMinReady(ctx context.Context, specKey string,
 		state.starting--
 		if err == nil {
 			inst.SpecKey = specKey
+			if state.generation != startGen {
+				state.mu.Unlock()
+				stopErr := s.lifecycle.StopInstance(context.Background(), inst, "start superseded")
+				s.observeInstanceStop(specKey, stopErr)
+				continue
+			}
 			if state.minReady == 0 {
 				state.mu.Unlock()
 				stopErr := s.lifecycle.StopInstance(context.Background(), inst, "min ready dropped")
@@ -271,6 +309,9 @@ func (s *BasicScheduler) StopSpec(ctx context.Context, specKey, reason string) e
 	state := s.getPool(specKey, spec)
 	state.mu.Lock()
 	state.minReady = 0
+	state.generation++
+	startCancel := state.startCancel
+	state.startCancel = nil
 
 	var immediate []*trackedInstance
 	var deferred []*trackedInstance
@@ -288,6 +329,10 @@ func (s *BasicScheduler) StopSpec(ctx context.Context, specKey, reason string) e
 	state.draining = append(state.draining, deferred...)
 	state.sticky = nil
 	state.mu.Unlock()
+
+	if startCancel != nil {
+		startCancel()
+	}
 
 	for _, inst := range immediate {
 		err := s.lifecycle.StopInstance(ctx, inst.instance, reason)
@@ -339,6 +384,26 @@ func (s *BasicScheduler) snapshotPools() []poolEntry {
 		entries = append(entries, poolEntry{specKey: specKey, state: state})
 	}
 	return entries
+}
+
+func (s *poolState) acquireReadyLocked(routingKey string) (*domain.Instance, error) {
+	if s.spec.Sticky && routingKey != "" {
+		if inst := s.lookupStickyLocked(routingKey); inst != nil {
+			if !isRoutable(inst.instance.State) {
+				s.unbindStickyLocked(routingKey)
+			} else {
+				if inst.instance.BusyCount >= s.spec.MaxConcurrent {
+					return nil, ErrStickyBusy
+				}
+				return s.markBusyLocked(inst), nil
+			}
+		}
+	}
+
+	if inst := s.findReadyInstanceLocked(); inst != nil {
+		return s.markBusyLocked(inst), nil
+	}
+	return nil, domain.ErrNoReadyInstance
 }
 
 func (s *poolState) lookupStickyLocked(routingKey string) *trackedInstance {
@@ -594,6 +659,16 @@ func (s *BasicScheduler) StopAll(ctx context.Context) {
 	var candidates []stopCandidate
 
 	entries := s.snapshotPools()
+	for _, entry := range entries {
+		entry.state.mu.Lock()
+		entry.state.generation++
+		startCancel := entry.state.startCancel
+		entry.state.startCancel = nil
+		entry.state.mu.Unlock()
+		if startCancel != nil {
+			startCancel()
+		}
+	}
 	for _, entry := range entries {
 		entry.state.mu.Lock()
 		for _, inst := range entry.state.instances {

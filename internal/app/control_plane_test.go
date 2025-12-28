@@ -155,6 +155,10 @@ func (f *fakeScheduler) Acquire(ctx context.Context, specKey, routingKey string)
 	return nil, nil
 }
 
+func (f *fakeScheduler) AcquireReady(ctx context.Context, specKey, routingKey string) (*domain.Instance, error) {
+	return nil, nil
+}
+
 func (f *fakeScheduler) Release(ctx context.Context, instance *domain.Instance) error {
 	return nil
 }

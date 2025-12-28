@@ -92,6 +92,45 @@ type LogEntry struct {
 	DataJSON  json.RawMessage
 }
 
+// RuntimeStatusSnapshot contains a snapshot of all server runtime statuses
+type RuntimeStatusSnapshot struct {
+	ETag        string
+	Statuses    []ServerRuntimeStatus
+	GeneratedAt time.Time
+}
+
+// ServerRuntimeStatus contains the runtime status of a server and its instances
+type ServerRuntimeStatus struct {
+	SpecKey    string
+	ServerName string
+	Instances  []InstanceStatusInfo
+	Stats      PoolStats
+}
+
+// InstanceStatusInfo represents the status of a single server instance
+type InstanceStatusInfo struct {
+	ID         string
+	State      InstanceState
+	BusyCount  int
+	LastActive time.Time
+}
+
+// PoolStats contains aggregated statistics for a server pool
+type PoolStats struct {
+	Total    int
+	Ready    int
+	Busy     int
+	Starting int
+	Draining int
+	Failed   int
+}
+
+// ServerInitStatusSnapshot contains a snapshot of all server initialization statuses
+type ServerInitStatusSnapshot struct {
+	Statuses    []ServerInitStatus
+	GeneratedAt time.Time
+}
+
 type ControlPlane interface {
 	Info(ctx context.Context) (ControlPlaneInfo, error)
 	RegisterCaller(ctx context.Context, caller string, pid int) (string, error)
@@ -109,4 +148,6 @@ type ControlPlane interface {
 	GetProfileStore() ProfileStore
 	GetPoolStatus(ctx context.Context) ([]PoolInfo, error)
 	GetServerInitStatus(ctx context.Context) ([]ServerInitStatus, error)
+	WatchRuntimeStatus(ctx context.Context, caller string) (<-chan RuntimeStatusSnapshot, error)
+	WatchServerInitStatus(ctx context.Context, caller string) (<-chan ServerInitStatusSnapshot, error)
 }

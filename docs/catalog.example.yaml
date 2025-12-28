@@ -13,6 +13,7 @@
 routeTimeoutSeconds: 10
 pingIntervalSeconds: 30
 toolRefreshSeconds: 60
+toolRefreshConcurrency: 4
 callerCheckSeconds: 5
 exposeTools: true
 toolNamespaceStrategy: "prefix"

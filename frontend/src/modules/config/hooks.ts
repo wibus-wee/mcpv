@@ -131,7 +131,10 @@ export function useRuntimeStatus() {
   return useSWR<ServerRuntimeStatus[]>(
     'runtime-status',
     () => WailsService.GetRuntimeStatus(),
-    { refreshInterval: 2000 },
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 10000,
+    },
   )
 }
 
@@ -139,6 +142,9 @@ export function useServerInitStatus() {
   return useSWR<ServerInitStatus[]>(
     'server-init-status',
     () => WailsService.GetServerInitStatus(),
-    { refreshInterval: 2000 },
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 10000,
+    },
   )
 }

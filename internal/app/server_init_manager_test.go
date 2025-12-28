@@ -119,6 +119,10 @@ func (s *initSchedulerStub) Acquire(ctx context.Context, specKey, routingKey str
 	return nil, nil
 }
 
+func (s *initSchedulerStub) AcquireReady(ctx context.Context, specKey, routingKey string) (*domain.Instance, error) {
+	return nil, nil
+}
+
 func (s *initSchedulerStub) Release(ctx context.Context, instance *domain.Instance) error {
 	return nil
 }

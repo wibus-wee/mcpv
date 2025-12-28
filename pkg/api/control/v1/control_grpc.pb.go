@@ -19,19 +19,21 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ControlPlaneService_GetInfo_FullMethodName          = "/mcpd.control.v1.ControlPlaneService/GetInfo"
-	ControlPlaneService_RegisterCaller_FullMethodName   = "/mcpd.control.v1.ControlPlaneService/RegisterCaller"
-	ControlPlaneService_UnregisterCaller_FullMethodName = "/mcpd.control.v1.ControlPlaneService/UnregisterCaller"
-	ControlPlaneService_ListTools_FullMethodName        = "/mcpd.control.v1.ControlPlaneService/ListTools"
-	ControlPlaneService_WatchTools_FullMethodName       = "/mcpd.control.v1.ControlPlaneService/WatchTools"
-	ControlPlaneService_CallTool_FullMethodName         = "/mcpd.control.v1.ControlPlaneService/CallTool"
-	ControlPlaneService_ListResources_FullMethodName    = "/mcpd.control.v1.ControlPlaneService/ListResources"
-	ControlPlaneService_WatchResources_FullMethodName   = "/mcpd.control.v1.ControlPlaneService/WatchResources"
-	ControlPlaneService_ReadResource_FullMethodName     = "/mcpd.control.v1.ControlPlaneService/ReadResource"
-	ControlPlaneService_ListPrompts_FullMethodName      = "/mcpd.control.v1.ControlPlaneService/ListPrompts"
-	ControlPlaneService_WatchPrompts_FullMethodName     = "/mcpd.control.v1.ControlPlaneService/WatchPrompts"
-	ControlPlaneService_GetPrompt_FullMethodName        = "/mcpd.control.v1.ControlPlaneService/GetPrompt"
-	ControlPlaneService_StreamLogs_FullMethodName       = "/mcpd.control.v1.ControlPlaneService/StreamLogs"
+	ControlPlaneService_GetInfo_FullMethodName               = "/mcpd.control.v1.ControlPlaneService/GetInfo"
+	ControlPlaneService_RegisterCaller_FullMethodName        = "/mcpd.control.v1.ControlPlaneService/RegisterCaller"
+	ControlPlaneService_UnregisterCaller_FullMethodName      = "/mcpd.control.v1.ControlPlaneService/UnregisterCaller"
+	ControlPlaneService_ListTools_FullMethodName             = "/mcpd.control.v1.ControlPlaneService/ListTools"
+	ControlPlaneService_WatchTools_FullMethodName            = "/mcpd.control.v1.ControlPlaneService/WatchTools"
+	ControlPlaneService_CallTool_FullMethodName              = "/mcpd.control.v1.ControlPlaneService/CallTool"
+	ControlPlaneService_ListResources_FullMethodName         = "/mcpd.control.v1.ControlPlaneService/ListResources"
+	ControlPlaneService_WatchResources_FullMethodName        = "/mcpd.control.v1.ControlPlaneService/WatchResources"
+	ControlPlaneService_ReadResource_FullMethodName          = "/mcpd.control.v1.ControlPlaneService/ReadResource"
+	ControlPlaneService_ListPrompts_FullMethodName           = "/mcpd.control.v1.ControlPlaneService/ListPrompts"
+	ControlPlaneService_WatchPrompts_FullMethodName          = "/mcpd.control.v1.ControlPlaneService/WatchPrompts"
+	ControlPlaneService_GetPrompt_FullMethodName             = "/mcpd.control.v1.ControlPlaneService/GetPrompt"
+	ControlPlaneService_StreamLogs_FullMethodName            = "/mcpd.control.v1.ControlPlaneService/StreamLogs"
+	ControlPlaneService_WatchRuntimeStatus_FullMethodName    = "/mcpd.control.v1.ControlPlaneService/WatchRuntimeStatus"
+	ControlPlaneService_WatchServerInitStatus_FullMethodName = "/mcpd.control.v1.ControlPlaneService/WatchServerInitStatus"
 )
 
 // ControlPlaneServiceClient is the client API for ControlPlaneService service.
@@ -51,6 +53,8 @@ type ControlPlaneServiceClient interface {
 	WatchPrompts(ctx context.Context, in *WatchPromptsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[PromptsSnapshot], error)
 	GetPrompt(ctx context.Context, in *GetPromptRequest, opts ...grpc.CallOption) (*GetPromptResponse, error)
 	StreamLogs(ctx context.Context, in *StreamLogsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[LogEntry], error)
+	WatchRuntimeStatus(ctx context.Context, in *WatchRuntimeStatusRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[RuntimeStatusSnapshot], error)
+	WatchServerInitStatus(ctx context.Context, in *WatchServerInitStatusRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ServerInitStatusSnapshot], error)
 }
 
 type controlPlaneServiceClient struct {
@@ -227,6 +231,44 @@ func (c *controlPlaneServiceClient) StreamLogs(ctx context.Context, in *StreamLo
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type ControlPlaneService_StreamLogsClient = grpc.ServerStreamingClient[LogEntry]
 
+func (c *controlPlaneServiceClient) WatchRuntimeStatus(ctx context.Context, in *WatchRuntimeStatusRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[RuntimeStatusSnapshot], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &ControlPlaneService_ServiceDesc.Streams[4], ControlPlaneService_WatchRuntimeStatus_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[WatchRuntimeStatusRequest, RuntimeStatusSnapshot]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ControlPlaneService_WatchRuntimeStatusClient = grpc.ServerStreamingClient[RuntimeStatusSnapshot]
+
+func (c *controlPlaneServiceClient) WatchServerInitStatus(ctx context.Context, in *WatchServerInitStatusRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ServerInitStatusSnapshot], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &ControlPlaneService_ServiceDesc.Streams[5], ControlPlaneService_WatchServerInitStatus_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[WatchServerInitStatusRequest, ServerInitStatusSnapshot]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ControlPlaneService_WatchServerInitStatusClient = grpc.ServerStreamingClient[ServerInitStatusSnapshot]
+
 // ControlPlaneServiceServer is the server API for ControlPlaneService service.
 // All implementations must embed UnimplementedControlPlaneServiceServer
 // for forward compatibility.
@@ -244,6 +286,8 @@ type ControlPlaneServiceServer interface {
 	WatchPrompts(*WatchPromptsRequest, grpc.ServerStreamingServer[PromptsSnapshot]) error
 	GetPrompt(context.Context, *GetPromptRequest) (*GetPromptResponse, error)
 	StreamLogs(*StreamLogsRequest, grpc.ServerStreamingServer[LogEntry]) error
+	WatchRuntimeStatus(*WatchRuntimeStatusRequest, grpc.ServerStreamingServer[RuntimeStatusSnapshot]) error
+	WatchServerInitStatus(*WatchServerInitStatusRequest, grpc.ServerStreamingServer[ServerInitStatusSnapshot]) error
 	mustEmbedUnimplementedControlPlaneServiceServer()
 }
 
@@ -292,6 +336,12 @@ func (UnimplementedControlPlaneServiceServer) GetPrompt(context.Context, *GetPro
 }
 func (UnimplementedControlPlaneServiceServer) StreamLogs(*StreamLogsRequest, grpc.ServerStreamingServer[LogEntry]) error {
 	return status.Errorf(codes.Unimplemented, "method StreamLogs not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) WatchRuntimeStatus(*WatchRuntimeStatusRequest, grpc.ServerStreamingServer[RuntimeStatusSnapshot]) error {
+	return status.Errorf(codes.Unimplemented, "method WatchRuntimeStatus not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) WatchServerInitStatus(*WatchServerInitStatusRequest, grpc.ServerStreamingServer[ServerInitStatusSnapshot]) error {
+	return status.Errorf(codes.Unimplemented, "method WatchServerInitStatus not implemented")
 }
 func (UnimplementedControlPlaneServiceServer) mustEmbedUnimplementedControlPlaneServiceServer() {}
 func (UnimplementedControlPlaneServiceServer) testEmbeddedByValue()                             {}
@@ -520,6 +570,28 @@ func _ControlPlaneService_StreamLogs_Handler(srv interface{}, stream grpc.Server
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type ControlPlaneService_StreamLogsServer = grpc.ServerStreamingServer[LogEntry]
 
+func _ControlPlaneService_WatchRuntimeStatus_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(WatchRuntimeStatusRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ControlPlaneServiceServer).WatchRuntimeStatus(m, &grpc.GenericServerStream[WatchRuntimeStatusRequest, RuntimeStatusSnapshot]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ControlPlaneService_WatchRuntimeStatusServer = grpc.ServerStreamingServer[RuntimeStatusSnapshot]
+
+func _ControlPlaneService_WatchServerInitStatus_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(WatchServerInitStatusRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ControlPlaneServiceServer).WatchServerInitStatus(m, &grpc.GenericServerStream[WatchServerInitStatusRequest, ServerInitStatusSnapshot]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ControlPlaneService_WatchServerInitStatusServer = grpc.ServerStreamingServer[ServerInitStatusSnapshot]
+
 // ControlPlaneService_ServiceDesc is the grpc.ServiceDesc for ControlPlaneService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -583,6 +655,16 @@ var ControlPlaneService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "StreamLogs",
 			Handler:       _ControlPlaneService_StreamLogs_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "WatchRuntimeStatus",
+			Handler:       _ControlPlaneService_WatchRuntimeStatus_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "WatchServerInitStatus",
+			Handler:       _ControlPlaneService_WatchServerInitStatus_Handler,
 			ServerStreams: true,
 		},
 	},

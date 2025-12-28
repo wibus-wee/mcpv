@@ -89,3 +89,7 @@ func (r *resourceRouter) Route(ctx context.Context, serverType, specKey, routing
 		return nil, nil
 	}
 }
+
+func (r *resourceRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, opts domain.RouteOptions) (json.RawMessage, error) {
+	return r.Route(ctx, serverType, specKey, routingKey, payload)
+}

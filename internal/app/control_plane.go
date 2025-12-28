@@ -18,17 +18,19 @@ import (
 )
 
 type ControlPlane struct {
-	info         domain.ControlPlaneInfo
-	profiles     map[string]*profileRuntime
-	callers      map[string]string
-	specRegistry map[string]domain.ServerSpec
-	scheduler    domain.Scheduler
-	initManager  *ServerInitializationManager
-	runtime      domain.RuntimeConfig
-	logs         *telemetry.LogBroadcaster
-	logger       *zap.Logger
-	ctx          context.Context
-	profileStore domain.ProfileStore
+	info              domain.ControlPlaneInfo
+	profiles          map[string]*profileRuntime
+	callers           map[string]string
+	specRegistry      map[string]domain.ServerSpec
+	scheduler         domain.Scheduler
+	initManager       *ServerInitializationManager
+	runtime           domain.RuntimeConfig
+	logs              *telemetry.LogBroadcaster
+	logger            *zap.Logger
+	ctx               context.Context
+	profileStore      domain.ProfileStore
+	runtimeStatusIdx  *aggregator.RuntimeStatusIndex
+	serverInitIdx     *aggregator.ServerInitIndex
 
 	mu             sync.Mutex
 	activeCallers  map[string]callerState
@@ -749,4 +751,84 @@ func (c *ControlPlane) GetServerInitStatus(ctx context.Context) ([]domain.Server
 		return nil, nil
 	}
 	return c.initManager.Statuses(), nil
+}
+
+// WatchRuntimeStatus returns a channel that receives runtime status snapshots.
+func (c *ControlPlane) WatchRuntimeStatus(ctx context.Context, caller string) (<-chan domain.RuntimeStatusSnapshot, error) {
+	if _, err := c.resolveProfile(caller); err != nil {
+		ch := make(chan domain.RuntimeStatusSnapshot)
+		close(ch)
+		return ch, err
+	}
+	if c.runtimeStatusIdx == nil {
+		ch := make(chan domain.RuntimeStatusSnapshot)
+		close(ch)
+		return ch, nil
+	}
+	return c.runtimeStatusIdx.Subscribe(ctx), nil
+}
+
+// WatchServerInitStatus returns a channel that receives server init status snapshots.
+func (c *ControlPlane) WatchServerInitStatus(ctx context.Context, caller string) (<-chan domain.ServerInitStatusSnapshot, error) {
+	if _, err := c.resolveProfile(caller); err != nil {
+		ch := make(chan domain.ServerInitStatusSnapshot)
+		close(ch)
+		return ch, err
+	}
+	if c.serverInitIdx == nil {
+		ch := make(chan domain.ServerInitStatusSnapshot)
+		close(ch)
+		return ch, nil
+	}
+	return c.serverInitIdx.Subscribe(ctx), nil
+}
+
+// SetRuntimeStatusIndex sets the runtime status index and starts its refresh worker.
+func (c *ControlPlane) SetRuntimeStatusIndex(idx *aggregator.RuntimeStatusIndex) {
+	c.runtimeStatusIdx = idx
+	if idx != nil {
+		go c.runRuntimeStatusWorker()
+	}
+}
+
+// SetServerInitIndex sets the server init index and starts its refresh worker.
+func (c *ControlPlane) SetServerInitIndex(idx *aggregator.ServerInitIndex) {
+	c.serverInitIdx = idx
+	if idx != nil {
+		go c.runServerInitWorker()
+	}
+}
+
+// runRuntimeStatusWorker periodically refreshes runtime status (500ms intervals).
+func (c *ControlPlane) runRuntimeStatusWorker() {
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case <-ticker.C:
+			if err := c.runtimeStatusIdx.Refresh(c.ctx); err != nil {
+				c.logger.Warn("runtime status refresh failed", zap.Error(err))
+			}
+		}
+	}
+}
+
+// runServerInitWorker periodically refreshes server init status (1s intervals).
+func (c *ControlPlane) runServerInitWorker() {
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case <-ticker.C:
+			if err := c.serverInitIdx.Refresh(c.ctx); err != nil {
+				c.logger.Warn("server init status refresh failed", zap.Error(err))
+			}
+		}
+	}
 }

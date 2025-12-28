@@ -238,3 +238,15 @@ func (f *fakeControlPlane) GetPoolStatus(ctx context.Context) ([]domain.PoolInfo
 func (f *fakeControlPlane) GetServerInitStatus(ctx context.Context) ([]domain.ServerInitStatus, error) {
 	return nil, nil
 }
+
+func (f *fakeControlPlane) WatchRuntimeStatus(ctx context.Context, caller string) (<-chan domain.RuntimeStatusSnapshot, error) {
+	ch := make(chan domain.RuntimeStatusSnapshot)
+	close(ch)
+	return ch, nil
+}
+
+func (f *fakeControlPlane) WatchServerInitStatus(ctx context.Context, caller string) (<-chan domain.ServerInitStatusSnapshot, error) {
+	ch := make(chan domain.ServerInitStatusSnapshot)
+	close(ch)
+	return ch, nil
+}

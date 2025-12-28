@@ -172,8 +172,38 @@ func (m *Manager) onCoreReady() {
 }
 
 // startWatchers automatically starts all Watch subscriptions
-// This will be implemented in Phase 3 when services are created
 func (m *Manager) startWatchers() {
+	if m.controlPlane == nil {
+		return
+	}
+
+	ctx := context.Background()
+
+	// Watch runtime status
+	go func() {
+		updates, err := m.controlPlane.WatchRuntimeStatus(ctx, "wails-ui")
+		if err != nil {
+			emitError(m.wails, ErrCodeInternal, "Failed to start runtime status watcher", err.Error())
+			return
+		}
+		for snapshot := range updates {
+			emitRuntimeStatusUpdated(m.wails, snapshot)
+		}
+	}()
+
+	// Watch server init status
+	go func() {
+		updates, err := m.controlPlane.WatchServerInitStatus(ctx, "wails-ui")
+		if err != nil {
+			emitError(m.wails, ErrCodeInternal, "Failed to start server init status watcher", err.Error())
+			return
+		}
+		for snapshot := range updates {
+			emitServerInitUpdated(m.wails, snapshot)
+		}
+	}()
+
+	// Placeholder for other watchers (tools, resources, prompts, logs) that will be added in Phase 3
 	// ctx := context.Background()
 
 	// // Start tool watcher

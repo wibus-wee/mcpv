@@ -723,12 +723,13 @@ func convertServerSpec(spec domain.ServerSpec, specKey string) ServerSpecDetail 
 
 func convertRuntimeConfig(cfg domain.RuntimeConfig) RuntimeConfigDetail {
 	return RuntimeConfigDetail{
-		RouteTimeoutSeconds:   cfg.RouteTimeoutSeconds,
-		PingIntervalSeconds:   cfg.PingIntervalSeconds,
-		ToolRefreshSeconds:    cfg.ToolRefreshSeconds,
-		CallerCheckSeconds:    cfg.CallerCheckSeconds,
-		ExposeTools:           cfg.ExposeTools,
-		ToolNamespaceStrategy: cfg.ToolNamespaceStrategy,
+		RouteTimeoutSeconds:    cfg.RouteTimeoutSeconds,
+		PingIntervalSeconds:    cfg.PingIntervalSeconds,
+		ToolRefreshSeconds:     cfg.ToolRefreshSeconds,
+		ToolRefreshConcurrency: cfg.ToolRefreshConcurrency,
+		CallerCheckSeconds:     cfg.CallerCheckSeconds,
+		ExposeTools:            cfg.ExposeTools,
+		ToolNamespaceStrategy:  cfg.ToolNamespaceStrategy,
 		Observability: ObservabilityConfigDetail{
 			ListenAddress: cfg.Observability.ListenAddress,
 		},

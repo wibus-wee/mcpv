@@ -75,6 +75,22 @@ func TestBasicScheduler_UnknownServer(t *testing.T) {
 	require.ErrorIs(t, err, ErrUnknownSpecKey)
 }
 
+func TestBasicScheduler_AcquireReadyDoesNotStart(t *testing.T) {
+	lc := &fakeLifecycle{}
+	spec := domain.ServerSpec{
+		Name:            "svc",
+		Cmd:             []string{"./svc"},
+		MaxConcurrent:   1,
+		ProtocolVersion: domain.DefaultProtocolVersion,
+	}
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
+	require.NoError(t, err)
+
+	_, err = s.AcquireReady(context.Background(), "svc", "")
+	require.ErrorIs(t, err, domain.ErrNoReadyInstance)
+	require.Equal(t, 0, lc.counter)
+}
+
 func TestBasicScheduler_IdleReapRespectsMinReady(t *testing.T) {
 	lc := &fakeLifecycle{}
 	spec := domain.ServerSpec{
@@ -287,6 +303,41 @@ func TestBasicScheduler_StopSpecDrainsBusyInstances(t *testing.T) {
 	require.Len(t, state.draining, 0)
 }
 
+func TestBasicScheduler_StopSpecCancelsInFlightStart(t *testing.T) {
+	started := make(chan struct{}, 1)
+	release := make(chan struct{})
+	lc := &blockingLifecycle{
+		started: started,
+		release: release,
+	}
+	spec := domain.ServerSpec{
+		Name:            "svc",
+		Cmd:             []string{"./svc"},
+		MaxConcurrent:   1,
+		ProtocolVersion: domain.DefaultProtocolVersion,
+	}
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
+	require.NoError(t, err)
+
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := s.Acquire(context.Background(), "svc", "")
+		errCh <- err
+	}()
+
+	<-started
+	require.NoError(t, s.StopSpec(context.Background(), "svc", "caller inactive"))
+	close(release)
+
+	require.ErrorIs(t, <-errCh, ErrNoCapacity)
+
+	state := s.getPool("svc", spec)
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	require.Len(t, state.instances, 0)
+	require.Equal(t, 1, lc.stops())
+}
+
 func TestBasicScheduler_StartDrainCompletesImmediatelyWhenIdle(t *testing.T) {
 	stopCh := make(chan struct{})
 	lc := &trackingLifecycle{stopCh: stopCh}
@@ -402,6 +453,8 @@ type blockingLifecycle struct {
 	started chan struct{}
 	release chan struct{}
 	count   int
+	stopMu  sync.Mutex
+	stopped int
 }
 
 func (b *blockingLifecycle) StartInstance(ctx context.Context, spec domain.ServerSpec) (*domain.Instance, error) {
@@ -426,6 +479,9 @@ func (b *blockingLifecycle) StopInstance(ctx context.Context, instance *domain.I
 	if instance != nil {
 		instance.State = domain.InstanceStateStopped
 	}
+	b.stopMu.Lock()
+	b.stopped++
+	b.stopMu.Unlock()
 	return nil
 }
 
@@ -433,6 +489,12 @@ func (b *blockingLifecycle) starts() int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.count
+}
+
+func (b *blockingLifecycle) stops() int {
+	b.stopMu.Lock()
+	defer b.stopMu.Unlock()
+	return b.stopped
 }
 
 type trackingLifecycle struct {

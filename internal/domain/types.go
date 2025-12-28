@@ -23,14 +23,15 @@ type ServerSpec struct {
 }
 
 type RuntimeConfig struct {
-	RouteTimeoutSeconds   int                 `json:"routeTimeoutSeconds"`
-	PingIntervalSeconds   int                 `json:"pingIntervalSeconds"`
-	ToolRefreshSeconds    int                 `json:"toolRefreshSeconds"`
-	CallerCheckSeconds    int                 `json:"callerCheckSeconds"`
-	ExposeTools           bool                `json:"exposeTools"`
-	ToolNamespaceStrategy string              `json:"toolNamespaceStrategy"`
-	Observability         ObservabilityConfig `json:"observability"`
-	RPC                   RPCConfig           `json:"rpc"`
+	RouteTimeoutSeconds    int                 `json:"routeTimeoutSeconds"`
+	PingIntervalSeconds    int                 `json:"pingIntervalSeconds"`
+	ToolRefreshSeconds     int                 `json:"toolRefreshSeconds"`
+	ToolRefreshConcurrency int                 `json:"toolRefreshConcurrency"`
+	CallerCheckSeconds     int                 `json:"callerCheckSeconds"`
+	ExposeTools            bool                `json:"exposeTools"`
+	ToolNamespaceStrategy  string              `json:"toolNamespaceStrategy"`
+	Observability          ObservabilityConfig `json:"observability"`
+	RPC                    RPCConfig           `json:"rpc"`
 }
 
 type ObservabilityConfig struct {
@@ -165,6 +166,7 @@ type Lifecycle interface {
 
 type Scheduler interface {
 	Acquire(ctx context.Context, specKey, routingKey string) (*Instance, error)
+	AcquireReady(ctx context.Context, specKey, routingKey string) (*Instance, error)
 	Release(ctx context.Context, instance *Instance) error
 	SetDesiredMinReady(ctx context.Context, specKey string, minReady int) error
 	StopSpec(ctx context.Context, specKey, reason string) error
@@ -178,6 +180,11 @@ type Scheduler interface {
 
 type Router interface {
 	Route(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage) (json.RawMessage, error)
+	RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, opts RouteOptions) (json.RawMessage, error)
+}
+
+type RouteOptions struct {
+	AllowStart bool
 }
 
 type CatalogLoader interface {
@@ -195,3 +202,4 @@ var ErrResourceNotFound = errors.New("resource not found")
 var ErrPromptNotFound = errors.New("prompt not found")
 var ErrInvalidCursor = errors.New("invalid cursor")
 var ErrCallerNotRegistered = errors.New("caller not registered")
+var ErrNoReadyInstance = errors.New("no ready instance")

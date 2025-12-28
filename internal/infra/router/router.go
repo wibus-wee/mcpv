@@ -3,6 +3,7 @@ package router
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -44,6 +45,10 @@ func NewBasicRouter(scheduler domain.Scheduler, opts RouterOptions) *BasicRouter
 }
 
 func (r *BasicRouter) Route(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage) (json.RawMessage, error) {
+	return r.RouteWithOptions(ctx, serverType, specKey, routingKey, payload, domain.RouteOptions{AllowStart: true})
+}
+
+func (r *BasicRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, opts domain.RouteOptions) (json.RawMessage, error) {
 	start := time.Now()
 
 	method, isCall, err := extractMethod(payload)
@@ -57,10 +62,17 @@ func (r *BasicRouter) Route(ctx context.Context, serverType, specKey, routingKey
 		return nil, domain.ErrInvalidRequest
 	}
 
-	inst, err := r.scheduler.Acquire(ctx, specKey, routingKey)
+	var inst *domain.Instance
+	if opts.AllowStart {
+		inst, err = r.scheduler.Acquire(ctx, specKey, routingKey)
+	} else {
+		inst, err = r.scheduler.AcquireReady(ctx, specKey, routingKey)
+	}
 	if err != nil {
 		r.observeRoute(serverType, start, err)
-		r.logRouteError(serverType, method, nil, start, err)
+		if opts.AllowStart || !errors.Is(err, domain.ErrNoReadyInstance) {
+			r.logRouteError(serverType, method, nil, start, err)
+		}
 		return nil, err
 	}
 	defer func() { _ = r.scheduler.Release(ctx, inst) }()

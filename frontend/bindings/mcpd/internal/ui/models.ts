@@ -522,6 +522,7 @@ export class RuntimeConfigDetail {
     "routeTimeoutSeconds": number;
     "pingIntervalSeconds": number;
     "toolRefreshSeconds": number;
+    "toolRefreshConcurrency": number;
     "callerCheckSeconds": number;
     "exposeTools": boolean;
     "toolNamespaceStrategy": string;
@@ -538,6 +539,9 @@ export class RuntimeConfigDetail {
         }
         if (!("toolRefreshSeconds" in $$source)) {
             this["toolRefreshSeconds"] = 0;
+        }
+        if (!("toolRefreshConcurrency" in $$source)) {
+            this["toolRefreshConcurrency"] = 0;
         }
         if (!("callerCheckSeconds" in $$source)) {
             this["callerCheckSeconds"] = 0;
@@ -562,14 +566,14 @@ export class RuntimeConfigDetail {
      * Creates a new RuntimeConfigDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): RuntimeConfigDetail {
-        const $$createField6_0 = $$createType8;
-        const $$createField7_0 = $$createType9;
+        const $$createField7_0 = $$createType8;
+        const $$createField8_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("observability" in $$parsedSource) {
-            $$parsedSource["observability"] = $$createField6_0($$parsedSource["observability"]);
+            $$parsedSource["observability"] = $$createField7_0($$parsedSource["observability"]);
         }
         if ("rpc" in $$parsedSource) {
-            $$parsedSource["rpc"] = $$createField7_0($$parsedSource["rpc"]);
+            $$parsedSource["rpc"] = $$createField8_0($$parsedSource["rpc"]);
         }
         return new RuntimeConfigDetail($$parsedSource as Partial<RuntimeConfigDetail>);
     }
