@@ -7,6 +7,7 @@ import {
   AlertTriangleIcon,
   BugIcon,
   InfoIcon,
+  RefreshCwIcon,
   ScrollTextIcon,
   TrashIcon,
 } from 'lucide-react'
@@ -27,6 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
+import { useCoreState } from '@/hooks/use-core-state'
 import type { LogEntry } from '@/hooks/use-logs'
 import { useLogs } from '@/hooks/use-logs'
 import { Spring } from '@/lib/spring'
@@ -77,6 +79,9 @@ function LogItem({ log }: { log: LogEntry }) {
           </span>
         </div>
         <p className="text-sm break-words">{log.message}</p>
+        <div className="text-xs font-mono text-muted-foreground">
+          {log.source}
+        </div>
       </div>
     </div>
   )
@@ -84,6 +89,7 @@ function LogItem({ log }: { log: LogEntry }) {
 
 export function LogsPanel() {
   const { logs, mutate } = useLogs()
+  const { coreStatus } = useCoreState()
   const [levelFilter, setLevelFilter] = useState<string>('all')
   const [autoScroll, setAutoScroll] = useState(true)
 
@@ -95,6 +101,16 @@ export function LogsPanel() {
   const clearLogs = () => {
     mutate([], { revalidate: false })
   }
+
+  const forceRefresh = () => {
+    console.log('[LogsPanel] Force refresh triggered, current core status:', coreStatus)
+    // This will trigger the log stream to restart in root-provider
+    window.location.reload()
+  }
+
+  const isConnected = coreStatus === 'running' && logs.length > 0
+  const isDisconnected = coreStatus === 'stopped' || coreStatus === 'error'
+  const isWaiting = coreStatus === 'running' && logs.length === 0
 
   return (
     <m.div
@@ -111,6 +127,21 @@ export function LogsPanel() {
               <Badge variant="secondary" size="sm">
                 {logs.length}
               </Badge>
+              {isConnected && (
+                <Badge variant="success" size="sm" className="ml-1">
+                  Connected
+                </Badge>
+              )}
+              {isDisconnected && (
+                <Badge variant="error" size="sm" className="ml-1">
+                  Disconnected
+                </Badge>
+              )}
+              {isWaiting && (
+                <Badge variant="warning" size="sm" className="ml-1">
+                  Waiting...
+                </Badge>
+              )}
             </CardTitle>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
@@ -135,6 +166,16 @@ export function LogsPanel() {
                   <SelectItem value="error">Error</SelectItem>
                 </SelectContent>
               </Select>
+              {isWaiting && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={forceRefresh}
+                  title="Refresh page to reconnect"
+                >
+                  <RefreshCwIcon className="size-4" />
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -151,8 +192,31 @@ export function LogsPanel() {
             {filteredLogs.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full py-12 text-muted-foreground">
                 <ScrollTextIcon className="size-8 mb-2 opacity-50" />
-                <p className="text-sm">No logs yet</p>
-                <p className="text-xs">Logs will appear here when the core is running</p>
+                {isDisconnected ? (
+                  <>
+                    <p className="text-sm font-medium">Core is not running</p>
+                    <p className="text-xs">Start the core to see logs</p>
+                  </>
+                ) : isWaiting ? (
+                  <>
+                    <p className="text-sm font-medium">Waiting for logs...</p>
+                    <p className="text-xs">Check browser console for debug info</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={forceRefresh}
+                      className="mt-2"
+                    >
+                      <RefreshCwIcon className="size-3 mr-1" />
+                      Refresh Page
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm">No logs yet</p>
+                    <p className="text-xs">Logs will appear here when the core is running</p>
+                  </>
+                )}
               </div>
             ) : (
               <div className="divide-y">

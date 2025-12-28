@@ -26,7 +26,8 @@ import (
 )
 
 type App struct {
-	logger *zap.Logger
+	logger         *zap.Logger
+	logBroadcaster *telemetry.LogBroadcaster
 }
 
 type ServeConfig struct {
@@ -60,11 +61,31 @@ func New(logger *zap.Logger) *App {
 	}
 }
 
+func NewWithBroadcaster(logger *zap.Logger, broadcaster *telemetry.LogBroadcaster) *App {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+	return &App{
+		logger:         logger.Named("app"),
+		logBroadcaster: broadcaster,
+	}
+}
+
 func (a *App) Serve(ctx context.Context, cfg ServeConfig) error {
-	logs := telemetry.NewLogBroadcaster(zapcore.DebugLevel)
-	logger := a.logger.WithOptions(zap.WrapCore(func(core zapcore.Core) zapcore.Core {
-		return zapcore.NewTee(core, logs.Core())
-	}))
+	var logs *telemetry.LogBroadcaster
+	var logger *zap.Logger
+
+	// Use existing broadcaster if available, otherwise create a new one
+	if a.logBroadcaster != nil {
+		logs = a.logBroadcaster
+		logger = a.logger
+	} else {
+		logs = telemetry.NewLogBroadcaster(zapcore.DebugLevel)
+		logger = a.logger.WithOptions(zap.WrapCore(func(core zapcore.Core) zapcore.Core {
+			return zapcore.NewTee(core, logs.Core())
+		}))
+	}
+
 	storeLoader := catalog.NewProfileStoreLoader(logger)
 	store, err := storeLoader.Load(ctx, cfg.ConfigPath, catalog.ProfileStoreOptions{
 		AllowCreate: true,

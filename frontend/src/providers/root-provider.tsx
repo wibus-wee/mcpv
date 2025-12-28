@@ -35,6 +35,7 @@ function WailsEventsBridge() {
         | 'stopping'
         | 'error'
         | undefined
+      console.log('[WailsEvents] core:state received:', { state, data })
       if (state) {
         mutate(
           coreStateKey,
@@ -49,11 +50,14 @@ function WailsEventsBridge() {
     return () => unbind()
   }, [mutate])
 
-  const level = coreStatus === 'running' ? 'info' : null
+  const level = coreStatus === 'running' ? 'debug' : null
 
   useEffect(() => {
+    console.log('[WailsEvents] Log stream effect triggered:', { level, coreStatus })
+    
     if (level === null) {
       // Stop existing stream when core is not running
+      console.log('[WailsEvents] Stopping log stream (core not running)')
       stopRef.current?.()
       stopRef.current = null
       return
@@ -63,11 +67,13 @@ function WailsEventsBridge() {
     let unbind: (() => void) | undefined
 
     const start = async () => {
+      console.log('[WailsEvents] Starting log stream with level:', level)
       try {
         await WailsService.StartLogStream(level)
+        console.log('[WailsEvents] Log stream started successfully')
       }
       catch (err) {
-        console.error('Failed to start log stream', err)
+        console.error('[WailsEvents] Failed to start log stream', err)
         return
       }
       if (cancelled) {
@@ -82,6 +88,8 @@ function WailsEventsBridge() {
           timestamp?: string
           data?: { message?: string } | string
         } | undefined
+
+        console.log('[WailsEvents] logs:entry received:', logEntry)
 
         const rawLevel = String(logEntry?.level ?? 'info').toLowerCase()
         const parsedLevel

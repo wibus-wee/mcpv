@@ -307,48 +307,100 @@ func (s *WailsService) getControlPlane() (domain.ControlPlane, error) {
 
 // StartLogStream 开始日志流（通过 Wails 事件推送）
 func (s *WailsService) StartLogStream(ctx context.Context, minLevel string) error {
+	s.logger.Info("StartLogStream called", zap.String("minLevel", minLevel))
 	s.logMu.Lock()
 	defer s.logMu.Unlock()
 
 	if s.manager == nil {
+		s.logger.Error("StartLogStream failed: Manager not initialized")
 		return NewUIError(ErrCodeInternal, "Manager not initialized")
 	}
 
 	// 已经在流式传输
 	if s.logStreaming {
+		s.logger.Warn("StartLogStream: Log stream already active")
 		return NewUIError(ErrCodeInvalidState, "Log stream already active")
 	}
 
 	cp, err := s.manager.GetControlPlane()
 	if err != nil {
+		s.logger.Error("StartLogStream failed: GetControlPlane error", zap.Error(err))
 		return err
 	}
 
 	// 创建可取消的上下文
-	streamCtx, cancel := context.WithCancel(ctx)
+	s.logger.Info("Context status before creating streamCtx",
+		zap.Bool("ctx.Done", ctx.Done() != nil),
+		zap.Any("ctx.Err", ctx.Err()),
+	)
+
+	// Check if context is already cancelled
+	select {
+	case <-ctx.Done():
+		s.logger.Error("Input context is already cancelled!", zap.Error(ctx.Err()))
+		s.logStreaming = false
+		return NewUIError(ErrCodeInternal, "Input context already cancelled")
+	default:
+		// context is still valid
+	}
+
+	streamCtx, cancel := context.WithCancel(context.Background())
 	s.logCancel = cancel
 	s.logStreaming = true
 
 	// 转换日志级别
 	level := domain.LogLevel(minLevel)
+	s.logger.Info("Calling ControlPlane.StreamLogs", zap.String("level", string(level)))
 
 	// 启动流式传输
 	logCh, err := cp.StreamLogs(streamCtx, "wails-ui", level)
 	if err != nil {
+		s.logger.Error("StreamLogs failed", zap.Error(err))
 		s.logStreaming = false
 		s.logCancel = nil
 		return MapDomainError(err)
 	}
 
+	s.logger.Info("StreamLogs channel created successfully")
+
 	// 后台协程处理日志推送
 	go s.handleLogStream(streamCtx, logCh)
 
-	s.logger.Debug("log stream started", zap.String("minLevel", minLevel))
+	s.logger.Info("log stream started, background goroutine launched", zap.String("minLevel", minLevel))
 	return nil
 }
 
 // handleLogStream 处理日志流推送
 func (s *WailsService) handleLogStream(ctx context.Context, logCh <-chan domain.LogEntry) {
+	s.logger.Info("handleLogStream: goroutine started, waiting for log entries",
+		zap.Bool("ctx.Done", ctx.Done() != nil),
+		zap.Any("ctx.Err", ctx.Err()),
+	)
+	count := 0
+
+	// Test if channel is already closed
+	select {
+	case entry, ok := <-logCh:
+		if !ok {
+			s.logger.Error("handleLogStream: channel was already closed!")
+			s.logMu.Lock()
+			s.logStreaming = false
+			s.logCancel = nil
+			s.logMu.Unlock()
+			return
+		}
+		// Put the entry back by processing it
+		count++
+		s.logger.Info("Received FIRST log entry",
+			zap.String("logger", entry.Logger),
+			zap.String("level", string(entry.Level)),
+		)
+		// Reuse existing event emitter
+		emitLogEntry(s.wails, entry)
+	default:
+		s.logger.Info("handleLogStream: no immediate entries, entering select loop")
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -356,7 +408,7 @@ func (s *WailsService) handleLogStream(ctx context.Context, logCh <-chan domain.
 			s.logStreaming = false
 			s.logCancel = nil
 			s.logMu.Unlock()
-			s.logger.Debug("log stream stopped")
+			s.logger.Info("log stream stopped by context", zap.Int("totalEntriesProcessed", count))
 			return
 		case entry, ok := <-logCh:
 			if !ok {
@@ -364,11 +416,21 @@ func (s *WailsService) handleLogStream(ctx context.Context, logCh <-chan domain.
 				s.logStreaming = false
 				s.logCancel = nil
 				s.logMu.Unlock()
-				s.logger.Debug("log stream channel closed")
+				s.logger.Info("log stream channel closed", zap.Int("totalEntriesProcessed", count))
 				return
 			}
+			count++
+			s.logger.Debug("Received log entry",
+				zap.Int("count", count),
+				zap.String("logger", entry.Logger),
+				zap.String("level", string(entry.Level)),
+				zap.String("timestamp", entry.Timestamp.Format("15:04:05.000")),
+			)
 			// Reuse existing event emitter
 			emitLogEntry(s.wails, entry)
+			if count == 1 {
+				s.logger.Info("First log entry emitted to frontend")
+			}
 		}
 	}
 }

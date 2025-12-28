@@ -23,7 +23,6 @@ import { Spring } from '@/lib/spring'
 import {
   LogsPanel,
   ResourcesList,
-  SettingsSheet,
   StatusCards,
   ToolsTable,
 } from './components'
@@ -107,7 +106,6 @@ function DashboardHeader() {
         >
           <RefreshCwIcon className="size-4" />
         </Button>
-        <SettingsSheet />
       </div>
     </m.div>
   )

@@ -9,18 +9,19 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"mcpd/internal/app"
+	"mcpd/internal/infra/telemetry"
 	"mcpd/internal/ui"
 )
 
 func main() {
-	// 1. 初始化日志
-	logger := createLogger()
+	// 1. 初始化日志（带 LogBroadcaster）
+	logger, logBroadcaster := createLoggerWithBroadcaster()
 	defer func() {
 		_ = logger.Sync()
 	}()
 
 	// 2. 创建核心应用和 UI Manager
-	coreApp := app.New(logger)
+	coreApp := app.NewWithBroadcaster(logger, logBroadcaster)
 	configPath := "." // 默认配置目录，后续可通过命令行或设置修改
 
 	wailsService := ui.NewWailsService(coreApp, logger)
@@ -68,15 +69,28 @@ func main() {
 	}
 }
 
-func createLogger() *zap.Logger {
+func createLoggerWithBroadcaster() (*zap.Logger, *telemetry.LogBroadcaster) {
 	config := zap.NewDevelopmentConfig()
 	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	config.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
 
-	logger, err := config.Build()
+	baseLogger, err := config.Build()
 	if err != nil {
 		log.Fatalf("failed to initialize logger: %v", err)
 	}
 
+	// Create log broadcaster
+	broadcaster := telemetry.NewLogBroadcaster(zapcore.InfoLevel)
+
+	// Combine base logger with broadcaster
+	logger := baseLogger.WithOptions(zap.WrapCore(func(core zapcore.Core) zapcore.Core {
+		return zapcore.NewTee(core, broadcaster.Core())
+	}))
+
+	return logger, broadcaster
+}
+
+func createLogger() *zap.Logger {
+	logger, _ := createLoggerWithBroadcaster()
 	return logger
 }
