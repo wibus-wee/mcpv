@@ -1,5 +1,5 @@
 // Input: Config hooks, atoms, UI components
-// Output: ConfigPage component - main configuration management view
+// Output: ConfigPage component - master-detail configuration view
 // Position: Main page in config module
 
 import { useAtom } from 'jotai'
@@ -8,6 +8,7 @@ import {
   FileSliders,
   FolderIcon,
   LayersIcon,
+  PenIcon,
   UsersIcon,
 } from 'lucide-react'
 import { m } from 'motion/react'
@@ -30,7 +31,7 @@ import { Spring } from '@/lib/spring'
 
 import { selectedProfileNameAtom } from './atoms'
 import { CallersList } from './components/callers-list'
-import { ProfileDetailSheet } from './components/profile-detail-sheet'
+import { ProfileDetailPanel } from './components/profile-detail-panel'
 import { ProfilesList } from './components/profiles-list'
 import { useCallers, useConfigMode, useProfiles } from './hooks'
 
@@ -48,8 +49,8 @@ function ConfigHeader() {
     return (
       <div className="flex items-center justify-between">
         <div className="space-y-2">
-          <Skeleton className="h-7 w-48" />
-          <Skeleton className="h-4 w-64" />
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-4 w-56" />
         </div>
       </div>
     )
@@ -60,87 +61,59 @@ function ConfigHeader() {
   return (
     <m.div
       className="flex items-center justify-between"
-      initial={{ opacity: 0, y: -10 }}
+      initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={Spring.smooth(0.3)}
     >
       <div className="space-y-1">
-        <div className="flex items-center gap-2.5">
-          <FileSliders className="size-5 text-muted-foreground" />
-          <h1 className="font-semibold text-xl">Configuration</h1>
+        <div className="flex items-center gap-2">
+          <FileSliders className="size-4 text-muted-foreground" />
+          <h1 className="font-semibold text-lg">Configuration</h1>
+        </div>
+        <div className="flex items-center gap-2 text-muted-foreground text-xs">
           {configMode && (
-            <Badge variant="secondary" className="gap-1">
+            <>
               <ModeIcon className="size-3" />
-              {configMode.mode === 'directory' ? 'Directory' : 'Single File'}
-            </Badge>
-          )}
-          {configMode?.isWritable && (
-            <Badge variant="outline" className="text-success border-success/30">
-              Writable
-            </Badge>
+              <span className="font-mono truncate max-w-80">
+                {configMode.path}
+              </span>
+              {configMode.isWritable && (
+                <Badge variant="outline" size="sm" className="text-success border-success/30 gap-1">
+                  <PenIcon className="size-2.5" />
+                  Writable
+                </Badge>
+              )}
+            </>
           )}
         </div>
-        <p className="text-muted-foreground text-sm">
-          Manage your profiles and caller mappings.
-        </p>
       </div>
       <RefreshButton
         onClick={handleRefresh}
         isLoading={isRefreshing}
-        tooltip="Refresh configuration"
+        tooltip="Reload configuration"
       />
     </m.div>
   )
 }
 
-function ConfigTabs() {
+function ProfilesTabContent() {
   const [selectedProfileName, setSelectedProfileName] = useAtom(selectedProfileNameAtom)
-  const [sheetOpen, setSheetOpen] = useState(false)
   const {
     data: profiles,
     isLoading: profilesLoading,
     mutate: mutateProfiles,
   } = useProfiles()
-  const {
-    data: callers,
-    isLoading: callersLoading,
-    mutate: mutateCallers,
-  } = useCallers()
 
   const handleProfileSelect = (name: string) => {
-    setSelectedProfileName(name)
-    setSheetOpen(true)
+    setSelectedProfileName(name === selectedProfileName ? null : name)
   }
 
-  const profileCount = profiles?.length ?? 0
-  const callerCount = callers ? Object.keys(callers).length : 0
-
   return (
-    <>
-      <Tabs defaultValue="profiles" className="flex-1 flex flex-col min-h-0">
-        <TabsList variant="underline" className="w-full justify-start border-b px-0">
-          <TabsTrigger value="profiles" className="gap-2">
-            <LayersIcon className="size-4" />
-            Profiles
-            {profileCount > 0 && (
-              <Badge variant="secondary" size="sm">
-                {profileCount}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="callers" className="gap-2">
-            <UsersIcon className="size-4" />
-            Callers
-            {callerCount > 0 && (
-              <Badge variant="secondary" size="sm">
-                {callerCount}
-              </Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="profiles" className="flex-1 min-h-0 mt-0 pt-4">
-          <ScrollArea className="h-full" scrollFade>
+    <div className="flex flex-1 min-h-0 gap-px h-full">
+      {/* Left: Profiles List */}
+      <div className="w-64 shrink-0 flex flex-col min-h-0 border-r">
+        <ScrollArea className="flex-1" scrollFade>
+          <div className="p-3">
             <ProfilesList
               profiles={profiles ?? []}
               isLoading={profilesLoading}
@@ -148,32 +121,84 @@ function ConfigTabs() {
               onSelect={handleProfileSelect}
               onRefresh={() => mutateProfiles()}
             />
-          </ScrollArea>
-        </TabsContent>
+          </div>
+        </ScrollArea>
+      </div>
 
-        <TabsContent value="callers" className="flex-1 min-h-0 mt-0 pt-4">
-          <ScrollArea className="h-full" scrollFade>
-            <CallersList
-              callers={callers ?? {}}
-              isLoading={callersLoading}
-              onRefresh={() => mutateCallers()}
-            />
-          </ScrollArea>
-        </TabsContent>
-      </Tabs>
+      {/* Right: Profile Detail */}
+      <div className="flex-1 min-w-0 min-h-0">
+        <ScrollArea className="h-full" scrollFade>
+          <ProfileDetailPanel profileName={selectedProfileName} />
+        </ScrollArea>
+      </div>
+    </div>
+  )
+}
 
-      <ProfileDetailSheet
-        profileName={selectedProfileName}
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-      />
-    </>
+function CallersTabContent() {
+  const {
+    data: callers,
+    isLoading: callersLoading,
+    mutate: mutateCallers,
+  } = useCallers()
+
+  return (
+    <ScrollArea className="flex-1" scrollFade>
+      <div className="p-4">
+        <CallersList
+          callers={callers ?? {}}
+          isLoading={callersLoading}
+          onRefresh={() => mutateCallers()}
+        />
+      </div>
+    </ScrollArea>
+  )
+}
+
+function ConfigTabs() {
+  const { data: profiles } = useProfiles()
+  const { data: callers } = useCallers()
+
+  const profileCount = profiles?.length ?? 0
+  const callerCount = callers ? Object.keys(callers).length : 0
+
+  return (
+    <Tabs defaultValue="profiles" className="flex-1 flex flex-col min-h-0">
+      <TabsList variant="underline" className="w-full justify-start border-b px-4">
+        <TabsTrigger value="profiles" className="gap-1.5">
+          <LayersIcon className="size-3.5" />
+          Profiles
+          {profileCount > 0 && (
+            <Badge variant="secondary" size="sm">
+              {profileCount}
+            </Badge>
+          )}
+        </TabsTrigger>
+        <TabsTrigger value="callers" className="gap-1.5">
+          <UsersIcon className="size-3.5" />
+          Callers
+          {callerCount > 0 && (
+            <Badge variant="secondary" size="sm">
+              {callerCount}
+            </Badge>
+          )}
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="profiles" className="flex-1 min-h-0 mt-0">
+        <ProfilesTabContent />
+      </TabsContent>
+
+      <TabsContent value="callers" className="flex-1 min-h-0 mt-0">
+        <CallersTabContent />
+      </TabsContent>
+    </Tabs>
   )
 }
 
 function ConfigEmpty() {
   return (
-    <Empty className="h-full border-0">
+    <Empty className="h-full">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <FileSliders className="size-5" />
@@ -194,8 +219,10 @@ export function ConfigPage() {
   const hasConfig = configMode && profiles
 
   return (
-    <div className="flex flex-col h-full p-6 gap-4">
-      <ConfigHeader />
+    <div className="flex flex-col h-full">
+      <div className="px-6 pt-6 pb-4">
+        <ConfigHeader />
+      </div>
       <Separator />
       {hasConfig ? <ConfigTabs /> : <ConfigEmpty />}
     </div>

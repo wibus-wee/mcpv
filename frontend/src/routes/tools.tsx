@@ -1,8 +1,13 @@
-// Input: TanStack Router
-// Output: Tools route component
-// Position: /tools route
+// Input: TanStack Router, ToolsTable from dashboard module
+// Output: Tools route component with full tools list
+// Position: /tools route - dedicated tools page
 
 import { createFileRoute } from '@tanstack/react-router'
+import { m } from 'motion/react'
+
+import { Separator } from '@/components/ui/separator'
+import { Spring } from '@/lib/spring'
+import { ToolsTable } from '@/modules/dashboard/components'
 
 export const Route = createFileRoute('/tools')({
   component: ToolsPage,
@@ -10,9 +15,25 @@ export const Route = createFileRoute('/tools')({
 
 function ToolsPage() {
   return (
-    <div className="container py-6">
-      <h1 className="mb-4 font-bold text-2xl">Tools</h1>
-      <p className="text-muted-foreground">Tools management page</p>
+    <div className="flex flex-1 flex-col p-6 overflow-auto">
+      <m.div
+        initial={{ opacity: 0, y: 10, filter: 'blur(8px)' }}
+        animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+        transition={Spring.smooth(0.4)}
+      >
+        <h1 className="text-2xl font-bold tracking-tight">Tools</h1>
+        <p className="text-muted-foreground text-sm">
+          Available MCP tools from all connected servers
+        </p>
+      </m.div>
+      <Separator className="my-6" />
+      <m.div
+        initial={{ opacity: 0, y: 10, filter: 'blur(8px)' }}
+        animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+        transition={Spring.smooth(0.4)}
+      >
+        <ToolsTable />
+      </m.div>
     </div>
   )
 }

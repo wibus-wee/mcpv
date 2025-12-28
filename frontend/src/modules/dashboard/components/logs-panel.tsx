@@ -113,11 +113,7 @@ export function LogsPanel() {
   const isWaiting = coreStatus === 'running' && logs.length === 0
 
   return (
-    <m.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={Spring.smooth(0.4, 0.2)}
-    >
+    <div>
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -228,6 +224,6 @@ export function LogsPanel() {
           </ScrollArea>
         </CardContent>
       </Card>
-    </m.div>
+    </div>
   )
 }

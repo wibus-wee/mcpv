@@ -1,12 +1,11 @@
 // Input: ProfileSummary array, selection state
-// Output: ProfilesList component - clean list view of profiles
-// Position: Tab content in config page
+// Output: ProfilesList component - minimal list view of profiles
+// Position: Left panel in config page master-detail layout
 
 import type { ProfileSummary } from '@bindings/mcpd/internal/ui'
 import { LayersIcon, StarIcon } from 'lucide-react'
 import { m } from 'motion/react'
 
-import { ListItem } from '@/components/custom'
 import { Badge } from '@/components/ui/badge'
 import {
   Empty,
@@ -16,7 +15,7 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Spring } from '@/lib/spring'
+import { cn } from '@/lib/utils'
 
 interface ProfilesListProps {
   profiles: ProfileSummary[]
@@ -28,9 +27,9 @@ interface ProfilesListProps {
 
 function ProfilesListSkeleton() {
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       {Array.from({ length: 3 }).map((_, i) => (
-        <Skeleton key={i} className="h-16 w-full rounded-lg" />
+        <Skeleton key={i} className="h-12 w-full rounded-md" />
       ))}
     </div>
   )
@@ -38,14 +37,14 @@ function ProfilesListSkeleton() {
 
 function ProfilesListEmpty() {
   return (
-    <Empty className="py-12">
+    <Empty className="py-8">
       <EmptyHeader>
         <EmptyMedia variant="icon">
-          <LayersIcon className="size-5" />
+          <LayersIcon className="size-4" />
         </EmptyMedia>
-        <EmptyTitle>No profiles</EmptyTitle>
-        <EmptyDescription>
-          Create a profile in your configuration file to get started.
+        <EmptyTitle className="text-sm">No profiles</EmptyTitle>
+        <EmptyDescription className="text-xs">
+          Create a profile in your configuration file.
         </EmptyDescription>
       </EmptyHeader>
     </Empty>
@@ -67,24 +66,29 @@ export function ProfilesList({
   }
 
   return (
-    <m.div
-      className="space-y-1"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={Spring.smooth(0.3)}
-    >
+    <div className="space-y-0.5">
       {profiles.map((profile, index) => (
-        <ListItem
+        <m.button
           key={profile.name}
-          index={index}
-          selected={selectedProfile === profile.name}
+          type="button"
+          initial={{ opacity: 0, x: -8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.15, delay: index * 0.02 }}
           onClick={() => onSelect(profile.name)}
+          className={cn(
+            'group flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left transition-colors',
+            selectedProfile === profile.name
+              ? 'bg-accent text-accent-foreground'
+              : 'hover:bg-muted/50'
+          )}
         >
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <div className="flex items-center gap-2">
-              {profile.isDefault && (
-                <StarIcon className="size-3.5 fill-warning text-warning shrink-0" />
-              )}
+          {profile.isDefault ? (
+            <StarIcon className="size-3.5 fill-warning text-warning shrink-0" />
+          ) : (
+            <LayersIcon className="size-3.5 text-muted-foreground shrink-0" />
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
               <span className="font-medium text-sm truncate">
                 {profile.name}
               </span>
@@ -94,12 +98,12 @@ export function ProfilesList({
                 </Badge>
               )}
             </div>
-            <p className="text-muted-foreground text-xs truncate">
-              {profile.serverCount} server{profile.serverCount !== 1 ? 's' : ''} configured
+            <p className="text-muted-foreground text-xs">
+              {profile.serverCount} server{profile.serverCount !== 1 ? 's' : ''}
             </p>
           </div>
-        </ListItem>
+        </m.button>
       ))}
-    </m.div>
+    </div>
   )
 }

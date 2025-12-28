@@ -90,11 +90,7 @@ export function ResourcesList() {
   }
 
   return (
-    <m.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={Spring.smooth(0.4, 0.15)}
-    >
+    <div>
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -192,6 +188,6 @@ export function ResourcesList() {
           </ScrollArea>
         </CardContent>
       </Card>
-    </m.div>
+    </div>
   )
 }

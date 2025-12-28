@@ -3,13 +3,10 @@
 # Config Module Components
 
 Components specific to the configuration management feature.
-These handle profile display, caller mappings, and configuration details.
+Master-detail layout: left panel shows profiles list, right panel shows inline details.
 
 ## Files
 
-- **profiles-list.tsx**: List view of configuration profiles with selection
-- **profile-detail-sheet.tsx**: Side sheet showing full profile configuration details
-- **callers-list.tsx**: List view of caller-to-profile mappings
-- **profile-list.tsx**: (deprecated) Old profile list component
-- **profile-detail.tsx**: (deprecated) Old inline profile detail component
-- **callers-panel.tsx**: (deprecated) Old callers panel component
+- **profiles-list.tsx**: Minimal list view of profiles with selection state and hover interactions
+- **profile-detail-panel.tsx**: Inline detail panel showing runtime config and servers (replaces Sheet overlay)
+- **callers-list.tsx**: Compact list view of caller-to-profile mappings using divide-y pattern

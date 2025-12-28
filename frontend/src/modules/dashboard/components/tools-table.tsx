@@ -107,11 +107,7 @@ export function ToolsTable() {
   }
 
   return (
-    <m.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={Spring.smooth(0.4, 0.1)}
-    >
+    <div>
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -240,6 +236,6 @@ export function ToolsTable() {
           </ScrollArea>
         </CardContent>
       </Card>
-    </m.div>
+    </div>
   )
 }

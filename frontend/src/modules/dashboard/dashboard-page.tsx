@@ -18,7 +18,6 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCoreActions, useCoreState } from '@/hooks/use-core-state'
-import { Spring } from '@/lib/spring'
 
 import {
   LogsPanel,
@@ -27,6 +26,7 @@ import {
   ToolsTable,
 } from './components'
 import { useAppInfo } from './hooks'
+import { Spring } from '@/lib/spring'
 
 function DashboardHeader() {
   const { appInfo } = useAppInfo()
@@ -43,9 +43,9 @@ function DashboardHeader() {
 
   return (
     <m.div
-      initial={{ opacity: 0, y: -10, filter: 'blur(4px)' }}
+      initial={{ opacity: 0, y: 10, filter: 'blur(8px)' }}
       animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-      transition={Spring.smooth(0.3)}
+      transition={Spring.smooth(0.4)}
       className="flex items-center justify-between"
     >
       <div>
@@ -114,10 +114,10 @@ function DashboardHeader() {
 function DashboardContent() {
   return (
     <m.div
-      className="space-y-6"
-      initial={{ opacity: 0, y: 12, filter: 'blur(8px)' }}
+      initial={{ opacity: 0, y: 10, filter: 'blur(8px)' }}
       animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
       transition={Spring.smooth(0.4)}
+      className="space-y-6"
     >
       <StatusCards />
 
