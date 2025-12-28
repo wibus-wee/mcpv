@@ -108,6 +108,22 @@ type Instance struct {
 	Capabilities ServerCapabilities
 }
 
+// InstanceInfo provides a read-only snapshot of instance state for status queries
+type InstanceInfo struct {
+	ID         string
+	State      InstanceState
+	BusyCount  int
+	LastActive time.Time
+}
+
+// PoolInfo provides a read-only snapshot of a pool's state for status queries
+type PoolInfo struct {
+	SpecKey    string
+	ServerName string
+	MinReady   int
+	Instances  []InstanceInfo
+}
+
 type Conn interface {
 	Send(ctx context.Context, msg json.RawMessage) error
 	Recv(ctx context.Context) (json.RawMessage, error)
@@ -135,6 +151,7 @@ type Scheduler interface {
 	StartPingManager(interval time.Duration)
 	StopPingManager()
 	StopAll(ctx context.Context)
+	GetPoolStatus(ctx context.Context) ([]PoolInfo, error)
 }
 
 type Router interface {

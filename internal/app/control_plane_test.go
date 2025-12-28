@@ -171,3 +171,7 @@ func (f *fakeScheduler) StopIdleManager()                        {}
 func (f *fakeScheduler) StartPingManager(interval time.Duration) {}
 func (f *fakeScheduler) StopPingManager()                        {}
 func (f *fakeScheduler) StopAll(ctx context.Context)             {}
+
+func (f *fakeScheduler) GetPoolStatus(ctx context.Context) ([]domain.PoolInfo, error) {
+	return nil, nil
+}

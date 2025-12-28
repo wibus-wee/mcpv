@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -504,6 +506,90 @@ func (s *WailsService) GetConfigMode() ConfigModeResponse {
 		Path:       path,
 		IsWritable: isWritable,
 	}
+}
+
+// OpenConfigInEditor opens the configuration file/directory in the system default editor
+func (s *WailsService) OpenConfigInEditor(ctx context.Context) error {
+	if s.manager == nil {
+		return NewUIError(ErrCodeInternal, "Manager not initialized")
+	}
+
+	path := s.manager.GetConfigPath()
+	if path == "" {
+		return NewUIError(ErrCodeNotFound, "No configuration path configured")
+	}
+
+	// Platform-specific open command
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.CommandContext(ctx, "open", path)
+	case "windows":
+		cmd = exec.CommandContext(ctx, "cmd", "/c", "start", "", path)
+	case "linux":
+		cmd = exec.CommandContext(ctx, "xdg-open", path)
+	default:
+		return NewUIError(ErrCodeInternal, fmt.Sprintf("Unsupported platform: %s", runtime.GOOS))
+	}
+
+	if err := cmd.Start(); err != nil {
+		s.logger.Error("failed to open config in editor", zap.Error(err), zap.String("path", path))
+		return NewUIError(ErrCodeInternal, fmt.Sprintf("Failed to open editor: %v", err))
+	}
+
+	s.logger.Info("opened config in editor", zap.String("path", path))
+	return nil
+}
+
+// GetRuntimeStatus returns the runtime status of all server pools
+func (s *WailsService) GetRuntimeStatus(ctx context.Context) ([]ServerRuntimeStatus, error) {
+	cp, err := s.getControlPlane()
+	if err != nil {
+		return nil, err
+	}
+
+	pools, err := cp.GetPoolStatus(ctx)
+	if err != nil {
+		return nil, MapDomainError(err)
+	}
+
+	result := make([]ServerRuntimeStatus, 0, len(pools))
+	for _, pool := range pools {
+		instances := make([]InstanceStatus, 0, len(pool.Instances))
+		stats := PoolStats{}
+
+		for _, inst := range pool.Instances {
+			instances = append(instances, InstanceStatus{
+				ID:         inst.ID,
+				State:      string(inst.State),
+				BusyCount:  inst.BusyCount,
+				LastActive: inst.LastActive.Format("2006-01-02T15:04:05Z07:00"),
+			})
+
+			// Count by state
+			stats.Total++
+			switch inst.State {
+			case domain.InstanceStateReady:
+				stats.Ready++
+			case domain.InstanceStateBusy:
+				stats.Busy++
+			case domain.InstanceStateStarting:
+				stats.Starting++
+			case domain.InstanceStateDraining:
+				stats.Draining++
+			case domain.InstanceStateFailed:
+				stats.Failed++
+			}
+		}
+
+		result = append(result, ServerRuntimeStatus{
+			ServerName: pool.ServerName,
+			Instances:  instances,
+			Stats:      stats,
+		})
+	}
+
+	return result, nil
 }
 
 // ListProfiles 列出所有 profiles

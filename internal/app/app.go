@@ -257,9 +257,8 @@ func buildProfileSummary(store domain.ProfileStore) (profileSummary, error) {
 			if _, ok := summary.specRegistry[specKey]; ok {
 				continue
 			}
-			canonical := spec
-			canonical.Name = specKey
-			summary.specRegistry[specKey] = canonical
+			// Keep the original spec.Name as-is for display purposes
+			summary.specRegistry[specKey] = spec
 		}
 	}
 

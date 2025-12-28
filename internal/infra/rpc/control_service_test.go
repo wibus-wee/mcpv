@@ -230,3 +230,7 @@ func (f *fakeControlPlane) StreamLogs(ctx context.Context, caller string, minLev
 func (f *fakeControlPlane) GetProfileStore() domain.ProfileStore {
 	return domain.ProfileStore{}
 }
+
+func (f *fakeControlPlane) GetPoolStatus(ctx context.Context) ([]domain.PoolInfo, error) {
+	return nil, nil
+}

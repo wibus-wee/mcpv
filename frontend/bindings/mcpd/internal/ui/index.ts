@@ -10,8 +10,10 @@ export {
     ConfigModeResponse,
     CoreStateResponse,
     InfoResponse,
+    InstanceStatus,
     Manager,
     ObservabilityConfigDetail,
+    PoolStats,
     ProfileDetail,
     ProfileSummary,
     PromptEntry,
@@ -21,6 +23,7 @@ export {
     ResourceEntry,
     ResourcePage,
     RuntimeConfigDetail,
+    ServerRuntimeStatus,
     ServerSpecDetail,
     ToolEntry
 } from "./models.js";

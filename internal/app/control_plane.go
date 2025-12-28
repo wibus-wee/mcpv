@@ -713,3 +713,11 @@ func logLevelRank(level domain.LogLevel) int {
 func (c *ControlPlane) GetProfileStore() domain.ProfileStore {
 	return c.profileStore
 }
+
+// GetPoolStatus returns the current status of all instance pools.
+func (c *ControlPlane) GetPoolStatus(ctx context.Context) ([]domain.PoolInfo, error) {
+	if c.scheduler == nil {
+		return nil, nil
+	}
+	return c.scheduler.GetPoolStatus(ctx)
+}

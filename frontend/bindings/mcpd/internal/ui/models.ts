@@ -114,6 +114,42 @@ export class InfoResponse {
 }
 
 /**
+ * InstanceStatus represents the status of a single server instance
+ */
+export class InstanceStatus {
+    "id": string;
+    "state": string;
+    "busyCount": number;
+    "lastActive": string;
+
+    /** Creates a new InstanceStatus instance. */
+    constructor($$source: Partial<InstanceStatus> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("state" in $$source)) {
+            this["state"] = "";
+        }
+        if (!("busyCount" in $$source)) {
+            this["busyCount"] = 0;
+        }
+        if (!("lastActive" in $$source)) {
+            this["lastActive"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new InstanceStatus instance from a string or object.
+     */
+    static createFrom($$source: any = {}): InstanceStatus {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new InstanceStatus($$parsedSource as Partial<InstanceStatus>);
+    }
+}
+
+/**
  * Manager coordinates Core lifecycle and all UI services
  */
 export class Manager {
@@ -154,6 +190,50 @@ export class ObservabilityConfigDetail {
     static createFrom($$source: any = {}): ObservabilityConfigDetail {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ObservabilityConfigDetail($$parsedSource as Partial<ObservabilityConfigDetail>);
+    }
+}
+
+/**
+ * PoolStats contains aggregated statistics for a server pool
+ */
+export class PoolStats {
+    "total": number;
+    "ready": number;
+    "busy": number;
+    "starting": number;
+    "draining": number;
+    "failed": number;
+
+    /** Creates a new PoolStats instance. */
+    constructor($$source: Partial<PoolStats> = {}) {
+        if (!("total" in $$source)) {
+            this["total"] = 0;
+        }
+        if (!("ready" in $$source)) {
+            this["ready"] = 0;
+        }
+        if (!("busy" in $$source)) {
+            this["busy"] = 0;
+        }
+        if (!("starting" in $$source)) {
+            this["starting"] = 0;
+        }
+        if (!("draining" in $$source)) {
+            this["draining"] = 0;
+        }
+        if (!("failed" in $$source)) {
+            this["failed"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PoolStats instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PoolStats {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new PoolStats($$parsedSource as Partial<PoolStats>);
     }
 }
 
@@ -496,6 +576,46 @@ export class RuntimeConfigDetail {
 }
 
 /**
+ * ServerRuntimeStatus contains the runtime status of a server and its instances
+ */
+export class ServerRuntimeStatus {
+    "serverName": string;
+    "instances": InstanceStatus[];
+    "stats": PoolStats;
+
+    /** Creates a new ServerRuntimeStatus instance. */
+    constructor($$source: Partial<ServerRuntimeStatus> = {}) {
+        if (!("serverName" in $$source)) {
+            this["serverName"] = "";
+        }
+        if (!("instances" in $$source)) {
+            this["instances"] = [];
+        }
+        if (!("stats" in $$source)) {
+            this["stats"] = (new PoolStats());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ServerRuntimeStatus instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ServerRuntimeStatus {
+        const $$createField1_0 = $$createType11;
+        const $$createField2_0 = $$createType12;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("instances" in $$parsedSource) {
+            $$parsedSource["instances"] = $$createField1_0($$parsedSource["instances"]);
+        }
+        if ("stats" in $$parsedSource) {
+            $$parsedSource["stats"] = $$createField2_0($$parsedSource["stats"]);
+        }
+        return new ServerRuntimeStatus($$parsedSource as Partial<ServerRuntimeStatus>);
+    }
+}
+
+/**
  * ServerSpecDetail contains server specification for frontend
  */
 export class ServerSpecDetail {
@@ -558,9 +678,9 @@ export class ServerSpecDetail {
      * Creates a new ServerSpecDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): ServerSpecDetail {
-        const $$createField1_0 = $$createType10;
-        const $$createField2_0 = $$createType11;
-        const $$createField11_0 = $$createType10;
+        const $$createField1_0 = $$createType13;
+        const $$createField2_0 = $$createType14;
+        const $$createField11_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("cmd" in $$parsedSource) {
             $$parsedSource["cmd"] = $$createField1_0($$parsedSource["cmd"]);
@@ -614,5 +734,8 @@ const $$createType6 = ResourceEntry.createFrom;
 const $$createType7 = $Create.Array($$createType6);
 const $$createType8 = ObservabilityConfigDetail.createFrom;
 const $$createType9 = RPCConfigDetail.createFrom;
-const $$createType10 = $Create.Array($Create.Any);
-const $$createType11 = $Create.Map($Create.Any, $Create.Any);
+const $$createType10 = InstanceStatus.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = PoolStats.createFrom;
+const $$createType13 = $Create.Array($Create.Any);
+const $$createType14 = $Create.Map($Create.Any, $Create.Any);

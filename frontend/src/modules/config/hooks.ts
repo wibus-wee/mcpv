@@ -1,15 +1,16 @@
 // Input: SWR, WailsService bindings, jotai atoms
-// Output: Config data fetching hooks
+// Output: Config data fetching hooks including runtime status
 // Position: Data fetching hooks for config module
 
 import type {
   ConfigModeResponse,
   ProfileDetail,
   ProfileSummary,
+  ServerRuntimeStatus,
 } from '@bindings/mcpd/internal/ui'
 import { WailsService } from '@bindings/mcpd/internal/ui'
 import { useSetAtom } from 'jotai'
-import { useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import useSWR from 'swr'
 
 import {
@@ -85,4 +86,31 @@ export function useCallers() {
   }, [data, setCallers])
 
   return { data, error, isLoading, mutate }
+}
+
+export function useOpenConfigInEditor() {
+  const [isOpening, setIsOpening] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
+
+  const openInEditor = useCallback(async () => {
+    setIsOpening(true)
+    setError(null)
+    try {
+      await WailsService.OpenConfigInEditor()
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error(String(err)))
+    } finally {
+      setIsOpening(false)
+    }
+  }, [])
+
+  return { openInEditor, isOpening, error }
+}
+
+export function useRuntimeStatus() {
+  return useSWR<ServerRuntimeStatus[]>(
+    'runtime-status',
+    () => WailsService.GetRuntimeStatus(),
+    { refreshInterval: 2000 },
+  )
 }

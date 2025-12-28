@@ -1,6 +1,6 @@
-// Input: profileName prop, useProfile hook, ProfileDetail type
+// Input: profileName prop, useProfile hook, ProfileDetail type, ServerRuntimeIndicator
 // Output: ProfileDetailPanel component - inline detail view with minimal visual weight
-// Position: Right panel in config page master-detail layout (replaces Sheet overlay)
+// Position: Right panel in config page master-detail layout with live runtime status
 
 import type { ProfileDetail, ServerSpecDetail } from '@bindings/mcpd/internal/ui'
 import {
@@ -33,6 +33,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Spring } from '@/lib/spring'
 
 import { useProfile } from '../hooks'
+import { ServerRuntimeIndicator } from './server-runtime-status'
 
 interface ProfileDetailPanelProps {
   profileName: string | null
@@ -117,9 +118,9 @@ function ServerItem({ server }: { server: ServerSpecDetail }) {
     <AccordionItem value={`server-${server.name}`} className="border-none">
       <AccordionTrigger className="py-2 hover:no-underline">
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <ServerIcon className="size-3.5 text-muted-foreground shrink-0" />
           <span className="font-mono text-sm truncate">{server.name}</span>
-          <div className="flex items-center gap-1 ml-auto mr-2">
+          <div className="flex items-center gap-1.5 ml-auto mr-2">
+            <ServerRuntimeIndicator serverName={server.name} />
             {server.persistent && (
               <Badge variant="secondary" size="sm">Persistent</Badge>
             )}

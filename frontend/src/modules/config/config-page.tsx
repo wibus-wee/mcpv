@@ -4,6 +4,7 @@
 
 import { useAtom } from 'jotai'
 import {
+  ExternalLinkIcon,
   FileIcon,
   FileSliders,
   FolderIcon,
@@ -16,6 +17,7 @@ import { useState } from 'react'
 
 import { RefreshButton } from '@/components/custom'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Empty,
   EmptyDescription,
@@ -33,10 +35,11 @@ import { selectedProfileNameAtom } from './atoms'
 import { CallersList } from './components/callers-list'
 import { ProfileDetailPanel } from './components/profile-detail-panel'
 import { ProfilesList } from './components/profiles-list'
-import { useCallers, useConfigMode, useProfiles } from './hooks'
+import { useCallers, useConfigMode, useOpenConfigInEditor, useProfiles } from './hooks'
 
 function ConfigHeader() {
   const { data: configMode, isLoading, mutate } = useConfigMode()
+  const { openInEditor, isOpening } = useOpenConfigInEditor()
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   const handleRefresh = async () => {
@@ -87,11 +90,22 @@ function ConfigHeader() {
           )}
         </div>
       </div>
-      <RefreshButton
-        onClick={handleRefresh}
-        isLoading={isRefreshing}
-        tooltip="Reload configuration"
-      />
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={openInEditor}
+          disabled={isOpening || !configMode?.path}
+          title="Open in editor"
+        >
+          <ExternalLinkIcon className="size-4" />
+        </Button>
+        <RefreshButton
+          onClick={handleRefresh}
+          isLoading={isRefreshing}
+          tooltip="Reload configuration"
+        />
+      </div>
     </m.div>
   )
 }

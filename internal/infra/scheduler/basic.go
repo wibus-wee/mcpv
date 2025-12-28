@@ -313,9 +313,8 @@ func (s *BasicScheduler) getPool(specKey string, spec domain.ServerSpec) *poolSt
 	defer s.poolsMu.Unlock()
 	state = s.pools[specKey]
 	if state == nil {
-		canonical := spec
-		canonical.Name = specKey
-		state = &poolState{spec: canonical}
+		// Use the spec as-is, preserving the original Name for display
+		state = &poolState{spec: spec}
 		s.pools[specKey] = state
 	}
 	return state
@@ -609,6 +608,50 @@ func (s *BasicScheduler) StopAll(ctx context.Context) {
 	s.poolsMu.Lock()
 	s.pools = make(map[string]*poolState)
 	s.poolsMu.Unlock()
+}
+
+// GetPoolStatus returns a snapshot of all pool states for status queries.
+func (s *BasicScheduler) GetPoolStatus(ctx context.Context) ([]domain.PoolInfo, error) {
+	entries := s.snapshotPools()
+	result := make([]domain.PoolInfo, 0, len(entries))
+
+	for _, entry := range entries {
+		entry.state.mu.Lock()
+		instances := make([]domain.InstanceInfo, 0, len(entry.state.instances)+len(entry.state.draining))
+
+		// Include active instances
+		for _, inst := range entry.state.instances {
+			instances = append(instances, domain.InstanceInfo{
+				ID:         inst.instance.ID,
+				State:      inst.instance.State,
+				BusyCount:  inst.instance.BusyCount,
+				LastActive: inst.instance.LastActive,
+			})
+		}
+
+		// Include draining instances
+		for _, inst := range entry.state.draining {
+			instances = append(instances, domain.InstanceInfo{
+				ID:         inst.instance.ID,
+				State:      inst.instance.State,
+				BusyCount:  inst.instance.BusyCount,
+				LastActive: inst.instance.LastActive,
+			})
+		}
+
+		minReady := entry.state.minReady
+		serverName := entry.state.spec.Name
+		entry.state.mu.Unlock()
+
+		result = append(result, domain.PoolInfo{
+			SpecKey:    entry.specKey,
+			ServerName: serverName,
+			MinReady:   minReady,
+			Instances:  instances,
+		})
+	}
+
+	return result, nil
 }
 
 func (s *poolState) removeInstanceLocked(inst *trackedInstance) int {

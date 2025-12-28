@@ -89,6 +89,15 @@ export function GetPrompt(name: string, args: json$0.RawMessage): $CancellablePr
 }
 
 /**
+ * GetRuntimeStatus returns the runtime status of all server pools
+ */
+export function GetRuntimeStatus(): $CancellablePromise<$models.ServerRuntimeStatus[]> {
+    return $Call.ByID(2938457663).then(($result: any) => {
+        return $$createType7($result);
+    });
+}
+
+/**
  * GetVersion 获取应用版本信息（示例导出方法）
  * Wails 会自动为导出方法生成 JS 绑定
  */
@@ -109,7 +118,7 @@ export function HandleURLScheme(rawURL: string): $CancellablePromise<void> {
  */
 export function ListProfiles(): $CancellablePromise<$models.ProfileSummary[]> {
     return $Call.ByID(3827145375).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType9($result);
     });
 }
 
@@ -118,7 +127,7 @@ export function ListProfiles(): $CancellablePromise<$models.ProfileSummary[]> {
  */
 export function ListPrompts(cursor: string): $CancellablePromise<$models.PromptPage | null> {
     return $Call.ByID(2106692208, cursor).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType11($result);
     });
 }
 
@@ -127,7 +136,7 @@ export function ListPrompts(cursor: string): $CancellablePromise<$models.PromptP
  */
 export function ListResources(cursor: string): $CancellablePromise<$models.ResourcePage | null> {
     return $Call.ByID(3909930490, cursor).then(($result: any) => {
-        return $$createType11($result);
+        return $$createType13($result);
     });
 }
 
@@ -136,8 +145,15 @@ export function ListResources(cursor: string): $CancellablePromise<$models.Resou
  */
 export function ListTools(): $CancellablePromise<$models.ToolEntry[]> {
     return $Call.ByID(1487086052).then(($result: any) => {
-        return $$createType13($result);
+        return $$createType15($result);
     });
+}
+
+/**
+ * OpenConfigInEditor opens the configuration file/directory in the system default editor
+ */
+export function OpenConfigInEditor(): $CancellablePromise<void> {
+    return $Call.ByID(2866424509);
 }
 
 /**
@@ -210,11 +226,13 @@ const $$createType2 = $models.CoreStateResponse.createFrom;
 const $$createType3 = $models.InfoResponse.createFrom;
 const $$createType4 = $models.ProfileDetail.createFrom;
 const $$createType5 = $Create.Nullable($$createType4);
-const $$createType6 = $models.ProfileSummary.createFrom;
+const $$createType6 = $models.ServerRuntimeStatus.createFrom;
 const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = $models.PromptPage.createFrom;
-const $$createType9 = $Create.Nullable($$createType8);
-const $$createType10 = $models.ResourcePage.createFrom;
+const $$createType8 = $models.ProfileSummary.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = $models.PromptPage.createFrom;
 const $$createType11 = $Create.Nullable($$createType10);
-const $$createType12 = $models.ToolEntry.createFrom;
-const $$createType13 = $Create.Array($$createType12);
+const $$createType12 = $models.ResourcePage.createFrom;
+const $$createType13 = $Create.Nullable($$createType12);
+const $$createType14 = $models.ToolEntry.createFrom;
+const $$createType15 = $Create.Array($$createType14);
