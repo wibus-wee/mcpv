@@ -5,6 +5,7 @@
 import { useAtomValue } from 'jotai'
 import {
   AlertCircleIcon,
+  Loader2Icon,
   PlayIcon,
   RefreshCwIcon,
   ServerIcon,
@@ -62,34 +63,47 @@ function DashboardHeader() {
             <PlayIcon className="size-4" />
             Start Core
           </Button>
-        ) : coreStatus === 'starting' ? (
-          <Button onClick={stopCore} variant="outline" size="sm">
-            <SquareIcon className="size-4" />
-            Cancel
-          </Button>
-        ) : coreStatus === 'running' ? (
-          <>
-            <Button onClick={stopCore} variant="outline" size="sm">
-              <SquareIcon className="size-4" />
-              Stop
-            </Button>
-            <Button onClick={restartCore} variant="outline" size="sm">
-              <RefreshCwIcon className="size-4" />
-              Restart
-            </Button>
-          </>
-        ) : coreStatus === 'error' ? (
-          <>
-            <Button onClick={restartCore} size="sm">
-              <RefreshCwIcon className="size-4" />
-              Retry
-            </Button>
-            <Button onClick={stopCore} variant="outline" size="sm">
-              <SquareIcon className="size-4" />
-              Stop
-            </Button>
-          </>
-        ) : null}
+        ) : coreStatus === 'starting'
+          ? (
+              <Button onClick={stopCore} variant="outline" size="sm">
+                <SquareIcon className="size-4" />
+                Cancel
+              </Button>
+            )
+          : coreStatus === 'stopping'
+            ? (
+                <Button variant="outline" size="sm" disabled>
+                  <Loader2Icon className="size-4 animate-spin" />
+                  Stopping...
+                </Button>
+              )
+            : coreStatus === 'running'
+              ? (
+                  <>
+                    <Button onClick={stopCore} variant="outline" size="sm">
+                      <SquareIcon className="size-4" />
+                      Stop
+                    </Button>
+                    <Button onClick={restartCore} variant="outline" size="sm">
+                      <RefreshCwIcon className="size-4" />
+                      Restart
+                    </Button>
+                  </>
+                )
+              : coreStatus === 'error'
+                ? (
+                    <>
+                      <Button onClick={restartCore} size="sm">
+                        <RefreshCwIcon className="size-4" />
+                        Retry
+                      </Button>
+                      <Button onClick={stopCore} variant="outline" size="sm">
+                        <SquareIcon className="size-4" />
+                        Stop
+                      </Button>
+                    </>
+                  )
+                : null}
         <Button
           variant="ghost"
           size="icon-sm"
@@ -149,6 +163,21 @@ export function DashboardPage() {
             label: 'Start Core',
             onClick: startCore,
           }}
+        />
+      </div>
+    )
+  }
+
+  if (coreStatus === 'starting') {
+    return (
+      <div className="flex flex-1 flex-col p-6 overflow-auto">
+        <DashboardHeader />
+        <Separator className="my-6" />
+        <UniversalEmptyState
+          icon={Loader2Icon}
+          iconClassName="animate-spin"
+          title="Starting Core..."
+          description="Please wait while the mcpd core is initializing."
         />
       </div>
     )

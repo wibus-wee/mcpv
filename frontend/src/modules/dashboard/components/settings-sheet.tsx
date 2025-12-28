@@ -43,15 +43,15 @@ export function SettingsSheet() {
     <Sheet>
       <Tooltip>
         <TooltipTrigger
-          render={
+          render={(
             <SheetTrigger
-              render={
+              render={(
                 <Button variant="outline" size="icon">
                   <SettingsIcon className="size-4" />
                 </Button>
-              }
+              )}
             />
-          }
+          )}
         />
         <TooltipContent>Settings</TooltipContent>
       </Tooltip>
@@ -104,7 +104,7 @@ export function SettingsSheet() {
               </div>
               <Slider
                 value={[refreshInterval]}
-                onValueChange={(v) => setRefreshInterval(Array.isArray(v) ? v[0] : v)}
+                onValueChange={v => setRefreshInterval(Array.isArray(v) ? v[0] : v)}
                 min={1}
                 max={30}
               />

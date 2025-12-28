@@ -14,7 +14,8 @@ import {
 import { m } from 'motion/react'
 import { useMemo, useState } from 'react'
 
-import { logsAtom, type LogEntry } from '@/atoms/dashboard'
+import type { LogEntry } from '@/atoms/dashboard'
+import { logsAtom } from '@/atoms/dashboard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -29,8 +30,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
-import { cn } from '@/lib/utils'
 import { Spring } from '@/lib/spring'
+import { cn } from '@/lib/utils'
 
 const levelConfig = {
   debug: {
@@ -56,7 +57,7 @@ const levelConfig = {
 }
 
 function LogItem({ log }: { log: LogEntry }) {
-  const config = levelConfig[log.level]
+  const config = levelConfig[log.level] ?? levelConfig.info
   const Icon = config.icon
 
   return (
@@ -90,7 +91,7 @@ export function LogsPanel() {
 
   const filteredLogs = useMemo(() => {
     if (levelFilter === 'all') return logs
-    return logs.filter((log) => log.level === levelFilter)
+    return logs.filter(log => log.level === levelFilter)
   }, [logs, levelFilter])
 
   const clearLogs = () => {
@@ -118,7 +119,7 @@ export function LogsPanel() {
                 <Checkbox
                   id="auto-scroll"
                   checked={autoScroll}
-                  onCheckedChange={(checked) => setAutoScroll(checked === true)}
+                  onCheckedChange={checked => setAutoScroll(checked === true)}
                 />
                 <Label htmlFor="auto-scroll" className="text-sm">
                   Auto-scroll
@@ -157,7 +158,7 @@ export function LogsPanel() {
               </div>
             ) : (
               <div className="divide-y">
-                {filteredLogs.map((log) => (
+                {filteredLogs.map(log => (
                   <LogItem key={log.id} log={log} />
                 ))}
               </div>

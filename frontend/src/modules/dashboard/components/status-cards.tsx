@@ -117,7 +117,7 @@ export function StatusCards() {
                 <Skeleton className="h-5 w-16" />
               ) : (
                 <>
-                  <Badge variant={statusBadgeVariant[coreStatus]} size="default" className='mt-2.5'>
+                  <Badge variant={statusBadgeVariant[coreStatus]} size="default" className="mt-2.5">
                     {coreStatus.charAt(0).toUpperCase() + coreStatus.slice(1)}
                   </Badge>
                   {coreStatus === 'starting' && (

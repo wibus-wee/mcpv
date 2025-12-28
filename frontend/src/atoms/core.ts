@@ -4,7 +4,7 @@
 
 import { atom } from 'jotai'
 
-export type CoreStatus = 'stopped' | 'starting' | 'running' | 'error'
+export type CoreStatus = 'stopped' | 'starting' | 'running' | 'stopping' | 'error'
 
 export const coreStatusAtom = atom<CoreStatus>('stopped')
 export const coreErrorAtom = atom<string | null>(null)

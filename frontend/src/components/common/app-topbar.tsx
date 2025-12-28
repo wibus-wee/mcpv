@@ -30,6 +30,11 @@ const statusConfig = {
     color: 'bg-success text-success-foreground',
     icon: null,
   },
+  stopping: {
+    label: 'Stopping',
+    color: 'bg-warning text-warning-foreground',
+    icon: Loader2Icon,
+  },
   error: {
     label: 'Error',
     color: 'bg-destructive text-destructive-foreground',

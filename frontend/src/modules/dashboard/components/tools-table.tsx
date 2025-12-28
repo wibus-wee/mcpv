@@ -56,7 +56,7 @@ interface ToolSchema {
   description?: string
   inputSchema?: {
     type: string
-    properties?: Record<string, { type: string; description?: string }>
+    properties?: Record<string, { type: string, description?: string }>
     required?: string[]
   }
 }
@@ -69,7 +69,7 @@ export function ToolsTable() {
   const filteredTools = useMemo(() => {
     if (!search) return tools
     const lower = search.toLowerCase()
-    return tools.filter((tool) =>
+    return tools.filter(tool =>
       tool.name.toLowerCase().includes(lower),
     )
   }, [tools, search])
@@ -129,7 +129,7 @@ export function ToolsTable() {
               <Input
                 placeholder="Search tools..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={e => setSearch(e.target.value)}
                 className="h-7 pl-7"
               />
             </div>
@@ -167,7 +167,7 @@ export function ToolsTable() {
                           <div className="flex items-center gap-0.5">
                             <Tooltip>
                               <TooltipTrigger
-                                render={
+                                render={(
                                   <Button
                                     variant="ghost"
                                     size="icon-xs"
@@ -175,20 +175,20 @@ export function ToolsTable() {
                                   >
                                     <CopyIcon className="size-3" />
                                   </Button>
-                                }
+                                )}
                               />
                               <TooltipContent>Copy name</TooltipContent>
                             </Tooltip>
                             <Dialog>
                               <DialogTrigger
-                                render={
+                                render={(
                                   <Button
                                     variant="ghost"
                                     size="icon-xs"
                                   >
                                     <ChevronRightIcon className="size-3" />
                                   </Button>
-                                }
+                                )}
                               />
                               <DialogContent>
                                 <DialogHeader>

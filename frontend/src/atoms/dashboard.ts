@@ -2,14 +2,13 @@
 // Output: Dashboard state atoms (info, tools, resources, prompts, logs)
 // Position: Global state for dashboard data
 
-import { atom } from 'jotai'
-
 import type {
   InfoResponse,
   PromptEntry,
   ResourceEntry,
   ToolEntry,
 } from '@bindings/mcpd/internal/ui'
+import { atom } from 'jotai'
 
 export interface LogEntry {
   id: string
@@ -25,8 +24,8 @@ export const resourcesAtom = atom<ResourceEntry[]>([])
 export const promptsAtom = atom<PromptEntry[]>([])
 export const logsAtom = atom<LogEntry[]>([])
 
-export const toolsCountAtom = atom((get) => get(toolsAtom).length)
-export const resourcesCountAtom = atom((get) => get(resourcesAtom).length)
-export const promptsCountAtom = atom((get) => get(promptsAtom).length)
+export const toolsCountAtom = atom(get => get(toolsAtom).length)
+export const resourcesCountAtom = atom(get => get(resourcesAtom).length)
+export const promptsCountAtom = atom(get => get(promptsAtom).length)
 
-export const recentLogsAtom = atom((get) => get(logsAtom).slice(0, 10))
+export const recentLogsAtom = atom(get => get(logsAtom).slice(0, 10))

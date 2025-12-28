@@ -31,8 +31,8 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
 import { Spring } from '@/lib/spring'
+import { cn } from '@/lib/utils'
 
 import { useResources } from '../hooks'
 

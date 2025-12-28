@@ -16,9 +16,11 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty'
 import { Spring } from '@/lib/spring'
+import { cn } from '@/lib/utils'
 
 export interface UniversalEmptyStateProps {
   icon: LucideIcon
+  iconClassName?: string
   title: string
   description: string
   action?: {
@@ -30,6 +32,7 @@ export interface UniversalEmptyStateProps {
 
 export function UniversalEmptyState({
   icon: Icon,
+  iconClassName,
   title,
   description,
   action,
@@ -45,7 +48,7 @@ export function UniversalEmptyState({
       <Empty>
         <EmptyHeader>
           <EmptyMedia variant="icon">
-            <Icon className="size-5 text-muted-foreground" />
+            <Icon className={cn('size-5 text-muted-foreground', iconClassName)} />
           </EmptyMedia>
           <EmptyTitle>{title}</EmptyTitle>
           <EmptyDescription>{description}</EmptyDescription>

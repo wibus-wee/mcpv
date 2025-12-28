@@ -2,11 +2,10 @@
 // Output: Dashboard data fetching hooks (useAppInfo, useTools, useResources, usePrompts, useCoreState)
 // Position: Data fetching hooks for dashboard module
 
+import { WailsService } from '@bindings/mcpd/internal/ui'
 import { useSetAtom } from 'jotai'
 import { useEffect } from 'react'
 import useSWR from 'swr'
-
-import { WailsService } from '@bindings/mcpd/internal/ui'
 
 import { coreStatusAtom } from '@/atoms/core'
 import {
@@ -52,7 +51,7 @@ export function useCoreState() {
 
   useEffect(() => {
     if (data) {
-      const status = data.state as 'stopped' | 'starting' | 'running' | 'error'
+      const status = data.state as 'stopped' | 'starting' | 'running' | 'stopping' | 'error'
       setCoreStatus(status)
     }
   }, [data, setCoreStatus])
@@ -130,16 +129,35 @@ export function usePrompts() {
 }
 
 export async function startCore() {
-  await WailsService.StartCore()
   jotaiStore.set(coreStatusAtom, 'starting')
+  try {
+    await WailsService.StartCore()
+  }
+  catch (error) {
+    jotaiStore.set(coreStatusAtom, 'stopped')
+    throw error
+  }
 }
 
 export async function stopCore() {
-  await WailsService.StopCore()
+  const previousStatus = jotaiStore.get(coreStatusAtom)
   jotaiStore.set(coreStatusAtom, 'stopped')
+  try {
+    await WailsService.StopCore()
+  }
+  catch (error) {
+    jotaiStore.set(coreStatusAtom, previousStatus)
+    throw error
+  }
 }
 
 export async function restartCore() {
-  await WailsService.RestartCore()
   jotaiStore.set(coreStatusAtom, 'starting')
+  try {
+    await WailsService.RestartCore()
+  }
+  catch (error) {
+    jotaiStore.set(coreStatusAtom, 'error')
+    throw error
+  }
 }
