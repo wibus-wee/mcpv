@@ -17,6 +17,7 @@ type specFingerprintInput struct {
 	Sticky          bool       `json:"sticky"`
 	Persistent      bool       `json:"persistent"`
 	MinReady        int        `json:"minReady"`
+	DrainTimeout    int        `json:"drainTimeoutSeconds"`
 	ProtocolVersion string     `json:"protocolVersion"`
 	ExposeTools     []string   `json:"exposeTools"`
 }
@@ -47,6 +48,7 @@ func SpecFingerprint(spec ServerSpec) (string, error) {
 		Sticky:          spec.Sticky,
 		Persistent:      spec.Persistent,
 		MinReady:        spec.MinReady,
+		DrainTimeout:    spec.DrainTimeoutSeconds,
 		ProtocolVersion: spec.ProtocolVersion,
 		ExposeTools:     exposeTools,
 	}

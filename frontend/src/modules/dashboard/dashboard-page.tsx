@@ -44,8 +44,8 @@ function DashboardHeader() {
 
   return (
     <m.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: -10, filter: 'blur(4px)' }}
+      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
       transition={Spring.smooth(0.3)}
       className="flex items-center justify-between"
     >
@@ -61,44 +61,44 @@ function DashboardHeader() {
           </Button>
         ) : coreStatus === 'starting'
           ? (
-              <Button onClick={stopCore} variant="outline" size="sm">
-                <SquareIcon className="size-4" />
-                Cancel
-              </Button>
-            )
+            <Button onClick={stopCore} variant="outline" size="sm">
+              <SquareIcon className="size-4" />
+              Cancel
+            </Button>
+          )
           : coreStatus === 'stopping'
             ? (
-                <Button variant="outline" size="sm" disabled>
-                  <Loader2Icon className="size-4 animate-spin" />
-                  Stopping...
-                </Button>
-              )
+              <Button variant="outline" size="sm" disabled>
+                <Loader2Icon className="size-4 animate-spin" />
+                Stopping...
+              </Button>
+            )
             : coreStatus === 'running'
               ? (
+                <>
+                  <Button onClick={stopCore} variant="outline" size="sm">
+                    <SquareIcon className="size-4" />
+                    Stop
+                  </Button>
+                  <Button onClick={restartCore} variant="outline" size="sm">
+                    <RefreshCwIcon className="size-4" />
+                    Restart
+                  </Button>
+                </>
+              )
+              : coreStatus === 'error'
+                ? (
                   <>
+                    <Button onClick={restartCore} size="sm">
+                      <RefreshCwIcon className="size-4" />
+                      Retry
+                    </Button>
                     <Button onClick={stopCore} variant="outline" size="sm">
                       <SquareIcon className="size-4" />
                       Stop
                     </Button>
-                    <Button onClick={restartCore} variant="outline" size="sm">
-                      <RefreshCwIcon className="size-4" />
-                      Restart
-                    </Button>
                   </>
                 )
-              : coreStatus === 'error'
-                ? (
-                    <>
-                      <Button onClick={restartCore} size="sm">
-                        <RefreshCwIcon className="size-4" />
-                        Retry
-                      </Button>
-                      <Button onClick={stopCore} variant="outline" size="sm">
-                        <SquareIcon className="size-4" />
-                        Stop
-                      </Button>
-                    </>
-                  )
                 : null}
         <Button
           variant="ghost"
@@ -115,7 +115,12 @@ function DashboardHeader() {
 
 function DashboardContent() {
   return (
-    <div className="space-y-6">
+    <m.div
+      className="space-y-6"
+      initial={{ opacity: 0, y: 12, filter: 'blur(8px)' }}
+      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+      transition={Spring.smooth(0.4)}
+    >
       <StatusCards />
 
       <Tabs defaultValue="tools">
@@ -134,7 +139,7 @@ function DashboardContent() {
           <LogsPanel />
         </TabsContent>
       </Tabs>
-    </div>
+    </m.div>
   )
 }
 

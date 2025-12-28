@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -25,7 +26,7 @@ type Gateway struct {
 	registry   *toolRegistry
 	resources  *resourceRegistry
 	prompts    *promptRegistry
-	registered bool
+	registered atomic.Bool
 }
 
 const defaultHeartbeatInterval = 2 * time.Second
@@ -123,10 +124,9 @@ func (g *Gateway) registerCaller(ctx context.Context) error {
 		}
 		return err
 	}
-	if !g.registered && resp != nil && resp.Profile != "" {
+	if !g.registered.Swap(true) && resp != nil && resp.Profile != "" {
 		g.logger.Info("caller registered", zap.String("profile", resp.Profile))
 	}
-	g.registered = true
 	return nil
 }
 

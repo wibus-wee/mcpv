@@ -287,6 +287,48 @@ func TestBasicScheduler_StopSpecDrainsBusyInstances(t *testing.T) {
 	require.Len(t, state.draining, 0)
 }
 
+func TestBasicScheduler_StartDrainCompletesImmediatelyWhenIdle(t *testing.T) {
+	stopCh := make(chan struct{})
+	lc := &trackingLifecycle{stopCh: stopCh}
+	spec := domain.ServerSpec{
+		Name:                "svc",
+		Cmd:                 []string{"./svc"},
+		MaxConcurrent:       1,
+		DrainTimeoutSeconds: 1,
+		ProtocolVersion:     domain.DefaultProtocolVersion,
+	}
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{
+		Logger: zap.NewNop(),
+	})
+	require.NoError(t, err)
+
+	inst, err := s.Acquire(context.Background(), "svc", "")
+	require.NoError(t, err)
+	require.NoError(t, s.Release(context.Background(), inst))
+
+	state := s.getPool("svc", spec)
+	state.mu.Lock()
+	require.Len(t, state.instances, 1)
+	tracked := state.instances[0]
+	inst.State = domain.InstanceStateDraining
+	state.instances = nil
+	state.draining = append(state.draining, tracked)
+	state.mu.Unlock()
+
+	s.startDrain("svc", tracked, time.Second, "caller inactive")
+
+	select {
+	case <-stopCh:
+	case <-time.After(300 * time.Millisecond):
+		t.Fatal("expected drain to complete before timeout")
+	}
+
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	require.Len(t, state.draining, 0)
+	require.Equal(t, domain.InstanceStateStopped, inst.State)
+}
+
 func TestBasicScheduler_StartGateSingleflight(t *testing.T) {
 	started := make(chan struct{}, 3)
 	release := make(chan struct{})
@@ -391,4 +433,28 @@ func (b *blockingLifecycle) starts() int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.count
+}
+
+type trackingLifecycle struct {
+	stopCh   chan struct{}
+	stopOnce sync.Once
+}
+
+func (t *trackingLifecycle) StartInstance(ctx context.Context, spec domain.ServerSpec) (*domain.Instance, error) {
+	return &domain.Instance{
+		ID:         spec.Name + "-inst",
+		Spec:       spec,
+		State:      domain.InstanceStateReady,
+		LastActive: time.Now(),
+	}, nil
+}
+
+func (t *trackingLifecycle) StopInstance(ctx context.Context, instance *domain.Instance, reason string) error {
+	if instance != nil {
+		instance.State = domain.InstanceStateStopped
+	}
+	t.stopOnce.Do(func() {
+		close(t.stopCh)
+	})
+	return nil
 }

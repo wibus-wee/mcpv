@@ -48,6 +48,23 @@ func TestSpecFingerprint_DifferentSpec(t *testing.T) {
 	require.NotEqual(t, baseKey, changedKey)
 }
 
+func TestSpecFingerprint_DrainTimeoutAffectsFingerprint(t *testing.T) {
+	base := ServerSpec{
+		Name:                "svc",
+		Cmd:                 []string{"./svc"},
+		DrainTimeoutSeconds: 5,
+		ProtocolVersion:     DefaultProtocolVersion,
+	}
+	changed := base
+	changed.DrainTimeoutSeconds = 10
+
+	baseKey, err := SpecFingerprint(base)
+	require.NoError(t, err)
+	changedKey, err := SpecFingerprint(changed)
+	require.NoError(t, err)
+	require.NotEqual(t, baseKey, changedKey)
+}
+
 func TestSpecFingerprint_EnvOrderIndependent(t *testing.T) {
 	specA := ServerSpec{
 		Name:            "svc",

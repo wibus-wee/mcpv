@@ -729,6 +729,18 @@ func (s *BasicScheduler) startDrain(specKey string, inst *trackedInstance, timeo
 			err := s.lifecycle.StopInstance(context.Background(), inst.instance, finalReason)
 			s.observeInstanceStop(specKey, err)
 		}()
+
+		state := s.getPool(specKey, inst.instance.Spec)
+		state.mu.Lock()
+		busy := inst.instance.BusyCount
+		state.mu.Unlock()
+		if busy == 0 {
+			select {
+			case <-inst.drainDone:
+			default:
+				close(inst.drainDone)
+			}
+		}
 	})
 }
 

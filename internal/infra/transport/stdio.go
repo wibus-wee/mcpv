@@ -27,7 +27,7 @@ func (t *StdioTransport) Start(ctx context.Context, spec domain.ServerSpec) (dom
 		return nil, nil, errors.New("cmd is required for stdio transport")
 	}
 
-	cmd := exec.CommandContext(context.Background(), spec.Cmd[0], spec.Cmd[1:]...)
+	cmd := exec.CommandContext(ctx, spec.Cmd[0], spec.Cmd[1:]...)
 	if spec.Cwd != "" {
 		cmd.Dir = spec.Cwd
 	}

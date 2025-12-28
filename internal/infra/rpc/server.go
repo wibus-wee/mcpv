@@ -123,6 +123,9 @@ func (s *Server) Run(ctx context.Context) error {
 		defer cancel()
 		return s.Stop(stopCtx)
 	case err := <-errCh:
+		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = s.Stop(stopCtx)
 		return err
 	}
 }
