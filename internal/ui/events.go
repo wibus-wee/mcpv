@@ -86,8 +86,10 @@ func emitToolsUpdated(app *application.App, snapshot domain.ToolSnapshot) {
 	tools := make([]ToolEntry, 0, len(snapshot.Tools))
 	for _, t := range snapshot.Tools {
 		tools = append(tools, ToolEntry{
-			Name:     t.Name,
-			ToolJSON: t.ToolJSON,
+			Name:       t.Name,
+			ToolJSON:   t.ToolJSON,
+			SpecKey:    t.SpecKey,
+			ServerName: t.ServerName,
 		})
 	}
 	event := ToolsUpdatedEvent{

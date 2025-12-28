@@ -1,5 +1,5 @@
-// Input: TanStack Router, ToolsTable from dashboard module
-// Output: Tools route component with full tools list
+// Input: TanStack Router, ToolsGrid from tools module
+// Output: Tools route component with server-organized tools
 // Position: /tools route - dedicated tools page
 
 import { createFileRoute } from '@tanstack/react-router'
@@ -7,7 +7,7 @@ import { m } from 'motion/react'
 
 import { Separator } from '@/components/ui/separator'
 import { Spring } from '@/lib/spring'
-import { ToolsTable } from '@/modules/dashboard/components'
+import { ToolsGrid } from '@/modules/tools/components/tools-grid'
 
 export const Route = createFileRoute('/tools')({
   component: ToolsPage,
@@ -32,7 +32,7 @@ function ToolsPage() {
         animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
         transition={Spring.smooth(0.4)}
       >
-        <ToolsTable />
+        <ToolsGrid />
       </m.div>
     </div>
   )

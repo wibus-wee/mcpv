@@ -1,5 +1,5 @@
 // Input: Config hooks, atoms, UI components
-// Output: ConfigPage component - master-detail configuration view
+// Output: ConfigPage component - tabbed configuration view with list, detail, and topology
 // Position: Main page in config module
 
 import { useAtom } from 'jotai'
@@ -10,6 +10,7 @@ import {
   FolderIcon,
   LayersIcon,
   PenIcon,
+  Share2Icon,
   UsersIcon,
 } from 'lucide-react'
 import { m } from 'motion/react'
@@ -33,6 +34,7 @@ import { Spring } from '@/lib/spring'
 
 import { selectedProfileNameAtom } from './atoms'
 import { CallersList } from './components/callers-list'
+import { ConfigFlow } from './components/config-flow'
 import { ProfileDetailPanel } from './components/profile-detail-panel'
 import { ProfilesList } from './components/profiles-list'
 import { useCallers, useConfigMode, useOpenConfigInEditor, useProfiles } from './hooks'
@@ -74,20 +76,7 @@ function ConfigHeader() {
           <h1 className="font-semibold text-lg">Configuration</h1>
         </div>
         <div className="flex items-center gap-2 text-muted-foreground text-xs">
-          {configMode && (
-            <>
-              <ModeIcon className="size-3" />
-              <span className="font-mono truncate max-w-80">
-                {configMode.path}
-              </span>
-              {configMode.isWritable && (
-                <Badge variant="outline" size="sm" className="text-success border-success/30 gap-1">
-                  <PenIcon className="size-2.5" />
-                  Writable
-                </Badge>
-              )}
-            </>
-          )}
+          Setting up profiles and callers for managing connections
         </div>
       </div>
       <div className="flex items-center gap-1">
@@ -197,6 +186,10 @@ function ConfigTabs() {
             </Badge>
           )}
         </TabsTrigger>
+        <TabsTrigger value="topology" className="gap-1.5">
+          <Share2Icon className="size-3.5" />
+          Topology
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="profiles" className="flex-1 min-h-0 mt-0">
@@ -205,6 +198,10 @@ function ConfigTabs() {
 
       <TabsContent value="callers" className="flex-1 min-h-0 mt-0">
         <CallersTabContent />
+      </TabsContent>
+
+      <TabsContent value="topology" className="flex-1 min-h-0 mt-0">
+        <ConfigFlow />
       </TabsContent>
     </Tabs>
   )

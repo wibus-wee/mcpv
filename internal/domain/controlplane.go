@@ -13,8 +13,10 @@ type ControlPlaneInfo struct {
 }
 
 type ToolDefinition struct {
-	Name     string
-	ToolJSON json.RawMessage
+	Name       string
+	ToolJSON   json.RawMessage
+	SpecKey    string
+	ServerName string
 }
 
 type ToolSnapshot struct {

@@ -311,6 +311,11 @@ func (a *ToolIndex) rebuildSnapshot() {
 				targets[tool.Name] = existing // keep existing binding
 			}
 
+			toolDef.SpecKey = target.SpecKey
+			if spec, ok := a.specs[serverType]; ok {
+				toolDef.ServerName = spec.Name
+			}
+
 			targets[toolDef.Name] = target
 			merged = append(merged, toolDef)
 		}

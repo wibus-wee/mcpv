@@ -6,8 +6,10 @@ import "encoding/json"
 
 // ToolEntry represents a single tool for the frontend
 type ToolEntry struct {
-	Name     string          `json:"name"`
-	ToolJSON json.RawMessage `json:"toolJson"`
+	Name       string          `json:"name"`
+	ToolJSON   json.RawMessage `json:"toolJson"`
+	SpecKey    string          `json:"specKey"`
+	ServerName string          `json:"serverName"`
 }
 
 // ResourceEntry represents a single resource for the frontend

@@ -173,8 +173,10 @@ func (s *WailsService) ListTools(ctx context.Context) ([]ToolEntry, error) {
 	result := make([]ToolEntry, 0, len(snapshot.Tools))
 	for _, tool := range snapshot.Tools {
 		result = append(result, ToolEntry{
-			Name:     tool.Name,
-			ToolJSON: tool.ToolJSON,
+			Name:       tool.Name,
+			ToolJSON:   tool.ToolJSON,
+			SpecKey:    tool.SpecKey,
+			ServerName: tool.ServerName,
 		})
 	}
 	return result, nil

@@ -3,3 +3,7 @@ callers:
   vscode: default
   cursor: default
   cherryStudio: chat
+  Alma: chat
+  claudeCode: code
+  codex: code
+  copilot: code

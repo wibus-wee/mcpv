@@ -1,5 +1,5 @@
 // Input: SWR, WailsService bindings, jotai atoms
-// Output: Config data fetching hooks including runtime status
+// Output: Config data fetching hooks including profile details and runtime status
 // Position: Data fetching hooks for config module
 
 import type {
@@ -67,6 +67,25 @@ export function useProfile(name: string | null) {
       setSelectedProfile(data)
     }
   }, [data, setSelectedProfile])
+
+  return { data, error, isLoading, mutate }
+}
+
+export function useProfileDetails(profiles: ProfileSummary[] | undefined) {
+  const profileNames = profiles?.map(profile => profile.name) ?? []
+
+  const { data, error, isLoading, mutate } = useSWR<ProfileDetail[]>(
+    profileNames.length > 0 ? ['profile-details', ...profileNames] : null,
+    async () => {
+      const results = await Promise.all(
+        profileNames.map(name => WailsService.GetProfile(name)),
+      )
+
+      return results.filter(
+        (profile): profile is ProfileDetail => profile !== null,
+      )
+    },
+  )
 
   return { data, error, isLoading, mutate }
 }
