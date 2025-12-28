@@ -139,7 +139,9 @@ package-lock.json
 build/bin
 frontend/dist
 .task/
-frontend/bindings
 !./build/
 settings.local.json
 bin/
+profiles/
+profiles
+callers.yaml

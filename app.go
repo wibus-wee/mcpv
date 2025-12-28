@@ -19,9 +19,13 @@ func main() {
 		_ = logger.Sync()
 	}()
 
+	// 2. 创建核心应用和 UI Manager
 	coreApp := app.New(logger)
+	configPath := "." // 默认配置目录，后续可通过命令行或设置修改
 
 	wailsService := ui.NewWailsService(coreApp, logger)
+	manager := ui.NewManager(nil, coreApp, configPath)
+	wailsService.SetManager(manager)
 
 	wailsApp := application.New(application.Options{
 		Name:        "MCPD",
@@ -36,9 +40,14 @@ func main() {
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
 		LogLevel: slog.LevelInfo,
+		OnShutdown: func() {
+			manager.Shutdown()
+		},
 	})
 
+	// 3. 注入 Wails 应用实例
 	wailsService.SetWailsApp(wailsApp)
+	manager.SetWailsApp(wailsApp)
 
 	wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:            "mcpd",

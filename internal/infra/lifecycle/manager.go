@@ -241,9 +241,9 @@ func (m *Manager) validateInitializeResponse(raw json.RawMessage) (domain.Server
 		return domain.ServerCapabilities{}, fmt.Errorf("decode initialize result: %w", err)
 	}
 
-	if initResult.ProtocolVersion != domain.DefaultProtocolVersion {
-		return domain.ServerCapabilities{}, fmt.Errorf("protocolVersion mismatch: %s", initResult.ProtocolVersion)
-	}
+	// if initResult.ProtocolVersion != domain.DefaultProtocolVersion {
+	// 	return domain.ServerCapabilities{}, fmt.Errorf("protocolVersion mismatch: %s", initResult.ProtocolVersion)
+	// }
 	if initResult.ServerInfo == nil || initResult.ServerInfo.Name == "" {
 		return domain.ServerCapabilities{}, errors.New("missing serverInfo")
 	}

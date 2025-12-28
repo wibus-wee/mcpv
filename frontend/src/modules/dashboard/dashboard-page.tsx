@@ -1,136 +1,189 @@
-// Input: Card components from ui, UniversalEmptyState, icons, Motion, atoms
-// Output: DashboardPage component displaying core status and overview
+// Input: All dashboard components, Tabs, Alert, Button, hooks, atoms
+// Output: DashboardPage component - main dashboard view
 // Position: Main dashboard page in dashboard module
 
 import { useAtomValue } from 'jotai'
 import {
-  ActivityIcon,
   AlertCircleIcon,
+  PlayIcon,
+  RefreshCwIcon,
   ServerIcon,
-  WrenchIcon,
+  SquareIcon,
 } from 'lucide-react'
 import { m } from 'motion/react'
 
 import { coreStatusAtom } from '@/atoms/core'
 import { UniversalEmptyState } from '@/components/common/universal-empty-state'
-import { Card } from '@/components/ui/card'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Spring } from '@/lib/spring'
+
+import {
+  LogsPanel,
+  ResourcesList,
+  SettingsSheet,
+  StatusCards,
+  ToolsTable,
+} from './components'
+import {
+  restartCore,
+  startCore,
+  stopCore,
+  useAppInfo,
+  useCoreState,
+  usePrompts,
+  useResources,
+  useTools,
+} from './hooks'
+
+function DashboardHeader() {
+  const { data: appInfo } = useAppInfo()
+  const { mutate: refreshCoreState } = useCoreState()
+  const coreStatus = useAtomValue(coreStatusAtom)
+
+  return (
+    <m.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={Spring.smooth(0.3)}
+      className="flex items-center justify-between"
+    >
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground text-sm">
+          mcpd · v0.1.0(2025)
+        </p>
+      </div>
+      <div className="flex items-center gap-2">
+        {coreStatus === 'stopped' ? (
+          <Button onClick={startCore} size="sm">
+            <PlayIcon className="size-4" />
+            Start Core
+          </Button>
+        ) : coreStatus === 'starting' ? (
+          <Button onClick={stopCore} variant="outline" size="sm">
+            <SquareIcon className="size-4" />
+            Cancel
+          </Button>
+        ) : coreStatus === 'running' ? (
+          <>
+            <Button onClick={stopCore} variant="outline" size="sm">
+              <SquareIcon className="size-4" />
+              Stop
+            </Button>
+            <Button onClick={restartCore} variant="outline" size="sm">
+              <RefreshCwIcon className="size-4" />
+              Restart
+            </Button>
+          </>
+        ) : coreStatus === 'error' ? (
+          <>
+            <Button onClick={restartCore} size="sm">
+              <RefreshCwIcon className="size-4" />
+              Retry
+            </Button>
+            <Button onClick={stopCore} variant="outline" size="sm">
+              <SquareIcon className="size-4" />
+              Stop
+            </Button>
+          </>
+        ) : null}
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => refreshCoreState()}
+        >
+          <RefreshCwIcon className="size-4" />
+        </Button>
+        <SettingsSheet />
+      </div>
+    </m.div>
+  )
+}
+
+function DashboardContent() {
+  useTools()
+  useResources()
+  usePrompts()
+
+  return (
+    <div className="space-y-6">
+      <StatusCards />
+
+      <Tabs defaultValue="tools">
+        <TabsList variant="underline">
+          <TabsTrigger value="tools">Tools</TabsTrigger>
+          <TabsTrigger value="resources">Resources</TabsTrigger>
+          <TabsTrigger value="logs">Logs</TabsTrigger>
+        </TabsList>
+        <TabsContent value="tools" className="mt-4">
+          <ToolsTable />
+        </TabsContent>
+        <TabsContent value="resources" className="mt-4">
+          <ResourcesList />
+        </TabsContent>
+        <TabsContent value="logs" className="mt-4">
+          <LogsPanel />
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}
 
 export function DashboardPage() {
   const coreStatus = useAtomValue(coreStatusAtom)
+  const { data: coreState } = useCoreState()
 
   if (coreStatus === 'stopped') {
     return (
-      <UniversalEmptyState
-        icon={ServerIcon}
-        title="Core is not running"
-        description="Start the mcpd core to see your dashboard and manage MCP servers."
-        action={{
-          label: 'Start Core',
-          onClick: () => {
-            // TODO: Implement start core action
-          },
-        }}
-      />
+      <div className="flex flex-1 flex-col p-6 overflow-auto">
+        <DashboardHeader />
+        <Separator className="my-6" />
+        <UniversalEmptyState
+          icon={ServerIcon}
+          title="Core is not running"
+          description="Start the mcpd core to see your dashboard and manage MCP servers."
+          action={{
+            label: 'Start Core',
+            onClick: startCore,
+          }}
+        />
+      </div>
     )
   }
 
   if (coreStatus === 'error') {
     return (
-      <UniversalEmptyState
-        icon={AlertCircleIcon}
-        title="Core encountered an error"
-        description="The mcpd core failed to start or encountered a runtime error. Check the logs for details."
-        action={{
-          label: 'View Logs',
-          onClick: () => {
-            // TODO: Navigate to logs page
-          },
-        }}
-      />
+      <div className="flex flex-1 flex-col p-6 overflow-auto">
+        <DashboardHeader />
+        <Separator className="my-6" />
+        <m.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={Spring.smooth(0.4)}
+        >
+          <Alert variant="error">
+            <AlertCircleIcon className="size-4" />
+            <AlertTitle>Core Error</AlertTitle>
+            <AlertDescription>
+              {coreState?.error || 'The mcpd core encountered an error. Check the logs for details.'}
+            </AlertDescription>
+          </Alert>
+        </m.div>
+        <div className="mt-6">
+          <LogsPanel />
+        </div>
+      </div>
     )
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6 overflow-auto">
-      {/* Status Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <m.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={Spring.smooth(0.3)}
-        >
-          <Card className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="flex size-12 items-center justify-center rounded-lg bg-success/10">
-                <ServerIcon className="size-6 text-success" />
-              </div>
-              <div>
-                <p className="text-muted-foreground text-sm">Core Status</p>
-                <p className="font-semibold text-2xl">
-                  {coreStatus === 'running' ? 'Running' : 'Starting'}
-                </p>
-              </div>
-            </div>
-          </Card>
-        </m.div>
-
-        <m.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={Spring.smooth(0.3, 0.05)}
-        >
-          <Card className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="flex size-12 items-center justify-center rounded-lg bg-primary/10">
-                <ActivityIcon className="size-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-muted-foreground text-sm">Active Callers</p>
-                <p className="font-semibold text-2xl">0</p>
-              </div>
-            </div>
-          </Card>
-        </m.div>
-
-        <m.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={Spring.smooth(0.3, 0.1)}
-        >
-          <Card className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="flex size-12 items-center justify-center rounded-lg bg-info/10">
-                <WrenchIcon className="size-6 text-info" />
-              </div>
-              <div>
-                <p className="text-muted-foreground text-sm">Available Tools</p>
-                <p className="font-semibold text-2xl">0</p>
-              </div>
-            </div>
-          </Card>
-        </m.div>
-      </div>
-
-      {/* Recent Activity */}
-      <m.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={Spring.smooth(0.4, 0.15)}
-      >
-        <Card className="flex-1">
-          <div className="border-border border-b p-4">
-            <h2 className="font-semibold text-lg">Recent Activity</h2>
-          </div>
-          <div className="p-4">
-            <UniversalEmptyState
-              icon={ActivityIcon}
-              title="No recent activity"
-              description="Tool calls and system events will appear here once callers start connecting."
-            />
-          </div>
-        </Card>
-      </m.div>
+    <div className="flex flex-1 flex-col p-6 overflow-scroll">
+      <DashboardHeader />
+      <Separator className="my-6" />
+      <DashboardContent />
     </div>
   )
 }

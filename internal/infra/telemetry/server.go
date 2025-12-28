@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 )
@@ -16,6 +17,7 @@ type HTTPServerOptions struct {
 	EnableMetrics bool
 	EnableHealthz bool
 	Health        *HealthTracker
+	Registry      prometheus.Gatherer
 }
 
 func StartHTTPServer(ctx context.Context, opts HTTPServerOptions, logger *zap.Logger) error {
@@ -31,9 +33,14 @@ func StartHTTPServer(ctx context.Context, opts HTTPServerOptions, logger *zap.Lo
 		addr = "0.0.0.0:9090"
 	}
 
+	registry := opts.Registry
+	if registry == nil {
+		registry = prometheus.DefaultGatherer
+	}
+
 	mux := http.NewServeMux()
 	if opts.EnableMetrics {
-		mux.Handle("/metrics", promhttp.Handler())
+		mux.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 	}
 	if opts.EnableHealthz {
 		mux.Handle("/healthz", healthHandler(opts.Health))

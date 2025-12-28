@@ -63,7 +63,7 @@ export function AppTopbar() {
             {StatusIcon && (
               <StatusIcon className="size-3 animate-spin" />
             )}
-            <span className="font-medium text-xs">{config.label}</span>
+            <span className="font-medium text-white text-xs">{config.label}</span>
           </Badge>
         </m.div>
       </div>

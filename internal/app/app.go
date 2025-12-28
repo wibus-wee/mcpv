@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -30,6 +31,7 @@ type App struct {
 
 type ServeConfig struct {
 	ConfigPath string
+	OnReady    func(domain.ControlPlane) // Called when Core is ready (after RPC server starts)
 }
 
 type ValidateConfig struct {
@@ -82,10 +84,14 @@ func (a *App) Serve(ctx context.Context, cfg ServeConfig) error {
 		zap.Int("servers", summary.totalServers),
 	)
 
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
+	registry.MustRegister(prometheus.NewGoCollector())
+
 	stdioTransport := transport.NewStdioTransport()
 	lc := lifecycle.NewManager(stdioTransport, logger)
 	pingProbe := &probe.PingProbe{Timeout: 2 * time.Second}
-	metrics := telemetry.NewPrometheusMetrics()
+	metrics := telemetry.NewPrometheusMetrics(registry)
 	health := telemetry.NewHealthTracker()
 	sched, err := scheduler.NewBasicScheduler(lc, summary.specRegistry, scheduler.SchedulerOptions{
 		Probe:   pingProbe,
@@ -119,6 +125,9 @@ func (a *App) Serve(ctx context.Context, cfg ServeConfig) error {
 	}
 
 	control := NewControlPlane(ctx, profiles, store.Callers, summary.specRegistry, sched, summary.defaultRuntime, logs, logger)
+	if cfg.OnReady != nil {
+		cfg.OnReady(control)
+	}
 	control.StartCallerMonitor(ctx)
 	rpcServer := rpc.NewServer(control, summary.defaultRuntime.RPC, logger)
 
@@ -133,6 +142,7 @@ func (a *App) Serve(ctx context.Context, cfg ServeConfig) error {
 				EnableMetrics: metricsEnabled,
 				EnableHealthz: healthzEnabled,
 				Health:        health,
+				Registry:      registry,
 			}, logger); err != nil {
 				logger.Error("observability server failed", zap.Error(err))
 			}

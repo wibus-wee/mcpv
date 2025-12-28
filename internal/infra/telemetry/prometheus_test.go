@@ -6,17 +6,41 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"mcpd/internal/domain"
 )
 
 func TestNewPrometheusMetrics(t *testing.T) {
-	m := NewPrometheusMetrics()
+	m := NewPrometheusMetrics(prometheus.NewRegistry())
 	assert.NotNil(t, m)
 	assert.NotNil(t, m.routeDuration)
 	assert.NotNil(t, m.instanceStarts)
 	assert.NotNil(t, m.instanceStops)
 	assert.NotNil(t, m.activeInstances)
+}
+
+func TestNewPrometheusMetrics_UsesProvidedRegistry(t *testing.T) {
+	registry := prometheus.NewRegistry()
+
+	m := NewPrometheusMetrics(registry)
+	m.ObserveRoute("test-server", 10*time.Millisecond, nil)
+	m.ObserveInstanceStart("spec-1", 0, nil)
+	m.ObserveInstanceStop("spec-1", nil)
+	m.SetActiveInstances("spec-1", 1)
+
+	metrics, err := registry.Gather()
+	require.NoError(t, err)
+
+	names := make([]string, 0, len(metrics))
+	for _, m := range metrics {
+		names = append(names, m.GetName())
+	}
+
+	assert.Contains(t, names, "mcpd_route_duration_seconds")
+	assert.Contains(t, names, "mcpd_instance_starts_total")
+	assert.Contains(t, names, "mcpd_instance_stops_total")
+	assert.Contains(t, names, "mcpd_active_instances")
 }
 
 func TestPrometheusMetrics_ImplementsInterface(t *testing.T) {

@@ -29,3 +29,7 @@ servers:
     persistent: false
     minReady: 0
     protocolVersion: "2025-11-25"
+  - name: context7
+    cmd:
+      [ "npx", "-y", "@upstash/context7-mcp", "--api-key", "ctx7sk-a54c3d33-7413-4b5d-8eae-a8edc19449b9" ]
+    protocolVersion: "2025-11-25"

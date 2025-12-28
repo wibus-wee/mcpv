@@ -16,9 +16,14 @@ type PrometheusMetrics struct {
 	activeInstances *prometheus.GaugeVec
 }
 
-func NewPrometheusMetrics() *PrometheusMetrics {
+func NewPrometheusMetrics(registerer prometheus.Registerer) *PrometheusMetrics {
+	if registerer == nil {
+		registerer = prometheus.DefaultRegisterer
+	}
+	factory := promauto.With(registerer)
+
 	return &PrometheusMetrics{
-		routeDuration: promauto.NewHistogramVec(
+		routeDuration: factory.NewHistogramVec(
 			prometheus.HistogramOpts{
 				Name:    "mcpd_route_duration_seconds",
 				Help:    "Duration of route requests in seconds",
@@ -26,21 +31,21 @@ func NewPrometheusMetrics() *PrometheusMetrics {
 			},
 			[]string{"server_type", "status"},
 		),
-		instanceStarts: promauto.NewCounterVec(
+		instanceStarts: factory.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "mcpd_instance_starts_total",
 				Help: "Total number of instance start attempts",
 			},
 			[]string{"spec_key"},
 		),
-		instanceStops: promauto.NewCounterVec(
+		instanceStops: factory.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "mcpd_instance_stops_total",
 				Help: "Total number of instance stops",
 			},
 			[]string{"spec_key"},
 		),
-		activeInstances: promauto.NewGaugeVec(
+		activeInstances: factory.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Name: "mcpd_active_instances",
 				Help: "Current number of active instances",

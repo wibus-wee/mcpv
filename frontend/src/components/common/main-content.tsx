@@ -15,7 +15,7 @@ export interface MainContentProps {
 
 export function MainContent({ children }: MainContentProps) {
   return (
-    <SidebarInset>
+    <SidebarInset className='h-screen overflow-scroll'>
       <AppTopbar />
       <m.main
         className="flex flex-1 flex-col overflow-hidden"
