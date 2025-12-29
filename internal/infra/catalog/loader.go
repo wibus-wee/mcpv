@@ -19,8 +19,36 @@ type Loader struct {
 	logger *zap.Logger
 }
 
+func newRuntimeViper() *viper.Viper {
+	v := viper.New()
+	v.SetConfigType("yaml")
+	setRuntimeDefaults(v)
+	return v
+}
+
+func setRuntimeDefaults(v *viper.Viper) {
+	v.SetDefault("routeTimeoutSeconds", domain.DefaultRouteTimeoutSeconds)
+	v.SetDefault("pingIntervalSeconds", domain.DefaultPingIntervalSeconds)
+	v.SetDefault("toolRefreshSeconds", domain.DefaultToolRefreshSeconds)
+	v.SetDefault("toolRefreshConcurrency", domain.DefaultToolRefreshConcurrency)
+	v.SetDefault("callerCheckSeconds", domain.DefaultCallerCheckSeconds)
+	v.SetDefault("exposeTools", domain.DefaultExposeTools)
+	v.SetDefault("toolNamespaceStrategy", domain.DefaultToolNamespaceStrategy)
+	v.SetDefault("observability.listenAddress", domain.DefaultObservabilityListenAddress)
+	v.SetDefault("rpc.listenAddress", domain.DefaultRPCListenAddress)
+	v.SetDefault("rpc.maxRecvMsgSize", domain.DefaultRPCMaxRecvMsgSize)
+	v.SetDefault("rpc.maxSendMsgSize", domain.DefaultRPCMaxSendMsgSize)
+	v.SetDefault("rpc.keepaliveTimeSeconds", domain.DefaultRPCKeepaliveTimeSeconds)
+	v.SetDefault("rpc.keepaliveTimeoutSeconds", domain.DefaultRPCKeepaliveTimeoutSeconds)
+	v.SetDefault("rpc.socketMode", domain.DefaultRPCSocketMode)
+}
+
 type rawCatalog struct {
-	Servers                []domain.ServerSpec    `mapstructure:"servers"`
+	Servers          []domain.ServerSpec `mapstructure:"servers"`
+	rawRuntimeConfig `mapstructure:",squash"`
+}
+
+type rawRuntimeConfig struct {
 	RouteTimeoutSeconds    int                    `mapstructure:"routeTimeoutSeconds"`
 	PingIntervalSeconds    int                    `mapstructure:"pingIntervalSeconds"`
 	ToolRefreshSeconds     int                    `mapstructure:"toolRefreshSeconds"`
@@ -61,6 +89,35 @@ func NewLoader(logger *zap.Logger) *Loader {
 	return &Loader{logger: logger.Named("catalog")}
 }
 
+// LoadRuntimeConfig loads only the runtime section from a config file.
+// This is intended for profile-store level runtime defaults.
+func (l *Loader) LoadRuntimeConfig(ctx context.Context, path string) (domain.RuntimeConfig, error) {
+	if path == "" {
+		return domain.RuntimeConfig{}, errors.New("config path is required")
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return domain.RuntimeConfig{}, fmt.Errorf("read config: %w", err)
+	}
+
+	expanded, err := expandConfigEnv(data)
+	if err != nil {
+		return domain.RuntimeConfig{}, err
+	}
+
+	rawCfg, err := decodeRuntimeConfig(expanded)
+	if err != nil {
+		return domain.RuntimeConfig{}, err
+	}
+
+	runtime, errs := normalizeRuntimeConfig(rawCfg)
+	if len(errs) > 0 {
+		return domain.RuntimeConfig{}, errors.New(strings.Join(errs, "; "))
+	}
+	return runtime, ctx.Err()
+}
+
 func (l *Loader) Load(ctx context.Context, path string) (domain.Catalog, error) {
 	if path == "" {
 		return domain.Catalog{}, errors.New("config path is required")
@@ -80,23 +137,7 @@ func (l *Loader) Load(ctx context.Context, path string) (domain.Catalog, error) 
 		return domain.Catalog{}, err
 	}
 
-	v := viper.New()
-
-	v.SetConfigType("yaml")
-	v.SetDefault("routeTimeoutSeconds", domain.DefaultRouteTimeoutSeconds)
-	v.SetDefault("pingIntervalSeconds", domain.DefaultPingIntervalSeconds)
-	v.SetDefault("toolRefreshSeconds", domain.DefaultToolRefreshSeconds)
-	v.SetDefault("toolRefreshConcurrency", domain.DefaultToolRefreshConcurrency)
-	v.SetDefault("callerCheckSeconds", domain.DefaultCallerCheckSeconds)
-	v.SetDefault("exposeTools", domain.DefaultExposeTools)
-	v.SetDefault("toolNamespaceStrategy", domain.DefaultToolNamespaceStrategy)
-	v.SetDefault("observability.listenAddress", domain.DefaultObservabilityListenAddress)
-	v.SetDefault("rpc.listenAddress", domain.DefaultRPCListenAddress)
-	v.SetDefault("rpc.maxRecvMsgSize", domain.DefaultRPCMaxRecvMsgSize)
-	v.SetDefault("rpc.maxSendMsgSize", domain.DefaultRPCMaxSendMsgSize)
-	v.SetDefault("rpc.keepaliveTimeSeconds", domain.DefaultRPCKeepaliveTimeSeconds)
-	v.SetDefault("rpc.keepaliveTimeoutSeconds", domain.DefaultRPCKeepaliveTimeoutSeconds)
-	v.SetDefault("rpc.socketMode", domain.DefaultRPCSocketMode)
+	v := newRuntimeViper()
 
 	if err := v.ReadConfig(bytes.NewBufferString(expanded)); err != nil {
 		return domain.Catalog{}, fmt.Errorf("parse config: %w", err)
@@ -118,7 +159,7 @@ func (l *Loader) Load(ctx context.Context, path string) (domain.Catalog, error) 
 	specs := make(map[string]domain.ServerSpec, len(cfg.Servers))
 	var validationErrors []string
 	nameSeen := make(map[string]struct{})
-	runtime, runtimeErrs := normalizeRuntimeConfig(cfg)
+	runtime, runtimeErrs := normalizeRuntimeConfig(cfg.rawRuntimeConfig)
 	validationErrors = append(validationErrors, runtimeErrs...)
 
 	for i, spec := range cfg.Servers {
@@ -145,6 +186,18 @@ func (l *Loader) Load(ctx context.Context, path string) (domain.Catalog, error) 
 		Specs:   specs,
 		Runtime: runtime,
 	}, nil
+}
+
+func decodeRuntimeConfig(expanded string) (rawRuntimeConfig, error) {
+	v := newRuntimeViper()
+	if err := v.ReadConfig(bytes.NewBufferString(expanded)); err != nil {
+		return rawRuntimeConfig{}, fmt.Errorf("parse config: %w", err)
+	}
+	var cfg rawRuntimeConfig
+	if err := v.Unmarshal(&cfg); err != nil {
+		return rawRuntimeConfig{}, fmt.Errorf("decode config: %w", err)
+	}
+	return cfg, nil
 }
 
 func normalizeServerSpec(spec domain.ServerSpec) domain.ServerSpec {
@@ -200,7 +253,7 @@ func validateServerSpec(spec domain.ServerSpec, index int) []string {
 	return errs
 }
 
-func normalizeRuntimeConfig(cfg rawCatalog) (domain.RuntimeConfig, []string) {
+func normalizeRuntimeConfig(cfg rawRuntimeConfig) (domain.RuntimeConfig, []string) {
 	var errs []string
 
 	routeTimeout := cfg.RouteTimeoutSeconds

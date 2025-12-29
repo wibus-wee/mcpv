@@ -60,6 +60,7 @@ go run /app/cmd/mcpdmcp inspector --rpc core:9091
 - `dev/callers.yaml`: caller 映射（默认包含 `inspector -> default`）
 - `dev/prometheus.yaml`: Prometheus scrape 配置
 - `dev/Dockerfile.dev`: 开发容器镜像
+- `dev/runtime.yaml`: 全局 runtime 配置（路由超时、探活、RPC/observability 等）
 
 ## 端口
 

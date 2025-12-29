@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -669,8 +670,28 @@ func (s *WailsService) ListProfiles(ctx context.Context) ([]ProfileSummary, erro
 	}
 
 	store := cp.GetProfileStore()
+
+	// 提取所有 profile 名称
+	names := make([]string, 0, len(store.Profiles))
+	for name := range store.Profiles {
+		names = append(names, name)
+	}
+
+	// 排序：default 优先，其余按字母顺序
+	slices.SortStableFunc(names, func(a, b string) int {
+		if a == domain.DefaultProfileName {
+			return -1
+		}
+		if b == domain.DefaultProfileName {
+			return 1
+		}
+		return strings.Compare(a, b)
+	})
+
+	// 按排序后的顺序构建结果
 	result := make([]ProfileSummary, 0, len(store.Profiles))
-	for name, profile := range store.Profiles {
+	for _, name := range names {
+		profile := store.Profiles[name]
 		result = append(result, ProfileSummary{
 			Name:        name,
 			ServerCount: len(profile.Catalog.Specs),

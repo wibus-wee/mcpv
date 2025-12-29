@@ -97,6 +97,48 @@ func TestProfileStoreLoader_AllowCreate(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestProfileStoreLoader_RuntimeOverrideFromStore(t *testing.T) {
+	dir := t.TempDir()
+	profilesDir := filepath.Join(dir, "profiles")
+	require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+	writeProfile(t, filepath.Join(profilesDir, "default.yaml"), "default-server")
+	writeProfile(t, filepath.Join(profilesDir, "chat.yaml"), "chat-server")
+
+	runtime := `routeTimeoutSeconds: 15
+pingIntervalSeconds: 20
+toolRefreshSeconds: 45
+callerCheckSeconds: 7
+exposeTools: false
+toolNamespaceStrategy: flat
+observability:
+  listenAddress: "0.0.0.0:1111"
+rpc:
+  listenAddress: "unix:///tmp/test.sock"
+  maxRecvMsgSize: 256
+  maxSendMsgSize: 512
+  keepaliveTimeSeconds: 9
+  keepaliveTimeoutSeconds: 3
+  socketMode: "0660"
+`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "runtime.yaml"), []byte(runtime), 0o644))
+
+	loader := NewProfileStoreLoader(zap.NewNop())
+	store, err := loader.Load(context.Background(), dir, ProfileStoreOptions{})
+	require.NoError(t, err)
+	require.Len(t, store.Profiles, 2)
+
+	for name, profile := range store.Profiles {
+		require.Equal(t, 15, profile.Catalog.Runtime.RouteTimeoutSeconds, "profile %s", name)
+		require.Equal(t, 20, profile.Catalog.Runtime.PingIntervalSeconds, "profile %s", name)
+		require.Equal(t, 45, profile.Catalog.Runtime.ToolRefreshSeconds, "profile %s", name)
+		require.Equal(t, 7, profile.Catalog.Runtime.CallerCheckSeconds, "profile %s", name)
+		require.False(t, profile.Catalog.Runtime.ExposeTools, "profile %s", name)
+		require.Equal(t, "flat", profile.Catalog.Runtime.ToolNamespaceStrategy, "profile %s", name)
+		require.Equal(t, "unix:///tmp/test.sock", profile.Catalog.Runtime.RPC.ListenAddress, "profile %s", name)
+		require.Equal(t, "0.0.0.0:1111", profile.Catalog.Runtime.Observability.ListenAddress, "profile %s", name)
+	}
+}
+
 func writeProfile(t *testing.T, path string, name string) {
 	t.Helper()
 

@@ -19,6 +19,8 @@ const (
 	callersFileName    = "callers.yaml"
 	defaultProfileFile = "default.yaml"
 	defaultProfileAlt  = "default.yml"
+	runtimeFileName    = "runtime.yaml"
+	runtimeFileAlt     = "runtime.yml"
 )
 
 type ProfileStoreOptions struct {
@@ -101,6 +103,11 @@ func (l *ProfileStoreLoader) loadFromDir(ctx context.Context, path string, opts 
 		return domain.ProfileStore{}, err
 	}
 
+	runtimeConfig, err := l.loadRuntimeConfig(ctx, path)
+	if err != nil {
+		return domain.ProfileStore{}, err
+	}
+
 	defaultProfilePath := filepath.Join(profilesDir, defaultProfileFile)
 	defaultAltPath := filepath.Join(profilesDir, defaultProfileAlt)
 	createdDefault, err := ensureDefaultProfile(defaultProfilePath, defaultAltPath, opts.AllowCreate)
@@ -108,7 +115,7 @@ func (l *ProfileStoreLoader) loadFromDir(ctx context.Context, path string, opts 
 		return domain.ProfileStore{}, err
 	}
 
-	profiles, err := l.loadProfiles(ctx, profilesDir)
+	profiles, err := l.loadProfiles(ctx, profilesDir, runtimeConfig)
 	if err != nil {
 		if createdDefault {
 			return domain.ProfileStore{}, fmt.Errorf("default profile created at %s; update it with servers to continue: %w", defaultProfilePath, err)
@@ -134,7 +141,32 @@ func (l *ProfileStoreLoader) loadFromDir(ctx context.Context, path string, opts 
 	}, nil
 }
 
-func (l *ProfileStoreLoader) loadProfiles(ctx context.Context, dir string) (map[string]domain.Profile, error) {
+func (l *ProfileStoreLoader) loadRuntimeConfig(ctx context.Context, path string) (*domain.RuntimeConfig, error) {
+	runtimePath := filepath.Join(path, runtimeFileName)
+	altPath := filepath.Join(path, runtimeFileAlt)
+
+	if _, err := os.Stat(runtimePath); err != nil {
+		if os.IsNotExist(err) {
+			if _, altErr := os.Stat(altPath); altErr != nil {
+				if os.IsNotExist(altErr) {
+					return nil, nil
+				}
+				return nil, fmt.Errorf("stat %s: %w", altPath, altErr)
+			}
+			runtimePath = altPath
+		} else {
+			return nil, fmt.Errorf("stat %s: %w", runtimePath, err)
+		}
+	}
+
+	cfg, err := l.loader.LoadRuntimeConfig(ctx, runtimePath)
+	if err != nil {
+		return nil, fmt.Errorf("load runtime config: %w", err)
+	}
+	return &cfg, nil
+}
+
+func (l *ProfileStoreLoader) loadProfiles(ctx context.Context, dir string, runtimeOverride *domain.RuntimeConfig) (map[string]domain.Profile, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("read profiles dir: %w", err)
@@ -162,6 +194,9 @@ func (l *ProfileStoreLoader) loadProfiles(ctx context.Context, dir string) (map[
 		catalogData, err := l.loader.Load(ctx, path)
 		if err != nil {
 			return nil, fmt.Errorf("load profile %q: %w", profileName, err)
+		}
+		if runtimeOverride != nil {
+			catalogData.Runtime = *runtimeOverride
 		}
 		profiles[profileName] = domain.Profile{
 			Name:    profileName,

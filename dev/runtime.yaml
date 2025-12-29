@@ -1,0 +1,22 @@
+routeTimeoutSeconds: 10
+pingIntervalSeconds: 30
+toolRefreshSeconds: 60
+toolRefreshConcurrency: 4
+callerCheckSeconds: 5
+exposeTools: true
+toolNamespaceStrategy: "prefix"
+observability:
+  listenAddress: "0.0.0.0:9090"
+rpc:
+  listenAddress: "tcp://0.0.0.0:9091"
+  maxRecvMsgSize: 16777216
+  maxSendMsgSize: 16777216
+  keepaliveTimeSeconds: 30
+  keepaliveTimeoutSeconds: 10
+  socketMode: "0660"
+  tls:
+    enabled: false
+    certFile: ""
+    keyFile: ""
+    caFile: ""
+    clientAuth: false
