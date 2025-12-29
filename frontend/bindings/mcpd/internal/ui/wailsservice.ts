@@ -189,6 +189,13 @@ export function ReadResource(uri: string): $CancellablePromise<json$0.RawMessage
 }
 
 /**
+ * ResolveMcpdmcpPath 返回可执行的 mcpdmcp 路径，优先 PATH，其次同目录打包副本，失败时退回命令名
+ */
+export function ResolveMcpdmcpPath(): $CancellablePromise<string> {
+    return $Call.ByID(221290818);
+}
+
+/**
  * RestartCore 重启 Core
  */
 export function RestartCore(): $CancellablePromise<void> {

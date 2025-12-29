@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCoreActions, useCoreState } from '@/hooks/use-core-state'
 
 import {
+  ConnectIdeSheet,
   LogsPanel,
   ResourcesList,
   StatusCards,
@@ -106,6 +107,7 @@ function DashboardHeader() {
         >
           <RefreshCwIcon className="size-4" />
         </Button>
+        <ConnectIdeSheet />
       </div>
     </m.div>
   )

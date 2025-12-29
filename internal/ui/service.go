@@ -104,6 +104,28 @@ func (s *WailsService) SetManager(manager *Manager) {
 	s.manager = manager
 }
 
+// ResolveMcpdmcpPath 返回可执行的 mcpdmcp 路径，优先 PATH，其次同目录打包副本，失败时退回命令名
+func (s *WailsService) ResolveMcpdmcpPath() string {
+	name := "mcpdmcp"
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+
+	if path, err := exec.LookPath(name); err == nil {
+		return path
+	}
+
+	if execPath, err := os.Executable(); err == nil {
+		dir := filepath.Dir(execPath)
+		candidate := filepath.Join(dir, name)
+		if _, statErr := os.Stat(candidate); statErr == nil {
+			return candidate
+		}
+	}
+
+	return name
+}
+
 // CoreStateResponse 前端获取 Core 状态的响应
 type CoreStateResponse struct {
 	State  string `json:"state"`
