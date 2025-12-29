@@ -33,6 +33,7 @@ import { Spring } from '@/lib/spring'
 import { selectedProfileNameAtom } from './atoms'
 import { CallersList } from './components/callers-list'
 import { ConfigFlow } from './components/config-flow'
+import { ImportMcpServersSheet } from './components/import-mcp-servers-sheet'
 import { ProfileDetailPanel } from './components/profile-detail-panel'
 import { ProfilesList } from './components/profiles-list'
 import { useCallers, useConfigMode, useOpenConfigInEditor, useProfiles } from './hooks'
@@ -76,6 +77,7 @@ function ConfigHeader() {
         </div>
       </div>
       <div className="flex items-center gap-1">
+        <ImportMcpServersSheet />
         <Button
           variant="ghost"
           size="icon-sm"

@@ -34,6 +34,7 @@ const (
 	ErrCodeProfileNotFound    = "PROFILE_NOT_FOUND"
 	ErrCodeInvalidCursor      = "INVALID_CURSOR"
 	ErrCodeInvalidConfig      = "INVALID_CONFIG"
+	ErrCodeInvalidRequest     = "INVALID_REQUEST"
 	ErrCodeOperationCancelled = "OPERATION_CANCELLED"
 	ErrCodeInternal           = "INTERNAL_ERROR"
 )

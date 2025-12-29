@@ -10,6 +10,8 @@ export {
     ActiveCaller,
     ConfigModeResponse,
     CoreStateResponse,
+    ImportMcpServersRequest,
+    ImportServerSpec,
     InfoResponse,
     InstanceStatus,
     Manager,

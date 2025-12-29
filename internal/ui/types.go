@@ -116,6 +116,20 @@ type ServerSpecDetail struct {
 	ExposeTools         []string          `json:"exposeTools"`
 }
 
+// ImportServerSpec represents a server spec from MCP JSON import.
+type ImportServerSpec struct {
+	Name string            `json:"name"`
+	Cmd  []string          `json:"cmd"`
+	Env  map[string]string `json:"env,omitempty"`
+	Cwd  string            `json:"cwd,omitempty"`
+}
+
+// ImportMcpServersRequest is the payload for importing MCP servers into profiles.
+type ImportMcpServersRequest struct {
+	Profiles []string           `json:"profiles"`
+	Servers  []ImportServerSpec `json:"servers"`
+}
+
 // =============================================================================
 // Caller Status Types
 // =============================================================================

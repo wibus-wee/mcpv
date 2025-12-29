@@ -132,6 +132,13 @@ export function HandleURLScheme(rawURL: string): $CancellablePromise<void> {
 }
 
 /**
+ * ImportMcpServers writes imported MCP servers into selected profiles.
+ */
+export function ImportMcpServers(req: $models.ImportMcpServersRequest): $CancellablePromise<void> {
+    return $Call.ByID(1586977220, req);
+}
+
+/**
  * ListProfiles 列出所有 profiles
  */
 export function ListProfiles(): $CancellablePromise<$models.ProfileSummary[]> {

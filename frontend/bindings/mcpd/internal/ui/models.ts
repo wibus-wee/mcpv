@@ -115,6 +115,80 @@ export class CoreStateResponse {
 }
 
 /**
+ * ImportMcpServersRequest is the payload for importing MCP servers into profiles.
+ */
+export class ImportMcpServersRequest {
+    "profiles": string[];
+    "servers": ImportServerSpec[];
+
+    /** Creates a new ImportMcpServersRequest instance. */
+    constructor($$source: Partial<ImportMcpServersRequest> = {}) {
+        if (!("profiles" in $$source)) {
+            this["profiles"] = [];
+        }
+        if (!("servers" in $$source)) {
+            this["servers"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ImportMcpServersRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ImportMcpServersRequest {
+        const $$createField0_0 = $$createType0;
+        const $$createField1_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("profiles" in $$parsedSource) {
+            $$parsedSource["profiles"] = $$createField0_0($$parsedSource["profiles"]);
+        }
+        if ("servers" in $$parsedSource) {
+            $$parsedSource["servers"] = $$createField1_0($$parsedSource["servers"]);
+        }
+        return new ImportMcpServersRequest($$parsedSource as Partial<ImportMcpServersRequest>);
+    }
+}
+
+/**
+ * ImportServerSpec represents a server spec from MCP JSON import.
+ */
+export class ImportServerSpec {
+    "name": string;
+    "cmd": string[];
+    "env"?: { [_: string]: string };
+    "cwd"?: string;
+
+    /** Creates a new ImportServerSpec instance. */
+    constructor($$source: Partial<ImportServerSpec> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("cmd" in $$source)) {
+            this["cmd"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ImportServerSpec instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ImportServerSpec {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("cmd" in $$parsedSource) {
+            $$parsedSource["cmd"] = $$createField1_0($$parsedSource["cmd"]);
+        }
+        if ("env" in $$parsedSource) {
+            $$parsedSource["env"] = $$createField2_0($$parsedSource["env"]);
+        }
+        return new ImportServerSpec($$parsedSource as Partial<ImportServerSpec>);
+    }
+}
+
+/**
  * InfoResponse 控制面板信息响应
  */
 export class InfoResponse {
@@ -297,8 +371,8 @@ export class ProfileDetail {
      * Creates a new ProfileDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): ProfileDetail {
-        const $$createField1_0 = $$createType0;
-        const $$createField2_0 = $$createType2;
+        const $$createField1_0 = $$createType4;
+        const $$createField2_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("runtime" in $$parsedSource) {
             $$parsedSource["runtime"] = $$createField1_0($$parsedSource["runtime"]);
@@ -390,7 +464,7 @@ export class PromptPage {
      * Creates a new PromptPage instance from a string or object.
      */
     static createFrom($$source: any = {}): PromptPage {
-        const $$createField0_0 = $$createType4;
+        const $$createField0_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("prompts" in $$parsedSource) {
             $$parsedSource["prompts"] = $$createField0_0($$parsedSource["prompts"]);
@@ -442,7 +516,7 @@ export class RPCConfigDetail {
      * Creates a new RPCConfigDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): RPCConfigDetail {
-        const $$createField6_0 = $$createType5;
+        const $$createField6_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tls" in $$parsedSource) {
             $$parsedSource["tls"] = $$createField6_0($$parsedSource["tls"]);
@@ -539,7 +613,7 @@ export class ResourcePage {
      * Creates a new ResourcePage instance from a string or object.
      */
     static createFrom($$source: any = {}): ResourcePage {
-        const $$createField0_0 = $$createType7;
+        const $$createField0_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("resources" in $$parsedSource) {
             $$parsedSource["resources"] = $$createField0_0($$parsedSource["resources"]);
@@ -599,8 +673,8 @@ export class RuntimeConfigDetail {
      * Creates a new RuntimeConfigDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): RuntimeConfigDetail {
-        const $$createField7_0 = $$createType8;
-        const $$createField8_0 = $$createType9;
+        const $$createField7_0 = $$createType12;
+        const $$createField8_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("observability" in $$parsedSource) {
             $$parsedSource["observability"] = $$createField7_0($$parsedSource["observability"]);
@@ -689,8 +763,8 @@ export class ServerRuntimeStatus {
      * Creates a new ServerRuntimeStatus instance from a string or object.
      */
     static createFrom($$source: any = {}): ServerRuntimeStatus {
-        const $$createField2_0 = $$createType11;
-        const $$createField3_0 = $$createType12;
+        const $$createField2_0 = $$createType15;
+        const $$createField3_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("instances" in $$parsedSource) {
             $$parsedSource["instances"] = $$createField2_0($$parsedSource["instances"]);
@@ -769,9 +843,9 @@ export class ServerSpecDetail {
      * Creates a new ServerSpecDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): ServerSpecDetail {
-        const $$createField2_0 = $$createType13;
-        const $$createField3_0 = $$createType14;
-        const $$createField12_0 = $$createType13;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType3;
+        const $$createField12_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("cmd" in $$parsedSource) {
             $$parsedSource["cmd"] = $$createField2_0($$parsedSource["cmd"]);
@@ -823,18 +897,20 @@ export class ToolEntry {
 }
 
 // Private type creation functions
-const $$createType0 = RuntimeConfigDetail.createFrom;
-const $$createType1 = ServerSpecDetail.createFrom;
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = ImportServerSpec.createFrom;
 const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = PromptEntry.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = RPCTLSConfigDetail.createFrom;
-const $$createType6 = ResourceEntry.createFrom;
-const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = ObservabilityConfigDetail.createFrom;
-const $$createType9 = RPCConfigDetail.createFrom;
-const $$createType10 = InstanceStatus.createFrom;
+const $$createType3 = $Create.Map($Create.Any, $Create.Any);
+const $$createType4 = RuntimeConfigDetail.createFrom;
+const $$createType5 = ServerSpecDetail.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = PromptEntry.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = RPCTLSConfigDetail.createFrom;
+const $$createType10 = ResourceEntry.createFrom;
 const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = PoolStats.createFrom;
-const $$createType13 = $Create.Array($Create.Any);
-const $$createType14 = $Create.Map($Create.Any, $Create.Any);
+const $$createType12 = ObservabilityConfigDetail.createFrom;
+const $$createType13 = RPCConfigDetail.createFrom;
+const $$createType14 = InstanceStatus.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = PoolStats.createFrom;

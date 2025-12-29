@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -19,6 +20,7 @@ import (
 
 	"mcpd/internal/app"
 	"mcpd/internal/domain"
+	"mcpd/internal/infra/catalog"
 )
 
 // WailsService 为 Wails 前端提供 Go 服务接口
@@ -581,6 +583,58 @@ func (s *WailsService) OpenConfigInEditor(ctx context.Context) error {
 	return nil
 }
 
+// ImportMcpServers writes imported MCP servers into selected profiles.
+func (s *WailsService) ImportMcpServers(ctx context.Context, req ImportMcpServersRequest) error {
+	if s.manager == nil {
+		return NewUIError(ErrCodeInternal, "Manager not initialized")
+	}
+
+	profileNames, servers, err := normalizeImportRequest(req)
+	if err != nil {
+		return NewUIErrorWithDetails(ErrCodeInvalidRequest, "Invalid import request", err.Error())
+	}
+
+	mode := s.GetConfigMode()
+	if mode.Mode == "unknown" || mode.Path == "" {
+		return NewUIError(ErrCodeInvalidConfig, "Configuration path is not available")
+	}
+	if !mode.IsWritable {
+		return NewUIError(ErrCodeInvalidConfig, "Configuration path is not writable")
+	}
+
+	updates := make([]catalog.ProfileUpdate, 0, len(profileNames))
+	if mode.Mode == "single" {
+		if len(profileNames) != 1 || profileNames[0] != domain.DefaultProfileName {
+			return NewUIErrorWithDetails(ErrCodeInvalidRequest, "Single-file config only supports default profile", profileNames[0])
+		}
+		update, err := catalog.BuildProfileUpdate(mode.Path, servers)
+		if err != nil {
+			return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Failed to update profile", err.Error())
+		}
+		updates = append(updates, update)
+	} else {
+		for _, name := range profileNames {
+			path, err := catalog.ResolveProfilePath(mode.Path, name)
+			if err != nil {
+				return NewUIErrorWithDetails(ErrCodeProfileNotFound, "Profile not found", err.Error())
+			}
+			update, err := catalog.BuildProfileUpdate(path, servers)
+			if err != nil {
+				return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Failed to update profile", err.Error())
+			}
+			updates = append(updates, update)
+		}
+	}
+
+	for _, update := range updates {
+		if err := os.WriteFile(update.Path, update.Data, 0o644); err != nil {
+			return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Failed to write profile file", err.Error())
+		}
+	}
+
+	return nil
+}
+
 // GetRuntimeStatus returns the runtime status of all server pools
 func (s *WailsService) GetRuntimeStatus(ctx context.Context) ([]ServerRuntimeStatus, error) {
 	cp, err := s.getControlPlane()
@@ -831,4 +885,82 @@ func convertRuntimeConfig(cfg domain.RuntimeConfig) RuntimeConfigDetail {
 			},
 		},
 	}
+}
+
+func normalizeImportRequest(req ImportMcpServersRequest) ([]string, []domain.ServerSpec, error) {
+	if len(req.Profiles) == 0 {
+		return nil, nil, errors.New("at least one profile is required")
+	}
+	if len(req.Servers) == 0 {
+		return nil, nil, errors.New("at least one server is required")
+	}
+
+	profileNames := make([]string, 0, len(req.Profiles))
+	seenProfiles := make(map[string]struct{}, len(req.Profiles))
+	for _, name := range req.Profiles {
+		trimmed := strings.TrimSpace(name)
+		if trimmed == "" {
+			return nil, nil, errors.New("profile name is required")
+		}
+		if _, exists := seenProfiles[trimmed]; exists {
+			return nil, nil, fmt.Errorf("duplicate profile name %q", trimmed)
+		}
+		seenProfiles[trimmed] = struct{}{}
+		profileNames = append(profileNames, trimmed)
+	}
+
+	servers := make([]domain.ServerSpec, 0, len(req.Servers))
+	seenServers := make(map[string]struct{}, len(req.Servers))
+	for _, server := range req.Servers {
+		name := strings.TrimSpace(server.Name)
+		if name == "" {
+			return nil, nil, errors.New("server name is required")
+		}
+		if len(server.Cmd) == 0 {
+			return nil, nil, fmt.Errorf("server %q: cmd is required", name)
+		}
+		for _, cmd := range server.Cmd {
+			if strings.TrimSpace(cmd) == "" {
+				return nil, nil, fmt.Errorf("server %q: cmd contains empty value", name)
+			}
+		}
+		if _, exists := seenServers[name]; exists {
+			return nil, nil, fmt.Errorf("duplicate server name %q", name)
+		}
+		seenServers[name] = struct{}{}
+
+		servers = append(servers, domain.ServerSpec{
+			Name:                name,
+			Cmd:                 append([]string{}, server.Cmd...),
+			Env:                 normalizeImportEnv(server.Env),
+			Cwd:                 strings.TrimSpace(server.Cwd),
+			IdleSeconds:         60,
+			MaxConcurrent:       domain.DefaultMaxConcurrent,
+			Sticky:              false,
+			Persistent:          false,
+			MinReady:            0,
+			DrainTimeoutSeconds: domain.DefaultDrainTimeoutSeconds,
+			ProtocolVersion:     domain.DefaultProtocolVersion,
+		})
+	}
+
+	return profileNames, servers, nil
+}
+
+func normalizeImportEnv(env map[string]string) map[string]string {
+	if len(env) == 0 {
+		return nil
+	}
+	cleaned := make(map[string]string, len(env))
+	for key, value := range env {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		cleaned[key] = value
+	}
+	if len(cleaned) == 0 {
+		return nil
+	}
+	return cleaned
 }
