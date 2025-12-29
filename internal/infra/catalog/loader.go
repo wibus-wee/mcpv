@@ -152,10 +152,6 @@ func (l *Loader) Load(ctx context.Context, path string) (domain.Catalog, error) 
 		return domain.Catalog{}, err
 	}
 
-	if len(cfg.Servers) == 0 {
-		return domain.Catalog{}, errors.New("no servers defined in catalog")
-	}
-
 	specs := make(map[string]domain.ServerSpec, len(cfg.Servers))
 	var validationErrors []string
 	nameSeen := make(map[string]struct{})

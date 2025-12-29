@@ -179,9 +179,9 @@ servers: []
 `)
 
 	loader := NewLoader(zap.NewNop())
-	_, err := loader.Load(context.Background(), file)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "no servers defined")
+	catalog, err := loader.Load(context.Background(), file)
+	require.NoError(t, err)
+	require.Empty(t, catalog.Specs)
 }
 
 func TestLoader_ContextCanceled(t *testing.T) {

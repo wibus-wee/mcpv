@@ -88,8 +88,11 @@ func TestProfileStoreLoader_AllowCreate(t *testing.T) {
 	dir := t.TempDir()
 
 	loader := NewProfileStoreLoader(zap.NewNop())
-	_, err := loader.Load(context.Background(), dir, ProfileStoreOptions{AllowCreate: true})
-	require.Error(t, err)
+	store, err := loader.Load(context.Background(), dir, ProfileStoreOptions{AllowCreate: true})
+	require.NoError(t, err)
+	profile, ok := store.Profiles[domain.DefaultProfileName]
+	require.True(t, ok)
+	require.Empty(t, profile.Catalog.Specs)
 
 	_, err = os.Stat(filepath.Join(dir, "callers.yaml"))
 	require.NoError(t, err)
