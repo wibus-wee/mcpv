@@ -26,7 +26,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { buildClientConfig } from '@/lib/mcpdmcp'
+import { buildCliSnippet, buildClientConfig, buildTomlConfig } from '@/lib/mcpdmcp'
 import { useMcpdmcpPath } from '@/hooks/use-mcpdmcp-path'
 import { useRpcAddress } from '@/hooks/use-rpc-address'
 import { useCallers } from '@/modules/config/hooks'
@@ -103,7 +103,7 @@ export function ConnectIdeSheet() {
       claude: [
         {
           title: 'Claude CLI (stdio)',
-          value: `claude mcp add --transport stdio mcpd -- ${path} ${caller} --rpc ${rpcAddress}`,
+          value: buildCliSnippet(path, caller, rpcAddress, 'claude'),
         },
         {
           title: 'Claude config (json)',
@@ -113,15 +113,11 @@ export function ConnectIdeSheet() {
       codex: [
         {
           title: 'Codex CLI (stdio)',
-          value: `codex mcp add mcpd -- ${path} ${caller} --rpc ${rpcAddress}`,
+          value: buildCliSnippet(path, caller, rpcAddress, 'codex'),
         },
         {
           title: 'Codex config (config.toml)',
-          value: [
-            `[mcp_servers.mcpd]`,
-            `command = "${path}"`,
-            `args = ["${caller}", "--rpc", "${rpcAddress}"]`,
-          ].join('\n'),
+          value: buildTomlConfig(path, caller, rpcAddress),
         },
       ],
     }),
@@ -130,7 +126,7 @@ export function ConnectIdeSheet() {
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger>
+      <SheetTrigger asChild>
         <Button variant="secondary" size="sm">
           <RocketIcon className="size-4" />
           Connect IDE
@@ -140,11 +136,6 @@ export function ConnectIdeSheet() {
         <SheetHeader>
           <SheetTitle>Connect your IDE</SheetTitle>
           <SheetDescription>Copy ready-to-use commands or config snippets for common clients.</SheetDescription>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Badge variant={isFallback ? 'outline' : 'secondary'} size="sm">
-              Path {isFallback ? 'Fallback' : 'Detected'}
-            </Badge>
-          </div>
         </SheetHeader>
         <SheetPanel className="space-y-6">
           <div className="space-y-3">
@@ -195,12 +186,10 @@ export function ConnectIdeSheet() {
                             <Icon className="size-4 text-muted-foreground" />
                             <CardTitle className="text-sm">{block.title}</CardTitle>
                           </div>
-                          <div className="flex items-center justify-end">
-                            <CopyButton text={block.value} />
-                          </div>
+                          <CopyButton text={block.value} />
                         </CardHeader>
                         <CardContent className="space-y-2">
-                          <Textarea readOnly value={block.value} className="font-mono text-xs min-h-42" />
+                          <Textarea readOnly value={block.value} className="font-mono text-xs min-h-[160px]" />
                         </CardContent>
                       </Card>
                     ))}

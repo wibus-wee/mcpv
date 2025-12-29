@@ -23,6 +23,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
+import { ConnectIdeSheet } from '@/components/common/connect-ide-sheet'
 import { Spring } from '@/lib/spring'
 import { cn } from '@/lib/utils'
 
@@ -110,7 +111,8 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-sidebar-border border-t">
+      <SidebarFooter className="border-sidebar-border border-t flex flex-col gap-2 justify-center">
+          <ConnectIdeSheet />
         <m.div
           className="p-2 text-center text-muted-foreground text-xs group-data-[collapsible=icon]:hidden"
           initial={{ opacity: 0 }}

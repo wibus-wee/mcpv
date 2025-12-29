@@ -19,8 +19,8 @@ import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCoreActions, useCoreState } from '@/hooks/use-core-state'
 
+import { ConnectIdeSheet } from '@/components/common/connect-ide-sheet'
 import {
-  ConnectIdeSheet,
   LogsPanel,
   ResourcesList,
   StatusCards,

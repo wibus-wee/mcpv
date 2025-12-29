@@ -1,5 +1,6 @@
 import './styles.css'
 
+import { start } from "react-scan"
 import { createRouter, RouterProvider } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
@@ -7,6 +8,10 @@ import ReactDOM from 'react-dom/client'
 import reportWebVitals from './reportWebVitals.ts'
 // Import the generated route tree
 import { routeTree } from './routeTree.gen'
+
+if (process.env.NODE_ENV === 'development') {
+  start()
+}
 
 // Create a new router instance
 const router = createRouter({

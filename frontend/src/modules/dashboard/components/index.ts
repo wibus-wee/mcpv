@@ -6,4 +6,3 @@ export { LogsPanel } from "./logs-panel";
 export { ResourcesList } from "./resources-list";
 export { StatusCards } from "./status-cards";
 export { ToolsTable } from "./tools-table";
-export { ConnectIdeSheet } from "./connect-ide-sheet";
