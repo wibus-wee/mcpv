@@ -40,7 +40,7 @@ export function ToolsGrid({ className }: ToolsGridProps) {
 
   if (isLoading) {
     return (
-      <div className={cn('flex flex-1 rounded-lg border border-border overflow-hidden', className)}>
+      <div className={cn('flex flex-1 border-t border-border overflow-hidden', className)}>
         <div className="w-72 border-r border-border p-3 space-y-2">
           <Skeleton className="h-9 w-full" />
           <Skeleton className="h-8 w-full" />
@@ -80,7 +80,7 @@ export function ToolsGrid({ className }: ToolsGridProps) {
       animate={{ opacity: 1 }}
       transition={Spring.smooth(0.3)}
       className={cn(
-        'flex flex-1 rounded-lg border border-border overflow-hidden bg-background',
+        'flex flex-1 overflow-hidden bg-background border-t',
         className
       )}
     >

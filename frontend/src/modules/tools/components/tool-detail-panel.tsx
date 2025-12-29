@@ -50,13 +50,8 @@ export function ToolDetailPanel({ tool, serverName, className }: ToolDetailPanel
     )
   }
 
-  let schema: ToolSchema = {}
-  try {
-    schema = JSON.parse(tool.toolJson as string)
-  } catch {
-    schema = {}
-  }
-
+  const schema: ToolSchema = tool.toolJson
+  console.log(tool)
   const properties = schema.inputSchema?.properties || {}
   const required = schema.inputSchema?.required || []
   const hasParams = Object.keys(properties).length > 0
@@ -74,7 +69,7 @@ export function ToolDetailPanel({ tool, serverName, className }: ToolDetailPanel
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={Spring.smooth(0.3)}
-        className="p-6 space-y-6"
+        className="p-6 space-y-6 min-w-0 w-full"
       >
         {/* Header */}
         <div>
@@ -112,7 +107,7 @@ export function ToolDetailPanel({ tool, serverName, className }: ToolDetailPanel
                 const isRequired = required.includes(name)
 
                 return (
-                  <Card key={name} className="p-3">
+                  <Card key={name} className="p-3 shadow-none">
                     <div className="flex items-start gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
