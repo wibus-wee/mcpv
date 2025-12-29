@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,19 +20,19 @@ import (
 )
 
 type ControlPlane struct {
-	info              domain.ControlPlaneInfo
-	profiles          map[string]*profileRuntime
-	callers           map[string]string
-	specRegistry      map[string]domain.ServerSpec
-	scheduler         domain.Scheduler
-	initManager       *ServerInitializationManager
-	runtime           domain.RuntimeConfig
-	logs              *telemetry.LogBroadcaster
-	logger            *zap.Logger
-	ctx               context.Context
-	profileStore      domain.ProfileStore
-	runtimeStatusIdx  *aggregator.RuntimeStatusIndex
-	serverInitIdx     *aggregator.ServerInitIndex
+	info             domain.ControlPlaneInfo
+	profiles         map[string]*profileRuntime
+	callers          map[string]string
+	specRegistry     map[string]domain.ServerSpec
+	scheduler        domain.Scheduler
+	initManager      *ServerInitializationManager
+	runtime          domain.RuntimeConfig
+	logs             *telemetry.LogBroadcaster
+	logger           *zap.Logger
+	ctx              context.Context
+	profileStore     domain.ProfileStore
+	runtimeStatusIdx *aggregator.RuntimeStatusIndex
+	serverInitIdx    *aggregator.ServerInitIndex
 
 	mu             sync.Mutex
 	activeCallers  map[string]callerState
@@ -263,6 +265,58 @@ func (c *ControlPlane) ListTools(ctx context.Context, caller string) (domain.Too
 	return profile.tools.Snapshot(), nil
 }
 
+func (c *ControlPlane) ListToolsAllProfiles(ctx context.Context) (domain.ToolSnapshot, error) {
+	profileNames := c.activeProfileNames()
+	if len(profileNames) == 0 {
+		return domain.ToolSnapshot{}, nil
+	}
+
+	merged := make([]domain.ToolDefinition, 0)
+	seen := make(map[string]struct{})
+
+	for _, name := range profileNames {
+		runtime := c.profiles[name]
+		if runtime == nil || runtime.tools == nil {
+			continue
+		}
+		snapshot := runtime.tools.Snapshot()
+		for _, tool := range snapshot.Tools {
+			key := tool.SpecKey
+			if key == "" {
+				key = tool.ServerName
+			}
+			if key == "" {
+				key = tool.Name
+			}
+			dedupeKey := key + "\x00" + tool.Name
+			if _, ok := seen[dedupeKey]; ok {
+				continue
+			}
+			seen[dedupeKey] = struct{}{}
+			merged = append(merged, tool)
+		}
+	}
+
+	if len(merged) == 0 {
+		return domain.ToolSnapshot{}, nil
+	}
+
+	sort.Slice(merged, func(i, j int) bool {
+		if merged[i].SpecKey != merged[j].SpecKey {
+			return merged[i].SpecKey < merged[j].SpecKey
+		}
+		if merged[i].Name != merged[j].Name {
+			return merged[i].Name < merged[j].Name
+		}
+		return merged[i].ServerName < merged[j].ServerName
+	})
+
+	return domain.ToolSnapshot{
+		ETag:  hashTools(merged),
+		Tools: merged,
+	}, nil
+}
+
 func (c *ControlPlane) WatchTools(ctx context.Context, caller string) (<-chan domain.ToolSnapshot, error) {
 	profile, err := c.resolveProfile(caller)
 	if err != nil {
@@ -289,6 +343,25 @@ func (c *ControlPlane) CallTool(ctx context.Context, caller, name string, args j
 	return profile.tools.CallTool(ctx, name, args, routingKey)
 }
 
+func (c *ControlPlane) CallToolAllProfiles(ctx context.Context, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
+	profileNames := c.activeProfileNames()
+	for _, profileName := range profileNames {
+		runtime := c.profiles[profileName]
+		if runtime == nil || runtime.tools == nil {
+			continue
+		}
+		result, err := runtime.tools.CallTool(ctx, name, args, routingKey)
+		if err == nil {
+			return result, nil
+		}
+		if errors.Is(err, domain.ErrToolNotFound) {
+			continue
+		}
+		return nil, err
+	}
+	return nil, domain.ErrToolNotFound
+}
+
 func (c *ControlPlane) ListResources(ctx context.Context, caller string, cursor string) (domain.ResourcePage, error) {
 	profile, err := c.resolveProfile(caller)
 	if err != nil {
@@ -298,6 +371,45 @@ func (c *ControlPlane) ListResources(ctx context.Context, caller string, cursor 
 		return domain.ResourcePage{Snapshot: domain.ResourceSnapshot{}}, nil
 	}
 	snapshot := profile.resources.Snapshot()
+	return paginateResources(snapshot, cursor)
+}
+
+func (c *ControlPlane) ListResourcesAllProfiles(ctx context.Context, cursor string) (domain.ResourcePage, error) {
+	profileNames := c.activeProfileNames()
+	if len(profileNames) == 0 {
+		return domain.ResourcePage{Snapshot: domain.ResourceSnapshot{}}, nil
+	}
+
+	merged := make([]domain.ResourceDefinition, 0)
+	seen := make(map[string]struct{})
+
+	for _, profileName := range profileNames {
+		runtime := c.profiles[profileName]
+		if runtime == nil || runtime.resources == nil {
+			continue
+		}
+		snapshot := runtime.resources.Snapshot()
+		for _, resource := range snapshot.Resources {
+			if resource.URI == "" {
+				continue
+			}
+			if _, ok := seen[resource.URI]; ok {
+				continue
+			}
+			seen[resource.URI] = struct{}{}
+			merged = append(merged, resource)
+		}
+	}
+
+	if len(merged) == 0 {
+		return domain.ResourcePage{Snapshot: domain.ResourceSnapshot{}}, nil
+	}
+
+	sort.Slice(merged, func(i, j int) bool { return merged[i].URI < merged[j].URI })
+	snapshot := domain.ResourceSnapshot{
+		ETag:      hashResources(merged),
+		Resources: merged,
+	}
 	return paginateResources(snapshot, cursor)
 }
 
@@ -327,6 +439,25 @@ func (c *ControlPlane) ReadResource(ctx context.Context, caller, uri string) (js
 	return profile.resources.ReadResource(ctx, uri)
 }
 
+func (c *ControlPlane) ReadResourceAllProfiles(ctx context.Context, uri string) (json.RawMessage, error) {
+	profileNames := c.activeProfileNames()
+	for _, profileName := range profileNames {
+		runtime := c.profiles[profileName]
+		if runtime == nil || runtime.resources == nil {
+			continue
+		}
+		result, err := runtime.resources.ReadResource(ctx, uri)
+		if err == nil {
+			return result, nil
+		}
+		if errors.Is(err, domain.ErrResourceNotFound) {
+			continue
+		}
+		return nil, err
+	}
+	return nil, domain.ErrResourceNotFound
+}
+
 func (c *ControlPlane) ListPrompts(ctx context.Context, caller string, cursor string) (domain.PromptPage, error) {
 	profile, err := c.resolveProfile(caller)
 	if err != nil {
@@ -336,6 +467,45 @@ func (c *ControlPlane) ListPrompts(ctx context.Context, caller string, cursor st
 		return domain.PromptPage{Snapshot: domain.PromptSnapshot{}}, nil
 	}
 	snapshot := profile.prompts.Snapshot()
+	return paginatePrompts(snapshot, cursor)
+}
+
+func (c *ControlPlane) ListPromptsAllProfiles(ctx context.Context, cursor string) (domain.PromptPage, error) {
+	profileNames := c.activeProfileNames()
+	if len(profileNames) == 0 {
+		return domain.PromptPage{Snapshot: domain.PromptSnapshot{}}, nil
+	}
+
+	merged := make([]domain.PromptDefinition, 0)
+	seen := make(map[string]struct{})
+
+	for _, profileName := range profileNames {
+		runtime := c.profiles[profileName]
+		if runtime == nil || runtime.prompts == nil {
+			continue
+		}
+		snapshot := runtime.prompts.Snapshot()
+		for _, prompt := range snapshot.Prompts {
+			if prompt.Name == "" {
+				continue
+			}
+			if _, ok := seen[prompt.Name]; ok {
+				continue
+			}
+			seen[prompt.Name] = struct{}{}
+			merged = append(merged, prompt)
+		}
+	}
+
+	if len(merged) == 0 {
+		return domain.PromptPage{Snapshot: domain.PromptSnapshot{}}, nil
+	}
+
+	sort.Slice(merged, func(i, j int) bool { return merged[i].Name < merged[j].Name })
+	snapshot := domain.PromptSnapshot{
+		ETag:    hashPrompts(merged),
+		Prompts: merged,
+	}
 	return paginatePrompts(snapshot, cursor)
 }
 
@@ -365,12 +535,39 @@ func (c *ControlPlane) GetPrompt(ctx context.Context, caller, name string, args 
 	return profile.prompts.GetPrompt(ctx, name, args)
 }
 
+func (c *ControlPlane) GetPromptAllProfiles(ctx context.Context, name string, args json.RawMessage) (json.RawMessage, error) {
+	profileNames := c.activeProfileNames()
+	for _, profileName := range profileNames {
+		runtime := c.profiles[profileName]
+		if runtime == nil || runtime.prompts == nil {
+			continue
+		}
+		result, err := runtime.prompts.GetPrompt(ctx, name, args)
+		if err == nil {
+			return result, nil
+		}
+		if errors.Is(err, domain.ErrPromptNotFound) {
+			continue
+		}
+		return nil, err
+	}
+	return nil, domain.ErrPromptNotFound
+}
+
 func (c *ControlPlane) StreamLogs(ctx context.Context, caller string, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
 	if _, err := c.resolveProfile(caller); err != nil {
 		ch := make(chan domain.LogEntry)
 		close(ch)
 		return ch, err
 	}
+	return c.streamLogs(ctx, minLevel)
+}
+
+func (c *ControlPlane) StreamLogsAllProfiles(ctx context.Context, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
+	return c.streamLogs(ctx, minLevel)
+}
+
+func (c *ControlPlane) streamLogs(ctx context.Context, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
 	if c.logs == nil {
 		ch := make(chan domain.LogEntry)
 		close(ch)
@@ -439,6 +636,20 @@ func (c *ControlPlane) resolveProfileName(caller string) (string, error) {
 		return "", fmt.Errorf("profile %q not found", profileName)
 	}
 	return profileName, nil
+}
+
+func (c *ControlPlane) activeProfileNames() []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	names := make([]string, 0, len(c.profileCounts))
+	for name, count := range c.profileCounts {
+		if count > 0 {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	return names
 }
 
 func paginateResources(snapshot domain.ResourceSnapshot, cursor string) (domain.ResourcePage, error) {
@@ -734,6 +945,39 @@ func logLevelRank(level domain.LogLevel) int {
 	}
 }
 
+func hashTools(tools []domain.ToolDefinition) string {
+	hasher := sha256.New()
+	for _, tool := range tools {
+		_, _ = hasher.Write([]byte(tool.Name))
+		_, _ = hasher.Write([]byte{0})
+		_, _ = hasher.Write(tool.ToolJSON)
+		_, _ = hasher.Write([]byte{0})
+	}
+	return hex.EncodeToString(hasher.Sum(nil))
+}
+
+func hashResources(resources []domain.ResourceDefinition) string {
+	hasher := sha256.New()
+	for _, resource := range resources {
+		_, _ = hasher.Write([]byte(resource.URI))
+		_, _ = hasher.Write([]byte{0})
+		_, _ = hasher.Write(resource.ResourceJSON)
+		_, _ = hasher.Write([]byte{0})
+	}
+	return hex.EncodeToString(hasher.Sum(nil))
+}
+
+func hashPrompts(prompts []domain.PromptDefinition) string {
+	hasher := sha256.New()
+	for _, prompt := range prompts {
+		_, _ = hasher.Write([]byte(prompt.Name))
+		_, _ = hasher.Write([]byte{0})
+		_, _ = hasher.Write(prompt.PromptJSON)
+		_, _ = hasher.Write([]byte{0})
+	}
+	return hex.EncodeToString(hasher.Sum(nil))
+}
+
 func (c *ControlPlane) GetProfileStore() domain.ProfileStore {
 	return c.profileStore
 }
@@ -768,6 +1012,16 @@ func (c *ControlPlane) WatchRuntimeStatus(ctx context.Context, caller string) (<
 	return c.runtimeStatusIdx.Subscribe(ctx), nil
 }
 
+// WatchRuntimeStatusAllProfiles returns a channel that receives runtime status snapshots.
+func (c *ControlPlane) WatchRuntimeStatusAllProfiles(ctx context.Context) (<-chan domain.RuntimeStatusSnapshot, error) {
+	if c.runtimeStatusIdx == nil {
+		ch := make(chan domain.RuntimeStatusSnapshot)
+		close(ch)
+		return ch, nil
+	}
+	return c.runtimeStatusIdx.Subscribe(ctx), nil
+}
+
 // WatchServerInitStatus returns a channel that receives server init status snapshots.
 func (c *ControlPlane) WatchServerInitStatus(ctx context.Context, caller string) (<-chan domain.ServerInitStatusSnapshot, error) {
 	if _, err := c.resolveProfile(caller); err != nil {
@@ -775,6 +1029,16 @@ func (c *ControlPlane) WatchServerInitStatus(ctx context.Context, caller string)
 		close(ch)
 		return ch, err
 	}
+	if c.serverInitIdx == nil {
+		ch := make(chan domain.ServerInitStatusSnapshot)
+		close(ch)
+		return ch, nil
+	}
+	return c.serverInitIdx.Subscribe(ctx), nil
+}
+
+// WatchServerInitStatusAllProfiles returns a channel that receives server init status snapshots.
+func (c *ControlPlane) WatchServerInitStatusAllProfiles(ctx context.Context) (<-chan domain.ServerInitStatusSnapshot, error) {
 	if c.serverInitIdx == nil {
 		ch := make(chan domain.ServerInitStatusSnapshot)
 		close(ch)

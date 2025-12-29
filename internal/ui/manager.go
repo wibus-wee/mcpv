@@ -2,7 +2,6 @@ package ui
 
 import (
 	"context"
-	"os"
 	"sync"
 	"time"
 
@@ -138,16 +137,6 @@ func (m *Manager) handleControlPlaneReady(cp domain.ControlPlane) {
 		return
 	}
 
-	if _, err := cp.RegisterCaller(context.Background(), "wails-ui", os.Getpid()); err != nil {
-		m.mu.Lock()
-		m.coreState = CoreStateError
-		m.coreError = err
-		m.mu.Unlock()
-		emitCoreState(m.wails, string(CoreStateError), err)
-		emitError(m.wails, ErrCodeInternal, "Failed to register UI caller", err.Error())
-		return
-	}
-
 	m.onCoreReady()
 }
 
@@ -181,7 +170,7 @@ func (m *Manager) startWatchers() {
 
 	// Watch runtime status
 	go func() {
-		updates, err := m.controlPlane.WatchRuntimeStatus(ctx, "wails-ui")
+		updates, err := m.controlPlane.WatchRuntimeStatusAllProfiles(ctx)
 		if err != nil {
 			emitError(m.wails, ErrCodeInternal, "Failed to start runtime status watcher", err.Error())
 			return
@@ -193,7 +182,7 @@ func (m *Manager) startWatchers() {
 
 	// Watch server init status
 	go func() {
-		updates, err := m.controlPlane.WatchServerInitStatus(ctx, "wails-ui")
+		updates, err := m.controlPlane.WatchServerInitStatusAllProfiles(ctx)
 		if err != nil {
 			emitError(m.wails, ErrCodeInternal, "Failed to start server init status watcher", err.Error())
 			return

@@ -1,18 +1,26 @@
-// Input: Tools data from hooks, runtime status
-// Output: ToolsGrid component with responsive layout
-// Position: Main grid component for tools page
+// Input: Tools data from hooks, sidebar and detail panel components
+// Output: ToolsGrid component with master-detail layout
+// Position: Main container for tools page with Linear/Vercel-style UX
 
 import { useState } from 'react'
 import { m } from 'motion/react'
 import { ServerOffIcon } from 'lucide-react'
+
+import type { ToolEntry } from '@bindings/mcpd/internal/ui'
 
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spring } from '@/lib/spring'
 import { cn } from '@/lib/utils'
 
 import { useToolsByServer } from '../hooks'
-import { ServerCard } from './server-card'
-import { ServerDetailsSheet } from './server-details-sheet'
+import { ToolsSidebar } from './tools-sidebar'
+import { ToolDetailPanel } from './tool-detail-panel'
+
+interface SelectedTool {
+  tool: ToolEntry
+  serverId: string
+  serverName: string
+}
 
 interface ToolsGridProps {
   className?: string
@@ -20,34 +28,37 @@ interface ToolsGridProps {
 
 export function ToolsGrid({ className }: ToolsGridProps) {
   const { servers, isLoading } = useToolsByServer()
-  const [selectedServerId, setSelectedServerId] = useState<string | null>(null)
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const [selectedTool, setSelectedTool] = useState<SelectedTool | null>(null)
 
-  const handleServerClick = (serverId: string) => {
-    setSelectedServerId(serverId)
-    setSheetOpen(true)
-  }
-
-  const handleSheetClose = (open: boolean) => {
-    setSheetOpen(open)
-    if (!open) {
-      setTimeout(() => setSelectedServerId(null), 200)
-    }
+  const handleSelectTool = (tool: ToolEntry, server: { id: string; serverName: string }) => {
+    setSelectedTool({
+      tool,
+      serverId: server.id,
+      serverName: server.serverName
+    })
   }
 
   if (isLoading) {
     return (
-      <div className={cn('grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4', className)}>
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-48 rounded-xl" />
-        ))}
+      <div className={cn('flex flex-1 rounded-lg border border-border overflow-hidden', className)}>
+        <div className="w-72 border-r border-border p-3 space-y-2">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-full" />
+        </div>
+        <div className="flex-1 p-6 space-y-4">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-full max-w-md" />
+          <Skeleton className="h-32 w-full" />
+        </div>
       </div>
     )
   }
 
   if (servers.length === 0) {
     return (
-      <div className={cn('flex flex-col items-center justify-center h-full gap-4', className)}>
+      <div className={cn('flex flex-col items-center justify-center flex-1 gap-4', className)}>
         <ServerOffIcon className="size-16 text-muted-foreground" />
         <div className="text-center">
           <h3 className="text-lg font-semibold">No servers configured</h3>
@@ -59,37 +70,31 @@ export function ToolsGrid({ className }: ToolsGridProps) {
     )
   }
 
-  const selectedServerData = servers.find(s => s.id === selectedServerId)
+  const selectedToolId = selectedTool
+    ? `${selectedTool.serverId}:${selectedTool.tool.name}`
+    : null
 
   return (
-    <>
-      <div className={cn('grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4', className)}>
-        {servers.map((server, index) => (
-          <m.div
-            key={server.id}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={Spring.smooth(0.3, index * 0.05)}
-          >
-            <ServerCard
-              specKey={server.specKey}
-              serverName={server.serverName}
-              toolCount={server.tools.length}
-              onClick={() => handleServerClick(server.id)}
-            />
-          </m.div>
-        ))}
-      </div>
-
-      {selectedServerData && (
-        <ServerDetailsSheet
-          specKey={selectedServerData.specKey}
-          serverName={selectedServerData.serverName}
-          tools={selectedServerData.tools}
-          open={sheetOpen}
-          onOpenChange={handleSheetClose}
-        />
+    <m.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={Spring.smooth(0.3)}
+      className={cn(
+        'flex flex-1 rounded-lg border border-border overflow-hidden bg-background',
+        className
       )}
-    </>
+    >
+      <ToolsSidebar
+        servers={servers}
+        selectedToolId={selectedToolId}
+        onSelectTool={handleSelectTool}
+        className="w-72 shrink-0"
+      />
+      <ToolDetailPanel
+        tool={selectedTool?.tool ?? null}
+        serverName={selectedTool?.serverName}
+        className="flex-1"
+      />
+    </m.div>
   )
 }

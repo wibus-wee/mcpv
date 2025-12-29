@@ -159,8 +159,7 @@ func (s *WailsService) ListTools(ctx context.Context) ([]ToolEntry, error) {
 		return nil, err
 	}
 
-	// 对 Wails UI,使用内部 caller 标识
-	snapshot, err := cp.ListTools(ctx, "wails-ui")
+	snapshot, err := cp.ListToolsAllProfiles(ctx)
 	if err != nil {
 		return nil, MapDomainError(err)
 	}
@@ -190,7 +189,7 @@ func (s *WailsService) ListResources(ctx context.Context, cursor string) (*Resou
 		return nil, err
 	}
 
-	page, err := cp.ListResources(ctx, "wails-ui", cursor)
+	page, err := cp.ListResourcesAllProfiles(ctx, cursor)
 	if err != nil {
 		return nil, MapDomainError(err)
 	}
@@ -216,7 +215,7 @@ func (s *WailsService) ListPrompts(ctx context.Context, cursor string) (*PromptP
 		return nil, err
 	}
 
-	page, err := cp.ListPrompts(ctx, "wails-ui", cursor)
+	page, err := cp.ListPromptsAllProfiles(ctx, cursor)
 	if err != nil {
 		return nil, MapDomainError(err)
 	}
@@ -242,7 +241,7 @@ func (s *WailsService) CallTool(ctx context.Context, name string, args json.RawM
 		return nil, err
 	}
 
-	result, err := cp.CallTool(ctx, "wails-ui", name, args, routingKey)
+	result, err := cp.CallToolAllProfiles(ctx, name, args, routingKey)
 	if err != nil {
 		return nil, MapDomainError(err)
 	}
@@ -256,7 +255,7 @@ func (s *WailsService) ReadResource(ctx context.Context, uri string) (json.RawMe
 		return nil, err
 	}
 
-	result, err := cp.ReadResource(ctx, "wails-ui", uri)
+	result, err := cp.ReadResourceAllProfiles(ctx, uri)
 	if err != nil {
 		return nil, MapDomainError(err)
 	}
@@ -270,7 +269,7 @@ func (s *WailsService) GetPrompt(ctx context.Context, name string, args json.Raw
 		return nil, err
 	}
 
-	result, err := cp.GetPrompt(ctx, "wails-ui", name, args)
+	result, err := cp.GetPromptAllProfiles(ctx, name, args)
 	if err != nil {
 		return nil, MapDomainError(err)
 	}
@@ -355,10 +354,10 @@ func (s *WailsService) StartLogStream(ctx context.Context, minLevel string) erro
 
 	// 转换日志级别
 	level := domain.LogLevel(minLevel)
-	s.logger.Info("Calling ControlPlane.StreamLogs", zap.String("level", string(level)))
+	s.logger.Info("Calling ControlPlane.StreamLogsAllProfiles", zap.String("level", string(level)))
 
 	// 启动流式传输
-	logCh, err := cp.StreamLogs(streamCtx, "wails-ui", level)
+	logCh, err := cp.StreamLogsAllProfiles(streamCtx, level)
 	if err != nil {
 		s.logger.Error("StreamLogs failed", zap.Error(err))
 		s.logStreaming = false

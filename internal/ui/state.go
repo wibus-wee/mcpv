@@ -121,8 +121,17 @@ func (s *SharedState) CancelAllWatches() {
 // Helper functions to deep copy snapshots
 
 func copyToolSnapshot(snapshot domain.ToolSnapshot) domain.ToolSnapshot {
-	tools := make([]domain.ToolDefinition, len(snapshot.Tools))
-	copy(tools, snapshot.Tools)
+	tools := make([]domain.ToolDefinition, 0, len(snapshot.Tools))
+	for _, tool := range snapshot.Tools {
+		raw := make([]byte, len(tool.ToolJSON))
+		copy(raw, tool.ToolJSON)
+		tools = append(tools, domain.ToolDefinition{
+			Name:       tool.Name,
+			ToolJSON:   raw,
+			SpecKey:    tool.SpecKey,
+			ServerName: tool.ServerName,
+		})
+	}
 	return domain.ToolSnapshot{
 		ETag:  snapshot.ETag,
 		Tools: tools,

@@ -703,8 +703,10 @@ func copySnapshot(snapshot domain.ToolSnapshot) domain.ToolSnapshot {
 		raw := make([]byte, len(tool.ToolJSON))
 		copy(raw, tool.ToolJSON)
 		out.Tools = append(out.Tools, domain.ToolDefinition{
-			Name:     tool.Name,
-			ToolJSON: raw,
+			Name:       tool.Name,
+			ToolJSON:   raw,
+			SpecKey:    tool.SpecKey,
+			ServerName: tool.ServerName,
 		})
 	}
 	return out

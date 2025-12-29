@@ -174,6 +174,13 @@ func (f *fakeControlPlane) ListTools(ctx context.Context, caller string) (domain
 	return f.snapshot, nil
 }
 
+func (f *fakeControlPlane) ListToolsAllProfiles(ctx context.Context) (domain.ToolSnapshot, error) {
+	if f.listToolsErr != nil {
+		return domain.ToolSnapshot{}, f.listToolsErr
+	}
+	return f.snapshot, nil
+}
+
 func (f *fakeControlPlane) WatchTools(ctx context.Context, caller string) (<-chan domain.ToolSnapshot, error) {
 	ch := make(chan domain.ToolSnapshot)
 	close(ch)
@@ -187,7 +194,15 @@ func (f *fakeControlPlane) CallTool(ctx context.Context, caller, name string, ar
 	return json.RawMessage(`{"content":[{"type":"text","text":"ok"}]}`), nil
 }
 
+func (f *fakeControlPlane) CallToolAllProfiles(ctx context.Context, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
+	return f.CallTool(ctx, "", name, args, routingKey)
+}
+
 func (f *fakeControlPlane) ListResources(ctx context.Context, caller string, cursor string) (domain.ResourcePage, error) {
+	return f.resourcePage, nil
+}
+
+func (f *fakeControlPlane) ListResourcesAllProfiles(ctx context.Context, cursor string) (domain.ResourcePage, error) {
 	return f.resourcePage, nil
 }
 
@@ -204,7 +219,15 @@ func (f *fakeControlPlane) ReadResource(ctx context.Context, caller, uri string)
 	return json.RawMessage(`{"contents":[{"uri":"file:///a","text":"ok"}]}`), nil
 }
 
+func (f *fakeControlPlane) ReadResourceAllProfiles(ctx context.Context, uri string) (json.RawMessage, error) {
+	return f.ReadResource(ctx, "", uri)
+}
+
 func (f *fakeControlPlane) ListPrompts(ctx context.Context, caller string, cursor string) (domain.PromptPage, error) {
+	return f.promptPage, nil
+}
+
+func (f *fakeControlPlane) ListPromptsAllProfiles(ctx context.Context, cursor string) (domain.PromptPage, error) {
 	return f.promptPage, nil
 }
 
@@ -221,10 +244,18 @@ func (f *fakeControlPlane) GetPrompt(ctx context.Context, caller, name string, a
 	return json.RawMessage(`{"messages":[{"role":"user","content":{"type":"text","text":"ok"}}]}`), nil
 }
 
+func (f *fakeControlPlane) GetPromptAllProfiles(ctx context.Context, name string, args json.RawMessage) (json.RawMessage, error) {
+	return f.GetPrompt(ctx, "", name, args)
+}
+
 func (f *fakeControlPlane) StreamLogs(ctx context.Context, caller string, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
 	ch := make(chan domain.LogEntry)
 	close(ch)
 	return ch, nil
+}
+
+func (f *fakeControlPlane) StreamLogsAllProfiles(ctx context.Context, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
+	return f.StreamLogs(ctx, "", minLevel)
 }
 
 func (f *fakeControlPlane) GetProfileStore() domain.ProfileStore {
@@ -245,8 +276,16 @@ func (f *fakeControlPlane) WatchRuntimeStatus(ctx context.Context, caller string
 	return ch, nil
 }
 
+func (f *fakeControlPlane) WatchRuntimeStatusAllProfiles(ctx context.Context) (<-chan domain.RuntimeStatusSnapshot, error) {
+	return f.WatchRuntimeStatus(ctx, "")
+}
+
 func (f *fakeControlPlane) WatchServerInitStatus(ctx context.Context, caller string) (<-chan domain.ServerInitStatusSnapshot, error) {
 	ch := make(chan domain.ServerInitStatusSnapshot)
 	close(ch)
 	return ch, nil
+}
+
+func (f *fakeControlPlane) WatchServerInitStatusAllProfiles(ctx context.Context) (<-chan domain.ServerInitStatusSnapshot, error) {
+	return f.WatchServerInitStatus(ctx, "")
 }

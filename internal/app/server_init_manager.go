@@ -23,10 +23,12 @@ type ServerInitializationManager struct {
 	targets  map[string]int
 	running  map[string]struct{}
 
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx     context.Context
+	cancel  context.CancelFunc
 	started bool
 }
+
+const serverInitRetryDelay = 200 * time.Millisecond
 
 func NewServerInitializationManager(
 	scheduler domain.Scheduler,
@@ -204,7 +206,7 @@ func (m *ServerInitializationManager) runSpec(ctx context.Context, specKey strin
 				status.UpdatedAt = time.Now()
 			})
 			return
-		case <-time.After(2 * time.Second):
+		case <-time.After(serverInitRetryDelay):
 		}
 	}
 }
