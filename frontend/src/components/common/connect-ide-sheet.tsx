@@ -3,6 +3,7 @@ import {
   ClipboardIcon,
   Code2Icon,
   CogIcon,
+  DownloadIcon,
   MessageCircleIcon,
   MousePointerClickIcon,
   RocketIcon,
@@ -42,6 +43,24 @@ const clientMeta: Record<ClientTab, { title: string; Icon: React.ComponentType<a
 
 type PresetBlock = { title: string; value: string }
 
+function generateCursorDeepLink(name: string, config: string): string {
+  // Parse the JSON config to extract the MCP server configuration
+  const configObj = JSON.parse(config)
+  const mcpServers = configObj.mcpServers || {}
+  const serverConfig = mcpServers[name]
+
+  if (!serverConfig) {
+    throw new Error(`Server ${name} not found in config`)
+  }
+
+  // Encode the server configuration as base64
+  const configJson = JSON.stringify(serverConfig)
+  const base64Config = btoa(configJson)
+
+  // Generate the deep link
+  return `cursor://anysphere.cursor-deeplink/mcp/install?name=${encodeURIComponent(name)}&config=${encodeURIComponent(base64Config)}`
+}
+
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
 
@@ -60,6 +79,29 @@ function CopyButton({ text }: { text: string }) {
       aria-label="Copy"
     >
       {copied ? <CheckIcon className="size-4 text-emerald-500" /> : <ClipboardIcon className="size-4" />}
+    </Button>
+  )
+}
+
+function InstallInCursorButton({ serverName, config }: { serverName: string; config: string }) {
+  const handleInstall = () => {
+    try {
+      const deepLink = generateCursorDeepLink(serverName, config)
+      window.location.href = deepLink
+    } catch (error) {
+      console.error('Failed to generate Cursor deep link:', error)
+    }
+  }
+
+  return (
+    <Button
+      variant="default"
+      size="sm"
+      onClick={handleInstall}
+      className="gap-2"
+    >
+      <DownloadIcon className="size-4" />
+      Install in Cursor
     </Button>
   )
 }
@@ -179,6 +221,14 @@ export function ConnectIdeSheet() {
                 const Icon = clientMeta[key].Icon
                 return (
                   <TabsContent key={key} value={key} className="mt-4 space-y-3">
+                    {key === 'cursor' && (
+                      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+                        <p className="text-sm text-muted-foreground">
+                          Install MCP server directly in Cursor via deep link
+                        </p>
+                        <InstallInCursorButton serverName={caller} config={configByClient[key][0].value} />
+                      </div>
+                    )}
                     {configByClient[key].map(block => (
                       <Card key={`${key}-${block.title}`}>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0">
