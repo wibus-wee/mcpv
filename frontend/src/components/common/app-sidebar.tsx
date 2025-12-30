@@ -62,6 +62,7 @@ const navItems: NavItem[] = [
 ]
 
 export function AppSidebar() {
+  "use no memo";
   const matchRoute = useMatchRoute()
 
   return (
@@ -76,7 +77,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {navItems.map((item, index) => {
                 const Icon = item.icon
-                const isActive = !!matchRoute({ to: item.path, fuzzy: false })
+                const isActive = !!matchRoute({ to: item.path, fuzzy: true })
 
                 return (
                   <SidebarMenuItem key={item.path}>

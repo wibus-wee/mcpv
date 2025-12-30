@@ -3,16 +3,8 @@
 // Position: Dashboard logs section with filtering
 
 import { useSetAtom } from 'jotai'
-import {
-  AlertCircleIcon,
-  AlertTriangleIcon,
-  BugIcon,
-  InfoIcon,
-  RefreshCwIcon,
-  ScrollTextIcon,
-  TrashIcon,
-} from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { RefreshCwIcon, ScrollTextIcon, TrashIcon } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 
 import { logStreamTokenAtom } from '@/atoms/logs'
@@ -33,51 +25,21 @@ import { useCoreState } from '@/hooks/use-core-state'
 import type { LogEntry, LogSource } from '@/hooks/use-logs'
 import { useLogs } from '@/hooks/use-logs'
 import { cn } from '@/lib/utils'
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 
-const levelConfig = {
-  debug: {
-    icon: BugIcon,
-    color: 'text-muted-foreground',
-    badge: 'secondary' as const,
-  },
-  info: {
-    icon: InfoIcon,
-    color: 'text-info',
-    badge: 'info' as const,
-  },
-  warn: {
-    icon: AlertTriangleIcon,
-    color: 'text-warning',
-    badge: 'warning' as const,
-  },
-  error: {
-    icon: AlertCircleIcon,
-    color: 'text-destructive',
-    badge: 'error' as const,
-  },
-}
-
-const sourceConfig: Record<LogSource, { label: string, badge: 'secondary' | 'info' | 'success' | 'outline' }> = {
-  core: {
-    label: 'Core',
-    badge: 'secondary',
-  },
-  downstream: {
-    label: 'Downstream',
-    badge: 'info',
-  },
-  ui: {
-    label: 'Wails UI',
-    badge: 'success',
-  },
-  unknown: {
-    label: 'Unknown',
-    badge: 'outline',
-  },
+const levelClassName: Record<LogEntry['level'], string> = {
+  debug: 'text-muted-foreground',
+  info: 'text-info',
+  warn: 'text-warning',
+  error: 'text-destructive',
 }
 
 const hiddenFieldKeys = new Set(['log_source', 'logger', 'serverType', 'stream', 'timestamp'])
+const logRowSize = 32
+
+type LogSegment = {
+  text: string
+  className: string
+}
 
 const formatFieldValue = (value: unknown) => {
   if (value === null) return 'null'
@@ -94,63 +56,59 @@ const formatFieldValue = (value: unknown) => {
   return String(value)
 }
 
-function LogItem({ log }: { log: LogEntry }) {
-  const config = levelConfig[log.level] ?? levelConfig.info
-  const sourceMeta = sourceConfig[log.source] ?? sourceConfig.unknown
-  const Icon = config.icon
-  const detailEntries = Object.entries(log.fields ?? {}).filter(
-    ([key]) => !hiddenFieldKeys.has(key),
-  )
+const formatInlineFields = (fields: Record<string, unknown>) => {
+  const entries = Object.entries(fields).filter(([key]) => !hiddenFieldKeys.has(key))
+  if (entries.length === 0) return ''
+  return entries
+    .map(([key, value]) => `${key}=${formatFieldValue(value)}`)
+    .join(' ')
+}
+
+const formatInlineMessage = (message: string) => message.replace(/\n/g, '\\n')
+
+const getLogSegments = (log: LogEntry): LogSegment[] => {
+  const segments: LogSegment[] = [
+    { text: log.timestamp.toLocaleTimeString(), className: 'text-muted-foreground' },
+    { text: log.level.toUpperCase(), className: levelClassName[log.level] },
+    { text: log.source, className: 'text-muted-foreground' },
+  ]
+
+  if (log.serverType) {
+    segments.push({ text: `server=${log.serverType}`, className: 'text-muted-foreground' })
+  }
+  if (log.stream) {
+    segments.push({ text: `stream=${log.stream}`, className: 'text-muted-foreground' })
+  }
+  if (log.logger) {
+    segments.push({ text: `logger=${log.logger}`, className: 'text-muted-foreground' })
+  }
+
+  const inlineMessage = formatInlineMessage(log.message)
+  segments.push({ text: inlineMessage, className: 'text-foreground' })
+
+  const inlineFields = formatInlineFields(log.fields)
+  if (inlineFields) {
+    segments.push({ text: inlineFields, className: 'text-muted-foreground' })
+  }
+
+  return segments
+}
+
+const getSegmentsLength = (segments: LogSegment[]) => {
+  if (segments.length === 0) return 0
+  return segments.reduce((sum, segment) => sum + segment.text.length, 0) + (segments.length - 1)
+}
+
+function LogRow({ log }: { log: LogEntry }) {
+  const segments = getLogSegments(log)
 
   return (
-    <div className="flex items-start gap-3 py-2 px-3 hover:bg-muted/50 transition-colors">
-      <Icon className={cn('size-4 mt-0.5 shrink-0', config.color)} />
-      <div className="flex-1 min-w-0 space-y-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={config.badge} size="sm">
-            {log.level}
-          </Badge>
-          <Badge variant={sourceMeta.badge} size="sm">
-            {sourceMeta.label}
-          </Badge>
-          {log.serverType && (
-            <Badge variant="outline" size="sm">
-              {log.serverType}
-            </Badge>
-          )}
-          {log.stream && (
-            <Badge variant="outline" size="sm">
-              {log.stream}
-            </Badge>
-          )}
-          {log.logger && (
-            <span className="text-muted-foreground text-xs font-mono">
-              @{log.logger}
-            </span>
-          )}
-          <span className="text-muted-foreground text-xs ml-auto">
-            {log.timestamp.toLocaleTimeString()}
-          </span>
-        </div>
-        <p className="text-sm break-words whitespace-pre-wrap">{log.message}</p>
-        {detailEntries.length > 0 && (
-          <Accordion>
-            <AccordionItem value={`log-details-${log.id}`}>
-              <AccordionTrigger className={"p-1 px-2 bg-muted/50"} >Show Details</AccordionTrigger>
-              <AccordionContent>
-                <div className="mt-2 grid grid-cols-1 gap-2 rounded-md bg-muted/50 p-2 text-xs text-muted-foreground md:grid-cols-2">
-                  {detailEntries.map(([key, value]) => (
-                    <div key={key} className="flex gap-2">
-                      <span className="min-w-[120px] text-foreground font-medium">{key}</span>
-                      <span className="break-words font-mono">{formatFieldValue(value)}</span>
-                    </div>
-                  ))}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        )}
-      </div>
+    <div className="w-full border-b border-border/50 px-3 py-1 text-xs font-mono whitespace-pre leading-6">
+      {segments.map((segment, index) => (
+        <span key={`${segment.text}-${index}`} className={cn(segment.className, index === 1 && 'uppercase')}>
+          {index === 0 ? segment.text : ` ${segment.text}`}
+        </span>
+      ))}
     </div>
   )
 }
@@ -200,6 +158,18 @@ export function LogsPanel() {
     }
     return true
   })
+  const orderedLogs = filteredLogs.slice().reverse()
+  const maxLineLength = useMemo(() => {
+    let max = 0
+    for (const log of orderedLogs) {
+      const length = getSegmentsLength(getLogSegments(log))
+      if (length > max) {
+        max = length
+      }
+    }
+    return max
+  }, [orderedLogs])
+  const listWidth = maxLineLength > 0 ? `${maxLineLength}ch` : '100%'
 
   const clearLogs = () => {
     mutate([], { revalidate: false })
@@ -219,24 +189,23 @@ export function LogsPanel() {
   const showServerFilter = serverOptions.length > 0
     && (sourceFilter === 'all' || sourceFilter === 'downstream')
 
-  // Setup virtualizer for logs
   const virtualizer = useVirtualizer({
-    count: filteredLogs.length,
+    count: orderedLogs.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 100, // Estimate item height
-    overscan: 10, // Render extra items outside viewport
+    estimateSize: () => logRowSize,
+    overscan: 12,
   })
 
   useEffect(() => {
-    if (!autoScroll || filteredLogs.length === 0) {
+    if (!autoScroll || orderedLogs.length === 0) {
       return
     }
     // Scroll to the end (latest log)
-    virtualizer.scrollToIndex(filteredLogs.length - 1, {
+    virtualizer.scrollToIndex(orderedLogs.length - 1, {
       align: 'end',
-      behavior: 'smooth',
+      behavior: 'auto',
     })
-  }, [autoScroll, filteredLogs.length, virtualizer])
+  }, [autoScroll, orderedLogs.length, virtualizer])
 
   useEffect(() => {
     if (sourceFilter !== 'downstream' && sourceFilter !== 'all' && serverFilter !== 'all') {
@@ -391,11 +360,8 @@ export function LogsPanel() {
         </CardHeader>
         <Separator />
         <CardContent className="p-0">
-          <div
-            ref={parentRef}
-            className="h-80 overflow-y-auto overflow-x-hidden"
-          >
-            {filteredLogs.length === 0 ? (
+          <div ref={parentRef} className="h-80 overflow-auto">
+            {orderedLogs.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full py-12 text-muted-foreground">
                 <ScrollTextIcon className="size-8 mb-2 opacity-50" />
                 {renderEmptyState()}
@@ -404,12 +370,13 @@ export function LogsPanel() {
               <div
                 style={{
                   height: `${virtualizer.getTotalSize()}px`,
-                  width: '100%',
+                  width: listWidth,
+                  minWidth: '100%',
                   position: 'relative',
                 }}
               >
                 {virtualizer.getVirtualItems().map((virtualItem) => {
-                  const log = filteredLogs[virtualItem.index]
+                  const log = orderedLogs[virtualItem.index]
                   return (
                     <div
                       key={virtualItem.key}
@@ -421,9 +388,8 @@ export function LogsPanel() {
                         width: '100%',
                         transform: `translateY(${virtualItem.start}px)`,
                       }}
-                      className="border-b divide-y"
                     >
-                      <LogItem log={log} />
+                      <LogRow log={log} />
                     </div>
                   )
                 })}
