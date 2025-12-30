@@ -34,6 +34,7 @@ export {
     ServerInitStatus,
     ServerRuntimeStatus,
     ServerSpecDetail,
+    StartCoreOptions,
     SubAgentConfigDetail,
     ToolEntry,
     UpdateCallerMappingRequest,

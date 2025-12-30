@@ -4,10 +4,17 @@
 
 import type { CoreStateResponse } from '@bindings/mcpd/internal/ui'
 import { WailsService } from '@bindings/mcpd/internal/ui'
+import { StartCoreWithOptions } from '@bindings/mcpd/internal/ui/wailsservice'
 import { useCallback } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 
 export type CoreStatus = 'stopped' | 'starting' | 'running' | 'stopping' | 'error'
+type StartCoreOptions = {
+  mode?: 'dev' | 'prod'
+  configPath?: string
+  metricsEnabled?: boolean
+  healthzEnabled?: boolean
+}
 
 export const coreStateKey = 'core-state'
 
@@ -60,7 +67,10 @@ export function useCoreActions() {
   const startCore = useCallback(async () => {
     updateCoreState('starting')
     try {
-      await WailsService.StartCore()
+      const options: StartCoreOptions = {
+        mode: import.meta.env.DEV ? 'dev' : 'prod',
+      }
+      await StartCoreWithOptions(options)
     }
     catch (error) {
       updateCoreState('stopped')

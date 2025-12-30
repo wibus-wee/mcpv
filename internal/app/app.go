@@ -33,9 +33,9 @@ type App struct {
 }
 
 type ServeConfig struct {
-	ConfigPath     string
-	OnReady        func(domain.ControlPlane) // Called when Core is ready (after RPC server starts)
-	Observability  *ObservabilityOptions
+	ConfigPath    string
+	OnReady       func(domain.ControlPlane) // Called when Core is ready (after RPC server starts)
+	Observability *ObservabilityOptions
 }
 
 type ValidateConfig struct {

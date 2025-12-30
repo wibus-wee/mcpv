@@ -160,6 +160,14 @@ func (s *WailsService) StartCore(ctx context.Context) error {
 	return s.manager.Start(ctx)
 }
 
+// StartCoreWithOptions starts Core with explicit options.
+func (s *WailsService) StartCoreWithOptions(ctx context.Context, opts StartCoreOptions) error {
+	if s.manager == nil {
+		return NewUIError(ErrCodeInternal, "Manager not initialized")
+	}
+	return s.manager.StartWithOptions(ctx, opts)
+}
+
 // StopCore 停止 Core
 func (s *WailsService) StopCore() error {
 	if s.manager == nil {

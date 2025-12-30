@@ -47,6 +47,14 @@ type ConfigModeResponse struct {
 	IsWritable bool   `json:"isWritable"` // Whether the config is writable
 }
 
+// StartCoreOptions controls how the core is started in Wails.
+type StartCoreOptions struct {
+	Mode           string `json:"mode,omitempty"`
+	ConfigPath     string `json:"configPath,omitempty"`
+	MetricsEnabled *bool  `json:"metricsEnabled,omitempty"`
+	HealthzEnabled *bool  `json:"healthzEnabled,omitempty"`
+}
+
 // ProfileSummary provides a brief overview of a profile
 type ProfileSummary struct {
 	Name        string `json:"name"`

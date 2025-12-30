@@ -1015,6 +1015,30 @@ export class ServerSpecDetail {
 }
 
 /**
+ * StartCoreOptions controls how the core is started in Wails.
+ */
+export class StartCoreOptions {
+    "mode"?: string;
+    "configPath"?: string;
+    "metricsEnabled"?: boolean | null;
+    "healthzEnabled"?: boolean | null;
+
+    /** Creates a new StartCoreOptions instance. */
+    constructor($$source: Partial<StartCoreOptions> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new StartCoreOptions instance from a string or object.
+     */
+    static createFrom($$source: any = {}): StartCoreOptions {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new StartCoreOptions($$parsedSource as Partial<StartCoreOptions>);
+    }
+}
+
+/**
  * SubAgentConfigDetail contains the runtime-level SubAgent LLM provider config
  */
 export class SubAgentConfigDetail {

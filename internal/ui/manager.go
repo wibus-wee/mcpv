@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
@@ -30,9 +31,10 @@ type Manager struct {
 	wails *application.App
 
 	// Core application and control plane
-	coreApp      *app.App
-	controlPlane domain.ControlPlane
-	configPath   string
+	coreApp           *app.App
+	controlPlane      domain.ControlPlane
+	configPath        string
+	lastObservability *app.ObservabilityOptions
 
 	// Shared state
 	state *SharedState
@@ -75,12 +77,25 @@ func NewManager(wails *application.App, coreApp *app.App, configPath string) *Ma
 
 // Start starts the Core and auto-starts Watch subscriptions
 func (m *Manager) Start(ctx context.Context) error {
+	return m.startWithConfig(ctx, m.configPath, m.lastObservability)
+}
+
+// StartWithOptions starts Core with explicit configuration overrides.
+func (m *Manager) StartWithOptions(ctx context.Context, opts StartCoreOptions) error {
+	configPath, observability := resolveStartOptions(opts, m.configPath)
+	return m.startWithConfig(ctx, configPath, observability)
+}
+
+func (m *Manager) startWithConfig(ctx context.Context, configPath string, observability *app.ObservabilityOptions) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.coreState == CoreStateRunning || m.coreState == CoreStateStarting {
 		return NewUIError(ErrCodeCoreAlreadyRunning, "Core is already running or starting")
 	}
+
+	m.configPath = configPath
+	m.lastObservability = observability
 
 	// Transition to starting state
 	m.coreState = CoreStateStarting
@@ -90,21 +105,62 @@ func (m *Manager) Start(ctx context.Context) error {
 	// Create context for Core lifecycle
 	m.coreCtx, m.coreCancel = context.WithCancel(context.Background())
 
+	cfg := app.ServeConfig{
+		ConfigPath:    configPath,
+		OnReady:       m.handleControlPlaneReady,
+		Observability: observability,
+	}
+
 	// Start Core in background
-	go m.runCore()
+	go m.runCore(cfg)
 
 	return nil
 }
 
+func resolveStartOptions(opts StartCoreOptions, fallback string) (string, *app.ObservabilityOptions) {
+	mode := strings.ToLower(strings.TrimSpace(opts.Mode))
+	configPath := strings.TrimSpace(opts.ConfigPath)
+	if configPath == "" {
+		configPath = "." // TODO: dynamic resolve with user data.
+	}
+	// if configPath == "" {
+	// 	switch mode {
+	// 	case "dev":
+	// 		configPath = "./dev"
+	// 	case "prod":
+	// 		configPath = "."
+	// 	default:
+	// 		configPath = fallback
+	// 	}
+	// }
+
+	metricsEnabled := opts.MetricsEnabled
+	healthzEnabled := opts.HealthzEnabled
+	if mode != "" {
+		if metricsEnabled == nil {
+			metricsEnabled = boolPtr(mode == "dev")
+		}
+		if healthzEnabled == nil {
+			healthzEnabled = boolPtr(mode == "dev")
+		}
+	}
+	if metricsEnabled == nil && healthzEnabled == nil {
+		return configPath, nil
+	}
+	return configPath, &app.ObservabilityOptions{
+		MetricsEnabled: metricsEnabled,
+		HealthzEnabled: healthzEnabled,
+	}
+}
+
+func boolPtr(value bool) *bool {
+	return &value
+}
+
 // runCore executes the Core's Serve method
-func (m *Manager) runCore() {
+func (m *Manager) runCore(cfg app.ServeConfig) {
 	m.coreStarted = time.Now()
 
-	// Call Core's Serve method with config
-	cfg := app.ServeConfig{
-		ConfigPath: m.configPath,
-		OnReady:    m.handleControlPlaneReady,
-	}
 	err := m.coreApp.Serve(m.coreCtx, cfg)
 
 	m.mu.Lock()
@@ -290,7 +346,7 @@ func (m *Manager) Restart(ctx context.Context) error {
 
 			if state == CoreStateStopped || state == CoreStateError {
 				// Core has stopped, now start it
-				return m.Start(ctx)
+				return m.startWithConfig(ctx, m.configPath, m.lastObservability)
 			}
 		}
 	}

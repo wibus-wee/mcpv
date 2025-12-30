@@ -312,6 +312,13 @@ export function StartCore(): $CancellablePromise<void> {
 }
 
 /**
+ * StartCoreWithOptions starts Core with explicit options.
+ */
+export function StartCoreWithOptions(opts: $models.StartCoreOptions): $CancellablePromise<void> {
+    return $Call.ByID(629304430, opts);
+}
+
+/**
  * StartLogStream 开始日志流（通过 Wails 事件推送）
  */
 export function StartLogStream(minLevel: string): $CancellablePromise<void> {
