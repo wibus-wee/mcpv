@@ -138,6 +138,27 @@ func TestManager_StartInstance_InitializeFail(t *testing.T) {
 	require.Contains(t, err.Error(), "initialize")
 }
 
+func TestManager_StartInstance_InitializeRetry(t *testing.T) {
+	conn := &retryConn{}
+	ft := &fakeTransport{
+		conn: conn,
+		stop: func(ctx context.Context) error { return nil },
+	}
+	mgr := NewManager(context.Background(), ft, zap.NewNop())
+
+	spec := domain.ServerSpec{
+		Name:            "svc",
+		Cmd:             []string{"./svc"},
+		MaxConcurrent:   1,
+		ProtocolVersion: domain.DefaultProtocolVersion,
+	}
+
+	inst, err := mgr.StartInstance(context.Background(), spec)
+	require.NoError(t, err)
+	require.NotNil(t, inst)
+	require.Equal(t, initializeRetryCount+1, conn.sendCalls)
+}
+
 func TestManager_StopInstance_Success(t *testing.T) {
 	stopped := false
 	ft := &fakeTransport{
@@ -210,6 +231,24 @@ type fakeConn struct {
 	closeErr    error
 	recvPayload json.RawMessage
 }
+
+type retryConn struct {
+	sendCalls int
+}
+
+func (r *retryConn) Send(ctx context.Context, msg json.RawMessage) error {
+	r.sendCalls++
+	if r.sendCalls <= initializeRetryCount {
+		return errors.New("send fail")
+	}
+	return nil
+}
+
+func (r *retryConn) Recv(ctx context.Context) (json.RawMessage, error) {
+	return json.RawMessage(`{"jsonrpc":"2.0","id":"mcpd-init","result":{"protocolVersion":"2025-11-25","serverInfo":{"name":"srv"},"capabilities":{}}}`), nil
+}
+
+func (r *retryConn) Close() error { return nil }
 
 func TestManager_InitializeMissingCapabilities(t *testing.T) {
 	ft := &fakeTransport{

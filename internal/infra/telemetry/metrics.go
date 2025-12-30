@@ -20,4 +20,10 @@ func (n *NoopMetrics) ObserveInstanceStop(specKey string, err error) {}
 
 func (n *NoopMetrics) SetActiveInstances(specKey string, count int) {}
 
+func (n *NoopMetrics) ObserveSubAgentTokens(provider string, model string, tokens int) {}
+
+func (n *NoopMetrics) ObserveSubAgentLatency(provider string, model string, duration time.Duration) {}
+
+func (n *NoopMetrics) ObserveSubAgentFilterPrecision(provider string, model string, ratio float64) {}
+
 var _ domain.Metrics = (*NoopMetrics)(nil)

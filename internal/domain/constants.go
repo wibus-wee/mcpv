@@ -8,6 +8,7 @@ const (
 	DefaultToolRefreshSeconds         = 60
 	DefaultToolRefreshConcurrency     = 4
 	DefaultCallerCheckSeconds         = 5
+	DefaultCallerInactiveSeconds      = 300
 	DefaultDrainTimeoutSeconds        = 30
 	DefaultExposeTools                = true
 	DefaultToolNamespaceStrategy      = "prefix"

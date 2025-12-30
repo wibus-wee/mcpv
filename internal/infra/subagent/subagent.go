@@ -25,9 +25,10 @@ const (
 // EinoSubAgent filters and proxies tool calls using an LLM.
 type EinoSubAgent struct {
 	config       domain.SubAgentConfig
-	model        model.ChatModel
+	model        model.ToolCallingChatModel
 	cache        *domain.SessionCache
 	controlPlane controlPlaneProvider
+	metrics      domain.Metrics
 	logger       *zap.Logger
 }
 
@@ -41,6 +42,7 @@ func NewEinoSubAgent(
 	ctx context.Context,
 	config domain.SubAgentConfig,
 	controlPlane controlPlaneProvider,
+	metrics domain.Metrics,
 	logger *zap.Logger,
 ) (*EinoSubAgent, error) {
 	// Initialize LLM model based on config
@@ -54,6 +56,7 @@ func NewEinoSubAgent(
 		model:        chatModel,
 		cache:        domain.NewSessionCache(defaultSessionTTL, defaultMaxCacheSize),
 		controlPlane: controlPlane,
+		metrics:      metrics,
 		logger:       logger.Named("subagent"),
 	}, nil
 }
@@ -109,6 +112,7 @@ func (s *EinoSubAgent) SelectToolsForCaller(
 
 	toolsToSend, sentSchemas := s.buildToolPayloads(snapshot.Tools, selectedNames, hashMap, shouldSend)
 	s.cache.Update(sessionKey, sentSchemas)
+	s.observeFilterPrecision(selectedNames, toolsToSend)
 
 	return domain.AutomaticMCPResult{
 		ETag:           snapshot.ETag,
@@ -182,10 +186,13 @@ func (s *EinoSubAgent) filterWithLLM(
 		schema.UserMessage(prompt),
 	}
 
+	started := time.Now()
 	response, err := s.model.Generate(ctx, messages)
+	s.metrics.ObserveSubAgentLatency(s.config.Provider, s.config.Model, time.Since(started))
 	if err != nil {
 		return nil, fmt.Errorf("LLM generate: %w", err)
 	}
+	s.observeTokenUsage(response)
 
 	// Parse response to extract tool names
 	return s.parseSelectedTools(response.Content, summaries)
@@ -234,6 +241,25 @@ func (s *EinoSubAgent) parseSelectedTools(response string, summaries []toolSumma
 	}
 
 	return result, nil
+}
+
+func (s *EinoSubAgent) observeTokenUsage(response *schema.Message) {
+	if response == nil || response.ResponseMeta == nil || response.ResponseMeta.Usage == nil {
+		return
+	}
+	tokens := response.ResponseMeta.Usage.TotalTokens
+	if tokens <= 0 {
+		return
+	}
+	s.metrics.ObserveSubAgentTokens(s.config.Provider, s.config.Model, tokens)
+}
+
+func (s *EinoSubAgent) observeFilterPrecision(selectedNames []string, toolsToSend []json.RawMessage) {
+	precision := 0.0
+	if len(selectedNames) > 0 {
+		precision = float64(len(toolsToSend)) / float64(len(selectedNames))
+	}
+	s.metrics.ObserveSubAgentFilterPrecision(s.config.Provider, s.config.Model, precision)
 }
 
 // buildToolPayloads builds the tool payload list with deduplication applied.

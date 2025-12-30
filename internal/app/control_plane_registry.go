@@ -371,9 +371,14 @@ func (r *callerRegistry) deactivateProfiles(profiles []string) {
 func (r *callerRegistry) reapDeadCallers(ctx context.Context) {
 	now := time.Now()
 	timeout := time.Duration(r.state.runtime.CallerCheckSeconds*callerReapTimeoutMultiplier) * time.Second
+	inactiveTimeout := time.Duration(r.state.runtime.CallerInactiveSeconds) * time.Second
 	r.mu.Lock()
 	callers := make([]string, 0, len(r.activeCallers))
 	for caller, state := range r.activeCallers {
+		if inactiveTimeout > 0 && !state.lastHeartbeat.IsZero() && now.Sub(state.lastHeartbeat) > inactiveTimeout {
+			callers = append(callers, caller)
+			continue
+		}
 		if timeout > 0 && !state.lastHeartbeat.IsZero() && now.Sub(state.lastHeartbeat) <= timeout {
 			continue
 		}

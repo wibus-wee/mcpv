@@ -154,7 +154,7 @@ func (a *App) Serve(ctx context.Context, cfg ServeConfig) error {
 
 	// Initialize SubAgent if configured in runtime
 	if summary.defaultRuntime.SubAgent.Model != "" && summary.defaultRuntime.SubAgent.Provider != "" {
-		subAgent, err := initializeSubAgent(ctx, summary.defaultRuntime.SubAgent, control, logger)
+		subAgent, err := initializeSubAgent(ctx, summary.defaultRuntime.SubAgent, control, metrics, logger)
 		if err != nil {
 			logger.Warn("failed to initialize SubAgent", zap.Error(err))
 		} else {
@@ -348,6 +348,6 @@ func validateSharedRuntime(base domain.RuntimeConfig, current domain.RuntimeConf
 	return nil
 }
 
-func initializeSubAgent(ctx context.Context, config domain.SubAgentConfig, controlPlane *ControlPlane, logger *zap.Logger) (domain.SubAgent, error) {
-	return subagent.NewEinoSubAgent(ctx, config, controlPlane, logger)
+func initializeSubAgent(ctx context.Context, config domain.SubAgentConfig, controlPlane *ControlPlane, metrics domain.Metrics, logger *zap.Logger) (domain.SubAgent, error) {
+	return subagent.NewEinoSubAgent(ctx, config, controlPlane, metrics, logger)
 }

@@ -387,6 +387,7 @@ export function useProfile(name: string | null) {
     pingIntervalSeconds: 30,
     toolRefreshSeconds: 60,
     callerCheckSeconds: 5,
+    callerInactiveSeconds: 300,
     exposeTools: true,
     toolNamespaceStrategy: "prefix",
     observability: { listenAddress: "0.0.0.0:9090" },
@@ -605,7 +606,7 @@ sequenceDiagram
 ### 配置加载流程
 
 ```
-配置文件 (catalog.yaml)
+配置目录 (runtime.yaml + callers.yaml + profiles/*.yaml)
     ↓ (读取)
 ProfileStoreLoader.Load()
     ↓ (解析 + 验证)

@@ -3,6 +3,7 @@ pingIntervalSeconds: 30
 toolRefreshSeconds: 60
 toolRefreshConcurrency: 4
 callerCheckSeconds: 5
+callerInactiveSeconds: 300
 exposeTools: true
 toolNamespaceStrategy: "prefix"
 observability:

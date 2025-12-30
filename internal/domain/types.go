@@ -27,6 +27,7 @@ type RuntimeConfig struct {
 	ToolRefreshSeconds     int                 `json:"toolRefreshSeconds"`
 	ToolRefreshConcurrency int                 `json:"toolRefreshConcurrency"`
 	CallerCheckSeconds     int                 `json:"callerCheckSeconds"`
+	CallerInactiveSeconds  int                 `json:"callerInactiveSeconds"`
 	ExposeTools            bool                `json:"exposeTools"`
 	ToolNamespaceStrategy  string              `json:"toolNamespaceStrategy"`
 	Observability          ObservabilityConfig `json:"observability"`

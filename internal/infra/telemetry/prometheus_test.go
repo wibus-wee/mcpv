@@ -18,6 +18,9 @@ func TestNewPrometheusMetrics(t *testing.T) {
 	assert.NotNil(t, m.instanceStarts)
 	assert.NotNil(t, m.instanceStops)
 	assert.NotNil(t, m.activeInstances)
+	assert.NotNil(t, m.subAgentTokens)
+	assert.NotNil(t, m.subAgentLatency)
+	assert.NotNil(t, m.subAgentFilterPrecision)
 }
 
 func TestNewPrometheusMetrics_UsesProvidedRegistry(t *testing.T) {
@@ -28,6 +31,9 @@ func TestNewPrometheusMetrics_UsesProvidedRegistry(t *testing.T) {
 	m.ObserveInstanceStart("spec-1", 0, nil)
 	m.ObserveInstanceStop("spec-1", nil)
 	m.SetActiveInstances("spec-1", 1)
+	m.ObserveSubAgentTokens("openai", "gpt-4o", 128)
+	m.ObserveSubAgentLatency("openai", "gpt-4o", 500*time.Millisecond)
+	m.ObserveSubAgentFilterPrecision("openai", "gpt-4o", 0.5)
 
 	metrics, err := registry.Gather()
 	require.NoError(t, err)
@@ -41,6 +47,9 @@ func TestNewPrometheusMetrics_UsesProvidedRegistry(t *testing.T) {
 	assert.Contains(t, names, "mcpd_instance_starts_total")
 	assert.Contains(t, names, "mcpd_instance_stops_total")
 	assert.Contains(t, names, "mcpd_active_instances")
+	assert.Contains(t, names, "mcpd_subagent_tokens_total")
+	assert.Contains(t, names, "mcpd_subagent_latency_seconds")
+	assert.Contains(t, names, "mcpd_subagent_filter_precision")
 }
 
 func TestPrometheusMetrics_ImplementsInterface(t *testing.T) {

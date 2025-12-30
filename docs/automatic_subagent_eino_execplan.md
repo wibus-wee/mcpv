@@ -41,11 +41,11 @@ We will sequentially (1) analyze the MCP session flow to understand where tool m
 3. Extend `internal/app`'s catalog/scheduler wiring so that `mcpd.automatic_mcp` requests run through the SubAgent, then through a session deduplicator located alongside the existing context compressor.
 4. Add a new MCP tool definition (`mcpd.automatic_eval`) in `internal/infra/mcp/tool_registry.go` that accepts caller identity, `toolName`, and serialized params, and invokes the underlying tool registry as a proxy.
 5. Create integration tests (likely in `internal/infra/mcp` or `internal/domain`) that simulate a client calling `automatic_mcp` twice (with compression between) and assert that only changed metadata is emitted, while `automatic_eval` dispatches to the correct underlying tool and receives the same output as a direct call.
-6. Document the new tooling workflow in `docs/` (or `docs/catalog.example.yaml` if config changes) so other contributors know how to configure `mcpd` for the proxy mode.
+6. Document the new tooling workflow in `docs/` (using the profile store layout: `runtime.yaml`, `callers.yaml`, and `profiles/*.yaml`) so other contributors know how to configure `mcpd` for the proxy mode.
 
 ## Validation and Acceptance
 
-Run `make test` (which runs `go test ./...`) and expect all existing cases to pass. Add a focused test `TestAutomaticMcpDeduplication` that fails before the deduplication/session logic (for example by checking that two successive `automatic_mcp` responses have identical metadata hashes) and passes after. Validate manually by starting `mcpd` (`make serve CONFIG=docs/catalog.example.yaml`), pointing a simple MCP client at `mcpd.automatic_mcp`, observing that the first response includes tool summaries and the second (without any catalog change) only returns names/hashes, and then calling `mcpd.automatic_eval` with a stored `toolName` to confirm the real tool executes with the same result as calling it directly.
+Run `make test` (which runs `go test ./...`) and expect all existing cases to pass. Add a focused test `TestAutomaticMcpDeduplication` that fails before the deduplication/session logic (for example by checking that two successive `automatic_mcp` responses have identical metadata hashes) and passes after. Validate manually by starting `mcpd` (`mcpd serve --config <profile-store-dir>`), pointing a simple MCP client at `mcpd.automatic_mcp`, observing that the first response includes tool summaries and the second (without any catalog change) only returns names/hashes, and then calling `mcpd.automatic_eval` with a stored `toolName` to confirm the real tool executes with the same result as calling it directly.
 
 ## Idempotence and Recovery
 

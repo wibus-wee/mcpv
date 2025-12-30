@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -69,7 +70,7 @@ func TestControlPlane_RegisterUnregister(t *testing.T) {
 }
 
 func TestControlPlane_ReapDeadCallers_Heartbeat(t *testing.T) {
-	runtime := domain.RuntimeConfig{CallerCheckSeconds: 1}
+	runtime := domain.RuntimeConfig{CallerCheckSeconds: 1, CallerInactiveSeconds: 60}
 	cp := NewControlPlane(
 		context.Background(),
 		map[string]*profileRuntime{
@@ -109,6 +110,37 @@ func TestControlPlane_ReapDeadCallers_Heartbeat(t *testing.T) {
 
 	cp.registry.reapDeadCallers(context.Background())
 	_, err = cp.registry.resolveProfile("caller")
+	require.ErrorIs(t, err, domain.ErrCallerNotRegistered)
+}
+
+func TestControlPlane_ReapDeadCallers_TTL(t *testing.T) {
+	runtime := domain.RuntimeConfig{CallerCheckSeconds: 1, CallerInactiveSeconds: 1}
+	cp := NewControlPlane(
+		context.Background(),
+		map[string]*profileRuntime{
+			domain.DefaultProfileName: {name: domain.DefaultProfileName},
+		},
+		map[string]string{},
+		map[string]domain.ServerSpec{},
+		&fakeScheduler{},
+		nil,
+		runtime,
+		domain.ProfileStore{},
+		nil,
+		nil,
+	)
+
+	cp.registry.mu.Lock()
+	cp.registry.activeCallers["caller"] = callerState{
+		pid:           os.Getpid(),
+		profile:       domain.DefaultProfileName,
+		lastHeartbeat: time.Now().Add(-2 * time.Second),
+	}
+	cp.registry.profileCounts[domain.DefaultProfileName] = 1
+	cp.registry.mu.Unlock()
+
+	cp.registry.reapDeadCallers(context.Background())
+	_, err := cp.registry.resolveProfile("caller")
 	require.ErrorIs(t, err, domain.ErrCallerNotRegistered)
 }
 

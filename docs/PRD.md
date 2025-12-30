@@ -90,7 +90,43 @@
 - pkg/api: 对外可复用类型（可选）。
 - internal/ui: 预留 Wails 入口（后续）。
 
-八、配置示例（catalog.yaml）
+八、配置示例（profile store 目录）
+
+runtime.yaml
+```yaml
+routeTimeoutSeconds: 10
+pingIntervalSeconds: 30
+toolRefreshSeconds: 60
+toolRefreshConcurrency: 4
+callerCheckSeconds: 5
+callerInactiveSeconds: 300
+exposeTools: true
+toolNamespaceStrategy: "prefix"
+observability:
+  listenAddress: "0.0.0.0:9090"
+rpc:
+  listenAddress: "unix:///tmp/mcpd.sock"
+  maxRecvMsgSize: 16777216
+  maxSendMsgSize: 16777216
+  keepaliveTimeSeconds: 30
+  keepaliveTimeoutSeconds: 10
+  socketMode: "0660"
+  tls:
+    enabled: false
+    certFile: ""
+    keyFile: ""
+    caFile: ""
+    clientAuth: false
+```
+
+callers.yaml
+```yaml
+callers:
+  default-client: default
+  vscode: vscode
+```
+
+profiles/default.yaml
 ```yaml
 servers:
   - name: git-helper
@@ -149,7 +185,7 @@ servers:
 - 进程泄漏：StopFn 实现需优雅终止，超时强杀；注册退出钩子。
 
 十五、验收标准（MVP）
-- `mcpd serve --config catalog.yaml` 能加载并运行，无 panic；能处理至少一个 serverType 的 JSON-RPC 请求并返回响应。
+- `mcpd serve --config <profile-store-dir>` 能加载并运行，无 panic；能处理至少一个 serverType 的 JSON-RPC 请求并返回响应。
 - idleSeconds 到期自动回收实例（非 sticky/persistent）。
 - 日志包含关键事件，metrics 能暴露（可选）。
 - `mcpd validate` 对合法配置返回 0，对非法配置输出错误并返回非 0。

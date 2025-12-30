@@ -1,6 +1,6 @@
 GO ?= go
 PROTOC ?= protoc
-CONFIG ?= docs/catalog.example
+CONFIG ?= .
 WAILS ?= wails3
 VERSION ?= dev
 BUILD ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")

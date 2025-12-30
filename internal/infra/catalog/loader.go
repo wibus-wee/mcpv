@@ -32,6 +32,7 @@ func setRuntimeDefaults(v *viper.Viper) {
 	v.SetDefault("toolRefreshSeconds", domain.DefaultToolRefreshSeconds)
 	v.SetDefault("toolRefreshConcurrency", domain.DefaultToolRefreshConcurrency)
 	v.SetDefault("callerCheckSeconds", domain.DefaultCallerCheckSeconds)
+	v.SetDefault("callerInactiveSeconds", domain.DefaultCallerInactiveSeconds)
 	v.SetDefault("exposeTools", domain.DefaultExposeTools)
 	v.SetDefault("toolNamespaceStrategy", domain.DefaultToolNamespaceStrategy)
 	v.SetDefault("observability.listenAddress", domain.DefaultObservabilityListenAddress)
@@ -59,6 +60,7 @@ type rawRuntimeConfig struct {
 	ToolRefreshSeconds     int                    `mapstructure:"toolRefreshSeconds"`
 	ToolRefreshConcurrency int                    `mapstructure:"toolRefreshConcurrency"`
 	CallerCheckSeconds     int                    `mapstructure:"callerCheckSeconds"`
+	CallerInactiveSeconds  int                    `mapstructure:"callerInactiveSeconds"`
 	ExposeTools            bool                   `mapstructure:"exposeTools"`
 	ToolNamespaceStrategy  string                 `mapstructure:"toolNamespaceStrategy"`
 	Observability          rawObservabilityConfig `mapstructure:"observability"`
@@ -303,6 +305,11 @@ func normalizeRuntimeConfig(cfg rawRuntimeConfig) (domain.RuntimeConfig, []strin
 		errs = append(errs, "callerCheckSeconds must be > 0")
 	}
 
+	callerInactive := cfg.CallerInactiveSeconds
+	if callerInactive <= 0 {
+		errs = append(errs, "callerInactiveSeconds must be > 0")
+	}
+
 	strategy := strings.ToLower(strings.TrimSpace(cfg.ToolNamespaceStrategy))
 	if strategy == "" {
 		strategy = domain.DefaultToolNamespaceStrategy
@@ -323,6 +330,7 @@ func normalizeRuntimeConfig(cfg rawRuntimeConfig) (domain.RuntimeConfig, []strin
 		ToolRefreshSeconds:     toolRefresh,
 		ToolRefreshConcurrency: refreshConcurrency,
 		CallerCheckSeconds:     callerCheck,
+		CallerInactiveSeconds:  callerInactive,
 		ExposeTools:            cfg.ExposeTools,
 		ToolNamespaceStrategy:  strategy,
 		Observability:          observabilityCfg,

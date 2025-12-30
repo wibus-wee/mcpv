@@ -27,6 +27,11 @@ type Manager struct {
 	stops map[string]domain.StopFn
 }
 
+const (
+	initializeRetryCount = 3
+	initializeRetryDelay = 500 * time.Millisecond
+)
+
 func NewManager(ctx context.Context, transport domain.Transport, logger *zap.Logger) *Manager {
 	if transport == nil {
 		panic("lifecycle.Manager requires a transport")
@@ -112,7 +117,7 @@ func (m *Manager) StartInstance(ctx context.Context, spec domain.ServerSpec) (*d
 		return nil, err
 	}
 
-	caps, err := m.initialize(ctx, conn)
+	caps, err := m.initializeWithRetry(ctx, conn, spec)
 	if err != nil {
 		cancelStart()
 		m.logger.Error("instance initialize failed",
@@ -149,6 +154,34 @@ func (m *Manager) StartInstance(ctx context.Context, spec domain.ServerSpec) (*d
 		telemetry.DurationField(time.Since(started)),
 	)
 	return instance, nil
+}
+
+func (m *Manager) initializeWithRetry(ctx context.Context, conn domain.Conn, spec domain.ServerSpec) (domain.ServerCapabilities, error) {
+	var lastErr error
+	attempts := initializeRetryCount + 1
+	for attempt := 1; attempt <= attempts; attempt++ {
+		caps, err := m.initialize(ctx, conn)
+		if err == nil {
+			return caps, nil
+		}
+		lastErr = err
+		if attempt == attempts {
+			break
+		}
+		m.logger.Debug("initialize retry failed",
+			zap.String("server", spec.Name),
+			zap.Int("attempt", attempt),
+			zap.Error(err),
+		)
+		timer := time.NewTimer(initializeRetryDelay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return domain.ServerCapabilities{}, ctx.Err()
+		case <-timer.C:
+		}
+	}
+	return domain.ServerCapabilities{}, lastErr
 }
 
 func (m *Manager) initialize(ctx context.Context, conn domain.Conn) (domain.ServerCapabilities, error) {

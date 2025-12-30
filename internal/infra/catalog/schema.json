@@ -8,6 +8,7 @@
     "pingIntervalSeconds": {"type": "integer"},
     "toolRefreshSeconds": {"type": "integer"},
     "callerCheckSeconds": {"type": "integer"},
+    "callerInactiveSeconds": {"type": "integer"},
     "exposeTools": {"type": "boolean"},
     "toolNamespaceStrategy": {"type": "string"},
     "observability": {"$ref": "#/$defs/observabilityConfig"},

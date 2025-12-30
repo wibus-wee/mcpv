@@ -54,6 +54,7 @@ servers:
 	require.Equal(t, domain.DefaultToolRefreshSeconds, catalog.Runtime.ToolRefreshSeconds)
 	require.Equal(t, domain.DefaultToolRefreshConcurrency, catalog.Runtime.ToolRefreshConcurrency)
 	require.Equal(t, domain.DefaultCallerCheckSeconds, catalog.Runtime.CallerCheckSeconds)
+	require.Equal(t, domain.DefaultCallerInactiveSeconds, catalog.Runtime.CallerInactiveSeconds)
 	require.Equal(t, domain.DefaultExposeTools, catalog.Runtime.ExposeTools)
 	require.Equal(t, domain.DefaultToolNamespaceStrategy, catalog.Runtime.ToolNamespaceStrategy)
 	require.Equal(t, domain.DefaultObservabilityListenAddress, catalog.Runtime.Observability.ListenAddress)
@@ -212,6 +213,7 @@ routeTimeoutSeconds: 0
 pingIntervalSeconds: -1
 toolRefreshSeconds: -2
 callerCheckSeconds: 0
+callerInactiveSeconds: 0
 toolNamespaceStrategy: "bad"
 rpc:
   listenAddress: ""
@@ -244,6 +246,7 @@ servers:
 	require.Contains(t, err.Error(), "pingIntervalSeconds")
 	require.Contains(t, err.Error(), "toolRefreshSeconds")
 	require.Contains(t, err.Error(), "callerCheckSeconds")
+	require.Contains(t, err.Error(), "callerInactiveSeconds")
 	require.Contains(t, err.Error(), "toolNamespaceStrategy")
 	require.Contains(t, err.Error(), "rpc.listenAddress")
 	require.Contains(t, err.Error(), "rpc.maxRecvMsgSize")

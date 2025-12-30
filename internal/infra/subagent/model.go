@@ -13,7 +13,7 @@ import (
 )
 
 // initializeModel creates the chat model based on configuration.
-func initializeModel(ctx context.Context, config domain.SubAgentConfig) (model.ChatModel, error) {
+func initializeModel(ctx context.Context, config domain.SubAgentConfig) (model.ToolCallingChatModel, error) {
 	apiKey := strings.TrimSpace(config.APIKey)
 	if apiKey == "" {
 		envVar := strings.TrimSpace(config.APIKeyEnvVar)

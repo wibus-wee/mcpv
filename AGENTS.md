@@ -1,16 +1,16 @@
 # Repository Guidelines
 
 ## 项目结构与模块职责
-- `cmd/mcpd`：CLI 入口，仅做 flag 解析与日志开关，默认配置文件名为 `catalog.yaml`。
+- `cmd/mcpd`：CLI 入口，仅做 flag 解析与日志开关，默认配置路径为当前目录（profile store）。
 - `internal/app`：编排 catalog、scheduler、router、lifecycle、transport，供 CLI/Wails 复用。
 - `internal/domain`：核心接口与状态模型，保持纯净无外部依赖；`pkg/api` 对外导出共享类型。
 - `internal/infra`：适配器实现，子目录含 `catalog` loader、`scheduler`、`router`、`transport`(stdio)、`lifecycle`、`probe`、`telemetry`；`internal/ui` 预留；测试与被测代码同目录。
-- `docs`：设计/约束文档与 `docs/catalog.example` 示例配置目录，修改配置或协议时同步更新。
+- `docs`：设计/约束文档；示例配置使用仓库根目录的 `runtime.yaml`、`callers.yaml` 与 `profiles/*.yaml`，修改配置或协议时同步更新。
 
 ## 构建、测试与开发命令
 - `make build` 编译全部包；`make test` 运行所有单测。
 - `make fmt` 触发 `go fmt ./...`；`make vet` 做静态检查；`make tidy` 清理/同步依赖。
-- 运行服务：`make serve CONFIG=docs/catalog.example`；仅验证配置：`make validate CONFIG=docs/catalog.example`；也可 `go run ./cmd/mcpd serve --config <path>`.
+- 运行服务：`go run ./cmd/mcpd serve --config <profile-store-dir>`；仅验证配置：`go run ./cmd/mcpd validate --config <profile-store-dir>`。
 - Go 版本要求 `go 1.25+`，使用 `go.mod` 中指定版本。
 
 ## 编码风格与命名
@@ -23,7 +23,7 @@
 - 框架：标准库 `testing` 搭配 `testify/assert`，优先表驱动覆盖。
 - 测试文件与被测文件同目录，命名以 `_test.go` 结尾，函数名遵循 `TestXxx_Subcase`。
 - 并发/时序路径（路由、生命周期、调度、idle 管理）需覆盖正常与错误分支，使用 `context.WithTimeout` 控制运行时长。
-- 调整 CLI 或配置解析时附带 `make test` 结果，必要时在 `docs/catalog.example` 加入最小可运行示例。
+- 调整 CLI 或配置解析时附带 `make test` 结果，必要时在仓库根目录补充最小可运行示例配置。
 
 ## 提交与 PR 指南
 - 提交信息遵循 Conventional Commits（示例：`feat: ...`、`fix: ...`），与现有历史保持一致。

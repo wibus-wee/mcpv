@@ -141,6 +141,7 @@ func mapRuntimeConfigDetail(cfg domain.RuntimeConfig) RuntimeConfigDetail {
 		ToolRefreshSeconds:     cfg.ToolRefreshSeconds,
 		ToolRefreshConcurrency: cfg.ToolRefreshConcurrency,
 		CallerCheckSeconds:     cfg.CallerCheckSeconds,
+		CallerInactiveSeconds:  cfg.CallerInactiveSeconds,
 		ExposeTools:            cfg.ExposeTools,
 		ToolNamespaceStrategy:  cfg.ToolNamespaceStrategy,
 		Observability: ObservabilityConfigDetail{

@@ -107,6 +107,7 @@ func TestProfileStoreLoader_RuntimeOverrideFromStore(t *testing.T) {
 pingIntervalSeconds: 20
 toolRefreshSeconds: 45
 callerCheckSeconds: 7
+callerInactiveSeconds: 120
 exposeTools: false
 toolNamespaceStrategy: flat
 observability:
@@ -131,6 +132,7 @@ rpc:
 		require.Equal(t, 20, profile.Catalog.Runtime.PingIntervalSeconds, "profile %s", name)
 		require.Equal(t, 45, profile.Catalog.Runtime.ToolRefreshSeconds, "profile %s", name)
 		require.Equal(t, 7, profile.Catalog.Runtime.CallerCheckSeconds, "profile %s", name)
+		require.Equal(t, 120, profile.Catalog.Runtime.CallerInactiveSeconds, "profile %s", name)
 		require.False(t, profile.Catalog.Runtime.ExposeTools, "profile %s", name)
 		require.Equal(t, "flat", profile.Catalog.Runtime.ToolNamespaceStrategy, "profile %s", name)
 		require.Equal(t, "unix:///tmp/test.sock", profile.Catalog.Runtime.RPC.ListenAddress, "profile %s", name)
