@@ -201,7 +201,7 @@ func TestToolIndex_CallToolPropagatesRouteError(t *testing.T) {
 	index := NewToolIndex(&failingRouter{err: context.DeadlineExceeded}, nil, map[string]string{}, domain.RuntimeConfig{
 		ToolNamespaceStrategy: "prefix",
 	}, zap.NewNop(), nil, nil)
-	index.state.Store(toolIndexState{
+	index.index.state.Store(genericIndexState[domain.ToolSnapshot, domain.ToolTarget]{
 		snapshot: domain.ToolSnapshot{},
 		targets: map[string]domain.ToolTarget{
 			"echo.echo": {ServerType: "echo", SpecKey: "spec-echo", ToolName: "echo"},

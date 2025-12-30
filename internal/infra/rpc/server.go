@@ -17,6 +17,7 @@ import (
 	"google.golang.org/grpc/keepalive"
 
 	"mcpd/internal/domain"
+	"mcpd/internal/infra/fsutil"
 	controlv1 "mcpd/pkg/api/control/v1"
 )
 
@@ -55,7 +56,7 @@ func (s *Server) Run(ctx context.Context) error {
 	s.address = addr
 
 	if network == "unix" {
-		if err := os.MkdirAll(filepath.Dir(addr), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(addr), fsutil.DefaultDirMode); err != nil {
 			return fmt.Errorf("create rpc socket dir: %w", err)
 		}
 		if err := os.Remove(addr); err != nil && !os.IsNotExist(err) {

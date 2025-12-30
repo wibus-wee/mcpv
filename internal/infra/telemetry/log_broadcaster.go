@@ -29,7 +29,7 @@ func (b *LogBroadcaster) Core() zapcore.Core {
 }
 
 func (b *LogBroadcaster) Subscribe(ctx context.Context) <-chan domain.LogEntry {
-	ch := make(chan domain.LogEntry, 64)
+	ch := make(chan domain.LogEntry, DefaultLogBufferSize)
 	b.mu.Lock()
 	b.subs[ch] = struct{}{}
 	b.mu.Unlock()

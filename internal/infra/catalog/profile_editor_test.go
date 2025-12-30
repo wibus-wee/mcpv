@@ -9,22 +9,23 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"mcpd/internal/domain"
+	"mcpd/internal/infra/fsutil"
 )
 
 func TestResolveProfilePath(t *testing.T) {
 	root := t.TempDir()
 	profilesDir := filepath.Join(root, profilesDirName)
-	require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+	require.NoError(t, os.MkdirAll(profilesDir, fsutil.DefaultDirMode))
 
 	defaultPath := filepath.Join(profilesDir, "default.yaml")
-	require.NoError(t, os.WriteFile(defaultPath, []byte("servers: []\n"), 0o644))
+	require.NoError(t, os.WriteFile(defaultPath, []byte("servers: []\n"), fsutil.DefaultFileMode))
 
 	got, err := ResolveProfilePath(root, "default")
 	require.NoError(t, err)
 	require.Equal(t, defaultPath, got)
 
 	otherPath := filepath.Join(profilesDir, "other.yml")
-	require.NoError(t, os.WriteFile(otherPath, []byte("servers: []\n"), 0o644))
+	require.NoError(t, os.WriteFile(otherPath, []byte("servers: []\n"), fsutil.DefaultFileMode))
 
 	got, err = ResolveProfilePath(root, "other")
 	require.NoError(t, err)
@@ -34,10 +35,10 @@ func TestResolveProfilePath(t *testing.T) {
 func TestResolveProfilePath_DuplicateExtensions(t *testing.T) {
 	root := t.TempDir()
 	profilesDir := filepath.Join(root, profilesDirName)
-	require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+	require.NoError(t, os.MkdirAll(profilesDir, fsutil.DefaultDirMode))
 
-	require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "dup.yaml"), []byte("servers: []\n"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "dup.yml"), []byte("servers: []\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "dup.yaml"), []byte("servers: []\n"), fsutil.DefaultFileMode))
+	require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "dup.yml"), []byte("servers: []\n"), fsutil.DefaultFileMode))
 
 	_, err := ResolveProfilePath(root, "dup")
 	require.Error(t, err)
@@ -57,7 +58,7 @@ servers:
     minReady: 0
     protocolVersion: "2025-11-25"
 `
-	require.NoError(t, os.WriteFile(profilePath, []byte(content), 0o644))
+	require.NoError(t, os.WriteFile(profilePath, []byte(content), fsutil.DefaultFileMode))
 
 	update, err := BuildProfileUpdate(profilePath, []domain.ServerSpec{
 		{
@@ -103,7 +104,7 @@ servers:
     minReady: 0
     protocolVersion: "2025-11-25"
 `
-	require.NoError(t, os.WriteFile(profilePath, []byte(content), 0o644))
+	require.NoError(t, os.WriteFile(profilePath, []byte(content), fsutil.DefaultFileMode))
 
 	_, err := BuildProfileUpdate(profilePath, []domain.ServerSpec{
 		{
@@ -134,7 +135,7 @@ servers:
     minReady: 0
     protocolVersion: "2025-11-25"
 `
-	require.NoError(t, os.WriteFile(profilePath, []byte(content), 0o644))
+	require.NoError(t, os.WriteFile(profilePath, []byte(content), fsutil.DefaultFileMode))
 
 	update, err := SetServerDisabled(profilePath, "existing", true)
 	require.NoError(t, err)
@@ -174,7 +175,7 @@ servers:
     minReady: 0
     protocolVersion: "2025-11-25"
 `
-	require.NoError(t, os.WriteFile(profilePath, []byte(content), 0o644))
+	require.NoError(t, os.WriteFile(profilePath, []byte(content), fsutil.DefaultFileMode))
 
 	update, err := DeleteServer(profilePath, "first")
 	require.NoError(t, err)

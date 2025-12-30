@@ -8,9 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"sync"
-	"sync/atomic"
-	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.uber.org/zap"
@@ -28,25 +25,13 @@ type PromptIndex struct {
 	health   *telemetry.HealthTracker
 	gate     *RefreshGate
 
-	mu          sync.Mutex
-	started     bool
-	ticker      *time.Ticker
-	stop        chan struct{}
-	serverCache map[string]promptCache
-	subs        map[chan domain.PromptSnapshot]struct{}
-	refreshBeat *telemetry.Heartbeat
-	state       atomic.Value
-	reqBuilder  requestBuilder
+	reqBuilder requestBuilder
+	index      *GenericIndex[domain.PromptSnapshot, domain.PromptTarget, promptCache]
 }
 
 type promptCache struct {
 	prompts []domain.PromptDefinition
 	targets map[string]domain.PromptTarget
-}
-
-type promptIndexState struct {
-	snapshot domain.PromptSnapshot
-	targets  map[string]domain.PromptTarget
 }
 
 func NewPromptIndex(rt domain.Router, specs map[string]domain.ServerSpec, specKeys map[string]string, cfg domain.RuntimeConfig, logger *zap.Logger, health *telemetry.HealthTracker, gate *RefreshGate) *PromptIndex {
@@ -56,125 +41,53 @@ func NewPromptIndex(rt domain.Router, specs map[string]domain.ServerSpec, specKe
 	if specKeys == nil {
 		specKeys = map[string]string{}
 	}
-	index := &PromptIndex{
-		router:      rt,
-		specs:       specs,
-		specKeys:    specKeys,
-		cfg:         cfg,
-		logger:      logger.Named("prompt_index"),
-		health:      health,
-		gate:        gate,
-		stop:        make(chan struct{}),
-		serverCache: make(map[string]promptCache),
-		subs:        make(map[chan domain.PromptSnapshot]struct{}),
+	promptIndex := &PromptIndex{
+		router:   rt,
+		specs:    specs,
+		specKeys: specKeys,
+		cfg:      cfg,
+		logger:   logger.Named("prompt_index"),
+		health:   health,
+		gate:     gate,
 	}
-	index.state.Store(promptIndexState{
-		snapshot: domain.PromptSnapshot{},
-		targets:  make(map[string]domain.PromptTarget),
+	promptIndex.index = NewGenericIndex(GenericIndexOptions[domain.PromptSnapshot, domain.PromptTarget, promptCache]{
+		Name:              "prompt_index",
+		LogLabel:          "prompt",
+		FetchErrorMessage: "prompt list fetch failed",
+		Specs:             specs,
+		Config:            cfg,
+		Logger:            promptIndex.logger,
+		Health:            health,
+		Gate:              gate,
+		EmptySnapshot:     func() domain.PromptSnapshot { return domain.PromptSnapshot{} },
+		CopySnapshot:      copyPromptSnapshot,
+		SnapshotETag:      func(snapshot domain.PromptSnapshot) string { return snapshot.ETag },
+		BuildSnapshot:     promptIndex.buildSnapshot,
+		Fetch:             promptIndex.fetchServerCache,
+		OnRefreshError:    promptIndex.refreshErrorDecision,
+		ShouldStart:       func(domain.RuntimeConfig) bool { return true },
 	})
-	return index
+	return promptIndex
 }
 
 func (a *PromptIndex) Start(ctx context.Context) {
-	a.mu.Lock()
-	if a.started {
-		a.mu.Unlock()
-		return
-	}
-	a.started = true
-	if a.stop == nil {
-		a.stop = make(chan struct{})
-	}
-	a.mu.Unlock()
-
-	interval := time.Duration(a.cfg.ToolRefreshSeconds) * time.Second
-	if interval > 0 && a.health != nil && a.refreshBeat == nil {
-		a.refreshBeat = a.health.Register("prompt_index.refresh", interval*3)
-	}
-	if a.refreshBeat != nil {
-		a.refreshBeat.Beat()
-	}
-	if err := a.refresh(ctx); err != nil {
-		a.logger.Warn("initial prompt refresh failed", zap.Error(err))
-	}
-	if interval <= 0 {
-		return
-	}
-
-	a.mu.Lock()
-	if a.ticker != nil {
-		a.mu.Unlock()
-		return
-	}
-	a.ticker = time.NewTicker(interval)
-	a.mu.Unlock()
-
-	go func() {
-		for {
-			select {
-			case <-a.ticker.C:
-				if a.refreshBeat != nil {
-					a.refreshBeat.Beat()
-				}
-				if err := a.refresh(ctx); err != nil {
-					a.logger.Warn("prompt refresh failed", zap.Error(err))
-				}
-			case <-a.stop:
-				return
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
+	a.index.Start(ctx)
 }
 
 func (a *PromptIndex) Stop() {
-	a.mu.Lock()
-	if a.ticker != nil {
-		a.ticker.Stop()
-		a.ticker = nil
-	}
-	if a.refreshBeat != nil {
-		a.refreshBeat.Stop()
-		a.refreshBeat = nil
-	}
-	if a.stop != nil {
-		close(a.stop)
-		a.stop = nil
-	}
-	a.started = false
-	a.mu.Unlock()
+	a.index.Stop()
 }
 
 func (a *PromptIndex) Snapshot() domain.PromptSnapshot {
-	state := a.state.Load().(promptIndexState)
-	return copyPromptSnapshot(state.snapshot)
+	return a.index.Snapshot()
 }
 
 func (a *PromptIndex) Subscribe(ctx context.Context) <-chan domain.PromptSnapshot {
-	ch := make(chan domain.PromptSnapshot, 1)
-
-	a.mu.Lock()
-	a.subs[ch] = struct{}{}
-	a.mu.Unlock()
-
-	state := a.state.Load().(promptIndexState)
-	sendPromptSnapshot(ch, state.snapshot)
-
-	go func() {
-		<-ctx.Done()
-		a.mu.Lock()
-		delete(a.subs, ch)
-		a.mu.Unlock()
-	}()
-
-	return ch
+	return a.index.Subscribe(ctx)
 }
 
 func (a *PromptIndex) Resolve(name string) (domain.PromptTarget, bool) {
-	state := a.state.Load().(promptIndexState)
-	target, ok := state.targets[name]
-	return target, ok
+	return a.index.Resolve(name)
 }
 
 func (a *PromptIndex) GetPrompt(ctx context.Context, name string, args json.RawMessage) (json.RawMessage, error) {
@@ -211,101 +124,7 @@ func (a *PromptIndex) GetPrompt(ctx context.Context, name string, args json.RawM
 	return marshalPromptResult(result)
 }
 
-func (a *PromptIndex) refresh(ctx context.Context) error {
-	if err := a.gate.Acquire(ctx); err != nil {
-		return err
-	}
-	defer a.gate.Release()
-
-	serverTypes := sortedServerTypes(a.specs)
-	if len(serverTypes) == 0 {
-		return nil
-	}
-
-	type refreshResult struct {
-		serverType string
-		prompts    []domain.PromptDefinition
-		targets    map[string]domain.PromptTarget
-		err        error
-	}
-
-	results := make(chan refreshResult, len(serverTypes))
-	timeout := refreshTimeout(a.cfg)
-	workerCount := refreshWorkerCount(a.cfg, len(serverTypes))
-	if workerCount == 0 {
-		return nil
-	}
-
-	jobs := make(chan string)
-	var wg sync.WaitGroup
-	for i := 0; i < workerCount; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case serverType, ok := <-jobs:
-					if !ok {
-						return
-					}
-					spec := a.specs[serverType]
-					fetchCtx, cancel := context.WithTimeout(ctx, timeout)
-					prompts, targets, err := a.fetchServerPrompts(fetchCtx, serverType, spec)
-					cancel()
-					results <- refreshResult{
-						serverType: serverType,
-						prompts:    prompts,
-						targets:    targets,
-						err:        err,
-					}
-				}
-			}
-		}()
-	}
-
-	go func() {
-		for _, serverType := range serverTypes {
-			jobs <- serverType
-		}
-		close(jobs)
-	}()
-
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
-
-	for res := range results {
-		if res.err != nil {
-			if errors.Is(res.err, domain.ErrNoReadyInstance) {
-				continue
-			}
-			if errors.Is(res.err, domain.ErrMethodNotAllowed) {
-				a.mu.Lock()
-				delete(a.serverCache, res.serverType)
-				a.mu.Unlock()
-				a.rebuildSnapshot()
-				continue
-			}
-			a.logger.Warn("prompt list fetch failed", zap.String("serverType", res.serverType), zap.Error(res.err))
-			continue
-		}
-
-		a.mu.Lock()
-		a.serverCache[res.serverType] = promptCache{
-			prompts: res.prompts,
-			targets: res.targets,
-		}
-		a.mu.Unlock()
-		a.rebuildSnapshot()
-	}
-	return nil
-}
-
-func (a *PromptIndex) rebuildSnapshot() {
-	cache := a.copyServerCache()
+func (a *PromptIndex) buildSnapshot(cache map[string]promptCache) (domain.PromptSnapshot, map[string]domain.PromptTarget) {
 	merged := make([]domain.PromptDefinition, 0)
 	targets := make(map[string]domain.PromptTarget)
 
@@ -350,21 +169,10 @@ func (a *PromptIndex) rebuildSnapshot() {
 
 	sort.Slice(merged, func(i, j int) bool { return merged[i].Name < merged[j].Name })
 
-	etag := hashPrompts(merged)
-	state := a.state.Load().(promptIndexState)
-	if etag == state.snapshot.ETag {
-		return
-	}
-
-	snapshot := domain.PromptSnapshot{
-		ETag:    etag,
+	return domain.PromptSnapshot{
+		ETag:    hashPrompts(merged),
 		Prompts: merged,
-	}
-	a.state.Store(promptIndexState{
-		snapshot: snapshot,
-		targets:  targets,
-	})
-	a.broadcast(snapshot)
+	}, targets
 }
 
 func (a *PromptIndex) resolveFlatConflict(name, serverType string, existing map[string]domain.PromptTarget) (string, error) {
@@ -397,33 +205,22 @@ func renamePromptDefinition(def domain.PromptDefinition, newName string) (domain
 	}, nil
 }
 
-func (a *PromptIndex) broadcast(snapshot domain.PromptSnapshot) {
-	subs := a.copySubscribers()
-	for _, ch := range subs {
-		sendPromptSnapshot(ch, snapshot)
+func (a *PromptIndex) refreshErrorDecision(_ string, err error) refreshErrorDecision {
+	if errors.Is(err, domain.ErrNoReadyInstance) {
+		return refreshErrorSkip
 	}
+	if errors.Is(err, domain.ErrMethodNotAllowed) {
+		return refreshErrorDropCache
+	}
+	return refreshErrorLog
 }
 
-func (a *PromptIndex) copyServerCache() map[string]promptCache {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	out := make(map[string]promptCache, len(a.serverCache))
-	for key, cache := range a.serverCache {
-		out[key] = cache
+func (a *PromptIndex) fetchServerCache(ctx context.Context, serverType string, spec domain.ServerSpec) (promptCache, error) {
+	prompts, targets, err := a.fetchServerPrompts(ctx, serverType, spec)
+	if err != nil {
+		return promptCache{}, err
 	}
-	return out
-}
-
-func (a *PromptIndex) copySubscribers() []chan domain.PromptSnapshot {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	out := make([]chan domain.PromptSnapshot, 0, len(a.subs))
-	for ch := range a.subs {
-		out = append(out, ch)
-	}
-	return out
+	return promptCache{prompts: prompts, targets: targets}, nil
 }
 
 func (a *PromptIndex) fetchServerPrompts(ctx context.Context, serverType string, spec domain.ServerSpec) ([]domain.PromptDefinition, map[string]domain.PromptTarget, error) {
@@ -583,11 +380,4 @@ func copyPromptSnapshot(snapshot domain.PromptSnapshot) domain.PromptSnapshot {
 		})
 	}
 	return out
-}
-
-func sendPromptSnapshot(ch chan domain.PromptSnapshot, snapshot domain.PromptSnapshot) {
-	select {
-	case ch <- copyPromptSnapshot(snapshot):
-	default:
-	}
 }

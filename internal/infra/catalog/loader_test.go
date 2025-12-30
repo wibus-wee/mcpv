@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"mcpd/internal/domain"
+	"mcpd/internal/infra/fsutil"
 )
 
 func TestLoader_Success(t *testing.T) {
@@ -317,7 +318,7 @@ func writeTempConfig(t *testing.T, content string) string {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "catalog.yaml")
 	normalized := strings.ReplaceAll(content, "\t", "  ")
-	if err := os.WriteFile(path, []byte(normalized), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(normalized), fsutil.DefaultFileMode); err != nil {
 		t.Fatalf("write temp config: %v", err)
 	}
 	return path

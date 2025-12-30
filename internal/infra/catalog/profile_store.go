@@ -12,6 +12,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"mcpd/internal/domain"
+	"mcpd/internal/infra/fsutil"
 )
 
 const (
@@ -53,12 +54,12 @@ func (l *ProfileStoreLoader) Load(ctx context.Context, path string, opts Profile
 			return domain.ProfileStore{}, fmt.Errorf("stat profile store: %w", err)
 		}
 		if isYAMLPath(path) {
-			return domain.ProfileStore{}, fmt.Errorf("profile store not found: %s", path)
+			return domain.ProfileStore{}, fmt.Errorf("profile store path must be a directory: %s", path)
 		}
 		if !opts.AllowCreate {
 			return domain.ProfileStore{}, fmt.Errorf("profile store not found: %s", path)
 		}
-		if err := os.MkdirAll(path, 0o755); err != nil {
+		if err := os.MkdirAll(path, fsutil.DefaultDirMode); err != nil {
 			return domain.ProfileStore{}, fmt.Errorf("create profile store: %w", err)
 		}
 		info, err = os.Stat(path)
@@ -68,28 +69,9 @@ func (l *ProfileStoreLoader) Load(ctx context.Context, path string, opts Profile
 	}
 
 	if !info.IsDir() {
-		return l.loadFromFile(ctx, path)
+		return domain.ProfileStore{}, fmt.Errorf("profile store path must be a directory: %s", path)
 	}
 	return l.loadFromDir(ctx, path, opts)
-}
-
-func (l *ProfileStoreLoader) loadFromFile(ctx context.Context, path string) (domain.ProfileStore, error) {
-	catalogData, err := l.loader.Load(ctx, path)
-	if err != nil {
-		return domain.ProfileStore{}, err
-	}
-
-	profiles := map[string]domain.Profile{
-		domain.DefaultProfileName: {
-			Name:    domain.DefaultProfileName,
-			Catalog: catalogData,
-		},
-	}
-
-	return domain.ProfileStore{
-		Profiles: profiles,
-		Callers:  map[string]string{},
-	}, nil
 }
 
 func (l *ProfileStoreLoader) loadFromDir(ctx context.Context, path string, opts ProfileStoreOptions) (domain.ProfileStore, error) {
@@ -224,7 +206,7 @@ func ensureDir(path string, allowCreate bool) error {
 	if !allowCreate {
 		return fmt.Errorf("missing directory %s", path)
 	}
-	if err := os.MkdirAll(path, 0o755); err != nil {
+	if err := os.MkdirAll(path, fsutil.DefaultDirMode); err != nil {
 		return fmt.Errorf("create directory %s: %w", path, err)
 	}
 	return nil
@@ -240,7 +222,7 @@ func ensureCallersFile(path string, allowCreate bool) error {
 	if !allowCreate {
 		return nil
 	}
-	if err := os.WriteFile(path, []byte("callers: {}\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("callers: {}\n"), fsutil.DefaultFileMode); err != nil {
 		return fmt.Errorf("write callers file: %w", err)
 	}
 	return nil
@@ -265,7 +247,7 @@ func ensureDefaultProfile(path string, altPath string, allowCreate bool) (bool, 
 	if !allowCreate {
 		return false, nil
 	}
-	if err := os.WriteFile(path, []byte("servers: []\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("servers: []\n"), fsutil.DefaultFileMode); err != nil {
 		return false, fmt.Errorf("write default profile: %w", err)
 	}
 	return true, nil

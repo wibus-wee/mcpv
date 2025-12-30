@@ -114,7 +114,7 @@ func (a *App) Serve(ctx context.Context, cfg ServeConfig) error {
 
 	stdioTransport := transport.NewStdioTransport(transport.StdioTransportOptions{Logger: logger})
 	lc := lifecycle.NewManager(stdioTransport, logger)
-	pingProbe := &probe.PingProbe{Timeout: 2 * time.Second}
+	pingProbe := &probe.PingProbe{Timeout: defaultPingProbeTimeout}
 	metrics := telemetry.NewPrometheusMetrics(registry)
 	health := telemetry.NewHealthTracker()
 	sched, err := scheduler.NewBasicScheduler(lc, summary.specRegistry, scheduler.SchedulerOptions{
@@ -190,7 +190,7 @@ func (a *App) Serve(ctx context.Context, cfg ServeConfig) error {
 		}()
 	}
 
-	sched.StartIdleManager(time.Second)
+	sched.StartIdleManager(defaultIdleManagerInterval)
 	if summary.minPingInterval > 0 {
 		sched.StartPingManager(time.Duration(summary.minPingInterval) * time.Second)
 	}

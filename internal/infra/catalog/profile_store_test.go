@@ -10,9 +10,10 @@ import (
 	"go.uber.org/zap"
 
 	"mcpd/internal/domain"
+	"mcpd/internal/infra/fsutil"
 )
 
-func TestProfileStoreLoader_LoadFromFile(t *testing.T) {
+func TestProfileStoreLoader_RejectsFilePath(t *testing.T) {
 	file := writeTempConfig(t, `
 servers:
   - name: git-helper
@@ -26,25 +27,20 @@ servers:
 `)
 
 	loader := NewProfileStoreLoader(zap.NewNop())
-	store, err := loader.Load(context.Background(), file, ProfileStoreOptions{})
-	require.NoError(t, err)
-
-	require.Len(t, store.Profiles, 1)
-	profile, ok := store.Profiles[domain.DefaultProfileName]
-	require.True(t, ok)
-	require.Len(t, profile.Catalog.Specs, 1)
-	require.Empty(t, store.Callers)
+	_, err := loader.Load(context.Background(), file, ProfileStoreOptions{})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "directory")
 }
 
 func TestProfileStoreLoader_LoadFromDir(t *testing.T) {
 	dir := t.TempDir()
 	profilesDir := filepath.Join(dir, "profiles")
-	require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+	require.NoError(t, os.MkdirAll(profilesDir, fsutil.DefaultDirMode))
 
 	writeProfile(t, filepath.Join(profilesDir, "default.yaml"), "default-server")
 	writeProfile(t, filepath.Join(profilesDir, "vscode.yml"), "vscode-server")
 	callers := []byte("callers:\n  vscode: vscode\n  default-client: default\n")
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "callers.yaml"), callers, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "callers.yaml"), callers, fsutil.DefaultFileMode))
 
 	loader := NewProfileStoreLoader(zap.NewNop())
 	store, err := loader.Load(context.Background(), dir, ProfileStoreOptions{})
@@ -60,7 +56,7 @@ func TestProfileStoreLoader_LoadFromDir(t *testing.T) {
 func TestProfileStoreLoader_MissingDefaultProfile(t *testing.T) {
 	dir := t.TempDir()
 	profilesDir := filepath.Join(dir, "profiles")
-	require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+	require.NoError(t, os.MkdirAll(profilesDir, fsutil.DefaultDirMode))
 	writeProfile(t, filepath.Join(profilesDir, "vscode.yaml"), "vscode-server")
 
 	loader := NewProfileStoreLoader(zap.NewNop())
@@ -72,11 +68,11 @@ func TestProfileStoreLoader_MissingDefaultProfile(t *testing.T) {
 func TestProfileStoreLoader_InvalidCallerMapping(t *testing.T) {
 	dir := t.TempDir()
 	profilesDir := filepath.Join(dir, "profiles")
-	require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+	require.NoError(t, os.MkdirAll(profilesDir, fsutil.DefaultDirMode))
 	writeProfile(t, filepath.Join(profilesDir, "default.yaml"), "default-server")
 
 	callers := []byte("callers:\n  vscode: missing\n")
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "callers.yaml"), callers, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "callers.yaml"), callers, fsutil.DefaultFileMode))
 
 	loader := NewProfileStoreLoader(zap.NewNop())
 	_, err := loader.Load(context.Background(), dir, ProfileStoreOptions{})
@@ -103,7 +99,7 @@ func TestProfileStoreLoader_AllowCreate(t *testing.T) {
 func TestProfileStoreLoader_RuntimeOverrideFromStore(t *testing.T) {
 	dir := t.TempDir()
 	profilesDir := filepath.Join(dir, "profiles")
-	require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+	require.NoError(t, os.MkdirAll(profilesDir, fsutil.DefaultDirMode))
 	writeProfile(t, filepath.Join(profilesDir, "default.yaml"), "default-server")
 	writeProfile(t, filepath.Join(profilesDir, "chat.yaml"), "chat-server")
 
@@ -123,7 +119,7 @@ rpc:
   keepaliveTimeoutSeconds: 3
   socketMode: "0660"
 `
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "runtime.yaml"), []byte(runtime), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "runtime.yaml"), []byte(runtime), fsutil.DefaultFileMode))
 
 	loader := NewProfileStoreLoader(zap.NewNop())
 	store, err := loader.Load(context.Background(), dir, ProfileStoreOptions{})
@@ -156,5 +152,5 @@ func writeProfile(t *testing.T, path string, name string) {
     protocolVersion: "2025-11-25"
 `
 
-	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
+	require.NoError(t, os.WriteFile(path, []byte(content), fsutil.DefaultFileMode))
 }

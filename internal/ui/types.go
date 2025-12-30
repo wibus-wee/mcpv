@@ -42,7 +42,7 @@ type PromptPage struct {
 
 // ConfigModeResponse indicates the configuration mode and path
 type ConfigModeResponse struct {
-	Mode       string `json:"mode"`       // "single" (file) or "directory"
+	Mode       string `json:"mode"`       // "directory" or "unknown"
 	Path       string `json:"path"`       // Configuration path
 	IsWritable bool   `json:"isWritable"` // Whether the config is writable
 }

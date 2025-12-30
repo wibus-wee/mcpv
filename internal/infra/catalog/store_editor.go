@@ -10,6 +10,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"mcpd/internal/domain"
+	"mcpd/internal/infra/fsutil"
 )
 
 func CreateProfile(storePath string, name string) (string, error) {
@@ -47,7 +48,7 @@ func CreateProfile(storePath string, name string) (string, error) {
 		return "", fmt.Errorf("profile %q already exists", name)
 	}
 
-	if err := os.WriteFile(candidate, []byte("servers: []\n"), 0o644); err != nil {
+	if err := os.WriteFile(candidate, []byte("servers: []\n"), fsutil.DefaultFileMode); err != nil {
 		return "", fmt.Errorf("write profile file: %w", err)
 	}
 	return candidate, nil

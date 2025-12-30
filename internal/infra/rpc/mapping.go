@@ -2,17 +2,17 @@ package rpc
 
 import (
 	"mcpd/internal/domain"
+	"mcpd/internal/infra/mapping"
 	controlv1 "mcpd/pkg/api/control/v1"
 )
 
 func toProtoSnapshot(snapshot domain.ToolSnapshot) *controlv1.ToolsSnapshot {
-	tools := make([]*controlv1.ToolDefinition, 0, len(snapshot.Tools))
-	for _, tool := range snapshot.Tools {
-		tools = append(tools, &controlv1.ToolDefinition{
+	tools := mapping.MapSlice(snapshot.Tools, func(tool domain.ToolDefinition) *controlv1.ToolDefinition {
+		return &controlv1.ToolDefinition{
 			Name:     tool.Name,
 			ToolJson: tool.ToolJSON,
-		})
-	}
+		}
+	})
 	return &controlv1.ToolsSnapshot{
 		Etag:  snapshot.ETag,
 		Tools: tools,
@@ -20,13 +20,12 @@ func toProtoSnapshot(snapshot domain.ToolSnapshot) *controlv1.ToolsSnapshot {
 }
 
 func toProtoResourcesSnapshot(snapshot domain.ResourceSnapshot) *controlv1.ResourcesSnapshot {
-	resources := make([]*controlv1.ResourceDefinition, 0, len(snapshot.Resources))
-	for _, resource := range snapshot.Resources {
-		resources = append(resources, &controlv1.ResourceDefinition{
+	resources := mapping.MapSlice(snapshot.Resources, func(resource domain.ResourceDefinition) *controlv1.ResourceDefinition {
+		return &controlv1.ResourceDefinition{
 			Uri:          resource.URI,
 			ResourceJson: resource.ResourceJSON,
-		})
-	}
+		}
+	})
 	return &controlv1.ResourcesSnapshot{
 		Etag:      snapshot.ETag,
 		Resources: resources,
@@ -34,13 +33,12 @@ func toProtoResourcesSnapshot(snapshot domain.ResourceSnapshot) *controlv1.Resou
 }
 
 func toProtoPromptsSnapshot(snapshot domain.PromptSnapshot) *controlv1.PromptsSnapshot {
-	prompts := make([]*controlv1.PromptDefinition, 0, len(snapshot.Prompts))
-	for _, prompt := range snapshot.Prompts {
-		prompts = append(prompts, &controlv1.PromptDefinition{
+	prompts := mapping.MapSlice(snapshot.Prompts, func(prompt domain.PromptDefinition) *controlv1.PromptDefinition {
+		return &controlv1.PromptDefinition{
 			Name:       prompt.Name,
 			PromptJson: prompt.PromptJSON,
-		})
-	}
+		}
+	})
 	return &controlv1.PromptsSnapshot{
 		Etag:    snapshot.ETag,
 		Prompts: prompts,
@@ -103,10 +101,7 @@ func toProtoLogLevel(level domain.LogLevel) controlv1.LogLevel {
 }
 
 func toProtoRuntimeStatusSnapshot(snapshot domain.RuntimeStatusSnapshot) *controlv1.RuntimeStatusSnapshot {
-	statuses := make([]*controlv1.ServerRuntimeStatus, 0, len(snapshot.Statuses))
-	for _, s := range snapshot.Statuses {
-		statuses = append(statuses, toProtoServerRuntimeStatus(s))
-	}
+	statuses := mapping.MapSlice(snapshot.Statuses, toProtoServerRuntimeStatus)
 	return &controlv1.RuntimeStatusSnapshot{
 		Etag:                snapshot.ETag,
 		Statuses:            statuses,
@@ -115,15 +110,14 @@ func toProtoRuntimeStatusSnapshot(snapshot domain.RuntimeStatusSnapshot) *contro
 }
 
 func toProtoServerRuntimeStatus(s domain.ServerRuntimeStatus) *controlv1.ServerRuntimeStatus {
-	instances := make([]*controlv1.InstanceStatus, 0, len(s.Instances))
-	for _, inst := range s.Instances {
-		instances = append(instances, &controlv1.InstanceStatus{
+	instances := mapping.MapSlice(s.Instances, func(inst domain.InstanceStatusInfo) *controlv1.InstanceStatus {
+		return &controlv1.InstanceStatus{
 			Id:                 inst.ID,
 			State:              string(inst.State),
 			BusyCount:          int32(inst.BusyCount),
 			LastActiveUnixNano: inst.LastActive.UnixNano(),
-		})
-	}
+		}
+	})
 	return &controlv1.ServerRuntimeStatus{
 		SpecKey:    s.SpecKey,
 		ServerName: s.ServerName,
@@ -140,9 +134,8 @@ func toProtoServerRuntimeStatus(s domain.ServerRuntimeStatus) *controlv1.ServerR
 }
 
 func toProtoServerInitStatusSnapshot(snapshot domain.ServerInitStatusSnapshot) *controlv1.ServerInitStatusSnapshot {
-	statuses := make([]*controlv1.ServerInitStatus, 0, len(snapshot.Statuses))
-	for _, s := range snapshot.Statuses {
-		statuses = append(statuses, &controlv1.ServerInitStatus{
+	statuses := mapping.MapSlice(snapshot.Statuses, func(s domain.ServerInitStatus) *controlv1.ServerInitStatus {
+		return &controlv1.ServerInitStatus{
 			SpecKey:           s.SpecKey,
 			ServerName:        s.ServerName,
 			MinReady:          int32(s.MinReady),
@@ -151,8 +144,8 @@ func toProtoServerInitStatusSnapshot(snapshot domain.ServerInitStatusSnapshot) *
 			State:             string(s.State),
 			LastError:         s.LastError,
 			UpdatedAtUnixNano: s.UpdatedAt.UnixNano(),
-		})
-	}
+		}
+	})
 	return &controlv1.ServerInitStatusSnapshot{
 		Statuses:            statuses,
 		GeneratedAtUnixNano: snapshot.GeneratedAt.UnixNano(),

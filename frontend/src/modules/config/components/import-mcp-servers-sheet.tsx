@@ -67,14 +67,10 @@ export const ImportMcpServersSheet = () => {
   }, [open])
 
   useEffect(() => {
-    if (configMode?.mode === 'single') {
-      setSelectedProfiles([defaultProfileName])
-      return
-    }
     if (selectedProfiles.length === 0 && profiles?.length === 1) {
       setSelectedProfiles([profiles[0].name])
     }
-  }, [configMode?.mode, profiles, selectedProfiles.length])
+  }, [profiles, selectedProfiles.length])
 
   const existingServerNames = new Set<string>()
   if (profileDetails && selectedProfiles.length > 0) {
@@ -250,15 +246,9 @@ export const ImportMcpServersSheet = () => {
 
           <section className="space-y-3">
             <h3 className="text-sm font-medium">Target profiles</h3>
-            {configMode?.mode === 'single' && (
-              <p className="text-xs text-muted-foreground">
-                Single-file config detected. Changes will be applied to the default profile.
-              </p>
-            )}
             <CheckboxGroup
               value={selectedProfiles}
               onValueChange={setSelectedProfiles}
-              disabled={configMode?.mode === 'single'}
             >
               {(profiles ?? []).map(profile => (
                 <label

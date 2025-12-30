@@ -85,30 +85,30 @@ func TestControlPlane_ReapDeadCallers_Heartbeat(t *testing.T) {
 		nil,
 	)
 
-	cp.mu.Lock()
-	cp.activeCallers["caller"] = callerState{
+	cp.registry.mu.Lock()
+	cp.registry.activeCallers["caller"] = callerState{
 		pid:           -1,
 		profile:       domain.DefaultProfileName,
 		lastHeartbeat: time.Now(),
 	}
-	cp.profileCounts[domain.DefaultProfileName] = 1
-	cp.mu.Unlock()
+	cp.registry.profileCounts[domain.DefaultProfileName] = 1
+	cp.registry.mu.Unlock()
 
-	cp.reapDeadCallers(context.Background())
-	_, err := cp.resolveProfile("caller")
+	cp.registry.reapDeadCallers(context.Background())
+	_, err := cp.registry.resolveProfile("caller")
 	require.NoError(t, err)
 
-	cp.mu.Lock()
-	cp.activeCallers["caller"] = callerState{
+	cp.registry.mu.Lock()
+	cp.registry.activeCallers["caller"] = callerState{
 		pid:           -1,
 		profile:       domain.DefaultProfileName,
 		lastHeartbeat: time.Now().Add(-time.Minute),
 	}
-	cp.profileCounts[domain.DefaultProfileName] = 1
-	cp.mu.Unlock()
+	cp.registry.profileCounts[domain.DefaultProfileName] = 1
+	cp.registry.mu.Unlock()
 
-	cp.reapDeadCallers(context.Background())
-	_, err = cp.resolveProfile("caller")
+	cp.registry.reapDeadCallers(context.Background())
+	_, err = cp.registry.resolveProfile("caller")
 	require.ErrorIs(t, err, domain.ErrCallerNotRegistered)
 }
 

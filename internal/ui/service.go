@@ -13,7 +13,6 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"go.uber.org/zap"
@@ -194,17 +193,7 @@ func (s *WailsService) ListTools(ctx context.Context) ([]ToolEntry, error) {
 		s.manager.GetSharedState().SetToolSnapshot(snapshot)
 	}
 
-	// 转换为前端类型
-	result := make([]ToolEntry, 0, len(snapshot.Tools))
-	for _, tool := range snapshot.Tools {
-		result = append(result, ToolEntry{
-			Name:       tool.Name,
-			ToolJSON:   tool.ToolJSON,
-			SpecKey:    tool.SpecKey,
-			ServerName: tool.ServerName,
-		})
-	}
-	return result, nil
+	return mapToolEntries(snapshot), nil
 }
 
 // ListResources 列出资源
@@ -219,18 +208,7 @@ func (s *WailsService) ListResources(ctx context.Context, cursor string) (*Resou
 		return nil, MapDomainError(err)
 	}
 
-	// 转换为前端类型
-	result := &ResourcePage{
-		NextCursor: page.NextCursor,
-		Resources:  make([]ResourceEntry, 0, len(page.Snapshot.Resources)),
-	}
-	for _, res := range page.Snapshot.Resources {
-		result.Resources = append(result.Resources, ResourceEntry{
-			URI:          res.URI,
-			ResourceJSON: res.ResourceJSON,
-		})
-	}
-	return result, nil
+	return mapResourcePage(page), nil
 }
 
 // ListPrompts 列出提示模板
@@ -245,18 +223,7 @@ func (s *WailsService) ListPrompts(ctx context.Context, cursor string) (*PromptP
 		return nil, MapDomainError(err)
 	}
 
-	// 转换为前端类型
-	result := &PromptPage{
-		NextCursor: page.NextCursor,
-		Prompts:    make([]PromptEntry, 0, len(page.Snapshot.Prompts)),
-	}
-	for _, p := range page.Snapshot.Prompts {
-		result.Prompts = append(result.Prompts, PromptEntry{
-			Name:       p.Name,
-			PromptJSON: p.PromptJSON,
-		})
-	}
-	return result, nil
+	return mapPromptPage(page), nil
 }
 
 // CallTool 调用指定工具
@@ -503,7 +470,7 @@ func (s *WailsService) GetConfigPath() string {
 	return s.manager.GetConfigPath()
 }
 
-// GetConfigMode 获取配置模式（单文件或目录）
+// GetConfigMode returns configuration mode metadata.
 func (s *WailsService) GetConfigMode() ConfigModeResponse {
 	if s.manager == nil {
 		return ConfigModeResponse{Mode: "unknown", Path: ""}
@@ -514,39 +481,15 @@ func (s *WailsService) GetConfigMode() ConfigModeResponse {
 		return ConfigModeResponse{Mode: "unknown", Path: ""}
 	}
 
-	// Check if path is a file or directory
-	info, err := os.Stat(path)
+	editor := catalog.NewEditor(path, s.logger)
+	info, err := editor.Inspect(context.Background())
 	if err != nil {
 		return ConfigModeResponse{Mode: "unknown", Path: path}
 	}
-
-	mode := "directory"
-	if !info.IsDir() {
-		mode = "single"
-	}
-
-	// Check if writable
-	isWritable := false
-	if info.IsDir() {
-		// For directory, check if we can write to it
-		testFile := filepath.Join(path, ".write_test")
-		if f, err := os.Create(testFile); err == nil {
-			f.Close()
-			os.Remove(testFile)
-			isWritable = true
-		}
-	} else {
-		// For file, check if we can open it for writing
-		if f, err := os.OpenFile(path, os.O_WRONLY, 0); err == nil {
-			f.Close()
-			isWritable = true
-		}
-	}
-
 	return ConfigModeResponse{
-		Mode:       mode,
-		Path:       path,
-		IsWritable: isWritable,
+		Mode:       "directory",
+		Path:       info.Path,
+		IsWritable: info.IsWritable,
 	}
 }
 
@@ -585,282 +528,98 @@ func (s *WailsService) OpenConfigInEditor(ctx context.Context) error {
 
 // ImportMcpServers writes imported MCP servers into selected profiles.
 func (s *WailsService) ImportMcpServers(ctx context.Context, req ImportMcpServersRequest) error {
-	if s.manager == nil {
-		return NewUIError(ErrCodeInternal, "Manager not initialized")
-	}
-
-	profileNames, servers, err := normalizeImportRequest(req)
+	editor, err := s.catalogEditor()
 	if err != nil {
-		return NewUIErrorWithDetails(ErrCodeInvalidRequest, "Invalid import request", err.Error())
+		return err
 	}
 
-	mode := s.GetConfigMode()
-	if mode.Mode == "unknown" || mode.Path == "" {
-		return NewUIError(ErrCodeInvalidConfig, "Configuration path is not available")
+	importReq := catalog.ImportRequest{
+		Profiles: req.Profiles,
+		Servers:  make([]domain.ServerSpec, 0, len(req.Servers)),
 	}
-	if !mode.IsWritable {
-		return NewUIError(ErrCodeInvalidConfig, "Configuration path is not writable")
-	}
-
-	updates := make([]catalog.ProfileUpdate, 0, len(profileNames))
-	if mode.Mode == "single" {
-		if len(profileNames) != 1 || profileNames[0] != domain.DefaultProfileName {
-			return NewUIErrorWithDetails(ErrCodeInvalidRequest, "Single-file config only supports default profile", profileNames[0])
-		}
-		update, err := catalog.BuildProfileUpdate(mode.Path, servers)
-		if err != nil {
-			return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Failed to update profile", err.Error())
-		}
-		updates = append(updates, update)
-	} else {
-		for _, name := range profileNames {
-			path, err := catalog.ResolveProfilePath(mode.Path, name)
-			if err != nil {
-				return NewUIErrorWithDetails(ErrCodeProfileNotFound, "Profile not found", err.Error())
-			}
-			update, err := catalog.BuildProfileUpdate(path, servers)
-			if err != nil {
-				return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Failed to update profile", err.Error())
-			}
-			updates = append(updates, update)
-		}
+	for _, server := range req.Servers {
+		importReq.Servers = append(importReq.Servers, domain.ServerSpec{
+			Name: strings.TrimSpace(server.Name),
+			Cmd:  append([]string{}, server.Cmd...),
+			Env:  server.Env,
+			Cwd:  strings.TrimSpace(server.Cwd),
+		})
 	}
 
-	for _, update := range updates {
-		if err := os.WriteFile(update.Path, update.Data, 0o644); err != nil {
-			return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Failed to write profile file", err.Error())
-		}
+	if err := editor.ImportServers(ctx, importReq); err != nil {
+		return mapCatalogError(err)
 	}
-
 	return nil
 }
 
 // SetServerDisabled updates the disabled state for a server in a profile.
 func (s *WailsService) SetServerDisabled(ctx context.Context, req UpdateServerStateRequest) error {
-	if s.manager == nil {
-		return NewUIError(ErrCodeInternal, "Manager not initialized")
-	}
-
-	profileName := strings.TrimSpace(req.Profile)
-	serverName := strings.TrimSpace(req.Server)
-	if profileName == "" || serverName == "" {
-		return NewUIError(ErrCodeInvalidRequest, "Profile and server are required")
-	}
-
-	mode := s.GetConfigMode()
-	if mode.Mode == "unknown" || mode.Path == "" {
-		return NewUIError(ErrCodeInvalidConfig, "Configuration path is not available")
-	}
-	if !mode.IsWritable {
-		return NewUIError(ErrCodeInvalidConfig, "Configuration path is not writable")
-	}
-
-	var update catalog.ProfileUpdate
-	var err error
-	if mode.Mode == "single" {
-		if profileName != domain.DefaultProfileName {
-			return NewUIErrorWithDetails(ErrCodeInvalidRequest, "Single-file config only supports default profile", profileName)
-		}
-		update, err = catalog.SetServerDisabled(mode.Path, serverName, req.Disabled)
-	} else {
-		path, resolveErr := catalog.ResolveProfilePath(mode.Path, profileName)
-		if resolveErr != nil {
-			return NewUIErrorWithDetails(ErrCodeProfileNotFound, "Profile not found", resolveErr.Error())
-		}
-		update, err = catalog.SetServerDisabled(path, serverName, req.Disabled)
-	}
+	editor, err := s.catalogEditor()
 	if err != nil {
-		return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Failed to update server", err.Error())
+		return err
 	}
-	if err := os.WriteFile(update.Path, update.Data, 0o644); err != nil {
-		return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Failed to write profile file", err.Error())
+	if err := editor.SetServerDisabled(ctx, req.Profile, req.Server, req.Disabled); err != nil {
+		return mapCatalogError(err)
 	}
 	return nil
 }
 
 // DeleteServer removes a server from a profile.
 func (s *WailsService) DeleteServer(ctx context.Context, req DeleteServerRequest) error {
-	if s.manager == nil {
-		return NewUIError(ErrCodeInternal, "Manager not initialized")
-	}
-
-	profileName := strings.TrimSpace(req.Profile)
-	serverName := strings.TrimSpace(req.Server)
-	if profileName == "" || serverName == "" {
-		return NewUIError(ErrCodeInvalidRequest, "Profile and server are required")
-	}
-
-	mode := s.GetConfigMode()
-	if mode.Mode == "unknown" || mode.Path == "" {
-		return NewUIError(ErrCodeInvalidConfig, "Configuration path is not available")
-	}
-	if !mode.IsWritable {
-		return NewUIError(ErrCodeInvalidConfig, "Configuration path is not writable")
-	}
-
-	var update catalog.ProfileUpdate
-	var err error
-	if mode.Mode == "single" {
-		if profileName != domain.DefaultProfileName {
-			return NewUIErrorWithDetails(ErrCodeInvalidRequest, "Single-file config only supports default profile", profileName)
-		}
-		update, err = catalog.DeleteServer(mode.Path, serverName)
-	} else {
-		path, resolveErr := catalog.ResolveProfilePath(mode.Path, profileName)
-		if resolveErr != nil {
-			return NewUIErrorWithDetails(ErrCodeProfileNotFound, "Profile not found", resolveErr.Error())
-		}
-		update, err = catalog.DeleteServer(path, serverName)
-	}
+	editor, err := s.catalogEditor()
 	if err != nil {
-		return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Failed to delete server", err.Error())
+		return err
 	}
-	if err := os.WriteFile(update.Path, update.Data, 0o644); err != nil {
-		return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Failed to write profile file", err.Error())
+	if err := editor.DeleteServer(ctx, req.Profile, req.Server); err != nil {
+		return mapCatalogError(err)
 	}
 	return nil
 }
 
 // CreateProfile creates a new profile file in the profile store.
 func (s *WailsService) CreateProfile(ctx context.Context, req CreateProfileRequest) error {
-	if s.manager == nil {
-		return NewUIError(ErrCodeInternal, "Manager not initialized")
+	editor, err := s.catalogEditor()
+	if err != nil {
+		return err
 	}
-
-	name := strings.TrimSpace(req.Name)
-	if name == "" {
-		return NewUIError(ErrCodeInvalidRequest, "Profile name is required")
-	}
-
-	mode := s.GetConfigMode()
-	if mode.Mode == "unknown" || mode.Path == "" {
-		return NewUIError(ErrCodeInvalidConfig, "Configuration path is not available")
-	}
-	if mode.Mode != "directory" {
-		return NewUIError(ErrCodeInvalidRequest, "Profile store is required to create profiles")
-	}
-	if !mode.IsWritable {
-		return NewUIError(ErrCodeInvalidConfig, "Configuration path is not writable")
-	}
-
-	if _, err := catalog.CreateProfile(mode.Path, name); err != nil {
-		return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Failed to create profile", err.Error())
+	if err := editor.CreateProfile(ctx, req.Name); err != nil {
+		return mapCatalogError(err)
 	}
 	return nil
 }
 
 // DeleteProfile deletes a profile file from the profile store.
 func (s *WailsService) DeleteProfile(ctx context.Context, req DeleteProfileRequest) error {
-	if s.manager == nil {
-		return NewUIError(ErrCodeInternal, "Manager not initialized")
-	}
-
-	name := strings.TrimSpace(req.Name)
-	if name == "" {
-		return NewUIError(ErrCodeInvalidRequest, "Profile name is required")
-	}
-
-	mode := s.GetConfigMode()
-	if mode.Mode == "unknown" || mode.Path == "" {
-		return NewUIError(ErrCodeInvalidConfig, "Configuration path is not available")
-	}
-	if mode.Mode != "directory" {
-		return NewUIError(ErrCodeInvalidRequest, "Profile store is required to delete profiles")
-	}
-	if !mode.IsWritable {
-		return NewUIError(ErrCodeInvalidConfig, "Configuration path is not writable")
-	}
-
-	storeLoader := catalog.NewProfileStoreLoader(s.logger)
-	store, err := storeLoader.Load(ctx, mode.Path, catalog.ProfileStoreOptions{AllowCreate: false})
+	editor, err := s.catalogEditor()
 	if err != nil {
-		return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Failed to load profile store", err.Error())
+		return err
 	}
-	for caller, profile := range store.Callers {
-		if profile == name {
-			return NewUIErrorWithDetails(ErrCodeInvalidRequest, "Profile is referenced by callers", caller)
-		}
-	}
-
-	if err := catalog.DeleteProfile(mode.Path, name); err != nil {
-		return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Failed to delete profile", err.Error())
+	if err := editor.DeleteProfile(ctx, req.Name); err != nil {
+		return mapCatalogError(err)
 	}
 	return nil
 }
 
 // SetCallerMapping updates a caller to profile mapping.
 func (s *WailsService) SetCallerMapping(ctx context.Context, req UpdateCallerMappingRequest) error {
-	if s.manager == nil {
-		return NewUIError(ErrCodeInternal, "Manager not initialized")
-	}
-
-	caller := strings.TrimSpace(req.Caller)
-	profile := strings.TrimSpace(req.Profile)
-	if caller == "" || profile == "" {
-		return NewUIError(ErrCodeInvalidRequest, "Caller and profile are required")
-	}
-
-	mode := s.GetConfigMode()
-	if mode.Mode == "unknown" || mode.Path == "" {
-		return NewUIError(ErrCodeInvalidConfig, "Configuration path is not available")
-	}
-	if mode.Mode != "directory" {
-		return NewUIError(ErrCodeInvalidRequest, "Profile store is required to edit callers")
-	}
-	if !mode.IsWritable {
-		return NewUIError(ErrCodeInvalidConfig, "Configuration path is not writable")
-	}
-
-	storeLoader := catalog.NewProfileStoreLoader(s.logger)
-	store, err := storeLoader.Load(ctx, mode.Path, catalog.ProfileStoreOptions{AllowCreate: false})
+	editor, err := s.catalogEditor()
 	if err != nil {
-		return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Failed to load profile store", err.Error())
+		return err
 	}
-
-	update, err := catalog.SetCallerMapping(mode.Path, caller, profile, store.Profiles)
-	if err != nil {
-		return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Failed to update caller mapping", err.Error())
-	}
-	if err := os.WriteFile(update.Path, update.Data, 0o644); err != nil {
-		return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Failed to write callers file", err.Error())
+	if err := editor.SetCallerMapping(ctx, req.Caller, req.Profile); err != nil {
+		return mapCatalogError(err)
 	}
 	return nil
 }
 
 // RemoveCallerMapping removes a caller to profile mapping.
 func (s *WailsService) RemoveCallerMapping(ctx context.Context, caller string) error {
-	if s.manager == nil {
-		return NewUIError(ErrCodeInternal, "Manager not initialized")
-	}
-
-	caller = strings.TrimSpace(caller)
-	if caller == "" {
-		return NewUIError(ErrCodeInvalidRequest, "Caller is required")
-	}
-
-	mode := s.GetConfigMode()
-	if mode.Mode == "unknown" || mode.Path == "" {
-		return NewUIError(ErrCodeInvalidConfig, "Configuration path is not available")
-	}
-	if mode.Mode != "directory" {
-		return NewUIError(ErrCodeInvalidRequest, "Profile store is required to edit callers")
-	}
-	if !mode.IsWritable {
-		return NewUIError(ErrCodeInvalidConfig, "Configuration path is not writable")
-	}
-
-	storeLoader := catalog.NewProfileStoreLoader(s.logger)
-	store, err := storeLoader.Load(ctx, mode.Path, catalog.ProfileStoreOptions{AllowCreate: false})
+	editor, err := s.catalogEditor()
 	if err != nil {
-		return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Failed to load profile store", err.Error())
+		return err
 	}
-
-	update, err := catalog.RemoveCallerMapping(mode.Path, caller, store.Profiles)
-	if err != nil {
-		return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Failed to remove caller mapping", err.Error())
-	}
-	if err := os.WriteFile(update.Path, update.Data, 0o644); err != nil {
-		return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Failed to write callers file", err.Error())
+	if err := editor.RemoveCallerMapping(ctx, caller); err != nil {
+		return mapCatalogError(err)
 	}
 	return nil
 }
@@ -877,44 +636,7 @@ func (s *WailsService) GetRuntimeStatus(ctx context.Context) ([]ServerRuntimeSta
 		return nil, MapDomainError(err)
 	}
 
-	result := make([]ServerRuntimeStatus, 0, len(pools))
-	for _, pool := range pools {
-		instances := make([]InstanceStatus, 0, len(pool.Instances))
-		stats := PoolStats{}
-
-		for _, inst := range pool.Instances {
-			instances = append(instances, InstanceStatus{
-				ID:         inst.ID,
-				State:      string(inst.State),
-				BusyCount:  inst.BusyCount,
-				LastActive: inst.LastActive.Format("2006-01-02T15:04:05Z07:00"),
-			})
-
-			// Count by state
-			stats.Total++
-			switch inst.State {
-			case domain.InstanceStateReady:
-				stats.Ready++
-			case domain.InstanceStateBusy:
-				stats.Busy++
-			case domain.InstanceStateStarting:
-				stats.Starting++
-			case domain.InstanceStateDraining:
-				stats.Draining++
-			case domain.InstanceStateFailed:
-				stats.Failed++
-			}
-		}
-
-		result = append(result, ServerRuntimeStatus{
-			SpecKey:    pool.SpecKey,
-			ServerName: pool.ServerName,
-			Instances:  instances,
-			Stats:      stats,
-		})
-	}
-
-	return result, nil
+	return mapRuntimeStatuses(pools), nil
 }
 
 // GetServerInitStatus returns per-server initialization status
@@ -929,21 +651,7 @@ func (s *WailsService) GetServerInitStatus(ctx context.Context) ([]ServerInitSta
 		return nil, MapDomainError(err)
 	}
 
-	result := make([]ServerInitStatus, 0, len(statuses))
-	for _, status := range statuses {
-		updatedAt := status.UpdatedAt.UTC().Format(time.RFC3339Nano)
-		result = append(result, ServerInitStatus{
-			SpecKey:    status.SpecKey,
-			ServerName: status.ServerName,
-			MinReady:   status.MinReady,
-			Ready:      status.Ready,
-			Failed:     status.Failed,
-			State:      string(status.State),
-			LastError:  status.LastError,
-			UpdatedAt:  updatedAt,
-		})
-	}
-	return result, nil
+	return mapServerInitStatuses(statuses), nil
 }
 
 // ListProfiles 列出所有 profiles
@@ -999,19 +707,18 @@ func (s *WailsService) GetProfile(ctx context.Context, name string) (*ProfileDet
 		return nil, NewUIError(ErrCodeNotFound, fmt.Sprintf("Profile %q not found", name))
 	}
 
-	// Convert to frontend types
 	servers := make([]ServerSpecDetail, 0, len(profile.Catalog.Specs))
 	for _, spec := range profile.Catalog.Specs {
 		specKey, err := domain.SpecFingerprint(spec)
 		if err != nil {
 			return nil, NewUIError(ErrCodeInternal, fmt.Sprintf("spec fingerprint for %q: %v", spec.Name, err))
 		}
-		servers = append(servers, convertServerSpec(spec, specKey))
+		servers = append(servers, mapServerSpecDetail(spec, specKey))
 	}
 
 	return &ProfileDetail{
 		Name:    profile.Name,
-		Runtime: convertRuntimeConfig(profile.Catalog.Runtime),
+		Runtime: mapRuntimeConfigDetail(profile.Catalog.Runtime),
 		Servers: servers,
 		SubAgent: ProfileSubAgentConfigDetail{
 			Enabled: profile.Catalog.SubAgent.Enabled,
@@ -1048,155 +755,42 @@ func (s *WailsService) GetActiveCallers(ctx context.Context) ([]ActiveCaller, er
 		return nil, MapDomainError(err)
 	}
 
-	result := make([]ActiveCaller, 0, len(callers))
-	for _, caller := range callers {
-		result = append(result, ActiveCaller{
-			Caller:        caller.Caller,
-			PID:           caller.PID,
-			Profile:       caller.Profile,
-			LastHeartbeat: caller.LastHeartbeat.Format("2006-01-02T15:04:05.000Z07:00"),
-		})
-	}
-
-	return result, nil
+	return mapActiveCallers(callers), nil
 }
 
-// Helper functions for type conversion
-
-func convertServerSpec(spec domain.ServerSpec, specKey string) ServerSpecDetail {
-	env := spec.Env
-	if env == nil {
-		env = make(map[string]string)
+func (s *WailsService) catalogEditor() (*catalog.Editor, error) {
+	if s.manager == nil {
+		return nil, NewUIError(ErrCodeInternal, "Manager not initialized")
 	}
-	exposeTools := spec.ExposeTools
-	if exposeTools == nil {
-		exposeTools = []string{}
+	path := strings.TrimSpace(s.manager.GetConfigPath())
+	if path == "" {
+		return nil, NewUIError(ErrCodeInvalidConfig, "Configuration path is not available")
 	}
-
-	return ServerSpecDetail{
-		Name:                spec.Name,
-		SpecKey:             specKey,
-		Cmd:                 spec.Cmd,
-		Env:                 env,
-		Cwd:                 spec.Cwd,
-		IdleSeconds:         spec.IdleSeconds,
-		MaxConcurrent:       spec.MaxConcurrent,
-		Sticky:              spec.Sticky,
-		Persistent:          spec.Persistent,
-		Disabled:            spec.Disabled,
-		MinReady:            spec.MinReady,
-		DrainTimeoutSeconds: spec.DrainTimeoutSeconds,
-		ProtocolVersion:     spec.ProtocolVersion,
-		ExposeTools:         exposeTools,
-	}
+	return catalog.NewEditor(path, s.logger), nil
 }
 
-func convertRuntimeConfig(cfg domain.RuntimeConfig) RuntimeConfigDetail {
-	return RuntimeConfigDetail{
-		RouteTimeoutSeconds:    cfg.RouteTimeoutSeconds,
-		PingIntervalSeconds:    cfg.PingIntervalSeconds,
-		ToolRefreshSeconds:     cfg.ToolRefreshSeconds,
-		ToolRefreshConcurrency: cfg.ToolRefreshConcurrency,
-		CallerCheckSeconds:     cfg.CallerCheckSeconds,
-		ExposeTools:            cfg.ExposeTools,
-		ToolNamespaceStrategy:  cfg.ToolNamespaceStrategy,
-		Observability: ObservabilityConfigDetail{
-			ListenAddress: cfg.Observability.ListenAddress,
-		},
-		RPC: RPCConfigDetail{
-			ListenAddress:           cfg.RPC.ListenAddress,
-			MaxRecvMsgSize:          cfg.RPC.MaxRecvMsgSize,
-			MaxSendMsgSize:          cfg.RPC.MaxSendMsgSize,
-			KeepaliveTimeSeconds:    cfg.RPC.KeepaliveTimeSeconds,
-			KeepaliveTimeoutSeconds: cfg.RPC.KeepaliveTimeoutSeconds,
-			SocketMode:              cfg.RPC.SocketMode,
-			TLS: RPCTLSConfigDetail{
-				Enabled:    cfg.RPC.TLS.Enabled,
-				CertFile:   cfg.RPC.TLS.CertFile,
-				KeyFile:    cfg.RPC.TLS.KeyFile,
-				CAFile:     cfg.RPC.TLS.CAFile,
-				ClientAuth: cfg.RPC.TLS.ClientAuth,
-			},
-		},
-	}
-}
-
-func normalizeImportRequest(req ImportMcpServersRequest) ([]string, []domain.ServerSpec, error) {
-	if len(req.Profiles) == 0 {
-		return nil, nil, errors.New("at least one profile is required")
-	}
-	if len(req.Servers) == 0 {
-		return nil, nil, errors.New("at least one server is required")
-	}
-
-	profileNames := make([]string, 0, len(req.Profiles))
-	seenProfiles := make(map[string]struct{}, len(req.Profiles))
-	for _, name := range req.Profiles {
-		trimmed := strings.TrimSpace(name)
-		if trimmed == "" {
-			return nil, nil, errors.New("profile name is required")
-		}
-		if _, exists := seenProfiles[trimmed]; exists {
-			return nil, nil, fmt.Errorf("duplicate profile name %q", trimmed)
-		}
-		seenProfiles[trimmed] = struct{}{}
-		profileNames = append(profileNames, trimmed)
-	}
-
-	servers := make([]domain.ServerSpec, 0, len(req.Servers))
-	seenServers := make(map[string]struct{}, len(req.Servers))
-	for _, server := range req.Servers {
-		name := strings.TrimSpace(server.Name)
-		if name == "" {
-			return nil, nil, errors.New("server name is required")
-		}
-		if len(server.Cmd) == 0 {
-			return nil, nil, fmt.Errorf("server %q: cmd is required", name)
-		}
-		for _, cmd := range server.Cmd {
-			if strings.TrimSpace(cmd) == "" {
-				return nil, nil, fmt.Errorf("server %q: cmd contains empty value", name)
-			}
-		}
-		if _, exists := seenServers[name]; exists {
-			return nil, nil, fmt.Errorf("duplicate server name %q", name)
-		}
-		seenServers[name] = struct{}{}
-
-		servers = append(servers, domain.ServerSpec{
-			Name:                name,
-			Cmd:                 append([]string{}, server.Cmd...),
-			Env:                 normalizeImportEnv(server.Env),
-			Cwd:                 strings.TrimSpace(server.Cwd),
-			IdleSeconds:         60,
-			MaxConcurrent:       domain.DefaultMaxConcurrent,
-			Sticky:              false,
-			Persistent:          false,
-			MinReady:            0,
-			DrainTimeoutSeconds: domain.DefaultDrainTimeoutSeconds,
-			ProtocolVersion:     domain.DefaultProtocolVersion,
-		})
-	}
-
-	return profileNames, servers, nil
-}
-
-func normalizeImportEnv(env map[string]string) map[string]string {
-	if len(env) == 0 {
+func mapCatalogError(err error) error {
+	if err == nil {
 		return nil
 	}
-	cleaned := make(map[string]string, len(env))
-	for key, value := range env {
-		key = strings.TrimSpace(key)
-		if key == "" {
-			continue
+	var editorErr *catalog.EditorError
+	if errors.As(err, &editorErr) {
+		detail := ""
+		if editorErr.Err != nil {
+			detail = editorErr.Err.Error()
 		}
-		cleaned[key] = value
+		switch editorErr.Kind {
+		case catalog.EditorErrorInvalidRequest:
+			return NewUIErrorWithDetails(ErrCodeInvalidRequest, editorErr.Message, detail)
+		case catalog.EditorErrorProfileNotFound:
+			return NewUIErrorWithDetails(ErrCodeProfileNotFound, editorErr.Message, detail)
+		case catalog.EditorErrorInvalidConfig:
+			return NewUIErrorWithDetails(ErrCodeInvalidConfig, editorErr.Message, detail)
+		default:
+			return NewUIErrorWithDetails(ErrCodeInvalidConfig, editorErr.Message, detail)
+		}
 	}
-	if len(cleaned) == 0 {
-		return nil
-	}
-	return cleaned
+	return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Failed to update configuration", err.Error())
 }
 
 // =============================================================================
@@ -1247,42 +841,12 @@ func (s *WailsService) GetProfileSubAgentConfig(ctx context.Context, profileName
 
 // SetProfileSubAgentEnabled updates the per-profile SubAgent enabled state.
 func (s *WailsService) SetProfileSubAgentEnabled(ctx context.Context, req UpdateProfileSubAgentRequest) error {
-	if s.manager == nil {
-		return NewUIError(ErrCodeInternal, "Manager not initialized")
-	}
-
-	profileName := strings.TrimSpace(req.Profile)
-	if profileName == "" {
-		return NewUIError(ErrCodeInvalidRequest, "Profile name is required")
-	}
-
-	mode := s.GetConfigMode()
-	if mode.Mode == "unknown" || mode.Path == "" {
-		return NewUIError(ErrCodeInvalidConfig, "Configuration path is not available")
-	}
-	if !mode.IsWritable {
-		return NewUIError(ErrCodeInvalidConfig, "Configuration path is not writable")
-	}
-
-	var update catalog.ProfileUpdate
-	var err error
-	if mode.Mode == "single" {
-		if profileName != domain.DefaultProfileName {
-			return NewUIErrorWithDetails(ErrCodeInvalidRequest, "Single-file config only supports default profile", profileName)
-		}
-		update, err = catalog.SetProfileSubAgentEnabled(mode.Path, req.Enabled)
-	} else {
-		path, resolveErr := catalog.ResolveProfilePath(mode.Path, profileName)
-		if resolveErr != nil {
-			return NewUIErrorWithDetails(ErrCodeProfileNotFound, "Profile not found", resolveErr.Error())
-		}
-		update, err = catalog.SetProfileSubAgentEnabled(path, req.Enabled)
-	}
+	editor, err := s.catalogEditor()
 	if err != nil {
-		return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Failed to update SubAgent config", err.Error())
+		return err
 	}
-	if err := os.WriteFile(update.Path, update.Data, 0o644); err != nil {
-		return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Failed to write profile file", err.Error())
+	if err := editor.SetProfileSubAgentEnabled(ctx, req.Profile, req.Enabled); err != nil {
+		return mapCatalogError(err)
 	}
 	return nil
 }

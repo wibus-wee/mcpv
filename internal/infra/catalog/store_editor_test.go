@@ -9,12 +9,13 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"mcpd/internal/domain"
+	"mcpd/internal/infra/fsutil"
 )
 
 func TestCreateProfile(t *testing.T) {
 	root := t.TempDir()
 	profilesDir := filepath.Join(root, profilesDirName)
-	require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+	require.NoError(t, os.MkdirAll(profilesDir, fsutil.DefaultDirMode))
 
 	path, err := CreateProfile(root, "custom")
 	require.NoError(t, err)
@@ -24,10 +25,10 @@ func TestCreateProfile(t *testing.T) {
 func TestDeleteProfile(t *testing.T) {
 	root := t.TempDir()
 	profilesDir := filepath.Join(root, profilesDirName)
-	require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+	require.NoError(t, os.MkdirAll(profilesDir, fsutil.DefaultDirMode))
 
 	path := filepath.Join(profilesDir, "custom.yaml")
-	require.NoError(t, os.WriteFile(path, []byte("servers: []\n"), 0o644))
+	require.NoError(t, os.WriteFile(path, []byte("servers: []\n"), fsutil.DefaultFileMode))
 
 	require.NoError(t, DeleteProfile(root, "custom"))
 	_, err := os.Stat(path)
@@ -37,8 +38,8 @@ func TestDeleteProfile(t *testing.T) {
 func TestSetCallerMapping(t *testing.T) {
 	root := t.TempDir()
 	profilesDir := filepath.Join(root, profilesDirName)
-	require.NoError(t, os.MkdirAll(profilesDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "default.yaml"), []byte("servers: []\n"), 0o644))
+	require.NoError(t, os.MkdirAll(profilesDir, fsutil.DefaultDirMode))
+	require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "default.yaml"), []byte("servers: []\n"), fsutil.DefaultFileMode))
 
 	update, err := SetCallerMapping(root, "cursor", "default", map[string]domain.Profile{
 		domain.DefaultProfileName: {
@@ -56,11 +57,11 @@ func TestSetCallerMapping(t *testing.T) {
 func TestRemoveCallerMapping(t *testing.T) {
 	root := t.TempDir()
 	profilesDir := filepath.Join(root, profilesDirName)
-	require.NoError(t, os.MkdirAll(profilesDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "default.yaml"), []byte("servers: []\n"), 0o644))
+	require.NoError(t, os.MkdirAll(profilesDir, fsutil.DefaultDirMode))
+	require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "default.yaml"), []byte("servers: []\n"), fsutil.DefaultFileMode))
 
 	callersPath := filepath.Join(root, callersFileName)
-	require.NoError(t, os.WriteFile(callersPath, []byte("callers:\n  cursor: default\n"), 0o644))
+	require.NoError(t, os.WriteFile(callersPath, []byte("callers:\n  cursor: default\n"), fsutil.DefaultFileMode))
 
 	update, err := RemoveCallerMapping(root, "cursor", map[string]domain.Profile{
 		domain.DefaultProfileName: {

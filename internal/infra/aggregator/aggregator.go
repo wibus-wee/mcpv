@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
@@ -30,25 +28,13 @@ type ToolIndex struct {
 	health   *telemetry.HealthTracker
 	gate     *RefreshGate
 
-	mu          sync.Mutex
-	started     bool
-	ticker      *time.Ticker
-	stop        chan struct{}
-	serverCache map[string]serverCache
-	subs        map[chan domain.ToolSnapshot]struct{}
-	refreshBeat *telemetry.Heartbeat
-	state       atomic.Value
-	reqBuilder  requestBuilder
+	reqBuilder requestBuilder
+	index      *GenericIndex[domain.ToolSnapshot, domain.ToolTarget, serverCache]
 }
 
 type serverCache struct {
 	tools   []domain.ToolDefinition
 	targets map[string]domain.ToolTarget
-}
-
-type toolIndexState struct {
-	snapshot domain.ToolSnapshot
-	targets  map[string]domain.ToolTarget
 }
 
 func NewToolIndex(rt domain.Router, specs map[string]domain.ServerSpec, specKeys map[string]string, cfg domain.RuntimeConfig, logger *zap.Logger, health *telemetry.HealthTracker, gate *RefreshGate) *ToolIndex {
@@ -58,129 +44,53 @@ func NewToolIndex(rt domain.Router, specs map[string]domain.ServerSpec, specKeys
 	if specKeys == nil {
 		specKeys = map[string]string{}
 	}
-	index := &ToolIndex{
-		router:      rt,
-		specs:       specs,
-		specKeys:    specKeys,
-		cfg:         cfg,
-		logger:      logger.Named("tool_index"),
-		health:      health,
-		gate:        gate,
-		stop:        make(chan struct{}),
-		serverCache: make(map[string]serverCache),
-		subs:        make(map[chan domain.ToolSnapshot]struct{}),
+	toolIndex := &ToolIndex{
+		router:   rt,
+		specs:    specs,
+		specKeys: specKeys,
+		cfg:      cfg,
+		logger:   logger.Named("tool_index"),
+		health:   health,
+		gate:     gate,
 	}
-	index.state.Store(toolIndexState{
-		snapshot: domain.ToolSnapshot{},
-		targets:  make(map[string]domain.ToolTarget),
+	toolIndex.index = NewGenericIndex(GenericIndexOptions[domain.ToolSnapshot, domain.ToolTarget, serverCache]{
+		Name:              "tool_index",
+		LogLabel:          "tool",
+		FetchErrorMessage: "tool list fetch failed",
+		Specs:             specs,
+		Config:            cfg,
+		Logger:            toolIndex.logger,
+		Health:            health,
+		Gate:              gate,
+		EmptySnapshot:     func() domain.ToolSnapshot { return domain.ToolSnapshot{} },
+		CopySnapshot:      copySnapshot,
+		SnapshotETag:      func(snapshot domain.ToolSnapshot) string { return snapshot.ETag },
+		BuildSnapshot:     toolIndex.buildSnapshot,
+		Fetch:             toolIndex.fetchServerCache,
+		OnRefreshError:    toolIndex.refreshErrorDecision,
+		ShouldStart:       func(cfg domain.RuntimeConfig) bool { return cfg.ExposeTools },
 	})
-	return index
+	return toolIndex
 }
 
 func (a *ToolIndex) Start(ctx context.Context) {
-	if !a.cfg.ExposeTools {
-		return
-	}
-
-	a.mu.Lock()
-	if a.started {
-		a.mu.Unlock()
-		return
-	}
-	a.started = true
-	if a.stop == nil {
-		a.stop = make(chan struct{})
-	}
-	a.mu.Unlock()
-
-	interval := time.Duration(a.cfg.ToolRefreshSeconds) * time.Second
-	if interval > 0 && a.health != nil && a.refreshBeat == nil {
-		a.refreshBeat = a.health.Register("tool_index.refresh", interval*3)
-	}
-	if a.refreshBeat != nil {
-		a.refreshBeat.Beat()
-	}
-	if err := a.refresh(ctx); err != nil {
-		a.logger.Warn("initial tool refresh failed", zap.Error(err))
-	}
-	if interval <= 0 {
-		return
-	}
-
-	a.mu.Lock()
-	if a.ticker != nil {
-		a.mu.Unlock()
-		return
-	}
-	a.ticker = time.NewTicker(interval)
-	a.mu.Unlock()
-
-	go func() {
-		for {
-			select {
-			case <-a.ticker.C:
-				if a.refreshBeat != nil {
-					a.refreshBeat.Beat()
-				}
-				if err := a.refresh(ctx); err != nil {
-					a.logger.Warn("tool refresh failed", zap.Error(err))
-				}
-			case <-a.stop:
-				return
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
+	a.index.Start(ctx)
 }
 
 func (a *ToolIndex) Stop() {
-	a.mu.Lock()
-	if a.ticker != nil {
-		a.ticker.Stop()
-		a.ticker = nil
-	}
-	if a.refreshBeat != nil {
-		a.refreshBeat.Stop()
-		a.refreshBeat = nil
-	}
-	if a.stop != nil {
-		close(a.stop)
-		a.stop = nil
-	}
-	a.started = false
-	a.mu.Unlock()
+	a.index.Stop()
 }
 
 func (a *ToolIndex) Snapshot() domain.ToolSnapshot {
-	state := a.state.Load().(toolIndexState)
-	return copySnapshot(state.snapshot)
+	return a.index.Snapshot()
 }
 
 func (a *ToolIndex) Subscribe(ctx context.Context) <-chan domain.ToolSnapshot {
-	ch := make(chan domain.ToolSnapshot, 1)
-
-	a.mu.Lock()
-	a.subs[ch] = struct{}{}
-	a.mu.Unlock()
-
-	state := a.state.Load().(toolIndexState)
-	sendSnapshot(ch, state.snapshot)
-
-	go func() {
-		<-ctx.Done()
-		a.mu.Lock()
-		delete(a.subs, ch)
-		a.mu.Unlock()
-	}()
-
-	return ch
+	return a.index.Subscribe(ctx)
 }
 
 func (a *ToolIndex) Resolve(name string) (domain.ToolTarget, bool) {
-	state := a.state.Load().(toolIndexState)
-	target, ok := state.targets[name]
-	return target, ok
+	return a.index.Resolve(name)
 }
 
 func (a *ToolIndex) CallTool(ctx context.Context, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
@@ -211,93 +121,10 @@ func (a *ToolIndex) CallTool(ctx context.Context, name string, args json.RawMess
 }
 
 func (a *ToolIndex) refresh(ctx context.Context) error {
-	if err := a.gate.Acquire(ctx); err != nil {
-		return err
-	}
-	defer a.gate.Release()
-
-	serverTypes := sortedServerTypes(a.specs)
-	if len(serverTypes) == 0 {
-		return nil
-	}
-
-	type refreshResult struct {
-		serverType string
-		tools      []domain.ToolDefinition
-		targets    map[string]domain.ToolTarget
-		err        error
-	}
-
-	results := make(chan refreshResult, len(serverTypes))
-	timeout := refreshTimeout(a.cfg)
-	workerCount := refreshWorkerCount(a.cfg, len(serverTypes))
-	if workerCount == 0 {
-		return nil
-	}
-
-	jobs := make(chan string)
-	var wg sync.WaitGroup
-	for i := 0; i < workerCount; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case serverType, ok := <-jobs:
-					if !ok {
-						return
-					}
-					spec := a.specs[serverType]
-					fetchCtx, cancel := context.WithTimeout(ctx, timeout)
-					tools, targets, err := a.fetchServerTools(fetchCtx, serverType, spec)
-					cancel()
-					results <- refreshResult{
-						serverType: serverType,
-						tools:      tools,
-						targets:    targets,
-						err:        err,
-					}
-				}
-			}
-		}()
-	}
-
-	go func() {
-		for _, serverType := range serverTypes {
-			jobs <- serverType
-		}
-		close(jobs)
-	}()
-
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
-
-	for res := range results {
-		if res.err != nil {
-			if errors.Is(res.err, domain.ErrNoReadyInstance) {
-				continue
-			}
-			a.logger.Warn("tool list fetch failed", zap.String("serverType", res.serverType), zap.Error(res.err))
-			continue
-		}
-
-		a.mu.Lock()
-		a.serverCache[res.serverType] = serverCache{
-			tools:   res.tools,
-			targets: res.targets,
-		}
-		a.mu.Unlock()
-		a.rebuildSnapshot()
-	}
-	return nil
+	return a.index.Refresh(ctx)
 }
 
-func (a *ToolIndex) rebuildSnapshot() {
-	cache := a.copyServerCache()
+func (a *ToolIndex) buildSnapshot(cache map[string]serverCache) (domain.ToolSnapshot, map[string]domain.ToolTarget) {
 	merged := make([]domain.ToolDefinition, 0)
 	targets := make(map[string]domain.ToolTarget)
 
@@ -332,7 +159,7 @@ func (a *ToolIndex) rebuildSnapshot() {
 					SpecKey:    target.SpecKey,
 					ToolName:   target.ToolName,
 				}
-				targets[tool.Name] = existing // keep existing binding
+				targets[tool.Name] = existing
 			}
 
 			toolDef.SpecKey = target.SpecKey
@@ -347,21 +174,10 @@ func (a *ToolIndex) rebuildSnapshot() {
 
 	sort.Slice(merged, func(i, j int) bool { return merged[i].Name < merged[j].Name })
 
-	etag := hashTools(merged)
-	state := a.state.Load().(toolIndexState)
-	if etag == state.snapshot.ETag {
-		return
-	}
-
-	snapshot := domain.ToolSnapshot{
-		ETag:  etag,
+	return domain.ToolSnapshot{
+		ETag:  hashTools(merged),
 		Tools: merged,
-	}
-	a.state.Store(toolIndexState{
-		snapshot: snapshot,
-		targets:  targets,
-	})
-	a.broadcast(snapshot)
+	}, targets
 }
 
 func (a *ToolIndex) resolveFlatConflict(name, serverType string, existing map[string]domain.ToolTarget) (string, error) {
@@ -396,33 +212,19 @@ func renameToolDefinition(def domain.ToolDefinition, newName string) (domain.Too
 	}, nil
 }
 
-func (a *ToolIndex) broadcast(snapshot domain.ToolSnapshot) {
-	subs := a.copySubscribers()
-	for _, ch := range subs {
-		sendSnapshot(ch, snapshot)
+func (a *ToolIndex) refreshErrorDecision(_ string, err error) refreshErrorDecision {
+	if errors.Is(err, domain.ErrNoReadyInstance) {
+		return refreshErrorSkip
 	}
+	return refreshErrorLog
 }
 
-func (a *ToolIndex) copyServerCache() map[string]serverCache {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	out := make(map[string]serverCache, len(a.serverCache))
-	for key, cache := range a.serverCache {
-		out[key] = cache
+func (a *ToolIndex) fetchServerCache(ctx context.Context, serverType string, spec domain.ServerSpec) (serverCache, error) {
+	tools, targets, err := a.fetchServerTools(ctx, serverType, spec)
+	if err != nil {
+		return serverCache{}, err
 	}
-	return out
-}
-
-func (a *ToolIndex) copySubscribers() []chan domain.ToolSnapshot {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	out := make([]chan domain.ToolSnapshot, 0, len(a.subs))
-	for ch := range a.subs {
-		out = append(out, ch)
-	}
-	return out
+	return serverCache{tools: tools, targets: targets}, nil
 }
 
 func (a *ToolIndex) fetchServerTools(ctx context.Context, serverType string, spec domain.ServerSpec) ([]domain.ToolDefinition, map[string]domain.ToolTarget, error) {
@@ -710,11 +512,4 @@ func copySnapshot(snapshot domain.ToolSnapshot) domain.ToolSnapshot {
 		})
 	}
 	return out
-}
-
-func sendSnapshot(ch chan domain.ToolSnapshot, snapshot domain.ToolSnapshot) {
-	select {
-	case ch <- copySnapshot(snapshot):
-	default:
-	}
 }

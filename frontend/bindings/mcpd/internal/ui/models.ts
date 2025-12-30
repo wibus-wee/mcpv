@@ -47,7 +47,7 @@ export class ActiveCaller {
  */
 export class ConfigModeResponse {
     /**
-     * "single" (file) or "directory"
+     * "directory" or "unknown"
      */
     "mode": string;
 
