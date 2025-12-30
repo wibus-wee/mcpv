@@ -180,12 +180,11 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 			state.bindStickyLocked(routingKey, tracked)
 		}
 		instance := state.markBusyLocked(tracked)
-		activeCount := len(state.instances)
 		state.mu.Unlock()
 		if waitCh != nil {
 			close(waitCh)
 		}
-		s.observeActiveInstances(specKey, activeCount)
+		s.observePoolStats(specKey, state)
 
 		return instance, nil
 	}
@@ -202,8 +201,12 @@ func (s *BasicScheduler) AcquireReady(ctx context.Context, specKey, routingKey s
 
 	state := s.getPool(specKey, spec)
 	state.mu.Lock()
-	defer state.mu.Unlock()
-	return state.acquireReadyLocked(routingKey)
+	inst, err := state.acquireReadyLocked(routingKey)
+	state.mu.Unlock()
+	if err == nil {
+		s.observePoolStats(specKey, state)
+	}
+	return inst, err
 }
 
 func (s *BasicScheduler) Release(ctx context.Context, instance *domain.Instance) error {
@@ -232,6 +235,7 @@ func (s *BasicScheduler) Release(ctx context.Context, instance *domain.Instance)
 		}
 	}
 	state.mu.Unlock()
+	s.observePoolStats(specKey, state)
 
 	if triggerDrain != nil && triggerDrain.drainDone != nil {
 		select {
@@ -287,9 +291,8 @@ func (s *BasicScheduler) SetDesiredMinReady(ctx context.Context, specKey string,
 				continue
 			}
 			state.instances = append(state.instances, &trackedInstance{instance: inst})
-			activeCount := len(state.instances)
 			state.mu.Unlock()
-			s.observeActiveInstances(specKey, activeCount)
+			s.observePoolStats(specKey, state)
 			continue
 		}
 		state.mu.Unlock()
@@ -348,7 +351,7 @@ func (s *BasicScheduler) StopSpec(ctx context.Context, specKey, reason string) e
 		s.startDrain(specKey, inst, drainTimeout, reason)
 	}
 
-	s.observeActiveInstances(specKey, 0)
+	s.observePoolStats(specKey, state)
 	return nil
 }
 
@@ -597,9 +600,9 @@ func (s *BasicScheduler) reapIdle() {
 		err := s.lifecycle.StopInstance(context.Background(), candidate.inst.instance, candidate.reason)
 		s.observeInstanceStop(candidate.specKey, err)
 		candidate.state.mu.Lock()
-		activeCount := candidate.state.removeInstanceLocked(candidate.inst)
+		candidate.state.removeInstanceLocked(candidate.inst)
 		candidate.state.mu.Unlock()
-		s.observeActiveInstances(candidate.specKey, activeCount)
+		s.observePoolStats(candidate.specKey, candidate.state)
 	}
 }
 
@@ -648,9 +651,9 @@ func (s *BasicScheduler) probeInstances() {
 		err := s.lifecycle.StopInstance(context.Background(), candidate.inst.instance, candidate.reason)
 		s.observeInstanceStop(candidate.specKey, err)
 		candidate.state.mu.Lock()
-		activeCount := candidate.state.removeInstanceLocked(candidate.inst)
+		candidate.state.removeInstanceLocked(candidate.inst)
 		candidate.state.mu.Unlock()
-		s.observeActiveInstances(candidate.specKey, activeCount)
+		s.observePoolStats(candidate.specKey, candidate.state)
 	}
 }
 
@@ -688,7 +691,7 @@ func (s *BasicScheduler) StopAll(ctx context.Context) {
 	}
 
 	for _, entry := range entries {
-		s.observeActiveInstances(entry.specKey, 0)
+		s.observePoolStats(entry.specKey, entry.state)
 	}
 	s.poolsMu.Lock()
 	s.pools = make(map[string]*poolState)
@@ -886,11 +889,26 @@ func (s *BasicScheduler) observeInstanceStop(specKey string, err error) {
 	s.metrics.ObserveInstanceStop(specKey, err)
 }
 
-func (s *BasicScheduler) observeActiveInstances(specKey string, count int) {
+func (s *BasicScheduler) observePoolStats(specKey string, state *poolState) {
 	if s.metrics == nil {
 		return
 	}
-	s.metrics.SetActiveInstances(specKey, count)
+	state.mu.Lock()
+	activeCount := len(state.instances)
+	busyCount := 0
+	maxConcurrent := state.spec.MaxConcurrent
+	for _, inst := range state.instances {
+		busyCount += inst.instance.BusyCount
+	}
+	state.mu.Unlock()
+
+	s.metrics.SetActiveInstances(specKey, activeCount)
+	capacity := activeCount * maxConcurrent
+	ratio := 0.0
+	if capacity > 0 {
+		ratio = float64(busyCount) / float64(capacity)
+	}
+	s.metrics.SetPoolCapacityRatio(specKey, ratio)
 }
 
 func isRoutable(state domain.InstanceState) bool {

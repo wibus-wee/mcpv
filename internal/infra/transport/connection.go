@@ -65,7 +65,7 @@ func newClientConn(conn mcp.Connection, opts clientConnOptions) *clientConn {
 
 func (c *clientConn) Call(ctx context.Context, payload json.RawMessage) (json.RawMessage, error) {
 	if c.isClosed() {
-		return nil, errors.New("connection is closed")
+		return nil, domain.ErrConnectionClosed
 	}
 	msg, err := jsonrpc.DecodeMessage(payload)
 	if err != nil {
@@ -84,7 +84,7 @@ func (c *clientConn) Call(ctx context.Context, payload json.RawMessage) (json.Ra
 	c.mu.Lock()
 	if c.pending == nil {
 		c.mu.Unlock()
-		return nil, errors.New("connection is closed")
+		return nil, domain.ErrConnectionClosed
 	}
 	c.pending[key] = resultCh
 	c.mu.Unlock()
@@ -116,7 +116,7 @@ func (c *clientConn) Close() error {
 		close(c.closed)
 		c.cancel()
 		err = c.conn.Close()
-		c.failPending(errors.New("connection closed"))
+		c.failPending(domain.ErrConnectionClosed)
 	})
 	return err
 }

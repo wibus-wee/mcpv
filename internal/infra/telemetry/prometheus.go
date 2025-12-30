@@ -14,6 +14,7 @@ type PrometheusMetrics struct {
 	instanceStarts          *prometheus.CounterVec
 	instanceStops           *prometheus.CounterVec
 	activeInstances         *prometheus.GaugeVec
+	poolCapacityRatio       *prometheus.GaugeVec
 	subAgentTokens          *prometheus.CounterVec
 	subAgentLatency         *prometheus.HistogramVec
 	subAgentFilterPrecision *prometheus.HistogramVec
@@ -32,7 +33,7 @@ func NewPrometheusMetrics(registerer prometheus.Registerer) *PrometheusMetrics {
 				Help:    "Duration of route requests in seconds",
 				Buckets: []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10},
 			},
-			[]string{"server_type", "status"},
+			[]string{"server_type", "caller", "profile", "status", "reason"},
 		),
 		instanceStarts: factory.NewCounterVec(
 			prometheus.CounterOpts{
@@ -52,6 +53,13 @@ func NewPrometheusMetrics(registerer prometheus.Registerer) *PrometheusMetrics {
 			prometheus.GaugeOpts{
 				Name: "mcpd_active_instances",
 				Help: "Current number of active instances",
+			},
+			[]string{"spec_key"},
+		),
+		poolCapacityRatio: factory.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "mcpd_pool_capacity_ratio",
+				Help: "Ratio of busy calls to total pool capacity",
 			},
 			[]string{"spec_key"},
 		),
@@ -81,12 +89,14 @@ func NewPrometheusMetrics(registerer prometheus.Registerer) *PrometheusMetrics {
 	}
 }
 
-func (p *PrometheusMetrics) ObserveRoute(serverType string, duration time.Duration, err error) {
-	status := "success"
-	if err != nil {
-		status = "error"
-	}
-	p.routeDuration.WithLabelValues(serverType, status).Observe(duration.Seconds())
+func (p *PrometheusMetrics) ObserveRoute(metric domain.RouteMetric) {
+	p.routeDuration.WithLabelValues(
+		metric.ServerType,
+		metric.Caller,
+		metric.Profile,
+		string(metric.Status),
+		string(metric.Reason),
+	).Observe(metric.Duration.Seconds())
 }
 
 func (p *PrometheusMetrics) ObserveInstanceStart(specKey string, duration time.Duration, err error) {
@@ -99,6 +109,10 @@ func (p *PrometheusMetrics) ObserveInstanceStop(specKey string, err error) {
 
 func (p *PrometheusMetrics) SetActiveInstances(specKey string, count int) {
 	p.activeInstances.WithLabelValues(specKey).Set(float64(count))
+}
+
+func (p *PrometheusMetrics) SetPoolCapacityRatio(specKey string, ratio float64) {
+	p.poolCapacityRatio.WithLabelValues(specKey).Set(ratio)
 }
 
 func (p *PrometheusMetrics) ObserveSubAgentTokens(provider string, model string, tokens int) {

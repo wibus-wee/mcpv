@@ -12,13 +12,15 @@ func NewNoopMetrics() *NoopMetrics {
 	return &NoopMetrics{}
 }
 
-func (n *NoopMetrics) ObserveRoute(serverType string, duration time.Duration, err error) {}
+func (n *NoopMetrics) ObserveRoute(metric domain.RouteMetric) {}
 
 func (n *NoopMetrics) ObserveInstanceStart(specKey string, duration time.Duration, err error) {}
 
 func (n *NoopMetrics) ObserveInstanceStop(specKey string, err error) {}
 
 func (n *NoopMetrics) SetActiveInstances(specKey string, count int) {}
+
+func (n *NoopMetrics) SetPoolCapacityRatio(specKey string, ratio float64) {}
 
 func (n *NoopMetrics) ObserveSubAgentTokens(provider string, model string, tokens int) {}
 

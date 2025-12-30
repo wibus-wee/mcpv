@@ -100,6 +100,7 @@ func (d *discoveryService) CallTool(ctx context.Context, caller, name string, ar
 	if err != nil {
 		return nil, err
 	}
+	ctx = domain.WithRouteContext(ctx, domain.RouteContext{Caller: caller, Profile: profile.name})
 	if profile.tools == nil {
 		return nil, domain.ErrToolNotFound
 	}
@@ -195,6 +196,7 @@ func (d *discoveryService) ReadResource(ctx context.Context, caller, uri string)
 	if err != nil {
 		return nil, err
 	}
+	ctx = domain.WithRouteContext(ctx, domain.RouteContext{Caller: caller, Profile: profile.name})
 	if profile.resources == nil {
 		return nil, domain.ErrResourceNotFound
 	}
@@ -290,6 +292,7 @@ func (d *discoveryService) GetPrompt(ctx context.Context, caller, name string, a
 	if err != nil {
 		return nil, err
 	}
+	ctx = domain.WithRouteContext(ctx, domain.RouteContext{Caller: caller, Profile: profile.name})
 	if profile.prompts == nil {
 		return nil, domain.ErrPromptNotFound
 	}

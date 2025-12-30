@@ -33,12 +33,18 @@ type App struct {
 }
 
 type ServeConfig struct {
-	ConfigPath string
-	OnReady    func(domain.ControlPlane) // Called when Core is ready (after RPC server starts)
+	ConfigPath     string
+	OnReady        func(domain.ControlPlane) // Called when Core is ready (after RPC server starts)
+	Observability  *ObservabilityOptions
 }
 
 type ValidateConfig struct {
 	ConfigPath string
+}
+
+type ObservabilityOptions struct {
+	MetricsEnabled *bool
+	HealthzEnabled *bool
 }
 
 type profileConfig struct {
@@ -139,11 +145,11 @@ func (a *App) Serve(ctx context.Context, cfg ServeConfig) error {
 	for name, cfg := range summary.configs {
 		profileLogger := logger.With(zap.String("profile", name))
 		refreshGate := aggregator.NewRefreshGate()
-		rt := router.NewBasicRouter(sched, router.RouterOptions{
+		baseRouter := router.NewBasicRouter(sched, router.RouterOptions{
 			Timeout: time.Duration(cfg.profile.Catalog.Runtime.RouteTimeoutSeconds) * time.Second,
 			Logger:  profileLogger,
-			Metrics: metrics,
 		})
+		rt := router.NewMetricRouter(baseRouter, metrics)
 		toolIndex := aggregator.NewToolIndex(rt, cfg.profile.Catalog.Specs, cfg.specKeys, cfg.profile.Catalog.Runtime, profileLogger, health, refreshGate, listChanges)
 		resourceIndex := aggregator.NewResourceIndex(rt, cfg.profile.Catalog.Specs, cfg.specKeys, cfg.profile.Catalog.Runtime, profileLogger, health, refreshGate, listChanges)
 		promptIndex := aggregator.NewPromptIndex(rt, cfg.profile.Catalog.Specs, cfg.specKeys, cfg.profile.Catalog.Runtime, profileLogger, health, refreshGate, listChanges)
@@ -180,6 +186,14 @@ func (a *App) Serve(ctx context.Context, cfg ServeConfig) error {
 
 	metricsEnabled := envBool("MCPD_METRICS_ENABLED")
 	healthzEnabled := envBool("MCPD_HEALTHZ_ENABLED")
+	if cfg.Observability != nil {
+		if cfg.Observability.MetricsEnabled != nil {
+			metricsEnabled = *cfg.Observability.MetricsEnabled
+		}
+		if cfg.Observability.HealthzEnabled != nil {
+			healthzEnabled = *cfg.Observability.HealthzEnabled
+		}
+	}
 	if metricsEnabled || healthzEnabled {
 		go func() {
 			addr := summary.defaultRuntime.Observability.ListenAddress

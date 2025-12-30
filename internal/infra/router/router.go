@@ -18,13 +18,11 @@ type BasicRouter struct {
 	scheduler domain.Scheduler
 	timeout   time.Duration
 	logger    *zap.Logger
-	metrics   domain.Metrics
 }
 
 type RouterOptions struct {
 	Timeout time.Duration
 	Logger  *zap.Logger
-	Metrics domain.Metrics
 }
 
 func NewBasicRouter(scheduler domain.Scheduler, opts RouterOptions) *BasicRouter {
@@ -40,7 +38,6 @@ func NewBasicRouter(scheduler domain.Scheduler, opts RouterOptions) *BasicRouter
 		scheduler: scheduler,
 		timeout:   timeout,
 		logger:    logger.Named("router"),
-		metrics:   opts.Metrics,
 	}
 }
 
@@ -54,12 +51,14 @@ func (r *BasicRouter) RouteWithOptions(ctx context.Context, serverType, specKey,
 	method, isCall, err := extractMethod(payload)
 	if err != nil {
 		decodeErr := fmt.Errorf("decode request: %w", err)
-		r.logRouteError(serverType, "", nil, start, decodeErr)
-		return nil, decodeErr
+		routeErr := domain.NewRouteError(domain.RouteStageDecode, decodeErr)
+		r.logRouteError(serverType, "", nil, start, routeErr)
+		return nil, routeErr
 	}
 	if method == "" || !isCall {
-		r.logRouteError(serverType, method, nil, start, domain.ErrInvalidRequest)
-		return nil, domain.ErrInvalidRequest
+		routeErr := domain.NewRouteError(domain.RouteStageValidate, domain.ErrInvalidRequest)
+		r.logRouteError(serverType, method, nil, start, routeErr)
+		return nil, routeErr
 	}
 
 	var inst *domain.Instance
@@ -69,25 +68,25 @@ func (r *BasicRouter) RouteWithOptions(ctx context.Context, serverType, specKey,
 		inst, err = r.scheduler.AcquireReady(ctx, specKey, routingKey)
 	}
 	if err != nil {
-		r.observeRoute(serverType, start, err)
+		routeErr := domain.NewRouteError(domain.RouteStageAcquire, err)
 		if opts.AllowStart || !errors.Is(err, domain.ErrNoReadyInstance) {
-			r.logRouteError(serverType, method, nil, start, err)
+			r.logRouteError(serverType, method, nil, start, routeErr)
 		}
-		return nil, err
+		return nil, routeErr
 	}
 	defer func() { _ = r.scheduler.Release(ctx, inst) }()
 
 	if inst.Conn == nil {
-		err := fmt.Errorf("instance has no connection: %s", inst.ID)
-		r.observeRoute(serverType, start, err)
-		r.logRouteError(serverType, method, inst, start, err)
-		return nil, err
+		err := fmt.Errorf("%w: instance has no connection: %s", domain.ErrConnectionClosed, inst.ID)
+		routeErr := domain.NewRouteError(domain.RouteStageCall, err)
+		r.logRouteError(serverType, method, inst, start, routeErr)
+		return nil, routeErr
 	}
 
 	if !domain.MethodAllowed(inst.Capabilities, method) {
-		r.observeRoute(serverType, start, domain.ErrMethodNotAllowed)
-		r.logRouteError(serverType, method, inst, start, domain.ErrMethodNotAllowed)
-		return nil, domain.ErrMethodNotAllowed
+		routeErr := domain.NewRouteError(domain.RouteStageValidate, domain.ErrMethodNotAllowed)
+		r.logRouteError(serverType, method, inst, start, routeErr)
+		return nil, routeErr
 	}
 
 	callCtx, cancel := context.WithTimeout(ctx, r.timeout)
@@ -96,20 +95,12 @@ func (r *BasicRouter) RouteWithOptions(ctx context.Context, serverType, specKey,
 	resp, err := inst.Conn.Call(callCtx, payload)
 	if err != nil {
 		callErr := fmt.Errorf("call request: %w", err)
-		r.observeRoute(serverType, start, callErr)
-		r.logRouteError(serverType, method, inst, start, callErr)
-		return nil, callErr
+		routeErr := domain.NewRouteError(domain.RouteStageCall, callErr)
+		r.logRouteError(serverType, method, inst, start, routeErr)
+		return nil, routeErr
 	}
 
-	r.observeRoute(serverType, start, nil)
 	return resp, nil
-}
-
-func (r *BasicRouter) observeRoute(serverType string, start time.Time, err error) {
-	if r.metrics == nil {
-		return
-	}
-	r.metrics.ObserveRoute(serverType, time.Since(start), err)
 }
 
 func (r *BasicRouter) logRouteError(serverType, method string, inst *domain.Instance, start time.Time, err error) {

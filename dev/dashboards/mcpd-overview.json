@@ -89,7 +89,7 @@
             "type": "prometheus",
             "uid": "mcpd-default-prometheus"
           },
-          "expr": "histogram_quantile(0.50, sum by (server_type, le) (rate(mcpd_route_duration_seconds_bucket[5m])))",
+          "expr": "histogram_quantile(0.50, sum by (server_type, le) (rate(mcpd_route_duration_seconds_bucket{status=\"success\"}[5m])))",
           "legendFormat": "P50 - {{server_type}}",
           "refId": "A"
         },
@@ -98,7 +98,7 @@
             "type": "prometheus",
             "uid": "mcpd-default-prometheus"
           },
-          "expr": "histogram_quantile(0.95, sum by (server_type, le) (rate(mcpd_route_duration_seconds_bucket[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (server_type, le) (rate(mcpd_route_duration_seconds_bucket{status=\"success\"}[5m])))",
           "legendFormat": "P95 - {{server_type}}",
           "refId": "B"
         },
@@ -107,7 +107,7 @@
             "type": "prometheus",
             "uid": "mcpd-default-prometheus"
           },
-          "expr": "histogram_quantile(0.99, sum by (server_type, le) (rate(mcpd_route_duration_seconds_bucket[5m])))",
+          "expr": "histogram_quantile(0.99, sum by (server_type, le) (rate(mcpd_route_duration_seconds_bucket{status=\"success\"}[5m])))",
           "legendFormat": "P99 - {{server_type}}",
           "refId": "C"
         }
@@ -381,7 +381,7 @@
             "uid": "mcpd-default-prometheus"
           },
           "expr": "mcpd_active_instances",
-          "legendFormat": "{{server_type}}",
+          "legendFormat": "{{spec_key}}",
           "refId": "A"
         }
       ],
@@ -935,6 +935,279 @@
         }
       ],
       "title": "SubAgent Filter Precision (P50/P95/P99)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mcpd-default-prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.7
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 28
+      },
+      "id": 12,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "mcpd-default-prometheus"
+          },
+          "expr": "mcpd_pool_capacity_ratio",
+          "legendFormat": "{{spec_key}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Pool Capacity Ratio",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mcpd-default-prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 28
+      },
+      "id": 13,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "mcpd-default-prometheus"
+          },
+          "expr": "sum by (server_type, reason) (rate(mcpd_route_duration_seconds_count{status=\"error\"}[5m]))",
+          "legendFormat": "{{server_type}}/{{reason}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Error Reasons Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mcpd-default-prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 34
+      },
+      "id": 14,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "mcpd-default-prometheus"
+          },
+          "expr": "sum by (server_type, profile, caller) (rate(mcpd_route_duration_seconds_count[1m]))",
+          "legendFormat": "{{server_type}}/{{profile}}/{{caller}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Request Rate by Caller/Profile",
       "type": "timeseries"
     }
   ],
