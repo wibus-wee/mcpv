@@ -27,22 +27,31 @@ type controlPlaneState struct {
 func newControlPlaneState(
 	ctx context.Context,
 	profiles map[string]*profileRuntime,
-	callers map[string]string,
-	specRegistry map[string]domain.ServerSpec,
 	scheduler domain.Scheduler,
 	initManager *ServerInitializationManager,
-	runtime domain.RuntimeConfig,
 	store domain.ProfileStore,
+	summary profileSummary,
 	logger *zap.Logger,
 ) *controlPlaneState {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	callers := store.Callers
+	if callers == nil {
+		callers = map[string]string{}
+	}
+
 	return &controlPlaneState{
 		info:         defaultControlPlaneInfo(),
 		profiles:     profiles,
 		callers:      callers,
-		specRegistry: specRegistry,
+		specRegistry: summary.specRegistry,
 		scheduler:    scheduler,
 		initManager:  initManager,
-		runtime:      runtime,
+		runtime:      summary.defaultRuntime,
 		profileStore: store,
 		logger:       logger.Named("control_plane"),
 		ctx:          ctx,

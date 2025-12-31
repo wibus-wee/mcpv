@@ -72,10 +72,13 @@ func newServeCmd(opts *serveOptions) *cobra.Command {
 			ctx, cancel := signalAwareContext(cmd.Context())
 			defer cancel()
 
-			application := app.New(opts.logger)
-			return application.Serve(ctx, app.ServeConfig{
+			application, err := app.InitializeApplication(ctx, app.ServeConfig{
 				ConfigPath: opts.configPath,
-			})
+			}, app.LoggingConfig{Logger: opts.logger})
+			if err != nil {
+				return err
+			}
+			return application.Run()
 		},
 	}
 

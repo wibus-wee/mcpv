@@ -9,6 +9,7 @@ vars:
   # KEYCHAIN_PROFILE: "my-notarize-profile"
   # ENTITLEMENTS: "build/darwin/entitlements.plist"
   CLI_NAME: '{{.CLI_NAME | default "mcpdmcp"}}'
+  WAILS: '{{.WAILS | default (printf "%s/bin/wails3" .ROOT_DIR)}}'
 
   # Docker image for cross-compilation (used when building on non-macOS)
   CROSS_IMAGE: wails-cross
@@ -94,9 +95,9 @@ tasks:
     summary: Creates universal binary using wails3 tool lipo (Linux/Windows)
     internal: true
     cmds:
-      - wails3 tool lipo -o "{{.BIN_DIR}}/{{.APP_NAME}}" -i "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" -i "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
+      - '{{.WAILS}} tool lipo -o "{{.BIN_DIR}}/{{.APP_NAME}}" -i "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" -i "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"'
       - rm -f "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
-      - wails3 tool lipo -o "{{.BIN_DIR}}/{{.CLI_NAME}}" -i "{{.BIN_DIR}}/{{.CLI_NAME}}-amd64" -i "{{.BIN_DIR}}/{{.CLI_NAME}}-arm64"
+      - '{{.WAILS}} tool lipo -o "{{.BIN_DIR}}/{{.CLI_NAME}}" -i "{{.BIN_DIR}}/{{.CLI_NAME}}-amd64" -i "{{.BIN_DIR}}/{{.CLI_NAME}}-arm64"'
       - rm -f "{{.BIN_DIR}}/{{.CLI_NAME}}-amd64" "{{.BIN_DIR}}/{{.CLI_NAME}}-arm64"
 
   package:
@@ -154,7 +155,7 @@ tasks:
     deps:
       - task: package
     cmds:
-      - wails3 tool sign --input {{.BIN_DIR}}/{{.APP_NAME}}.app --identity "{{.SIGN_IDENTITY}}" {{if .ENTITLEMENTS}}--entitlements {{.ENTITLEMENTS}}{{end}}
+      - '{{.WAILS}} tool sign --input {{.BIN_DIR}}/{{.APP_NAME}}.app --identity "{{.SIGN_IDENTITY}}" {{if .ENTITLEMENTS}}--entitlements {{.ENTITLEMENTS}}{{end}}'
     preconditions:
       - sh: '[ -n "{{.SIGN_IDENTITY}}" ]'
         msg: "SIGN_IDENTITY is required. Set it in the vars section at the top of build/darwin/Taskfile.yml"
@@ -166,11 +167,11 @@ tasks:
       Configure SIGN_IDENTITY and KEYCHAIN_PROFILE in the vars section at the top of this file.
 
       Setup (one-time):
-        wails3 signing credentials --apple-id "you@email.com" --team-id "TEAMID" --password "app-specific-password" --profile "my-profile"
+        {{.WAILS}} signing credentials --apple-id "you@email.com" --team-id "TEAMID" --password "app-specific-password" --profile "my-profile"
     deps:
       - task: package
     cmds:
-      - wails3 tool sign --input {{.BIN_DIR}}/{{.APP_NAME}}.app --identity "{{.SIGN_IDENTITY}}" {{if .ENTITLEMENTS}}--entitlements {{.ENTITLEMENTS}}{{end}} --notarize --keychain-profile {{.KEYCHAIN_PROFILE}}
+      - '{{.WAILS}} tool sign --input {{.BIN_DIR}}/{{.APP_NAME}}.app --identity "{{.SIGN_IDENTITY}}" {{if .ENTITLEMENTS}}--entitlements {{.ENTITLEMENTS}}{{end}} --notarize --keychain-profile {{.KEYCHAIN_PROFILE}}'
     preconditions:
       - sh: '[ -n "{{.SIGN_IDENTITY}}" ]'
         msg: "SIGN_IDENTITY is required. Set it in the vars section at the top of build/darwin/Taskfile.yml"

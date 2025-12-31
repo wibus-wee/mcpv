@@ -7,6 +7,7 @@ require (
 	github.com/cloudwego/eino-ext/components/model/openai v0.1.6
 	github.com/google/go-cmp v0.7.0
 	github.com/google/jsonschema-go v0.3.0
+	github.com/google/wire v0.7.0
 	github.com/modelcontextprotocol/go-sdk v1.1.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/spf13/cobra v1.8.0

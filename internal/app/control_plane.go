@@ -5,11 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 
-	"go.uber.org/zap"
-
 	"mcpd/internal/domain"
 	"mcpd/internal/infra/aggregator"
-	"mcpd/internal/infra/telemetry"
 )
 
 type ControlPlane struct {
@@ -21,33 +18,12 @@ type ControlPlane struct {
 }
 
 func NewControlPlane(
-	ctx context.Context,
-	profiles map[string]*profileRuntime,
-	callers map[string]string,
-	specRegistry map[string]domain.ServerSpec,
-	scheduler domain.Scheduler,
-	initManager *ServerInitializationManager,
-	runtime domain.RuntimeConfig,
-	store domain.ProfileStore,
-	logs *telemetry.LogBroadcaster,
-	logger *zap.Logger,
+	state *controlPlaneState,
+	registry *callerRegistry,
+	discovery *discoveryService,
+	observability *observabilityService,
+	automation *automationService,
 ) *ControlPlane {
-	if logger == nil {
-		logger = zap.NewNop()
-	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	if callers == nil {
-		callers = map[string]string{}
-	}
-
-	state := newControlPlaneState(ctx, profiles, callers, specRegistry, scheduler, initManager, runtime, store, logger)
-	registry := newCallerRegistry(state)
-	discovery := newDiscoveryService(state, registry)
-	observability := newObservabilityService(state, registry, logs)
-	automation := newAutomationService(state, registry, discovery)
-
 	return &ControlPlane{
 		state:         state,
 		registry:      registry,

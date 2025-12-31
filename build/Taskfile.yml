@@ -3,6 +3,7 @@ version: '3'
 vars:
   CLI_NAME: '{{.CLI_NAME | default "mcpdmcp"}}'
   BIN_DIR: '{{.BIN_DIR | default "bin"}}'
+  WAILS: '{{.WAILS | default (printf "%s/bin/wails3" .ROOT_DIR)}}'
 
 tasks:
   build:cli:
@@ -113,7 +114,7 @@ tasks:
     generates:
       - frontend/bindings/**/*
     cmds:
-      - wails3 generate bindings -f '{{.BUILD_FLAGS}}' -clean=true -ts
+      - '{{.WAILS}} generate bindings -f "{{.BUILD_FLAGS}}" -clean=true -ts'
 
   generate:icons:
     summary: Generates Windows `.ico` and Mac `.icns` files from an image
@@ -124,7 +125,7 @@ tasks:
       - "darwin/icons.icns"
       - "windows/icon.ico"
     cmds:
-      - wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico
+      - '{{.WAILS}} generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico'
 
   dev:frontend:
     summary: Runs the frontend in development mode
@@ -138,4 +139,4 @@ tasks:
     summary: Updates the build assets
     dir: build
     cmds:
-      - wails3 update build-assets -name "{{.APP_NAME}}" -binaryname "{{.APP_NAME}}" -config config.yml -dir .
+      - '{{.WAILS}} update build-assets -name "{{.APP_NAME}}" -binaryname "{{.APP_NAME}}" -config config.yml -dir .'

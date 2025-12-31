@@ -23,7 +23,7 @@ func TestServerInitializationManager_Ready(t *testing.T) {
 		},
 	})
 
-	manager := NewServerInitializationManager(scheduler, map[string]domain.ServerSpec{specKey: spec}, initRuntimeConfig(2), zap.NewNop())
+	manager := NewServerInitializationManager(scheduler, newTestSnapshot(map[string]domain.ServerSpec{specKey: spec}, initRuntimeConfig(2)), zap.NewNop())
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -44,7 +44,7 @@ func TestServerInitializationManager_DegradedThenReady(t *testing.T) {
 		},
 	})
 
-	manager := NewServerInitializationManager(scheduler, map[string]domain.ServerSpec{specKey: spec}, initRuntimeConfig(2), zap.NewNop())
+	manager := NewServerInitializationManager(scheduler, newTestSnapshot(map[string]domain.ServerSpec{specKey: spec}, initRuntimeConfig(2)), zap.NewNop())
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -64,7 +64,7 @@ func TestServerInitializationManager_Cancelled(t *testing.T) {
 		},
 	})
 
-	manager := NewServerInitializationManager(scheduler, map[string]domain.ServerSpec{specKey: spec}, initRuntimeConfig(2), zap.NewNop())
+	manager := NewServerInitializationManager(scheduler, newTestSnapshot(map[string]domain.ServerSpec{specKey: spec}, initRuntimeConfig(2)), zap.NewNop())
 	ctx, cancel := context.WithCancel(context.Background())
 
 	manager.Start(ctx)
@@ -84,7 +84,7 @@ func TestServerInitializationManager_SuspendsAfterRetries(t *testing.T) {
 		},
 	})
 
-	manager := NewServerInitializationManager(scheduler, map[string]domain.ServerSpec{specKey: spec}, initRuntimeConfig(2), zap.NewNop())
+	manager := NewServerInitializationManager(scheduler, newTestSnapshot(map[string]domain.ServerSpec{specKey: spec}, initRuntimeConfig(2)), zap.NewNop())
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -106,7 +106,7 @@ func TestServerInitializationManager_RetrySpecResets(t *testing.T) {
 		},
 	})
 
-	manager := NewServerInitializationManager(scheduler, map[string]domain.ServerSpec{specKey: spec}, initRuntimeConfig(2), zap.NewNop())
+	manager := NewServerInitializationManager(scheduler, newTestSnapshot(map[string]domain.ServerSpec{specKey: spec}, initRuntimeConfig(2)), zap.NewNop())
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -145,6 +145,21 @@ func initRuntimeConfig(maxRetries int) domain.RuntimeConfig {
 		ServerInitRetryBaseSeconds: 1,
 		ServerInitRetryMaxSeconds:  1,
 		ServerInitMaxRetries:       maxRetries,
+	}
+}
+
+func newTestSummary(specs map[string]domain.ServerSpec, runtime domain.RuntimeConfig) profileSummary {
+	return profileSummary{
+		configs:        map[string]profileConfig{},
+		specRegistry:   specs,
+		defaultRuntime: runtime,
+	}
+}
+
+func newTestSnapshot(specs map[string]domain.ServerSpec, runtime domain.RuntimeConfig) *CatalogSnapshot {
+	return &CatalogSnapshot{
+		store:   domain.ProfileStore{},
+		summary: newTestSummary(specs, runtime),
 	}
 }
 

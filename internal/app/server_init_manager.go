@@ -33,13 +33,16 @@ type ServerInitializationManager struct {
 
 func NewServerInitializationManager(
 	scheduler domain.Scheduler,
-	specs map[string]domain.ServerSpec,
-	runtime domain.RuntimeConfig,
+	snapshot *CatalogSnapshot,
 	logger *zap.Logger,
 ) *ServerInitializationManager {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
+
+	summary := snapshot.Summary()
+	specs := summary.specRegistry
+	runtime := summary.defaultRuntime
 
 	retryBaseSeconds := runtime.ServerInitRetryBaseSeconds
 	if retryBaseSeconds <= 0 {

@@ -7,12 +7,13 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 
 	"mcpd/internal/domain"
 )
 
 func TestControlPlane_RequiresRegistration(t *testing.T) {
-	cp := NewControlPlane(
+	cp := newTestControlPlane(
 		context.Background(),
 		map[string]*profileRuntime{
 			domain.DefaultProfileName: {name: domain.DefaultProfileName},
@@ -20,11 +21,7 @@ func TestControlPlane_RequiresRegistration(t *testing.T) {
 		map[string]string{},
 		map[string]domain.ServerSpec{},
 		&fakeScheduler{},
-		nil,
 		domain.RuntimeConfig{},
-		domain.ProfileStore{},
-		nil,
-		nil,
 	)
 
 	_, err := cp.ListTools(context.Background(), "caller")
@@ -45,17 +42,13 @@ func TestControlPlane_RegisterUnregister(t *testing.T) {
 		specKeys: []string{specKey},
 	}
 	sched := &fakeScheduler{}
-	cp := NewControlPlane(
+	cp := newTestControlPlane(
 		context.Background(),
 		map[string]*profileRuntime{domain.DefaultProfileName: runtime},
 		map[string]string{"caller": domain.DefaultProfileName},
 		map[string]domain.ServerSpec{specKey: spec},
 		sched,
-		nil,
 		domain.RuntimeConfig{},
-		domain.ProfileStore{},
-		nil,
-		nil,
 	)
 
 	profile, err := cp.RegisterCaller(context.Background(), "caller", 1234)
@@ -71,7 +64,7 @@ func TestControlPlane_RegisterUnregister(t *testing.T) {
 
 func TestControlPlane_ReapDeadCallers_Heartbeat(t *testing.T) {
 	runtime := domain.RuntimeConfig{CallerCheckSeconds: 1, CallerInactiveSeconds: 60}
-	cp := NewControlPlane(
+	cp := newTestControlPlane(
 		context.Background(),
 		map[string]*profileRuntime{
 			domain.DefaultProfileName: {name: domain.DefaultProfileName},
@@ -79,11 +72,7 @@ func TestControlPlane_ReapDeadCallers_Heartbeat(t *testing.T) {
 		map[string]string{},
 		map[string]domain.ServerSpec{},
 		&fakeScheduler{},
-		nil,
 		runtime,
-		domain.ProfileStore{},
-		nil,
-		nil,
 	)
 
 	cp.registry.mu.Lock()
@@ -115,7 +104,7 @@ func TestControlPlane_ReapDeadCallers_Heartbeat(t *testing.T) {
 
 func TestControlPlane_ReapDeadCallers_TTL(t *testing.T) {
 	runtime := domain.RuntimeConfig{CallerCheckSeconds: 1, CallerInactiveSeconds: 1}
-	cp := NewControlPlane(
+	cp := newTestControlPlane(
 		context.Background(),
 		map[string]*profileRuntime{
 			domain.DefaultProfileName: {name: domain.DefaultProfileName},
@@ -123,11 +112,7 @@ func TestControlPlane_ReapDeadCallers_TTL(t *testing.T) {
 		map[string]string{},
 		map[string]domain.ServerSpec{},
 		&fakeScheduler{},
-		nil,
 		runtime,
-		domain.ProfileStore{},
-		nil,
-		nil,
 	)
 
 	cp.registry.mu.Lock()
@@ -166,6 +151,31 @@ func TestPaginatePrompts_InvalidCursor(t *testing.T) {
 	}
 	_, err := paginatePrompts(snapshot, "missing")
 	require.ErrorIs(t, err, domain.ErrInvalidCursor)
+}
+
+func newTestControlPlane(
+	ctx context.Context,
+	profiles map[string]*profileRuntime,
+	callers map[string]string,
+	specRegistry map[string]domain.ServerSpec,
+	scheduler domain.Scheduler,
+	runtime domain.RuntimeConfig,
+) *ControlPlane {
+	store := domain.ProfileStore{
+		Profiles: map[string]domain.Profile{},
+		Callers:  callers,
+	}
+	summary := profileSummary{
+		configs:        map[string]profileConfig{},
+		specRegistry:   specRegistry,
+		defaultRuntime: runtime,
+	}
+	state := newControlPlaneState(ctx, profiles, scheduler, nil, store, summary, zap.NewNop())
+	registry := newCallerRegistry(state)
+	discovery := newDiscoveryService(state, registry)
+	observability := newObservabilityService(state, registry, nil)
+	automation := newAutomationService(state, registry, discovery)
+	return NewControlPlane(state, registry, discovery, observability, automation)
 }
 
 type minReadyCall struct {
