@@ -12,6 +12,8 @@ import (
 )
 
 type controlPlaneState struct {
+	mu sync.RWMutex
+
 	info         domain.ControlPlaneInfo
 	profiles     map[string]*profileRuntime
 	callers      map[string]string
@@ -29,8 +31,7 @@ func newControlPlaneState(
 	profiles map[string]*profileRuntime,
 	scheduler domain.Scheduler,
 	initManager *ServerInitializationManager,
-	store domain.ProfileStore,
-	summary profileSummary,
+	state *domain.CatalogState,
 	logger *zap.Logger,
 ) *controlPlaneState {
 	if logger == nil {
@@ -39,6 +40,8 @@ func newControlPlaneState(
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	store := state.Store
+	summary := state.Summary
 	callers := store.Callers
 	if callers == nil {
 		callers = map[string]string{}
@@ -48,10 +51,10 @@ func newControlPlaneState(
 		info:         defaultControlPlaneInfo(),
 		profiles:     profiles,
 		callers:      callers,
-		specRegistry: summary.specRegistry,
+		specRegistry: summary.SpecRegistry,
 		scheduler:    scheduler,
 		initManager:  initManager,
-		runtime:      summary.defaultRuntime,
+		runtime:      summary.DefaultRuntime,
 		profileStore: store,
 		logger:       logger.Named("control_plane"),
 		ctx:          ctx,
@@ -71,7 +74,7 @@ type profileRuntime struct {
 	resources *aggregator.ResourceIndex
 	prompts   *aggregator.PromptIndex
 
-	mu     sync.Mutex
+	mu     sync.RWMutex
 	active bool
 }
 
@@ -115,10 +118,88 @@ func (p *profileRuntime) Deactivate() {
 	}
 }
 
+func (p *profileRuntime) SpecKeys() []string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	if len(p.specKeys) == 0 {
+		return nil
+	}
+	return append([]string(nil), p.specKeys...)
+}
+
+func (p *profileRuntime) UpdateCatalog(cfg domain.CatalogProfile) {
+	p.mu.Lock()
+	p.specKeys = collectSpecKeys(cfg.SpecKeys)
+	p.mu.Unlock()
+
+	if p.tools != nil {
+		p.tools.UpdateSpecs(cfg.Profile.Catalog.Specs, cfg.SpecKeys, cfg.Profile.Catalog.Runtime)
+	}
+	if p.resources != nil {
+		p.resources.UpdateSpecs(cfg.Profile.Catalog.Specs, cfg.SpecKeys, cfg.Profile.Catalog.Runtime)
+	}
+	if p.prompts != nil {
+		p.prompts.UpdateSpecs(cfg.Profile.Catalog.Specs, cfg.SpecKeys, cfg.Profile.Catalog.Runtime)
+	}
+}
+
 func defaultControlPlaneInfo() domain.ControlPlaneInfo {
 	return domain.ControlPlaneInfo{
 		Name:    "mcpd",
 		Version: Version,
 		Build:   Build,
 	}
+}
+
+func (s *controlPlaneState) UpdateCatalog(state *domain.CatalogState, profiles map[string]*profileRuntime) {
+	store := state.Store
+	callers := store.Callers
+	if callers == nil {
+		callers = map[string]string{}
+	}
+
+	s.mu.Lock()
+	s.profileStore = store
+	s.callers = callers
+	s.specRegistry = state.Summary.SpecRegistry
+	s.runtime = state.Summary.DefaultRuntime
+	s.profiles = profiles
+	s.mu.Unlock()
+}
+
+func (s *controlPlaneState) ProfileStore() domain.ProfileStore {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.profileStore
+}
+
+func (s *controlPlaneState) Callers() map[string]string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.callers
+}
+
+func (s *controlPlaneState) Profiles() map[string]*profileRuntime {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.profiles
+}
+
+func (s *controlPlaneState) Profile(name string) (*profileRuntime, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	runtime, ok := s.profiles[name]
+	return runtime, ok
+}
+
+func (s *controlPlaneState) SpecRegistry() map[string]domain.ServerSpec {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.specRegistry
+}
+
+func (s *controlPlaneState) Runtime() domain.RuntimeConfig {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.runtime
 }

@@ -2,7 +2,7 @@
 // Output: ConfigPage component - tabbed configuration view with list, detail, and topology
 // Position: Main page in config module
 
-import { useAtom } from 'jotai'
+import { useAtom, useAtomValue } from 'jotai'
 import {
   ExternalLinkIcon,
   FileSliders,
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { m } from 'motion/react'
 import { useState } from 'react'
+import { useSWRConfig } from 'swr'
 
 import { RefreshButton } from '@/components/custom'
 import { Badge } from '@/components/ui/badge'
@@ -27,7 +28,8 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useActiveCallers } from '@/hooks/use-active-callers'
+import { toastManager } from '@/components/ui/toast'
+import { useActiveCallers, activeCallersKey } from '@/hooks/use-active-callers'
 import { Spring } from '@/lib/spring'
 
 import { selectedProfileNameAtom } from './atoms'
@@ -37,15 +39,48 @@ import { ImportMcpServersSheet } from './components/import-mcp-servers-sheet'
 import { ProfileDetailPanel } from './components/profile-detail-panel'
 import { ProfilesList } from './components/profiles-list'
 import { useCallers, useConfigMode, useOpenConfigInEditor, useProfiles } from './hooks'
+import { reloadConfig } from './lib/reload-config'
+
+type MutateFn = ReturnType<typeof useSWRConfig>['mutate']
+
+const refreshConfigData = async (mutate: MutateFn, selectedProfileName: string | null) => {
+  const requests = [
+    mutate('profiles'),
+    mutate('callers'),
+    mutate(activeCallersKey),
+    mutate('runtime-status'),
+    mutate('server-init-status'),
+  ]
+  if (selectedProfileName) {
+    requests.push(mutate(['profile', selectedProfileName]))
+  }
+  await Promise.all(requests)
+}
 
 function ConfigHeader() {
-  const { data: configMode, isLoading, mutate } = useConfigMode()
+  const { data: configMode, isLoading } = useConfigMode()
   const { openInEditor, isOpening } = useOpenConfigInEditor()
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const { mutate } = useSWRConfig()
+  const selectedProfileName = useAtomValue(selectedProfileNameAtom)
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
-    await mutate()
+    const result = await reloadConfig()
+    if (result.ok) {
+      await refreshConfigData(mutate, selectedProfileName)
+      toastManager.add({
+        type: 'success',
+        title: 'Configuration reloaded',
+        description: 'Latest changes are now active.',
+      })
+    } else {
+      toastManager.add({
+        type: 'error',
+        title: 'Reload failed',
+        description: result.message,
+      })
+    }
     setIsRefreshing(false)
   }
 

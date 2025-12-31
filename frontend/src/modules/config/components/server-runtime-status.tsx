@@ -1,5 +1,5 @@
-// Input: ServerRuntimeStatus from bindings, useRuntimeStatus hook
-// Output: ServerRuntimeStatus component with color-coded instance state indicators
+// Input: ServerRuntimeStatus from bindings, runtime status hooks
+// Output: Runtime status summary and instance detail components
 // Position: Runtime status display component for server instances
 
 import type { ServerInitStatus, ServerRuntimeStatus } from '@bindings/mcpd/internal/ui'
@@ -8,20 +8,24 @@ import { useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { formatDuration, formatLatency, getElapsedMs } from '@/lib/time'
 
 import { useRuntimeStatus, useServerInitStatus } from '../hooks'
 
-const stateColors: Record<string, string> = {
-  ready: 'bg-success',
-  busy: 'bg-warning',
-  starting: 'bg-info',
-  initializing: 'bg-info/80',
-  handshaking: 'bg-info/60',
-  draining: 'bg-muted-foreground',
-  stopped: 'bg-muted-foreground/50',
-  failed: 'bg-destructive',
+const stateVariants: Record<
+  string,
+  'secondary' | 'info' | 'success' | 'warning' | 'error'
+> = {
+  ready: 'success',
+  busy: 'warning',
+  starting: 'info',
+  initializing: 'info',
+  handshaking: 'info',
+  draining: 'secondary',
+  stopped: 'secondary',
+  failed: 'error',
 }
 
 const stateLabels: Record<string, string> = {
@@ -35,12 +39,40 @@ const stateLabels: Record<string, string> = {
   failed: 'Failed',
 }
 
-function StateDot({ state }: { state: string }) {
-  const colorClass = stateColors[state] || 'bg-muted-foreground'
+function StateBadge({
+  state,
+  size = 'sm',
+  label,
+  className,
+}: {
+  state: string
+  size?: 'sm' | 'default'
+  label?: string
+  className?: string
+}) {
+  const variant = stateVariants[state] || 'secondary'
+  const text = label ?? stateLabels[state] ?? state
   return (
-    <span
-      className={cn('size-2 rounded-full shrink-0', colorClass)}
-      title={stateLabels[state] || state}
+    <Badge
+      variant={variant}
+      size={size}
+      className={cn('font-medium', className)}
+    >
+      {text}
+    </Badge>
+  )
+}
+
+function StateCountBadge({ state, count }: { state: string; count: number }) {
+  if (count <= 0) {
+    return null
+  }
+  return (
+    <StateBadge
+      state={state}
+      size="sm"
+      label={`${stateLabels[state] ?? state} ${count}`}
+      className="tabular-nums"
     />
   )
 }
@@ -63,25 +95,24 @@ export function ServerRuntimeIndicator({
 		status => status.specKey === specKey,
 	)
 
-	const hasInstances = serverStatus && serverStatus.instances.length > 0
-	if (!init && !hasInstances) {
+	if (!init && !serverStatus) {
 		return null
 	}
+
+	const summary = serverStatus ? buildInstanceSummary(serverStatus, init, 'compact') : null
 
 	return (
 		<div className={cn('flex items-center gap-2', className)}>
 			{init && <InitBadge status={init} />}
-			{hasInstances && (
-				<div className="flex items-center gap-1">
-					{serverStatus.instances.slice(0, 5).map(inst => (
-						<StateDot key={inst.id} state={inst.state} />
-					))}
-					{serverStatus.instances.length > 5 && (
-						<span className="text-xs text-muted-foreground">
-							+{serverStatus.instances.length - 5}
-						</span>
-					)}
-				</div>
+			{summary && (
+				<Badge
+					variant={summary.variant}
+					size="sm"
+					className="font-mono tabular-nums"
+					title={summary.title}
+				>
+					{summary.label}
+				</Badge>
 			)}
 		</div>
 	)
@@ -107,11 +138,7 @@ export function ServerRuntimeSummary({ specKey, className }: ServerRuntimeSummar
 	}
 
 	if (!serverStatus && init) {
-		return (
-			<div className={cn('space-y-2 text-xs text-muted-foreground', className)}>
-				<InitStatusLine status={init} />
-			</div>
-		)
+		return <InitOnlySummary status={init} className={className} />
 	}
 
 	if (!serverStatus) {
@@ -140,137 +167,239 @@ export function ServerRuntimeDetails({
 }: ServerRuntimeDetailsProps) {
 	const { instances, stats } = status
 	const metrics = status.metrics
-	const initLine = initStatus ? <InitStatusLine status={initStatus} /> : null
-
-	if (instances.length === 0) {
-		return (
-			<div className={cn('space-y-2 text-xs text-muted-foreground', className)}>
-				{initLine}
-				<div>No active instances</div>
-			</div>
-		)
-	}
-
+	const summary = buildInstanceSummary(status, initStatus, 'full')
 	const uptimeMs = getOldestUptimeMs(instances)
 	const restartCount = Math.max(0, metrics.startCount - 1)
 	const avgResponseMs = metrics.totalCalls > 0
 		? metrics.totalDurationMs / metrics.totalCalls
 		: null
 	const lastCallAgeMs = getElapsedMs(metrics.lastCallAt)
+	const showInitDetails = initStatus ? shouldShowInitDetails(initStatus) : false
+	const showInitBadge = Boolean(initStatus) && !showInitDetails
+	const stateCount =
+		stats.ready +
+		stats.busy +
+		stats.starting +
+		stats.initializing +
+		stats.handshaking +
+		stats.draining +
+		stats.failed
+
+	return (
+		<div className={cn('space-y-3', className)}>
+			<div className="flex flex-wrap items-center gap-2">
+				{showInitBadge && initStatus && <InitBadge status={initStatus} />}
+				{summary && (
+					<Badge
+						variant={summary.variant}
+						size="sm"
+						className="font-mono tabular-nums"
+						title={summary.title}
+					>
+						{summary.label}
+					</Badge>
+				)}
+			</div>
+
+			{showInitDetails && initStatus && (
+				<Card className="p-3">
+					<InitStatusLine status={initStatus} />
+				</Card>
+			)}
+
+			<div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+				<MetricTile
+					label="Uptime"
+					value={uptimeMs === null ? '--' : formatDuration(uptimeMs)}
+				/>
+				<MetricTile label="Restarts" value={`${restartCount}`} />
+				<MetricTile
+					label="Avg latency"
+					value={avgResponseMs === null ? '--' : formatLatency(avgResponseMs)}
+				/>
+				<MetricTile
+					label="Last call"
+					value={lastCallAgeMs === null ? '--' : `${formatDuration(lastCallAgeMs)} ago`}
+				/>
+			</div>
+
+			<div className="space-y-1">
+				<span className="text-xs text-muted-foreground">Instance states</span>
+				<div className="flex flex-wrap items-center gap-2">
+					{stateCount > 0 ? (
+						<>
+							<StateCountBadge state="ready" count={stats.ready} />
+							<StateCountBadge state="busy" count={stats.busy} />
+							<StateCountBadge state="starting" count={stats.starting} />
+							<StateCountBadge state="initializing" count={stats.initializing} />
+							<StateCountBadge state="handshaking" count={stats.handshaking} />
+							<StateCountBadge state="draining" count={stats.draining} />
+							<StateCountBadge state="failed" count={stats.failed} />
+						</>
+					) : (
+						<Badge variant="secondary" size="sm">
+							No instances
+						</Badge>
+					)}
+				</div>
+			</div>
+
+			{instances.length === 0 ? (
+				<Card className="p-4">
+					<p className="text-xs text-muted-foreground text-center">
+						No active instances.
+					</p>
+				</Card>
+			) : (
+				<div className="space-y-2">
+					<div className="flex items-center justify-between">
+						<span className="text-sm font-medium">Instances</span>
+						<Badge variant="secondary" size="sm" className="font-mono tabular-nums">
+							{instances.length}
+						</Badge>
+					</div>
+					<Card className="p-3">
+						<div className="max-h-48 overflow-auto space-y-2 text-xs text-muted-foreground">
+							{instances.map((inst) => (
+								<div key={inst.id} className="flex flex-wrap items-center gap-2">
+									<StateBadge state={inst.state} size="sm" />
+									<span
+										className="font-mono text-foreground/80"
+										title={inst.id}
+									>
+										{formatInstanceId(inst.id)}
+									</span>
+									{renderInstanceTimeline(inst)}
+								</div>
+							))}
+						</div>
+					</Card>
+				</div>
+			)}
+		</div>
+	)
+}
+
+function InitOnlySummary({
+	status,
+	className,
+}: {
+	status: ServerInitStatus
+	className?: string
+}) {
+	const showDetails = shouldShowInitDetails(status)
+	const counts = showDetails ? '' : formatInitCounts(status)
 
 	return (
 		<div className={cn('space-y-2', className)}>
-			{initLine}
 			<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-				{uptimeMs !== null && (
-					<span>Up {formatDuration(uptimeMs)}</span>
-				)}
-				<span>Restarts {restartCount}</span>
-				<span>
-					Avg {avgResponseMs === null ? '--' : formatLatency(avgResponseMs)}
-				</span>
-				{lastCallAgeMs !== null && (
-					<span>Last call {formatDuration(lastCallAgeMs)} ago</span>
-				)}
+				<InitBadge status={status} />
+				{counts && <span>{counts}</span>}
 			</div>
-			<div className="flex items-center gap-3 text-xs">
-				<span className="text-muted-foreground">Instances:</span>
-				<div className="flex items-center gap-2">
-					{stats.ready > 0 && (
-						<span className="flex items-center gap-1">
-              <StateDot state="ready" />
-              <span>{stats.ready}</span>
-            </span>
-          )}
-          {stats.busy > 0 && (
-            <span className="flex items-center gap-1">
-              <StateDot state="busy" />
-              <span>{stats.busy}</span>
-            </span>
-          )}
-          {stats.starting > 0 && (
-            <span className="flex items-center gap-1">
-              <StateDot state="starting" />
-              <span>{stats.starting}</span>
-            </span>
-          )}
-					{stats.initializing > 0 && (
-						<span className="flex items-center gap-1">
-							<StateDot state="initializing" />
-							<span>{stats.initializing}</span>
-						</span>
-					)}
-					{stats.handshaking > 0 && (
-						<span className="flex items-center gap-1">
-							<StateDot state="handshaking" />
-							<span>{stats.handshaking}</span>
-						</span>
-					)}
-          {stats.draining > 0 && (
-            <span className="flex items-center gap-1">
-              <StateDot state="draining" />
-              <span>{stats.draining}</span>
-            </span>
-          )}
-          {stats.failed > 0 && (
-            <span className="flex items-center gap-1">
-              <StateDot state="failed" />
-              <span>{stats.failed}</span>
-            </span>
-          )}
-        </div>
+			{showDetails && (
+				<Card className="p-3">
+					<InitStatusLine status={status} showBadge={false} />
+				</Card>
+			)}
+		</div>
+	)
+}
+
+function MetricTile({ label, value }: { label: string; value: string }) {
+	return (
+		<div className="rounded-md border border-border/60 bg-card/40 px-3 py-2">
+			<div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+				{label}
 			</div>
-			<div className="space-y-1 text-xs text-muted-foreground">
-				{instances.map((inst) => (
-					<div key={inst.id} className="flex flex-wrap items-center gap-2">
-						<StateDot state={inst.state} />
-						<span
-							className="font-mono text-foreground/80"
-							title={inst.id}
-						>
-							{formatInstanceId(inst.id)}
-						</span>
-						{renderInstanceTimeline(inst)}
-					</div>
-				))}
-			</div>
+			<div className="text-sm font-medium">{value}</div>
 		</div>
 	)
 }
 
 export function RuntimeStatusLegend({ className }: { className?: string }) {
 	return (
-		<div className={cn('flex items-center gap-3 text-xs', className)}>
-			<span className="flex items-center gap-1">
-				<StateDot state="ready" />
-        <span className="text-muted-foreground">Ready</span>
-      </span>
-      <span className="flex items-center gap-1">
-        <StateDot state="busy" />
-        <span className="text-muted-foreground">Busy</span>
-      </span>
-      <span className="flex items-center gap-1">
-        <StateDot state="starting" />
-        <span className="text-muted-foreground">Starting</span>
-      </span>
-			<span className="flex items-center gap-1">
-				<StateDot state="initializing" />
-				<span className="text-muted-foreground">Initializing</span>
-			</span>
-			<span className="flex items-center gap-1">
-				<StateDot state="handshaking" />
-				<span className="text-muted-foreground">Handshaking</span>
-			</span>
-      <span className="flex items-center gap-1">
-        <StateDot state="draining" />
-        <span className="text-muted-foreground">Draining</span>
-      </span>
-      <span className="flex items-center gap-1">
-        <StateDot state="failed" />
-        <span className="text-muted-foreground">Failed</span>
-      </span>
+		<div className={cn('flex flex-wrap items-center gap-2 text-xs', className)}>
+			<StateBadge state="ready" size="sm" />
+			<StateBadge state="busy" size="sm" />
+			<StateBadge state="starting" size="sm" />
+			<StateBadge state="initializing" size="sm" />
+			<StateBadge state="handshaking" size="sm" />
+			<StateBadge state="draining" size="sm" />
+			<StateBadge state="failed" size="sm" />
 		</div>
 	)
+}
+
+type SummaryMode = 'compact' | 'full'
+
+type InstanceSummary = {
+	label: string
+	title?: string
+	variant: 'secondary' | 'success' | 'warning' | 'error'
+}
+
+function buildInstanceSummary(
+	status: ServerRuntimeStatus,
+	initStatus?: ServerInitStatus,
+	mode: SummaryMode = 'full',
+): InstanceSummary | null {
+	const { stats } = status
+	const ready = stats.ready
+	const total = stats.total
+	const failed = stats.failed
+	const busy = stats.busy
+	const starting = stats.starting + stats.initializing + stats.handshaking
+	const draining = stats.draining
+	const target = initStatus?.minReady ?? 0
+
+	let label = ''
+	let title = ''
+	if (mode === 'full') {
+		if (target === 0 && total === 0) {
+			label = 'No instances'
+			title = 'No active instances'
+		} else if (target > 0) {
+			label = `Ready ${ready} of ${target} target`
+			title = `Ready ${ready} of ${target} target · ${total} total`
+		} else {
+			label = `Ready ${ready} of ${total}`
+			title = `Ready ${ready} of ${total} total`
+		}
+	} else {
+		if (total === 0) {
+			label = 'No instances'
+		} else if (failed > 0) {
+			label = 'Failed'
+		} else if (draining > 0 && ready === 0) {
+			label = 'Draining'
+		} else if (target > 0 && ready < target) {
+			label = 'Degraded'
+		} else if (busy > 0) {
+			label = 'Busy'
+		} else if (starting > 0 && ready === 0) {
+			label = 'Starting'
+		} else {
+			label = 'Ready'
+		}
+		if (target > 0) {
+			title = `Ready ${ready} of ${target} target · ${total} total`
+		} else if (total > 0) {
+			title = `Ready ${ready} of ${total} total`
+		} else {
+			title = 'No active instances'
+		}
+	}
+
+	let variant: InstanceSummary['variant'] = 'secondary'
+	if (failed > 0) {
+		variant = 'error'
+	} else if (target > 0 && ready < target) {
+		variant = 'warning'
+	} else if (ready > 0) {
+		variant = 'success'
+	}
+
+	return { label, title, variant }
 }
 
 function getOldestUptimeMs(instances: ServerRuntimeStatus['instances']): number | null {
@@ -342,10 +471,19 @@ function formatInstanceId(id: string) {
 	return `${id.slice(0, 8)}...${id.slice(-3)}`
 }
 
-function InitStatusLine({ status }: { status: ServerInitStatus }) {
+function InitStatusLine({
+	status,
+	showBadge = true,
+	className,
+}: {
+	status: ServerInitStatus
+	showBadge?: boolean
+	className?: string
+}) {
 	const [isRetrying, setIsRetrying] = useState(false)
 	const [retryError, setRetryError] = useState<string | null>(null)
 	const retryInfo = formatRetryInfo(status)
+	const initCounts = formatInitCounts(status)
 
 	const handleRetry = async () => {
 		if (isRetrying) {
@@ -363,8 +501,11 @@ function InitStatusLine({ status }: { status: ServerInitStatus }) {
 	}
 
 	return (
-		<div className="flex flex-wrap items-center gap-2 text-xs">
-			<InitBadge status={status} />
+		<div className={cn('flex flex-wrap items-center gap-2 text-xs', className)}>
+			{showBadge && <InitBadge status={status} />}
+			{initCounts && (
+				<span className="text-muted-foreground">{initCounts}</span>
+			)}
 			{retryInfo && (
 				<span className="text-muted-foreground">{retryInfo}</span>
 			)}
@@ -399,7 +540,7 @@ function InitBadge({ status }: { status: ServerInitStatus }) {
 		<Badge
 			variant={variant}
 			size="sm"
-			className="font-mono"
+			className="font-medium"
 			title={status.lastError || undefined}
 		>
 			{formatInitLabel(status)}
@@ -417,21 +558,43 @@ const initVariant: Record<string, 'secondary' | 'info' | 'success' | 'warning' |
 }
 
 function formatInitLabel(status: ServerInitStatus) {
-	const counts = `${status.ready}/${status.minReady}`
 	switch (status.state) {
 	case 'ready':
-		return `Ready (${counts})`
+		return 'Init ready'
 	case 'degraded':
-		return `Degraded (${counts})`
+		return 'Init degraded'
 	case 'failed':
-		return 'Failed'
+		return 'Init failed'
 	case 'starting':
-		return `Starting (${counts})`
+		return 'Init starting'
 	case 'suspended':
-		return 'Suspended'
+		return 'Init suspended'
 	default:
-		return `Pending (${counts})`
+		return 'Init pending'
 	}
+}
+
+function formatInitCounts(status: ServerInitStatus) {
+	const parts: string[] = []
+	if (status.minReady > 0) {
+		parts.push(`Ready ${status.ready} of ${status.minReady} target`)
+	} else {
+		parts.push(`Ready ${status.ready}`)
+	}
+	if (status.failed > 0) {
+		parts.push(`Failed ${status.failed}`)
+	}
+	return parts.join(' · ')
+}
+
+function shouldShowInitDetails(status: ServerInitStatus) {
+	if (status.state !== 'ready') {
+		return true
+	}
+	if (status.lastError) {
+		return true
+	}
+	return status.retryCount > 0
 }
 
 function formatRetryInfo(status: ServerInitStatus) {

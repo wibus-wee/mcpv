@@ -19,13 +19,13 @@ import (
 )
 
 type ToolIndex struct {
-	router   domain.Router
-	specs    map[string]domain.ServerSpec
-	specKeys map[string]string
-	cfg      domain.RuntimeConfig
-	logger   *zap.Logger
-	health   *telemetry.HealthTracker
-	gate     *RefreshGate
+	router      domain.Router
+	specs       map[string]domain.ServerSpec
+	specKeys    map[string]string
+	cfg         domain.RuntimeConfig
+	logger      *zap.Logger
+	health      *telemetry.HealthTracker
+	gate        *RefreshGate
 	listChanges listChangeSubscriber
 	specKeySet  map[string]struct{}
 
@@ -47,13 +47,13 @@ func NewToolIndex(rt domain.Router, specs map[string]domain.ServerSpec, specKeys
 		specKeys = map[string]string{}
 	}
 	toolIndex := &ToolIndex{
-		router:   rt,
-		specs:    specs,
-		specKeys: specKeys,
-		cfg:      cfg,
-		logger:   logger.Named("tool_index"),
-		health:   health,
-		gate:     gate,
+		router:      rt,
+		specs:       specs,
+		specKeys:    specKeys,
+		cfg:         cfg,
+		logger:      logger.Named("tool_index"),
+		health:      health,
+		gate:        gate,
 		listChanges: listChanges,
 		specKeySet:  specKeySet(specKeys),
 	}
@@ -85,6 +85,10 @@ func (a *ToolIndex) Start(ctx context.Context) {
 
 func (a *ToolIndex) Stop() {
 	a.index.Stop()
+}
+
+func (a *ToolIndex) Refresh(ctx context.Context) error {
+	return a.index.Refresh(ctx)
 }
 
 func (a *ToolIndex) Snapshot() domain.ToolSnapshot {
@@ -124,6 +128,17 @@ func (a *ToolIndex) CallTool(ctx context.Context, name string, args json.RawMess
 		return nil, err
 	}
 	return marshalToolResult(result)
+}
+
+func (a *ToolIndex) UpdateSpecs(specs map[string]domain.ServerSpec, specKeys map[string]string, cfg domain.RuntimeConfig) {
+	if specKeys == nil {
+		specKeys = map[string]string{}
+	}
+	a.specs = specs
+	a.specKeys = specKeys
+	a.specKeySet = specKeySet(specKeys)
+	a.cfg = cfg
+	a.index.UpdateSpecs(specs, cfg)
 }
 
 func (a *ToolIndex) refresh(ctx context.Context) error {

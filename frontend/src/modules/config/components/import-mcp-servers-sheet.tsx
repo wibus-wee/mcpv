@@ -2,7 +2,6 @@
 // Output: ImportMcpServersSheet component - JSON import flow for profiles
 // Position: Config header action entry
 
-import { Call } from '@wailsio/runtime'
 import { AlertCircleIcon, CheckCircleIcon, FileUpIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -32,6 +31,7 @@ import {
 } from '../lib/mcp-import'
 import { useConfigMode, useProfileDetails, useProfiles } from '../hooks'
 import { ImportMcpServers } from '@bindings/mcpd/internal/ui/wailsservice'
+import { reloadConfig } from '../lib/reload-config'
 
 const defaultProfileName = 'default'
 
@@ -151,10 +151,16 @@ export const ImportMcpServersSheet = () => {
     }
 
     try {
-      ImportMcpServers(payload)
-      setIsSaved(true)
+      await ImportMcpServers(payload)
+      const reloadResult = await reloadConfig()
+      if (!reloadResult.ok) {
+        setIsSaved(false)
+        setApplyError(`Reload failed: ${reloadResult.message}`)
+        return
+      }
       await mutateProfiles()
       await mutateProfileDetails()
+      setIsSaved(true)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Import failed.'
       setApplyError(message)
@@ -208,7 +214,7 @@ export const ImportMcpServersSheet = () => {
             <Alert variant="success">
               <CheckCircleIcon />
               <AlertTitle>Saved to profiles</AlertTitle>
-              <AlertDescription>Restart Core to apply changes.</AlertDescription>
+              <AlertDescription>Changes applied.</AlertDescription>
             </Alert>
           )}
 

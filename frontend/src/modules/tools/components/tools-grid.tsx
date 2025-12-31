@@ -1,8 +1,8 @@
-// Input: Tools data from hooks, sidebar and detail panel components
-// Output: ToolsGrid component with master-detail layout
+// Input: Tools data from hooks, selection state, sidebar and detail panels
+// Output: ToolsGrid component with master-detail layout and server detail support
 // Position: Main container for tools page with Linear/Vercel-style UX
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { m } from 'motion/react'
 import { ServerOffIcon } from 'lucide-react'
 
@@ -12,7 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Spring } from '@/lib/spring'
 import { cn } from '@/lib/utils'
 
-import { useToolsByServer } from '../hooks'
+import { useToolsByServer, type ServerGroup } from '../hooks'
+import { ServerDetailPanel } from './server-detail-panel'
 import { ToolsSidebar } from './tools-sidebar'
 import { ToolDetailPanel } from './tool-detail-panel'
 
@@ -23,20 +24,41 @@ interface SelectedTool {
 }
 
 interface ToolsGridProps {
+  selectedServerId?: string
+  onSelectServer: (serverId: string | null) => void
   className?: string
 }
 
-export function ToolsGrid({ className }: ToolsGridProps) {
-  const { servers, isLoading } = useToolsByServer()
+export function ToolsGrid({
+  selectedServerId,
+  onSelectServer,
+  className,
+}: ToolsGridProps) {
+  const { servers, serverMap, isLoading } = useToolsByServer()
   const [selectedTool, setSelectedTool] = useState<SelectedTool | null>(null)
 
-  const handleSelectTool = (tool: ToolEntry, server: { id: string; serverName: string }) => {
+  const handleSelectTool = (tool: ToolEntry, server: ServerGroup) => {
     setSelectedTool({
       tool,
       serverId: server.id,
-      serverName: server.serverName
+      serverName: server.serverName,
     })
+    onSelectServer(server.id)
   }
+
+  const handleSelectServer = (serverId: string) => {
+    setSelectedTool(null)
+    onSelectServer(serverId)
+  }
+
+  useEffect(() => {
+    if (!selectedTool) {
+      return
+    }
+    if (!selectedServerId || selectedTool.serverId !== selectedServerId) {
+      setSelectedTool(null)
+    }
+  }, [selectedServerId, selectedTool])
 
   if (isLoading) {
     return (
@@ -73,6 +95,11 @@ export function ToolsGrid({ className }: ToolsGridProps) {
   const selectedToolId = selectedTool
     ? `${selectedTool.serverId}:${selectedTool.tool.name}`
     : null
+  const selectedServer = selectedServerId
+    ? serverMap.get(selectedServerId) ?? null
+    : null
+  const shouldShowServerPanel = !selectedTool
+  const requestedServerId = shouldShowServerPanel ? selectedServerId ?? null : null
 
   return (
     <m.div
@@ -87,14 +114,25 @@ export function ToolsGrid({ className }: ToolsGridProps) {
       <ToolsSidebar
         servers={servers}
         selectedToolId={selectedToolId}
+        selectedServerId={selectedServerId ?? null}
+        onSelectServer={handleSelectServer}
         onSelectTool={handleSelectTool}
         className="w-72 shrink-0"
       />
-      <ToolDetailPanel
-        tool={selectedTool?.tool ?? null}
-        serverName={selectedTool?.serverName}
-        className="flex-1"
-      />
+      {selectedTool ? (
+        <ToolDetailPanel
+          tool={selectedTool.tool}
+          serverName={selectedTool.serverName}
+          className="flex-1"
+        />
+      ) : (
+        <ServerDetailPanel
+          server={selectedServer}
+          requestedServerId={requestedServerId}
+          onSelectTool={handleSelectTool}
+          className="flex-1"
+        />
+      )}
     </m.div>
   )
 }

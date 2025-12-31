@@ -18,11 +18,11 @@ func InitializeApplication(ctx context.Context, cfg ServeConfig, logging Logging
 	registry := NewMetricsRegistry()
 	metrics := NewMetrics(registry)
 	healthTracker := NewHealthTracker()
-	staticCatalogAccessor, err := NewStaticCatalogAccessor(ctx, cfg, logger)
+	dynamicCatalogProvider, err := NewDynamicCatalogProvider(ctx, cfg, logger)
 	if err != nil {
 		return nil, err
 	}
-	catalogSnapshot, err := NewCatalogSnapshot(staticCatalogAccessor)
+	catalogState, err := NewCatalogState(ctx, dynamicCatalogProvider)
 	if err != nil {
 		return nil, err
 	}
@@ -31,20 +31,21 @@ func InitializeApplication(ctx context.Context, cfg ServeConfig, logging Logging
 	transport := NewMCPTransport(logger, listChangeHub)
 	lifecycle := NewLifecycleManager(ctx, launcher, transport, logger)
 	pingProbe := NewPingProbe()
-	scheduler, err := NewScheduler(lifecycle, catalogSnapshot, pingProbe, metrics, healthTracker, logger)
+	scheduler, err := NewScheduler(lifecycle, catalogState, pingProbe, metrics, healthTracker, logger)
 	if err != nil {
 		return nil, err
 	}
-	v := NewProfileRuntimes(catalogSnapshot, scheduler, metrics, healthTracker, listChangeHub, logger)
-	serverInitializationManager := NewServerInitializationManager(scheduler, catalogSnapshot, logger)
-	appControlPlaneState := NewControlPlaneState(ctx, v, catalogSnapshot, scheduler, serverInitializationManager, logger)
+	v := NewProfileRuntimes(catalogState, scheduler, metrics, healthTracker, listChangeHub, logger)
+	serverInitializationManager := NewServerInitializationManager(scheduler, catalogState, logger)
+	appControlPlaneState := NewControlPlaneState(ctx, v, catalogState, scheduler, serverInitializationManager, logger)
 	appCallerRegistry := newCallerRegistry(appControlPlaneState)
 	appDiscoveryService := newDiscoveryService(appControlPlaneState, appCallerRegistry)
 	logBroadcaster := NewLogBroadcaster(appLogging)
 	appObservabilityService := newObservabilityService(appControlPlaneState, appCallerRegistry, logBroadcaster)
 	appAutomationService := newAutomationService(appControlPlaneState, appCallerRegistry, appDiscoveryService)
 	controlPlane := NewControlPlane(appControlPlaneState, appCallerRegistry, appDiscoveryService, appObservabilityService, appAutomationService)
-	server := NewRPCServer(controlPlane, catalogSnapshot, logger)
-	application := NewApplication(ctx, cfg, logger, registry, metrics, healthTracker, catalogSnapshot, v, scheduler, serverInitializationManager, controlPlane, server)
+	server := NewRPCServer(controlPlane, catalogState, logger)
+	reloadManager := NewReloadManager(dynamicCatalogProvider, appControlPlaneState, appCallerRegistry, scheduler, serverInitializationManager, metrics, healthTracker, listChangeHub, logger)
+	application := NewApplication(ctx, cfg, logger, registry, metrics, healthTracker, catalogState, appControlPlaneState, scheduler, serverInitializationManager, controlPlane, server, reloadManager)
 	return application, nil
 }

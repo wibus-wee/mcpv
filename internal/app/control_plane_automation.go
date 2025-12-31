@@ -49,10 +49,11 @@ func (a *automationService) IsSubAgentEnabledForCaller(caller string) bool {
 		return false
 	}
 
-	if a.state.profileStore.Profiles == nil {
+	store := a.state.ProfileStore()
+	if store.Profiles == nil {
 		return false
 	}
-	profileData, ok := a.state.profileStore.Profiles[profile.name]
+	profileData, ok := store.Profiles[profile.name]
 	if !ok {
 		return false
 	}

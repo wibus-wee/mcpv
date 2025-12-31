@@ -37,7 +37,8 @@ func newCallerRegistry(state *controlPlaneState) *callerRegistry {
 }
 
 func (r *callerRegistry) StartMonitor(ctx context.Context) {
-	interval := time.Duration(r.state.runtime.CallerCheckSeconds) * time.Second
+	runtime := r.state.Runtime()
+	interval := time.Duration(runtime.CallerCheckSeconds) * time.Second
 	if interval <= 0 {
 		return
 	}
@@ -205,7 +206,7 @@ func (r *callerRegistry) resolveProfile(caller string) (*profileRuntime, error) 
 	if !ok {
 		return nil, domain.ErrCallerNotRegistered
 	}
-	profile, ok := r.state.profiles[state.profile]
+	profile, ok := r.state.Profile(state.profile)
 	if !ok {
 		return nil, fmt.Errorf("profile %q not found", state.profile)
 	}
@@ -215,11 +216,12 @@ func (r *callerRegistry) resolveProfile(caller string) (*profileRuntime, error) 
 func (r *callerRegistry) resolveProfileName(caller string) (string, error) {
 	profileName := domain.DefaultProfileName
 	if caller != "" {
-		if mapped, ok := r.state.callers[caller]; ok {
+		callers := r.state.Callers()
+		if mapped, ok := callers[caller]; ok {
 			profileName = mapped
 		}
 	}
-	if _, ok := r.state.profiles[profileName]; !ok {
+	if _, ok := r.state.Profile(profileName); !ok {
 		return "", fmt.Errorf("profile %q not found", profileName)
 	}
 	return profileName, nil
@@ -240,7 +242,7 @@ func (r *callerRegistry) activeProfileNames() []string {
 }
 
 func (r *callerRegistry) profileContainsSpecKey(runtime *profileRuntime, specKey string) bool {
-	for _, key := range runtime.specKeys {
+	for _, key := range runtime.SpecKeys() {
 		if key == specKey {
 			return true
 		}
@@ -249,7 +251,7 @@ func (r *callerRegistry) profileContainsSpecKey(runtime *profileRuntime, specKey
 }
 
 func (r *callerRegistry) addProfileLocked(profile string, profileStarts *[]string, specStarts *[]string) {
-	runtime, ok := r.state.profiles[profile]
+	runtime, ok := r.state.Profile(profile)
 	if !ok {
 		return
 	}
@@ -258,7 +260,7 @@ func (r *callerRegistry) addProfileLocked(profile string, profileStarts *[]strin
 	if count == 1 {
 		*profileStarts = append(*profileStarts, profile)
 	}
-	for _, specKey := range runtime.specKeys {
+	for _, specKey := range runtime.SpecKeys() {
 		specCount := r.specCounts[specKey] + 1
 		r.specCounts[specKey] = specCount
 		if specCount == 1 {
@@ -268,7 +270,7 @@ func (r *callerRegistry) addProfileLocked(profile string, profileStarts *[]strin
 }
 
 func (r *callerRegistry) removeProfileLocked(profile string, profileStops *[]string, specStops *[]string) {
-	runtime, ok := r.state.profiles[profile]
+	runtime, ok := r.state.Profile(profile)
 	if !ok {
 		return
 	}
@@ -282,7 +284,7 @@ func (r *callerRegistry) removeProfileLocked(profile string, profileStops *[]str
 	default:
 		r.profileCounts[profile] = count - 1
 	}
-	for _, specKey := range runtime.specKeys {
+	for _, specKey := range runtime.SpecKeys() {
 		specCount := r.specCounts[specKey]
 		switch {
 		case specCount <= 1:
@@ -302,8 +304,9 @@ func (r *callerRegistry) activateSpecs(ctx context.Context, specKeys []string) e
 	}
 	order := append([]string(nil), specKeys...)
 	sort.Strings(order)
+	registry := r.state.SpecRegistry()
 	for _, specKey := range order {
-		spec, ok := r.state.specRegistry[specKey]
+		spec, ok := registry[specKey]
 		if !ok {
 			return fmt.Errorf("unknown spec key %q", specKey)
 		}
@@ -354,7 +357,7 @@ func (r *callerRegistry) deactivateSpecs(ctx context.Context, specKeys []string)
 
 func (r *callerRegistry) activateProfiles(profiles []string) {
 	for _, profile := range profiles {
-		if runtime, ok := r.state.profiles[profile]; ok {
+		if runtime, ok := r.state.Profile(profile); ok {
 			runtime.Activate(r.state.ctx)
 		}
 	}
@@ -362,7 +365,7 @@ func (r *callerRegistry) activateProfiles(profiles []string) {
 
 func (r *callerRegistry) deactivateProfiles(profiles []string) {
 	for _, profile := range profiles {
-		if runtime, ok := r.state.profiles[profile]; ok {
+		if runtime, ok := r.state.Profile(profile); ok {
 			runtime.Deactivate()
 		}
 	}
@@ -370,8 +373,9 @@ func (r *callerRegistry) deactivateProfiles(profiles []string) {
 
 func (r *callerRegistry) reapDeadCallers(ctx context.Context) {
 	now := time.Now()
-	timeout := time.Duration(r.state.runtime.CallerCheckSeconds*callerReapTimeoutMultiplier) * time.Second
-	inactiveTimeout := time.Duration(r.state.runtime.CallerInactiveSeconds) * time.Second
+	runtime := r.state.Runtime()
+	timeout := time.Duration(runtime.CallerCheckSeconds*callerReapTimeoutMultiplier) * time.Second
+	inactiveTimeout := time.Duration(runtime.CallerInactiveSeconds) * time.Second
 	r.mu.Lock()
 	callers := make([]string, 0, len(r.activeCallers))
 	for caller, state := range r.activeCallers {
@@ -431,6 +435,45 @@ func (r *callerRegistry) broadcastActiveCallers(snapshot domain.ActiveCallerSnap
 	}
 }
 
+func (r *callerRegistry) ApplyCatalogUpdate(ctx context.Context, update domain.CatalogUpdate) error {
+	callers := r.state.Callers()
+	profiles := r.state.Profiles()
+	now := time.Now()
+
+	r.mu.Lock()
+	oldProfileCounts := copyCounts(r.profileCounts)
+	oldSpecCounts := copyCounts(r.specCounts)
+
+	for caller, state := range r.activeCallers {
+		profileName := resolveProfileNameForCaller(caller, callers, profiles)
+		if profileName != state.profile {
+			state.profile = profileName
+			r.activeCallers[caller] = state
+		}
+	}
+
+	newProfileCounts, newSpecCounts := countActiveProfiles(r.activeCallers, profiles)
+	r.profileCounts = newProfileCounts
+	r.specCounts = newSpecCounts
+	snapshot := r.snapshotActiveCallersLocked(now)
+	r.mu.Unlock()
+
+	profilesToStart, profilesToStop := diffCounts(oldProfileCounts, newProfileCounts)
+	specsToStart, specsToStop := diffCounts(oldSpecCounts, newSpecCounts)
+	specsToStart, specsToStop = filterOverlap(specsToStart, specsToStop)
+
+	if err := r.activateSpecs(ctx, specsToStart); err != nil {
+		return err
+	}
+	if err := r.deactivateSpecs(ctx, specsToStop); err != nil {
+		r.state.logger.Warn("spec deactivation failed", zap.Error(err))
+	}
+	r.activateProfiles(profilesToStart)
+	r.deactivateProfiles(profilesToStop)
+	r.broadcastActiveCallers(finalizeActiveCallerSnapshot(snapshot))
+	return nil
+}
+
 func (r *callerRegistry) copyActiveCallerSubscribers() []chan domain.ActiveCallerSnapshot {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -472,4 +515,64 @@ func filterOverlap(activate []string, deactivate []string) ([]string, []string) 
 		}
 	}
 	return filteredActivate, filteredDeactivate
+}
+
+func resolveProfileNameForCaller(caller string, callers map[string]string, profiles map[string]*profileRuntime) string {
+	profileName := domain.DefaultProfileName
+	if caller != "" {
+		if mapped, ok := callers[caller]; ok {
+			profileName = mapped
+		}
+	}
+	if _, ok := profiles[profileName]; ok {
+		return profileName
+	}
+	if _, ok := profiles[domain.DefaultProfileName]; ok {
+		return domain.DefaultProfileName
+	}
+	return profileName
+}
+
+func countActiveProfiles(active map[string]callerState, profiles map[string]*profileRuntime) (map[string]int, map[string]int) {
+	profileCounts := make(map[string]int)
+	specCounts := make(map[string]int)
+	for _, state := range active {
+		runtime, ok := profiles[state.profile]
+		if !ok {
+			continue
+		}
+		profileCounts[state.profile]++
+		for _, specKey := range runtime.SpecKeys() {
+			specCounts[specKey]++
+		}
+	}
+	return profileCounts, specCounts
+}
+
+func diffCounts(oldCounts map[string]int, newCounts map[string]int) ([]string, []string) {
+	var starts []string
+	var stops []string
+
+	for key, count := range newCounts {
+		if count > 0 && oldCounts[key] == 0 {
+			starts = append(starts, key)
+		}
+	}
+	for key, count := range oldCounts {
+		if count > 0 && newCounts[key] == 0 {
+			stops = append(stops, key)
+		}
+	}
+	return starts, stops
+}
+
+func copyCounts(values map[string]int) map[string]int {
+	if len(values) == 0 {
+		return map[string]int{}
+	}
+	copyMap := make(map[string]int, len(values))
+	for key, value := range values {
+		copyMap[key] = value
+	}
+	return copyMap
 }

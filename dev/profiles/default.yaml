@@ -1,14 +1,14 @@
 servers:
-  - name: weather
-    cmd:
-      [
-        "/bin/sh",
-        "-c",
-        "node ./weather-demo-mcp/build/index.js",
-      ]
-    idleSeconds: 60
-    maxConcurrent: 1
-    sticky: false
-    persistent: false
-    minReady: 1
-    protocolVersion: "2025-11-25"
+    - cmd:
+        - /bin/sh
+        - -c
+        - node ./weather-demo-mcp/build/index.js
+      idleSeconds: 60
+      maxConcurrent: 1
+      minReady: 1
+      name: weather
+      persistent: false
+      protocolVersion: "2025-11-25"
+      sticky: false
+subAgent:
+    enabled: true

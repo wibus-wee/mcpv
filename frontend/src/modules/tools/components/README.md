@@ -2,12 +2,12 @@
 
 # Modules/Tools/Components
 
-工具页面的 UI 组件集合，包含网格、服务器卡片与工具详情抽屉。  
-接收数据层分组结果，负责交互、展示与动效。
+工具页面的 UI 组件集合，提供左侧分组、右侧详情与动效过渡。  
+承接 tools 数据分组结果，并负责搜索、选择与细节展示。
 
 ## Files
 
-- **server-card.tsx**: 服务器卡片，展示状态与工具数量。
-- **server-details-sheet.tsx**: 服务器详情抽屉，显示工具列表与运行状态，并联动工具详情。
-- **tool-details-sheet.tsx**: 单个工具的参数与描述弹层。
-- **tools-grid.tsx**: 工具网格入口，分发服务器卡片并调起详情。
+- **server-detail-panel.tsx**: 服务器详情面板，展示运行状态、所属 profiles 与工具列表。
+- **tool-detail-panel.tsx**: 工具详情面板，展示参数与原始 schema。
+- **tools-grid.tsx**: 工具页面主容器，协调选择状态与详情渲染。
+- **tools-sidebar.tsx**: 左侧服务器/工具列表与搜索筛选。

@@ -11,19 +11,19 @@ exposeTools: true
 toolNamespaceStrategy: "prefix"
 observability:
   listenAddress: "0.0.0.0:9090"
-rpc:
-  listenAddress: "tcp://0.0.0.0:9091"
-  maxRecvMsgSize: 16777216
-  maxSendMsgSize: 16777216
-  keepaliveTimeSeconds: 30
-  keepaliveTimeoutSeconds: 10
-  socketMode: "0660"
-  tls:
-    enabled: false
-    certFile: ""
-    keyFile: ""
-    caFile: ""
-    clientAuth: false
+# rpc:
+#   listenAddress: "tcp://0.0.0.0:9091"
+#   maxRecvMsgSize: 16777216
+#   maxSendMsgSize: 16777216
+#   keepaliveTimeSeconds: 30
+#   keepaliveTimeoutSeconds: 10
+#   socketMode: "0660"
+#   tls:
+#     enabled: false
+#     certFile: ""
+#     keyFile: ""
+#     caFile: ""
+#     clientAuth: false
 
 # SubAgent LLM Provider Configuration (runtime-level, shared across all profiles)
 # Per-profile enabling is done in profiles/xxx.yaml with subAgent.enabled: true

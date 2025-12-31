@@ -429,3 +429,24 @@ func (m *Manager) GetConfigPath() string {
 	defer m.mu.RUnlock()
 	return m.configPath
 }
+
+func (m *Manager) ReloadConfig(ctx context.Context) error {
+	m.mu.RLock()
+	state := m.coreState
+	coreApp := m.coreApp
+	m.mu.RUnlock()
+
+	if state != CoreStateRunning {
+		return NewUIError(ErrCodeCoreNotRunning, "Core is not running")
+	}
+	if coreApp == nil {
+		return NewUIError(ErrCodeInternal, "Core app not initialized")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := coreApp.ReloadConfig(ctx); err != nil {
+		return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Configuration reload failed", err.Error())
+	}
+	return nil
+}

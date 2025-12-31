@@ -42,8 +42,8 @@ func (d *discoveryService) ListToolsAllProfiles(ctx context.Context) (domain.Too
 	seen := make(map[string]struct{})
 
 	for _, name := range profileNames {
-		runtime := d.state.profiles[name]
-		if runtime == nil || runtime.tools == nil {
+		runtime, ok := d.state.Profile(name)
+		if !ok || runtime.tools == nil {
 			continue
 		}
 		snapshot := runtime.tools.Snapshot()
@@ -110,8 +110,8 @@ func (d *discoveryService) CallTool(ctx context.Context, caller, name string, ar
 func (d *discoveryService) CallToolAllProfiles(ctx context.Context, name string, args json.RawMessage, routingKey, specKey string) (json.RawMessage, error) {
 	profileNames := d.registry.activeProfileNames()
 	for _, profileName := range profileNames {
-		runtime := d.state.profiles[profileName]
-		if runtime == nil || runtime.tools == nil {
+		runtime, ok := d.state.Profile(profileName)
+		if !ok || runtime.tools == nil {
 			continue
 		}
 		if specKey != "" && !d.registry.profileContainsSpecKey(runtime, specKey) {
@@ -151,8 +151,8 @@ func (d *discoveryService) ListResourcesAllProfiles(ctx context.Context, cursor 
 	seen := make(map[string]struct{})
 
 	for _, profileName := range profileNames {
-		runtime := d.state.profiles[profileName]
-		if runtime == nil || runtime.resources == nil {
+		runtime, ok := d.state.Profile(profileName)
+		if !ok || runtime.resources == nil {
 			continue
 		}
 		snapshot := runtime.resources.Snapshot()
@@ -206,8 +206,8 @@ func (d *discoveryService) ReadResource(ctx context.Context, caller, uri string)
 func (d *discoveryService) ReadResourceAllProfiles(ctx context.Context, uri, specKey string) (json.RawMessage, error) {
 	profileNames := d.registry.activeProfileNames()
 	for _, profileName := range profileNames {
-		runtime := d.state.profiles[profileName]
-		if runtime == nil || runtime.resources == nil {
+		runtime, ok := d.state.Profile(profileName)
+		if !ok || runtime.resources == nil {
 			continue
 		}
 		if specKey != "" && !d.registry.profileContainsSpecKey(runtime, specKey) {
@@ -247,8 +247,8 @@ func (d *discoveryService) ListPromptsAllProfiles(ctx context.Context, cursor st
 	seen := make(map[string]struct{})
 
 	for _, profileName := range profileNames {
-		runtime := d.state.profiles[profileName]
-		if runtime == nil || runtime.prompts == nil {
+		runtime, ok := d.state.Profile(profileName)
+		if !ok || runtime.prompts == nil {
 			continue
 		}
 		snapshot := runtime.prompts.Snapshot()
@@ -302,8 +302,8 @@ func (d *discoveryService) GetPrompt(ctx context.Context, caller, name string, a
 func (d *discoveryService) GetPromptAllProfiles(ctx context.Context, name string, args json.RawMessage, specKey string) (json.RawMessage, error) {
 	profileNames := d.registry.activeProfileNames()
 	for _, profileName := range profileNames {
-		runtime := d.state.profiles[profileName]
-		if runtime == nil || runtime.prompts == nil {
+		runtime, ok := d.state.Profile(profileName)
+		if !ok || runtime.prompts == nil {
 			continue
 		}
 		if specKey != "" && !d.registry.profileContainsSpecKey(runtime, specKey) {

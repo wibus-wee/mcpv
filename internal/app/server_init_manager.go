@@ -33,17 +33,87 @@ type ServerInitializationManager struct {
 
 func NewServerInitializationManager(
 	scheduler domain.Scheduler,
-	snapshot *CatalogSnapshot,
+	state *domain.CatalogState,
 	logger *zap.Logger,
 ) *ServerInitializationManager {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 
-	summary := snapshot.Summary()
-	specs := summary.specRegistry
-	runtime := summary.defaultRuntime
+	summary := state.Summary
+	specs := summary.SpecRegistry
+	runtime := summary.DefaultRuntime
 
+	retryBase, retryMax, maxRetries := resolveServerInitRetry(runtime)
+
+	return &ServerInitializationManager{
+		scheduler:  scheduler,
+		specs:      specs,
+		logger:     logger.Named("server_init"),
+		statuses:   make(map[string]domain.ServerInitStatus),
+		targets:    make(map[string]int),
+		running:    make(map[string]struct{}),
+		retryBase:  retryBase,
+		retryMax:   retryMax,
+		maxRetries: maxRetries,
+	}
+}
+
+func (m *ServerInitializationManager) ApplyCatalogState(state *domain.CatalogState) {
+	summary := state.Summary
+	specs := summary.SpecRegistry
+	runtime := summary.DefaultRuntime
+	retryBase, retryMax, maxRetries := resolveServerInitRetry(runtime)
+
+	var added []string
+
+	m.mu.Lock()
+	m.specs = specs
+	m.retryBase = retryBase
+	m.retryMax = retryMax
+	m.maxRetries = maxRetries
+
+	for specKey, spec := range specs {
+		minReady := normalizeMinReady(spec.MinReady)
+		status, ok := m.statuses[specKey]
+		if !ok {
+			added = append(added, specKey)
+			status = domain.ServerInitStatus{
+				SpecKey:     specKey,
+				ServerName:  spec.Name,
+				MinReady:    minReady,
+				State:       domain.ServerInitPending,
+				RetryCount:  0,
+				NextRetryAt: time.Time{},
+				UpdatedAt:   time.Now(),
+			}
+		} else {
+			status.ServerName = spec.Name
+			status.MinReady = minReady
+			status.UpdatedAt = time.Now()
+		}
+		m.statuses[specKey] = status
+		m.targets[specKey] = minReady
+	}
+
+	for specKey := range m.statuses {
+		if _, ok := specs[specKey]; !ok {
+			delete(m.statuses, specKey)
+			delete(m.targets, specKey)
+		}
+	}
+	started := m.started
+	m.mu.Unlock()
+
+	if !started {
+		return
+	}
+	for _, specKey := range added {
+		m.ensureWorker(specKey)
+	}
+}
+
+func resolveServerInitRetry(runtime domain.RuntimeConfig) (time.Duration, time.Duration, int) {
 	retryBaseSeconds := runtime.ServerInitRetryBaseSeconds
 	if retryBaseSeconds <= 0 {
 		retryBaseSeconds = domain.DefaultServerInitRetryBaseSeconds
@@ -59,18 +129,7 @@ func NewServerInitializationManager(
 	if maxRetries < 0 {
 		maxRetries = domain.DefaultServerInitMaxRetries
 	}
-
-	return &ServerInitializationManager{
-		scheduler:  scheduler,
-		specs:      specs,
-		logger:     logger.Named("server_init"),
-		statuses:   make(map[string]domain.ServerInitStatus),
-		targets:    make(map[string]int),
-		running:    make(map[string]struct{}),
-		retryBase:  time.Duration(retryBaseSeconds) * time.Second,
-		retryMax:   time.Duration(retryMaxSeconds) * time.Second,
-		maxRetries: maxRetries,
-	}
+	return time.Duration(retryBaseSeconds) * time.Second, time.Duration(retryMaxSeconds) * time.Second, maxRetries
 }
 
 func (m *ServerInitializationManager) Start(ctx context.Context) {

@@ -126,7 +126,7 @@ func (c *ControlPlane) StreamLogsAllProfiles(ctx context.Context, minLevel domai
 }
 
 func (c *ControlPlane) GetProfileStore() domain.ProfileStore {
-	return c.state.profileStore
+	return c.state.ProfileStore()
 }
 
 func (c *ControlPlane) GetPoolStatus(ctx context.Context) ([]domain.PoolInfo, error) {

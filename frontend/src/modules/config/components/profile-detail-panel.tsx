@@ -59,6 +59,7 @@ import { Spring } from '@/lib/spring'
 import { cn } from '@/lib/utils'
 
 import { useConfigMode, useProfile, useProfiles } from '../hooks'
+import { reloadConfig } from '../lib/reload-config'
 import { ServerRuntimeIndicator, ServerRuntimeSummary } from './server-runtime-status'
 
 interface ProfileDetailPanelProps {
@@ -174,6 +175,11 @@ function SubAgentSection({
         profile: profile.name,
         enabled: checked,
       })
+      const reloadResult = await reloadConfig()
+      if (!reloadResult.ok) {
+        setError(reloadResult.message)
+        return
+      }
       onToggle(checked)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update SubAgent')
@@ -421,6 +427,7 @@ function ProfileContent({
   deletingProfile,
   notice,
   onDismissNotice,
+  onSubAgentToggle,
   onToggleDisabled,
   onDeleteServer,
   onDeleteProfile,
@@ -434,6 +441,7 @@ function ProfileContent({
   deletingProfile: boolean
   notice: NoticeState | null
   onDismissNotice: () => void
+  onSubAgentToggle: (enabled: boolean) => void
   onToggleDisabled: (server: ServerSpecWithKey, disabled: boolean) => void
   onDeleteServer: (server: ServerSpecWithKey) => void
   onDeleteProfile: () => void
@@ -523,7 +531,7 @@ function ProfileContent({
         <SubAgentSection
           profile={profile}
           canEdit={canEditServers}
-          onToggle={() => mutateProfile()}
+          onToggle={onSubAgentToggle}
         />
       </Accordion>
 
@@ -672,11 +680,20 @@ export function ProfileDetailPanel({ profileName }: ProfileDetailPanelProps) {
         server: server.name,
         disabled,
       })
+      const reloadResult = await reloadConfig()
+      if (!reloadResult.ok) {
+        setNotice({
+          variant: 'error',
+          title: 'Reload failed',
+          description: reloadResult.message,
+        })
+        return
+      }
       await Promise.all([mutateProfile(), mutateProfiles()])
       setNotice({
         variant: 'success',
         title: 'Saved',
-        description: 'Restart Core to apply changes.',
+        description: 'Changes applied.',
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Update failed.'
@@ -701,11 +718,20 @@ export function ProfileDetailPanel({ profileName }: ProfileDetailPanelProps) {
         profile: profile.name,
         server: server.name,
       })
+      const reloadResult = await reloadConfig()
+      if (!reloadResult.ok) {
+        setNotice({
+          variant: 'error',
+          title: 'Reload failed',
+          description: reloadResult.message,
+        })
+        return
+      }
       await Promise.all([mutateProfile(), mutateProfiles()])
       setNotice({
         variant: 'success',
         title: 'Server deleted',
-        description: 'Restart Core to apply changes.',
+        description: 'Changes applied.',
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Delete failed.'
@@ -727,11 +753,20 @@ export function ProfileDetailPanel({ profileName }: ProfileDetailPanelProps) {
     setNotice(null)
     try {
       await WailsService.DeleteProfile({ name: profile.name })
+      const reloadResult = await reloadConfig()
+      if (!reloadResult.ok) {
+        setNotice({
+          variant: 'error',
+          title: 'Reload failed',
+          description: reloadResult.message,
+        })
+        return
+      }
       await Promise.all([mutateProfiles(), mutateProfile()])
       setNotice({
         variant: 'success',
         title: 'Profile deleted',
-        description: 'Restart Core to apply changes.',
+        description: 'Changes applied.',
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Delete failed.'
@@ -757,6 +792,7 @@ export function ProfileDetailPanel({ profileName }: ProfileDetailPanelProps) {
         deletingProfile={deletingProfile}
         notice={notice}
         onDismissNotice={() => setNotice(null)}
+        onSubAgentToggle={(_enabled) => mutateProfile()}
         onToggleDisabled={handleToggleDisabled}
         onDeleteServer={handleDeleteServer}
         onDeleteProfile={handleDeleteProfile}

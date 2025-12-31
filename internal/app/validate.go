@@ -5,6 +5,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"mcpd/internal/domain"
 	"mcpd/internal/infra/catalog"
 )
 
@@ -23,7 +24,7 @@ func (a *App) ValidateConfig(ctx context.Context, cfg ValidateConfig) error {
 		return err
 	}
 
-	if _, err := buildProfileSummary(store); err != nil {
+	if _, err := domain.BuildCatalogSummary(store); err != nil {
 		return err
 	}
 

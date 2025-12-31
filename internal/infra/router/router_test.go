@@ -113,6 +113,10 @@ func (f *fakeScheduler) StopSpec(ctx context.Context, specKey, reason string) er
 	return nil
 }
 
+func (f *fakeScheduler) ApplyCatalogDiff(ctx context.Context, diff domain.CatalogDiff, registry map[string]domain.ServerSpec) error {
+	return nil
+}
+
 func (f *fakeScheduler) StartIdleManager(interval time.Duration) {}
 func (f *fakeScheduler) StopIdleManager()                        {}
 func (f *fakeScheduler) StartPingManager(interval time.Duration) {}

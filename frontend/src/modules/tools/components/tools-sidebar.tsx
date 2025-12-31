@@ -1,8 +1,8 @@
 // Input: Server groups data, selection state, search query
-// Output: ToolsSidebar component with collapsible server sections
+// Output: ToolsSidebar component with collapsible server sections and selection
 // Position: Left panel in master-detail tools layout
 
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { m, AnimatePresence } from 'motion/react'
 import { ChevronRightIcon, SearchIcon, ServerIcon, WrenchIcon } from 'lucide-react'
 
@@ -16,25 +16,28 @@ import { ServerRuntimeIndicator } from '@/modules/config/components/server-runti
 import { cn } from '@/lib/utils'
 import { Spring } from '@/lib/spring'
 
-interface ServerGroup {
-  id: string
-  specKey: string
-  serverName: string
-  tools: ToolEntry[]
-  profileNames: string[]
-  hasToolData: boolean
-}
+import type { ServerGroup } from '../hooks'
 
 interface ToolsSidebarProps {
   servers: ServerGroup[]
+  selectedServerId: string | null
   selectedToolId: string | null
+  onSelectServer: (serverId: string) => void
   onSelectTool: (tool: ToolEntry, server: ServerGroup) => void
   className?: string
 }
 
 function parseToolDescription(tool: ToolEntry): string {
+  if (!tool.toolJson) {
+    return ''
+  }
   try {
-    const schema = JSON.parse(tool.toolJson as string)
+    const payload =
+      typeof tool.toolJson === 'string' ? JSON.parse(tool.toolJson) : tool.toolJson
+    if (!payload || typeof payload !== 'object') {
+      return ''
+    }
+    const schema = payload as { description?: string }
     return schema.description || ''
   } catch {
     return ''
@@ -43,7 +46,9 @@ function parseToolDescription(tool: ToolEntry): string {
 
 export function ToolsSidebar({
   servers,
+  selectedServerId,
   selectedToolId,
+  onSelectServer,
   onSelectTool,
   className
 }: ToolsSidebarProps) {
@@ -127,6 +132,25 @@ export function ToolsSidebar({
     })
   }
 
+  useEffect(() => {
+    if (!selectedServerId) {
+      return
+    }
+    setExpandedServers(prev => {
+      if (prev.has(selectedServerId)) {
+        return prev
+      }
+      const next = new Set(prev)
+      next.add(selectedServerId)
+      return next
+    })
+  }, [selectedServerId])
+
+  const handleServerClick = (serverId: string) => {
+    toggleServer(serverId)
+    onSelectServer(serverId)
+  }
+
   const totalTools = servers.reduce((acc, s) => acc + s.tools.length, 0)
 
   return (
@@ -153,18 +177,19 @@ export function ToolsSidebar({
             <div className="space-y-1">
               {filteredServers.map(server => {
                 const isExpanded = expandedServers.has(server.id)
+                const isSelected = selectedServerId === server.id
                 const activeForServer = activeCallersByServer.get(server.id) ?? []
 
                 return (
                   <div key={server.id}>
                     <button
                       type="button"
-                      onClick={() => toggleServer(server.id)}
+                      onClick={() => handleServerClick(server.id)}
                       className={cn(
                         'w-full flex items-center gap-2 px-2 py-1.5 rounded-md',
-                        'text-sm font-medium text-left',
-                        'hover:bg-muted/50 transition-colors',
-                        'group'
+                        'text-sm font-medium text-left transition-colors',
+                        isSelected ? 'bg-muted/70 text-foreground' : 'hover:bg-muted/50',
+                        'group',
                       )}
                     >
                       <m.div
@@ -174,7 +199,7 @@ export function ToolsSidebar({
                         <ChevronRightIcon className="size-4 text-muted-foreground" />
                       </m.div>
                       <ServerIcon className="size-4 text-muted-foreground" />
-                      <span className="flex-1 truncate">{server.serverName}</span>
+                      <span className="flex-1 min-w-0 truncate">{server.serverName}</span>
                       <ServerRuntimeIndicator specKey={server.specKey} />
                       <span className="text-xs text-muted-foreground tabular-nums">
                         {server.tools.length}

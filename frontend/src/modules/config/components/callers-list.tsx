@@ -4,22 +4,10 @@
 
 import type { ProfileSummary } from '@bindings/mcpd/internal/ui'
 import { WailsService } from '@bindings/mcpd/internal/ui'
-import {
-  AlertCircleIcon,
-  CheckCircleIcon,
-  ArrowRightIcon,
-  TrashIcon,
-  UsersIcon,
-} from 'lucide-react'
+import { ArrowRightIcon, TrashIcon, UsersIcon } from 'lucide-react'
 import { m } from 'motion/react'
 import { useMemo, useState } from 'react'
 
-import {
-  Alert,
-  AlertAction,
-  AlertDescription,
-  AlertTitle,
-} from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   Empty,
@@ -40,17 +28,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
 import { useConfigMode, useProfiles } from '../hooks'
+import { reloadConfig } from '../lib/reload-config'
 
 interface CallersListProps {
   callers: Record<string, string>
   isLoading: boolean
   onRefresh: () => void
-}
-
-type NoticeState = {
-  variant: 'success' | 'error'
-  title: string
-  description: string
 }
 
 function CallersListSkeleton() {
@@ -92,7 +75,6 @@ export function CallersList({
   const [draftProfile, setDraftProfile] = useState('')
   const [pendingCaller, setPendingCaller] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState(false)
-  const [notice, setNotice] = useState<NoticeState | null>(null)
   const entries = Object.entries(callers)
   const profileOptions = useMemo(
     () => (profiles ?? []).map((profile: ProfileSummary) => profile.name),
@@ -120,24 +102,16 @@ export function CallersList({
     const caller = draftCaller.trim()
     const profile = draftProfile
     setIsCreating(true)
-    setNotice(null)
     try {
       await WailsService.SetCallerMapping({ caller, profile })
-      await onRefresh()
+      const reloadResult = await reloadConfig()
       setDraftCaller('')
       setDraftProfile('')
-      setNotice({
-        variant: 'success',
-        title: 'Mapping saved',
-        description: 'Restart Core to apply changes.',
-      })
+      if (!reloadResult.ok) {
+        return
+      }
+      await onRefresh()
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Save failed.'
-      setNotice({
-        variant: 'error',
-        title: 'Save failed',
-        description: message,
-      })
     } finally {
       setIsCreating(false)
     }
@@ -148,22 +122,13 @@ export function CallersList({
       return
     }
     setPendingCaller(caller)
-    setNotice(null)
     try {
       await WailsService.SetCallerMapping({ caller, profile })
+      const reloadResult = await reloadConfig()
+      if (!reloadResult.ok) {
+        return
+      }
       await onRefresh()
-      setNotice({
-        variant: 'success',
-        title: 'Mapping updated',
-        description: 'Restart Core to apply changes.',
-      })
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Update failed.'
-      setNotice({
-        variant: 'error',
-        title: 'Update failed',
-        description: message,
-      })
     } finally {
       setPendingCaller(null)
     }
@@ -174,22 +139,13 @@ export function CallersList({
       return
     }
     setPendingCaller(caller)
-    setNotice(null)
     try {
       await WailsService.RemoveCallerMapping(caller)
+      const reloadResult = await reloadConfig()
+      if (!reloadResult.ok) {
+        return
+      }
       await onRefresh()
-      setNotice({
-        variant: 'success',
-        title: 'Mapping removed',
-        description: 'Restart Core to apply changes.',
-      })
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Remove failed.'
-      setNotice({
-        variant: 'error',
-        title: 'Remove failed',
-        description: message,
-      })
     } finally {
       setPendingCaller(null)
     }
@@ -201,19 +157,6 @@ export function CallersList({
 
   return (
     <div className="space-y-4">
-      {notice && (
-        <Alert variant={notice.variant}>
-          {notice.variant === 'success' ? <CheckCircleIcon /> : <AlertCircleIcon />}
-          <AlertTitle>{notice.title}</AlertTitle>
-          <AlertDescription>{notice.description}</AlertDescription>
-          <AlertAction>
-            <Button variant="ghost" size="xs" onClick={() => setNotice(null)}>
-              Dismiss
-            </Button>
-          </AlertAction>
-        </Alert>
-      )}
-
       <div className="rounded-lg border bg-muted/20 px-3 py-2">
         <div className="flex flex-wrap items-center gap-2">
           <Input

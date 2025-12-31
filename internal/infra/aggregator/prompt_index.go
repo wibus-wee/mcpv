@@ -16,13 +16,13 @@ import (
 )
 
 type PromptIndex struct {
-	router   domain.Router
-	specs    map[string]domain.ServerSpec
-	specKeys map[string]string
-	cfg      domain.RuntimeConfig
-	logger   *zap.Logger
-	health   *telemetry.HealthTracker
-	gate     *RefreshGate
+	router      domain.Router
+	specs       map[string]domain.ServerSpec
+	specKeys    map[string]string
+	cfg         domain.RuntimeConfig
+	logger      *zap.Logger
+	health      *telemetry.HealthTracker
+	gate        *RefreshGate
 	listChanges listChangeSubscriber
 	specKeySet  map[string]struct{}
 
@@ -44,13 +44,13 @@ func NewPromptIndex(rt domain.Router, specs map[string]domain.ServerSpec, specKe
 		specKeys = map[string]string{}
 	}
 	promptIndex := &PromptIndex{
-		router:   rt,
-		specs:    specs,
-		specKeys: specKeys,
-		cfg:      cfg,
-		logger:   logger.Named("prompt_index"),
-		health:   health,
-		gate:     gate,
+		router:      rt,
+		specs:       specs,
+		specKeys:    specKeys,
+		cfg:         cfg,
+		logger:      logger.Named("prompt_index"),
+		health:      health,
+		gate:        gate,
 		listChanges: listChanges,
 		specKeySet:  specKeySet(specKeys),
 	}
@@ -82,6 +82,10 @@ func (a *PromptIndex) Start(ctx context.Context) {
 
 func (a *PromptIndex) Stop() {
 	a.index.Stop()
+}
+
+func (a *PromptIndex) Refresh(ctx context.Context) error {
+	return a.index.Refresh(ctx)
 }
 
 func (a *PromptIndex) Snapshot() domain.PromptSnapshot {
@@ -128,6 +132,17 @@ func (a *PromptIndex) GetPrompt(ctx context.Context, name string, args json.RawM
 		return nil, err
 	}
 	return marshalPromptResult(result)
+}
+
+func (a *PromptIndex) UpdateSpecs(specs map[string]domain.ServerSpec, specKeys map[string]string, cfg domain.RuntimeConfig) {
+	if specKeys == nil {
+		specKeys = map[string]string{}
+	}
+	a.specs = specs
+	a.specKeys = specKeys
+	a.specKeySet = specKeySet(specKeys)
+	a.cfg = cfg
+	a.index.UpdateSpecs(specs, cfg)
 }
 
 func (a *PromptIndex) startListChangeListener(ctx context.Context) {

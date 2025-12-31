@@ -242,6 +242,13 @@ export function ReadResource(uri: string): $CancellablePromise<json$0.RawMessage
 }
 
 /**
+ * ReloadConfig triggers a configuration reload in the running Core.
+ */
+export function ReloadConfig(): $CancellablePromise<void> {
+    return $Call.ByID(1215728198);
+}
+
+/**
  * RemoveCallerMapping removes a caller to profile mapping.
  */
 export function RemoveCallerMapping(caller: string): $CancellablePromise<void> {

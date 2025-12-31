@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"errors"
+	"sync"
 
 	"go.uber.org/zap"
 
@@ -12,6 +14,8 @@ import (
 type App struct {
 	logger         *zap.Logger
 	logBroadcaster *telemetry.LogBroadcaster
+	mu             sync.RWMutex
+	reloadManager  *ReloadManager
 }
 
 type ServeConfig struct {
@@ -56,5 +60,23 @@ func (a *App) Serve(ctx context.Context, cfg ServeConfig) error {
 	if err != nil {
 		return err
 	}
+	a.setReloadManager(application.reloadManager)
+	defer a.setReloadManager(nil)
 	return application.Run()
+}
+
+func (a *App) ReloadConfig(ctx context.Context) error {
+	a.mu.RLock()
+	manager := a.reloadManager
+	a.mu.RUnlock()
+	if manager == nil {
+		return errors.New("reload manager not available")
+	}
+	return manager.Reload(ctx)
+}
+
+func (a *App) setReloadManager(manager *ReloadManager) {
+	a.mu.Lock()
+	a.reloadManager = manager
+	a.mu.Unlock()
 }

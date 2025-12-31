@@ -51,7 +51,6 @@ export function ToolDetailPanel({ tool, serverName, className }: ToolDetailPanel
   }
 
   const schema: ToolSchema = tool.toolJson
-  console.log(tool)
   const properties = schema.inputSchema?.properties || {}
   const required = schema.inputSchema?.required || []
   const hasParams = Object.keys(properties).length > 0

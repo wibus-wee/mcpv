@@ -18,16 +18,17 @@ type Application struct {
 	onReady       func(domain.ControlPlane)
 	observability *ObservabilityOptions
 
-	logger       *zap.Logger
-	registry     *prometheus.Registry
-	metrics      domain.Metrics
-	health       *telemetry.HealthTracker
-	summary      profileSummary
-	profiles     map[string]*profileRuntime
-	scheduler    domain.Scheduler
-	initManager  *ServerInitializationManager
-	controlPlane *ControlPlane
-	rpcServer    *rpc.Server
+	logger        *zap.Logger
+	registry      *prometheus.Registry
+	metrics       domain.Metrics
+	health        *telemetry.HealthTracker
+	summary       domain.CatalogSummary
+	state         *controlPlaneState
+	scheduler     domain.Scheduler
+	initManager   *ServerInitializationManager
+	controlPlane  *ControlPlane
+	rpcServer     *rpc.Server
+	reloadManager *ReloadManager
 }
 
 func NewApplication(
@@ -37,17 +38,18 @@ func NewApplication(
 	registry *prometheus.Registry,
 	metrics domain.Metrics,
 	health *telemetry.HealthTracker,
-	snapshot *CatalogSnapshot,
-	profiles map[string]*profileRuntime,
+	state *domain.CatalogState,
+	controlState *controlPlaneState,
 	scheduler domain.Scheduler,
 	initManager *ServerInitializationManager,
 	controlPlane *ControlPlane,
 	rpcServer *rpc.Server,
+	reloadManager *ReloadManager,
 ) *Application {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	summary := snapshot.Summary()
+	summary := state.Summary
 	return &Application{
 		ctx:           ctx,
 		configPath:    cfg.ConfigPath,
@@ -58,32 +60,38 @@ func NewApplication(
 		metrics:       metrics,
 		health:        health,
 		summary:       summary,
-		profiles:      profiles,
+		state:         controlState,
 		scheduler:     scheduler,
 		initManager:   initManager,
 		controlPlane:  controlPlane,
 		rpcServer:     rpcServer,
+		reloadManager: reloadManager,
 	}
 }
 
 func (a *Application) Run() error {
 	a.logger.Info("configuration loaded",
 		zap.String("config", a.configPath),
-		zap.Int("profiles", len(a.summary.configs)),
-		zap.Int("servers", a.summary.totalServers),
+		zap.Int("profiles", len(a.summary.Profiles)),
+		zap.Int("servers", a.summary.TotalServers),
 	)
 
 	a.initManager.Start(a.ctx)
+	if a.reloadManager != nil {
+		if err := a.reloadManager.Start(a.ctx); err != nil {
+			a.logger.Warn("reload manager start failed", zap.Error(err))
+		}
+	}
 
-	if a.summary.defaultRuntime.SubAgent.Model != "" && a.summary.defaultRuntime.SubAgent.Provider != "" {
-		subAgent, err := initializeSubAgent(a.ctx, a.summary.defaultRuntime.SubAgent, a.controlPlane, a.metrics, a.logger)
+	if a.summary.DefaultRuntime.SubAgent.Model != "" && a.summary.DefaultRuntime.SubAgent.Provider != "" {
+		subAgent, err := initializeSubAgent(a.ctx, a.summary.DefaultRuntime.SubAgent, a.controlPlane, a.metrics, a.logger)
 		if err != nil {
 			a.logger.Warn("failed to initialize SubAgent", zap.Error(err))
 		} else {
 			a.controlPlane.SetSubAgent(subAgent)
 			a.logger.Info("SubAgent initialized",
-				zap.String("provider", a.summary.defaultRuntime.SubAgent.Provider),
-				zap.String("model", a.summary.defaultRuntime.SubAgent.Model),
+				zap.String("provider", a.summary.DefaultRuntime.SubAgent.Provider),
+				zap.String("model", a.summary.DefaultRuntime.SubAgent.Model),
 			)
 		}
 	}
@@ -105,7 +113,7 @@ func (a *Application) Run() error {
 	}
 	if metricsEnabled || healthzEnabled {
 		go func() {
-			addr := a.summary.defaultRuntime.Observability.ListenAddress
+			addr := a.summary.DefaultRuntime.Observability.ListenAddress
 			a.logger.Info("starting observability server", zap.String("addr", addr))
 			if err := telemetry.StartHTTPServer(a.ctx, telemetry.HTTPServerOptions{
 				Addr:          addr,
@@ -120,12 +128,14 @@ func (a *Application) Run() error {
 	}
 
 	a.scheduler.StartIdleManager(defaultIdleManagerInterval)
-	if a.summary.minPingInterval > 0 {
-		a.scheduler.StartPingManager(time.Duration(a.summary.minPingInterval) * time.Second)
+	if a.summary.MinPingInterval > 0 {
+		a.scheduler.StartPingManager(time.Duration(a.summary.MinPingInterval) * time.Second)
 	}
 	defer func() {
-		for _, runtime := range a.profiles {
-			runtime.Deactivate()
+		if a.state != nil {
+			for _, runtime := range a.state.Profiles() {
+				runtime.Deactivate()
+			}
 		}
 		a.initManager.Stop()
 		a.scheduler.StopPingManager()

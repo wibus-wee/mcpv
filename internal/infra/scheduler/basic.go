@@ -31,6 +31,7 @@ type SchedulerOptions struct {
 
 type BasicScheduler struct {
 	lifecycle domain.Lifecycle
+	specsMu   sync.RWMutex
 	specs     map[string]domain.ServerSpec
 
 	poolsMu sync.RWMutex
@@ -92,7 +93,7 @@ func NewBasicScheduler(lifecycle domain.Lifecycle, specs map[string]domain.Serve
 	}
 	return &BasicScheduler{
 		lifecycle: lifecycle,
-		specs:     specs,
+		specs:     cloneSpecRegistry(specs),
 		pools:     make(map[string]*poolState),
 		probe:     opts.Probe,
 		logger:    logger.Named("scheduler"),
@@ -107,7 +108,7 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	spec, ok := s.specs[specKey]
+	spec, ok := s.specForKey(specKey)
 	if !ok {
 		return nil, ErrUnknownSpecKey
 	}
@@ -200,7 +201,7 @@ func (s *BasicScheduler) AcquireReady(ctx context.Context, specKey, routingKey s
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	spec, ok := s.specs[specKey]
+	spec, ok := s.specForKey(specKey)
 	if !ok {
 		return nil, ErrUnknownSpecKey
 	}
@@ -254,7 +255,7 @@ func (s *BasicScheduler) Release(ctx context.Context, instance *domain.Instance)
 }
 
 func (s *BasicScheduler) SetDesiredMinReady(ctx context.Context, specKey string, minReady int) error {
-	spec, ok := s.specs[specKey]
+	spec, ok := s.specForKey(specKey)
 	if !ok {
 		return ErrUnknownSpecKey
 	}
@@ -315,12 +316,17 @@ func (s *BasicScheduler) SetDesiredMinReady(ctx context.Context, specKey string,
 }
 
 func (s *BasicScheduler) StopSpec(ctx context.Context, specKey, reason string) error {
-	spec, ok := s.specs[specKey]
-	if !ok {
+	spec, ok := s.specForKey(specKey)
+	state := s.poolByKey(specKey)
+	if !ok && state == nil {
 		return ErrUnknownSpecKey
 	}
-
-	state := s.getPool(specKey, spec)
+	if state == nil {
+		state = s.getPool(specKey, spec)
+	}
+	if !ok {
+		spec = state.spec
+	}
 	state.mu.Lock()
 	state.minReady = 0
 	state.generation++
@@ -365,6 +371,68 @@ func (s *BasicScheduler) StopSpec(ctx context.Context, specKey, reason string) e
 
 	s.observePoolStats(state)
 	return nil
+}
+
+func (s *BasicScheduler) ApplyCatalogDiff(ctx context.Context, diff domain.CatalogDiff, registry map[string]domain.ServerSpec) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	specs := cloneSpecRegistry(registry)
+	s.specsMu.Lock()
+	s.specs = specs
+	s.specsMu.Unlock()
+
+	s.poolsMu.RLock()
+	for specKey, state := range s.pools {
+		spec, ok := specs[specKey]
+		if !ok {
+			continue
+		}
+		state.mu.Lock()
+		state.spec = spec
+		state.mu.Unlock()
+	}
+	s.poolsMu.RUnlock()
+
+	stopSet := make(map[string]struct{})
+	for _, key := range diff.RemovedSpecKeys {
+		stopSet[key] = struct{}{}
+	}
+	for _, key := range diff.ReplacedSpecKeys {
+		stopSet[key] = struct{}{}
+	}
+
+	for specKey := range stopSet {
+		if err := s.StopSpec(ctx, specKey, "spec removed"); err != nil && !errors.Is(err, ErrUnknownSpecKey) {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *BasicScheduler) specForKey(specKey string) (domain.ServerSpec, bool) {
+	s.specsMu.RLock()
+	defer s.specsMu.RUnlock()
+	spec, ok := s.specs[specKey]
+	return spec, ok
+}
+
+func (s *BasicScheduler) poolByKey(specKey string) *poolState {
+	s.poolsMu.RLock()
+	state := s.pools[specKey]
+	s.poolsMu.RUnlock()
+	return state
+}
+
+func cloneSpecRegistry(specs map[string]domain.ServerSpec) map[string]domain.ServerSpec {
+	if len(specs) == 0 {
+		return map[string]domain.ServerSpec{}
+	}
+	clone := make(map[string]domain.ServerSpec, len(specs))
+	for key, spec := range specs {
+		clone[key] = spec
+	}
+	return clone
 }
 
 func (s *BasicScheduler) getPool(specKey string, spec domain.ServerSpec) *poolState {

@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/cloudwego/eino v0.7.15
 	github.com/cloudwego/eino-ext/components/model/openai v0.1.6
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/jsonschema-go v0.3.0
 	github.com/google/wire v0.7.0
@@ -46,7 +47,6 @@ require (
 	github.com/eino-contrib/jsonschema v1.0.3 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/evanphx/json-patch v0.5.2 // indirect
-	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.6.2 // indirect
 	github.com/go-git/go-git/v5 v5.13.2 // indirect

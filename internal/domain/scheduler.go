@@ -11,6 +11,7 @@ type Scheduler interface {
 	Release(ctx context.Context, instance *Instance) error
 	SetDesiredMinReady(ctx context.Context, specKey string, minReady int) error
 	StopSpec(ctx context.Context, specKey, reason string) error
+	ApplyCatalogDiff(ctx context.Context, diff CatalogDiff, registry map[string]ServerSpec) error
 	StartIdleManager(interval time.Duration)
 	StopIdleManager()
 	StartPingManager(interval time.Duration)

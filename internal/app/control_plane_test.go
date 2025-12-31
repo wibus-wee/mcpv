@@ -165,17 +165,21 @@ func newTestControlPlane(
 		Profiles: map[string]domain.Profile{},
 		Callers:  callers,
 	}
-	summary := profileSummary{
-		configs:        map[string]profileConfig{},
-		specRegistry:   specRegistry,
-		defaultRuntime: runtime,
+	summary := domain.CatalogSummary{
+		Profiles:       map[string]domain.CatalogProfile{},
+		SpecRegistry:   specRegistry,
+		DefaultRuntime: runtime,
 	}
-	state := newControlPlaneState(ctx, profiles, scheduler, nil, store, summary, zap.NewNop())
-	registry := newCallerRegistry(state)
-	discovery := newDiscoveryService(state, registry)
-	observability := newObservabilityService(state, registry, nil)
-	automation := newAutomationService(state, registry, discovery)
-	return NewControlPlane(state, registry, discovery, observability, automation)
+	state := &domain.CatalogState{
+		Store:   store,
+		Summary: summary,
+	}
+	controlState := newControlPlaneState(ctx, profiles, scheduler, nil, state, zap.NewNop())
+	registry := newCallerRegistry(controlState)
+	discovery := newDiscoveryService(controlState, registry)
+	observability := newObservabilityService(controlState, registry, nil)
+	automation := newAutomationService(controlState, registry, discovery)
+	return NewControlPlane(controlState, registry, discovery, observability, automation)
 }
 
 type minReadyCall struct {
@@ -212,6 +216,10 @@ func (f *fakeScheduler) SetDesiredMinReady(ctx context.Context, specKey string, 
 
 func (f *fakeScheduler) StopSpec(ctx context.Context, specKey, reason string) error {
 	f.stopCalls = append(f.stopCalls, stopCall{specKey: specKey, reason: reason})
+	return nil
+}
+
+func (f *fakeScheduler) ApplyCatalogDiff(ctx context.Context, diff domain.CatalogDiff, registry map[string]domain.ServerSpec) error {
 	return nil
 }
 

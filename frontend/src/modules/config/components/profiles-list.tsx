@@ -46,6 +46,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
 import { useConfigMode } from '../hooks'
+import { reloadConfig } from '../lib/reload-config'
 
 interface ProfilesListProps {
   profiles: ProfileSummary[]
@@ -139,12 +140,21 @@ export function ProfilesList({
     setNotice(null)
     try {
       await WailsService.CreateProfile({ name: createName.trim() })
+      const reloadResult = await reloadConfig()
+      if (!reloadResult.ok) {
+        setNotice({
+          variant: 'error',
+          title: 'Reload failed',
+          description: reloadResult.message,
+        })
+        return
+      }
       await onRefresh()
       setCreateOpen(false)
       setNotice({
         variant: 'success',
         title: 'Profile created',
-        description: 'Restart Core to apply changes.',
+        description: 'Changes applied.',
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Create failed.'

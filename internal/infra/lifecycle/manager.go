@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
@@ -73,17 +74,19 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 	)
 
 	startCtx, cancelStart := context.WithCancel(baseCtx)
-	startDone := make(chan struct{})
-	go func() {
-		select {
-		case <-ctx.Done():
+	var detached atomic.Bool
+	stopBridge := func() bool { return true }
+	if ctx != nil && ctx != baseCtx {
+		stopBridge = context.AfterFunc(ctx, func() {
+			if detached.Load() {
+				return
+			}
 			cancelStart()
-		case <-startDone:
-		}
-	}()
+		})
+	}
+	defer stopBridge()
 
 	streams, stop, err := m.launcher.Start(startCtx, specKey, spec)
-	close(startDone)
 	if err != nil {
 		cancelStart()
 		m.logger.Error("instance start failed",
@@ -199,6 +202,7 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 		telemetry.StateField(string(instance.State)),
 		telemetry.DurationField(time.Since(started)),
 	)
+	detached.Store(true)
 	return instance, nil
 }
 

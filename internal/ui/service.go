@@ -534,6 +534,14 @@ func (s *WailsService) OpenConfigInEditor(ctx context.Context) error {
 	return nil
 }
 
+// ReloadConfig triggers a configuration reload in the running Core.
+func (s *WailsService) ReloadConfig(ctx context.Context) error {
+	if s.manager == nil {
+		return NewUIError(ErrCodeInternal, "Manager not initialized")
+	}
+	return s.manager.ReloadConfig(ctx)
+}
+
 // ImportMcpServers writes imported MCP servers into selected profiles.
 func (s *WailsService) ImportMcpServers(ctx context.Context, req ImportMcpServersRequest) error {
 	editor, err := s.catalogEditor()

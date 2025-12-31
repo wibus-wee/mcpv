@@ -237,7 +237,11 @@ func (g *GenericIndex[Snapshot, Target, Cache]) Refresh(ctx context.Context) err
 	}
 	defer g.gate.Release()
 
-	serverTypes := sortedServerTypes(g.specs)
+	g.mu.Lock()
+	specs := g.specs
+	g.mu.Unlock()
+
+	serverTypes := sortedServerTypes(specs)
 	if len(serverTypes) == 0 {
 		return nil
 	}
@@ -269,7 +273,7 @@ func (g *GenericIndex[Snapshot, Target, Cache]) Refresh(ctx context.Context) err
 					if !ok {
 						return
 					}
-					spec := g.specs[serverType]
+					spec := specs[serverType]
 					fetchCtx, cancel := context.WithTimeout(ctx, timeout)
 					cache, err := g.fetch(fetchCtx, serverType, spec)
 					cancel()
@@ -350,6 +354,25 @@ func (g *GenericIndex[Snapshot, Target, Cache]) Refresh(ctx context.Context) err
 		g.rebuildSnapshot()
 	}
 	return nil
+}
+
+func (g *GenericIndex[Snapshot, Target, Cache]) UpdateSpecs(specs map[string]domain.ServerSpec, cfg domain.RuntimeConfig) {
+	if specs == nil {
+		specs = map[string]domain.ServerSpec{}
+	}
+
+	g.mu.Lock()
+	g.specs = specs
+	g.cfg = cfg
+	for serverType := range g.serverCache {
+		if _, ok := specs[serverType]; !ok {
+			delete(g.serverCache, serverType)
+			delete(g.failures, serverType)
+		}
+	}
+	g.mu.Unlock()
+
+	g.rebuildSnapshot()
 }
 
 func (g *GenericIndex[Snapshot, Target, Cache]) deleteCache(serverType string) {

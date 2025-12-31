@@ -16,13 +16,13 @@ import (
 )
 
 type ResourceIndex struct {
-	router   domain.Router
-	specs    map[string]domain.ServerSpec
-	specKeys map[string]string
-	cfg      domain.RuntimeConfig
-	logger   *zap.Logger
-	health   *telemetry.HealthTracker
-	gate     *RefreshGate
+	router      domain.Router
+	specs       map[string]domain.ServerSpec
+	specKeys    map[string]string
+	cfg         domain.RuntimeConfig
+	logger      *zap.Logger
+	health      *telemetry.HealthTracker
+	gate        *RefreshGate
 	listChanges listChangeSubscriber
 	specKeySet  map[string]struct{}
 
@@ -44,13 +44,13 @@ func NewResourceIndex(rt domain.Router, specs map[string]domain.ServerSpec, spec
 		specKeys = map[string]string{}
 	}
 	resourceIndex := &ResourceIndex{
-		router:   rt,
-		specs:    specs,
-		specKeys: specKeys,
-		cfg:      cfg,
-		logger:   logger.Named("resource_index"),
-		health:   health,
-		gate:     gate,
+		router:      rt,
+		specs:       specs,
+		specKeys:    specKeys,
+		cfg:         cfg,
+		logger:      logger.Named("resource_index"),
+		health:      health,
+		gate:        gate,
 		listChanges: listChanges,
 		specKeySet:  specKeySet(specKeys),
 	}
@@ -82,6 +82,10 @@ func (a *ResourceIndex) Start(ctx context.Context) {
 
 func (a *ResourceIndex) Stop() {
 	a.index.Stop()
+}
+
+func (a *ResourceIndex) Refresh(ctx context.Context) error {
+	return a.index.Refresh(ctx)
 }
 
 func (a *ResourceIndex) Snapshot() domain.ResourceSnapshot {
@@ -120,6 +124,17 @@ func (a *ResourceIndex) ReadResource(ctx context.Context, uri string) (json.RawM
 		return nil, err
 	}
 	return marshalReadResourceResult(result)
+}
+
+func (a *ResourceIndex) UpdateSpecs(specs map[string]domain.ServerSpec, specKeys map[string]string, cfg domain.RuntimeConfig) {
+	if specKeys == nil {
+		specKeys = map[string]string{}
+	}
+	a.specs = specs
+	a.specKeys = specKeys
+	a.specKeySet = specKeySet(specKeys)
+	a.cfg = cfg
+	a.index.UpdateSpecs(specs, cfg)
 }
 
 func (a *ResourceIndex) startListChangeListener(ctx context.Context) {

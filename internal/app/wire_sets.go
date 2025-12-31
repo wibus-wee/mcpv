@@ -9,9 +9,9 @@ import (
 	"mcpd/internal/domain"
 )
 
-var CatalogAccessorSet = wire.NewSet(
-	NewStaticCatalogAccessor,
-	wire.Bind(new(domain.CatalogAccessor), new(*StaticCatalogAccessor)),
+var CatalogProviderSet = wire.NewSet(
+	NewDynamicCatalogProvider,
+	wire.Bind(new(domain.CatalogProvider), new(*DynamicCatalogProvider)),
 )
 
 var CoreInfraSet = wire.NewSet(
@@ -29,8 +29,8 @@ var CoreInfraSet = wire.NewSet(
 )
 
 var ReloadableAppSet = wire.NewSet(
-	CatalogAccessorSet,
-	NewCatalogSnapshot,
+	CatalogProviderSet,
+	NewCatalogState,
 	NewScheduler,
 	NewServerInitializationManager,
 	NewProfileRuntimes,
@@ -41,6 +41,7 @@ var ReloadableAppSet = wire.NewSet(
 	newAutomationService,
 	NewControlPlane,
 	NewRPCServer,
+	NewReloadManager,
 	wire.Bind(new(domain.ControlPlane), new(*ControlPlane)),
 )
 

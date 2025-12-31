@@ -59,14 +59,14 @@ func NewPingProbe() *probe.PingProbe {
 
 func NewScheduler(
 	lifecycle domain.Lifecycle,
-	snapshot *CatalogSnapshot,
+	state *domain.CatalogState,
 	pingProbe *probe.PingProbe,
 	metrics domain.Metrics,
 	health *telemetry.HealthTracker,
 	logger *zap.Logger,
 ) (domain.Scheduler, error) {
-	summary := snapshot.Summary()
-	return scheduler.NewBasicScheduler(lifecycle, summary.specRegistry, scheduler.SchedulerOptions{
+	summary := state.Summary
+	return scheduler.NewBasicScheduler(lifecycle, summary.SpecRegistry, scheduler.SchedulerOptions{
 		Probe:   pingProbe,
 		Logger:  logger,
 		Metrics: metrics,
@@ -75,33 +75,17 @@ func NewScheduler(
 }
 
 func NewProfileRuntimes(
-	snapshot *CatalogSnapshot,
+	state *domain.CatalogState,
 	scheduler domain.Scheduler,
 	metrics domain.Metrics,
 	health *telemetry.HealthTracker,
 	listChanges *notifications.ListChangeHub,
 	logger *zap.Logger,
 ) map[string]*profileRuntime {
-	summary := snapshot.Summary()
-	profiles := make(map[string]*profileRuntime, len(summary.configs))
-	for name, cfg := range summary.configs {
-		profileLogger := logger.With(zap.String("profile", name))
-		refreshGate := aggregator.NewRefreshGate()
-		baseRouter := router.NewBasicRouter(scheduler, router.RouterOptions{
-			Timeout: time.Duration(cfg.profile.Catalog.Runtime.RouteTimeoutSeconds) * time.Second,
-			Logger:  profileLogger,
-		})
-		rt := router.NewMetricRouter(baseRouter, metrics)
-		toolIndex := aggregator.NewToolIndex(rt, cfg.profile.Catalog.Specs, cfg.specKeys, cfg.profile.Catalog.Runtime, profileLogger, health, refreshGate, listChanges)
-		resourceIndex := aggregator.NewResourceIndex(rt, cfg.profile.Catalog.Specs, cfg.specKeys, cfg.profile.Catalog.Runtime, profileLogger, health, refreshGate, listChanges)
-		promptIndex := aggregator.NewPromptIndex(rt, cfg.profile.Catalog.Specs, cfg.specKeys, cfg.profile.Catalog.Runtime, profileLogger, health, refreshGate, listChanges)
-		profiles[name] = &profileRuntime{
-			name:      name,
-			specKeys:  collectSpecKeys(cfg.specKeys),
-			tools:     toolIndex,
-			resources: resourceIndex,
-			prompts:   promptIndex,
-		}
+	summary := state.Summary
+	profiles := make(map[string]*profileRuntime, len(summary.Profiles))
+	for name, cfg := range summary.Profiles {
+		profiles[name] = buildProfileRuntime(name, cfg, scheduler, metrics, health, listChanges, logger)
 	}
 	return profiles
 }
@@ -109,14 +93,42 @@ func NewProfileRuntimes(
 func NewControlPlaneState(
 	ctx context.Context,
 	profiles map[string]*profileRuntime,
-	snapshot *CatalogSnapshot,
+	state *domain.CatalogState,
 	scheduler domain.Scheduler,
 	initManager *ServerInitializationManager,
 	logger *zap.Logger,
 ) *controlPlaneState {
-	return newControlPlaneState(ctx, profiles, scheduler, initManager, snapshot.Store(), snapshot.Summary(), logger)
+	return newControlPlaneState(ctx, profiles, scheduler, initManager, state, logger)
 }
 
-func NewRPCServer(control domain.ControlPlane, snapshot *CatalogSnapshot, logger *zap.Logger) *rpc.Server {
-	return rpc.NewServer(control, snapshot.Summary().defaultRuntime.RPC, logger)
+func NewRPCServer(control domain.ControlPlane, state *domain.CatalogState, logger *zap.Logger) *rpc.Server {
+	return rpc.NewServer(control, state.Summary.DefaultRuntime.RPC, logger)
+}
+
+func buildProfileRuntime(
+	name string,
+	cfg domain.CatalogProfile,
+	scheduler domain.Scheduler,
+	metrics domain.Metrics,
+	health *telemetry.HealthTracker,
+	listChanges *notifications.ListChangeHub,
+	logger *zap.Logger,
+) *profileRuntime {
+	profileLogger := logger.With(zap.String("profile", name))
+	refreshGate := aggregator.NewRefreshGate()
+	baseRouter := router.NewBasicRouter(scheduler, router.RouterOptions{
+		Timeout: time.Duration(cfg.Profile.Catalog.Runtime.RouteTimeoutSeconds) * time.Second,
+		Logger:  profileLogger,
+	})
+	rt := router.NewMetricRouter(baseRouter, metrics)
+	toolIndex := aggregator.NewToolIndex(rt, cfg.Profile.Catalog.Specs, cfg.SpecKeys, cfg.Profile.Catalog.Runtime, profileLogger, health, refreshGate, listChanges)
+	resourceIndex := aggregator.NewResourceIndex(rt, cfg.Profile.Catalog.Specs, cfg.SpecKeys, cfg.Profile.Catalog.Runtime, profileLogger, health, refreshGate, listChanges)
+	promptIndex := aggregator.NewPromptIndex(rt, cfg.Profile.Catalog.Specs, cfg.SpecKeys, cfg.Profile.Catalog.Runtime, profileLogger, health, refreshGate, listChanges)
+	return &profileRuntime{
+		name:      name,
+		specKeys:  collectSpecKeys(cfg.SpecKeys),
+		tools:     toolIndex,
+		resources: resourceIndex,
+		prompts:   promptIndex,
+	}
 }

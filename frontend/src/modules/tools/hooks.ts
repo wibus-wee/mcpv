@@ -13,7 +13,7 @@ import {
   useRuntimeStatus,
 } from "@/modules/config/hooks";
 
-interface ServerGroup {
+export interface ServerGroup {
   id: string;
   specKey: string;
   serverName: string;

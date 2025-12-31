@@ -25,6 +25,7 @@ import type { LogEntry } from '@/hooks/use-logs'
 import { logsKey, maxLogEntries } from '@/hooks/use-logs'
 import { jotaiStore } from '@/lib/jotai'
 import { Spring } from '@/lib/spring'
+import { ToastProvider } from '@/components/ui/toast'
 
 const logSourceValues = new Set<LogEntry['source']>(['core', 'downstream', 'ui'])
 
@@ -241,10 +242,12 @@ export function RootProvider({ children }: { children: React.ReactNode }) {
           enableSystem
           disableTransitionOnChange
         >
-          <Provider store={jotaiStore}>
-            {children}
-            <WailsEventsBridge />
-          </Provider>
+          <ToastProvider>
+            <Provider store={jotaiStore}>
+              {children}
+              <WailsEventsBridge />
+            </Provider>
+          </ToastProvider>
         </ThemeProvider>
       </MotionConfig>
     </LazyMotion>
