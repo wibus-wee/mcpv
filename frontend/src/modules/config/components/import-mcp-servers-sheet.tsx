@@ -33,8 +33,6 @@ import { useConfigMode, useProfileDetails, useProfiles } from '../hooks'
 import { ImportMcpServers } from '@bindings/mcpd/internal/ui/wailsservice'
 import { reloadConfig } from '../lib/reload-config'
 
-const defaultProfileName = 'default'
-
 export const ImportMcpServersSheet = () => {
   const { data: configMode } = useConfigMode()
   const { data: profiles, mutate: mutateProfiles } = useProfiles()

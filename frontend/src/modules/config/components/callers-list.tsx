@@ -168,11 +168,11 @@ export function CallersList({
           />
           <Select
             value={draftProfile || undefined}
-            onValueChange={setDraftProfile}
+            onValueChange={(value) => value && setDraftProfile(value)}
             disabled={!canEdit || !hasProfiles || isCreating}
           >
             <SelectTrigger size="sm" className="w-40">
-              <SelectValue placeholder={hasProfiles ? 'Select profile' : 'No profiles'} />
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {profileOptions.map(profile => (
@@ -231,7 +231,7 @@ export function CallersList({
                 <ArrowRightIcon className="size-3 text-muted-foreground/60 shrink-0" />
                 <Select
                   value={profile}
-                  onValueChange={next => handleUpdateMapping(caller, next)}
+                  onValueChange={(next) => next && handleUpdateMapping(caller, next)}
                   disabled={!canEdit || pendingCaller === caller}
                 >
                   <SelectTrigger size="sm" className="w-40">

@@ -43,6 +43,51 @@ export class ActiveCaller {
 }
 
 /**
+ * BootstrapProgressResponse represents bootstrap progress for the UI
+ */
+export class BootstrapProgressResponse {
+    "state": string;
+    "total": number;
+    "completed": number;
+    "failed": number;
+    "current": string;
+    "errors"?: { [_: string]: string };
+
+    /** Creates a new BootstrapProgressResponse instance. */
+    constructor($$source: Partial<BootstrapProgressResponse> = {}) {
+        if (!("state" in $$source)) {
+            this["state"] = "";
+        }
+        if (!("total" in $$source)) {
+            this["total"] = 0;
+        }
+        if (!("completed" in $$source)) {
+            this["completed"] = 0;
+        }
+        if (!("failed" in $$source)) {
+            this["failed"] = 0;
+        }
+        if (!("current" in $$source)) {
+            this["current"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BootstrapProgressResponse instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BootstrapProgressResponse {
+        const $$createField5_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("errors" in $$parsedSource) {
+            $$parsedSource["errors"] = $$createField5_0($$parsedSource["errors"]);
+        }
+        return new BootstrapProgressResponse($$parsedSource as Partial<BootstrapProgressResponse>);
+    }
+}
+
+/**
  * ConfigModeResponse indicates the configuration mode and path
  */
 export class ConfigModeResponse {
@@ -213,8 +258,8 @@ export class ImportMcpServersRequest {
      * Creates a new ImportMcpServersRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): ImportMcpServersRequest {
-        const $$createField0_0 = $$createType0;
-        const $$createField1_0 = $$createType2;
+        const $$createField0_0 = $$createType1;
+        const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("profiles" in $$parsedSource) {
             $$parsedSource["profiles"] = $$createField0_0($$parsedSource["profiles"]);
@@ -251,8 +296,8 @@ export class ImportServerSpec {
      * Creates a new ImportServerSpec instance from a string or object.
      */
     static createFrom($$source: any = {}): ImportServerSpec {
-        const $$createField1_0 = $$createType0;
-        const $$createField2_0 = $$createType3;
+        const $$createField1_0 = $$createType1;
+        const $$createField2_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("cmd" in $$parsedSource) {
             $$parsedSource["cmd"] = $$createField1_0($$parsedSource["cmd"]);
@@ -1066,9 +1111,9 @@ export class ServerSpecDetail {
      * Creates a new ServerSpecDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): ServerSpecDetail {
-        const $$createField2_0 = $$createType0;
-        const $$createField3_0 = $$createType3;
-        const $$createField13_0 = $$createType0;
+        const $$createField2_0 = $$createType1;
+        const $$createField3_0 = $$createType0;
+        const $$createField13_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("cmd" in $$parsedSource) {
             $$parsedSource["cmd"] = $$createField2_0($$parsedSource["cmd"]);
@@ -1276,10 +1321,10 @@ export class UpdateServerStateRequest {
 }
 
 // Private type creation functions
-const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = ImportServerSpec.createFrom;
-const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = $Create.Map($Create.Any, $Create.Any);
+const $$createType0 = $Create.Map($Create.Any, $Create.Any);
+const $$createType1 = $Create.Array($Create.Any);
+const $$createType2 = ImportServerSpec.createFrom;
+const $$createType3 = $Create.Array($$createType2);
 const $$createType4 = RuntimeConfigDetail.createFrom;
 const $$createType5 = ServerSpecDetail.createFrom;
 const $$createType6 = $Create.Array($$createType5);

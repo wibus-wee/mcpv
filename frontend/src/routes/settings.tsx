@@ -116,7 +116,7 @@ function ConfigPathCard() {
 
   if (error) {
     return (
-      <Alert variant="destructive">
+      <Alert variant="error">
         <p className="text-sm">Failed to load configuration path.</p>
       </Alert>
     )

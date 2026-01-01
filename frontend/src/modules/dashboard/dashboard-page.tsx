@@ -21,12 +21,13 @@ import { useCoreActions, useCoreState } from '@/hooks/use-core-state'
 
 import { ConnectIdeSheet } from '@/components/common/connect-ide-sheet'
 import {
+  BootstrapProgressPanel,
   LogsPanel,
   ResourcesList,
   StatusCards,
   ToolsTable,
 } from './components'
-import { useAppInfo } from './hooks'
+import { useAppInfo, useBootstrapProgress } from './hooks'
 import { Spring } from '@/lib/spring'
 
 function DashboardHeader() {
@@ -143,6 +144,32 @@ function DashboardContent() {
   )
 }
 
+/**
+ * Content shown while core is starting - displays bootstrap progress.
+ */
+function StartingContent() {
+  const { state, total } = useBootstrapProgress()
+
+  // Show bootstrap panel if there are servers to bootstrap
+  if (total > 0 || state === 'running') {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-6">
+        <BootstrapProgressPanel className="w-full max-w-md" />
+      </div>
+    )
+  }
+
+  // Fallback for initial loading before bootstrap info is available
+  return (
+    <UniversalEmptyState
+      icon={Loader2Icon}
+      iconClassName="animate-spin"
+      title="Starting Core..."
+      description="Please wait while the mcpd core is initializing."
+    />
+  )
+}
+
 export function DashboardPage() {
   const { coreStatus, data: coreState } = useCoreState()
   const { startCore } = useCoreActions()
@@ -170,12 +197,7 @@ export function DashboardPage() {
       <div className="flex flex-1 flex-col p-6 overflow-auto">
         <DashboardHeader />
         <Separator className="my-6" />
-        <UniversalEmptyState
-          icon={Loader2Icon}
-          iconClassName="animate-spin"
-          title="Starting Core..."
-          description="Please wait while the mcpd core is initializing."
-        />
+        <StartingContent />
       </div>
     )
   }

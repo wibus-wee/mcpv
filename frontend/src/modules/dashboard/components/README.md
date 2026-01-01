@@ -9,6 +9,7 @@
 ## Files
 
 - **index.ts**: 组件统一导出
+- **bootstrap-progress.tsx**: 服务器启动进度面板，显示 bootstrap 状态、进度条、错误信息；包含 `BootstrapProgressPanel` (完整卡片) 和 `BootstrapProgressInline` (内联紧凑版)
 - **status-cards.tsx**: 状态概览卡片，展示核心状态、运行时长与数量统计
 - **tools-table.tsx**: 工具表格，支持搜索与详情弹窗
 - **resources-list.tsx**: 资源列表与折叠详情

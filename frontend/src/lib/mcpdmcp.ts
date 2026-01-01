@@ -11,7 +11,7 @@ export function buildMcpCommand(path: string, caller: string, rpc = defaultRpcAd
 }
 
 export function buildClientConfig(
-  target: ClientTarget,
+  _target: ClientTarget,
   path: string,
   caller: string,
   rpc = defaultRpcAddress,
@@ -39,7 +39,6 @@ export function buildCliSnippet(path: string, caller: string, rpc = defaultRpcAd
 }
 
 export function buildTomlConfig(path: string, caller: string, rpc = defaultRpcAddress) {
-  const rpcArgs = rpc && rpc !== defaultRpcAddress ? `", "--rpc", "${rpc}` : ''
   const argsArray = rpc && rpc !== defaultRpcAddress
     ? `args = ["${caller}", "--rpc", "${rpc}"]`
     : `args = ["${caller}"]`

@@ -322,7 +322,7 @@ export function LogsPanel() {
                 </SelectContent>
               </Select>
               {showServerFilter && (
-                <Select value={serverFilter} onValueChange={setServerFilter}>
+                <Select value={serverFilter} onValueChange={(value) => value && setServerFilter(value)}>
                   <SelectTrigger size="sm" className="w-40">
                     <SelectValue>
                       {value => (value ? String(value) : 'Filter server')}

@@ -8,6 +8,7 @@ export {
 
 export {
     ActiveCaller,
+    BootstrapProgressResponse,
     ConfigModeResponse,
     CoreStateResponse,
     CreateProfileRequest,

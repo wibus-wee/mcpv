@@ -11,7 +11,6 @@ import {
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -22,7 +21,6 @@ import {
   SheetHeader,
   SheetPanel,
   SheetTitle,
-  SheetTrigger,
 } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
@@ -109,7 +107,7 @@ function InstallInCursorButton({ serverName, config }: { serverName: string; con
 export function ConnectIdeSheet() {
   const [open, setOpen] = useState(false)
   const [caller, setCaller] = useState<string>('cursor')
-  const { path, isFallback } = useMcpdmcpPath()
+  const { path } = useMcpdmcpPath()
   const { rpcAddress } = useRpcAddress()
   const { data: callers } = useCallers()
 
@@ -168,12 +166,10 @@ export function ConnectIdeSheet() {
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button variant="secondary" size="sm">
-          <RocketIcon className="size-4" />
-          Connect IDE
-        </Button>
-      </SheetTrigger>
+      <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
+        <RocketIcon className="size-4" />
+        Connect IDE
+      </Button>
       <SheetContent side="right" showCloseButton>
         <SheetHeader>
           <SheetTitle>Connect your IDE</SheetTitle>
@@ -184,9 +180,9 @@ export function ConnectIdeSheet() {
             <p className="text-sm font-medium">Client presets</p>
             <div className="flex flex-col gap-1">
               <p className="text-xs text-muted-foreground">Caller</p>
-              <Select value={caller} onValueChange={setCaller}>
+              <Select value={caller} onValueChange={(value) => value && setCaller(value)}>
                 <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Select caller" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {(callerOptions.length ? callerOptions : ['cursor', 'claude', 'vscode', 'codex']).map(option => (

@@ -8,11 +8,12 @@
 
 ## Files
 
-- **dashboard-page.tsx**: 仪表盘主页面，组合头部、标签页与内容区
-- **hooks.ts**: 仪表盘数据获取 hooks，负责应用信息与工具/资源/提示列表
+- **dashboard-page.tsx**: 仪表盘主页面，组合头部、标签页与内容区；在启动时显示 Bootstrap 进度
+- **hooks.ts**: 仪表盘数据获取 hooks，包含 `useAppInfo`、`useTools`、`useResources`、`usePrompts`、`useBootstrapProgress`
 
 ## Components
 
+- **components/bootstrap-progress.tsx**: 服务器启动进度面板，支持完整卡片和内联两种形式
 - **components/status-cards.tsx**: 状态概览卡片，展示核心状态、运行时长与数量统计
 - **components/tools-table.tsx**: 可搜索的工具表格，含详情弹窗
 - **components/resources-list.tsx**: 资源列表与折叠详情

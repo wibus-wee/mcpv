@@ -21,7 +21,7 @@ export interface ProfileSubAgentConfig {
 }
 
 // Atom to fetch runtime-level SubAgent config
-export const subAgentConfigAtom = atomWithRefresh(async (get) => {
+export const subAgentConfigAtom = atomWithRefresh(async () => {
   try {
     const config = await GetSubAgentConfig()
     return config as SubAgentConfig
@@ -32,7 +32,7 @@ export const subAgentConfigAtom = atomWithRefresh(async (get) => {
 })
 
 // Atom to check if SubAgent infrastructure is available
-export const isSubAgentAvailableAtom = atom(async (get) => {
+export const isSubAgentAvailableAtom = atom(async () => {
   try {
     return await IsSubAgentAvailable()
   } catch (error) {
@@ -43,7 +43,7 @@ export const isSubAgentAvailableAtom = atom(async (get) => {
 
 // Atom to fetch per-profile SubAgent config
 export const profileSubAgentConfigAtom = atom(
-  async (get, { profileName }: { profileName: string }) => {
+  async (_get, { profileName }: { profileName: string }) => {
     try {
       const config = await GetProfileSubAgentConfig(profileName)
       return config as ProfileSubAgentConfig

@@ -1,7 +1,8 @@
 // Input: SWR, WailsService bindings
-// Output: Dashboard data fetching hooks (useAppInfo, useTools, useResources, usePrompts)
+// Output: Dashboard data fetching hooks (useAppInfo, useTools, useResources, usePrompts, useBootstrapProgress)
 // Position: Data fetching hooks for dashboard module
 
+import type { BootstrapProgressResponse } from '@bindings/mcpd/internal/ui'
 import { WailsService } from '@bindings/mcpd/internal/ui'
 import useSWR from 'swr'
 
@@ -68,5 +69,57 @@ export function usePrompts() {
   return {
     ...swr,
     prompts: swr.data ?? [],
+  }
+}
+
+/**
+ * Bootstrap progress states
+ */
+export type BootstrapState = 'pending' | 'running' | 'completed' | 'failed'
+
+/**
+ * Hook to fetch and track bootstrap progress.
+ * Polls rapidly during 'running' state, slower otherwise.
+ */
+export function useBootstrapProgress(enabled = true) {
+  const swr = useSWR<BootstrapProgressResponse | null>(
+    enabled ? 'bootstrap-progress' : null,
+    () => WailsService.GetBootstrapProgress(),
+    {
+      refreshInterval: (data) => {
+        // Poll faster during active bootstrap
+        if (data?.state === 'running') return 500
+        if (data?.state === 'pending') return 1000
+        return 5000
+      },
+      revalidateOnFocus: false,
+      dedupingInterval: 300,
+    },
+  )
+
+  const progress = swr.data
+  const state = (progress?.state ?? 'pending') as BootstrapState
+  const total = progress?.total ?? 0
+  const completed = progress?.completed ?? 0
+  const failed = progress?.failed ?? 0
+  const current = progress?.current ?? ''
+  const errors = progress?.errors ?? {}
+
+  // Calculate percentage
+  const percentage = total > 0 ? Math.round(((completed + failed) / total) * 100) : 0
+
+  return {
+    ...swr,
+    progress,
+    state,
+    total,
+    completed,
+    failed,
+    current,
+    errors,
+    percentage,
+    isBootstrapping: state === 'running',
+    isComplete: state === 'completed' || state === 'failed',
+    hasErrors: failed > 0 || Object.keys(errors).length > 0,
   }
 }

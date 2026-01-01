@@ -157,7 +157,7 @@ export function ToolDetailPanel({ tool, serverName, className }: ToolDetailPanel
 
         {/* Raw Schema */}
         <Collapsible open={schemaOpen} onOpenChange={setSchemaOpen}>
-          <CollapsibleTrigger asChild>
+          <CollapsibleTrigger className="w-full">
             <Button variant="ghost" className="w-full justify-between h-auto py-2 px-3">
               <span className="flex items-center gap-2 text-sm font-medium">
                 <CodeIcon className="size-4" />

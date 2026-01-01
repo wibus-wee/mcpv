@@ -77,7 +77,7 @@ export function SubAgentConfigForm() {
         </div>
 
         {error && (
-          <Alert variant="destructive">
+          <Alert variant="error">
             <p className="text-sm">{error}</p>
           </Alert>
         )}
