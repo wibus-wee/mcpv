@@ -46,8 +46,8 @@
 - `/internal/infra`: 适配器实现
   - `transport/stdio.go`（MVP），预留 `transport/http.go`
   - `catalog/loader.go`（Viper + CUE/JSONSchema 校验）
-  - `scheduler/basic.go`（idle 回收、minReady、sticky/persistent）
-  - `router/router.go`（实例选择、并发计数、sticky key）
+  - `scheduler/basic.go`（idle 回收、minReady、stateful/persistent/singleton）
+  - `router/router.go`（实例选择、并发计数、routingKey 绑定）
   - `lifecycle/manager.go`（启动/停止状态机，drain，重建）
   - `telemetry/logging.go`（zap）、`telemetry/metrics.go`（OTel/Prom）
   - `probe/ping.go`（MCP ping）
@@ -59,7 +59,7 @@
   - `type Conn interface { Send(ctx context.Context, msg []byte) error; Recv(ctx context.Context) ([]byte, error); Close() error }`
   - `type Transport interface { Start(ctx context.Context, spec ServerSpec) (Conn, StopFn, error) }`
 - Catalog:
-  - `type ServerSpec struct { Name string; Cmd []string; Env map[string]string; Cwd string; IdleSeconds int; MaxConcurrent int; Sticky bool; Persistent bool; MinReady int; ProtocolVersion string }`
+  - `type ServerSpec struct { Name string; Cmd []string; Env map[string]string; Cwd string; IdleSeconds int; MaxConcurrent int; Strategy string; SessionTTLSeconds int; MinReady int; ProtocolVersion string }`
   - Loader 返回 `map[string]ServerSpec` + 校验。
 - Router/Scheduler:
   - `Acquire(ctx, serverType, routingKey) (*Instance, error)` 选择/启动实例

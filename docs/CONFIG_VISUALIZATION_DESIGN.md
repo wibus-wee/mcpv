@@ -64,11 +64,11 @@
   - 工作目录 (cwd)
   - 环境变量（脱敏处理）
   - Idle timeout, max concurrent, min ready
-  - Sticky/Persistent 标签
+  - Strategy / Session TTL 标签
   - 暴露的 tools 列表
 - ⚠️ 运行时状态集成（依赖后端实现）:
   - 实例数量（starting/ready/busy/stopped）
-  - 配置标签（persistent/sticky）
+  - 配置标签（strategy/session TTL）
 
 #### 3. Caller 映射管理
 - ✅ 查看 caller → profile 映射关系
@@ -405,8 +405,8 @@ export function useProfile(name: string | null) {
       cwd: "",
       idleSeconds: 60,
       maxConcurrent: 1,
-      sticky: false,
-      persistent: false,
+      strategy: "stateless",
+      sessionTTLSeconds: 0,
       minReady: 0,
       drainTimeoutSeconds: 5,
       protocolVersion: "2025-11-25",
@@ -755,8 +755,8 @@ if (error) {
     <FormField name="env" label="Environment Variables" type="keyValue" />
     <FormField name="idleSeconds" label="Idle Timeout (seconds)" type="number" />
     <FormField name="maxConcurrent" label="Max Concurrent" type="number" />
-    <FormField name="sticky" label="Sticky" type="checkbox" />
-    <FormField name="persistent" label="Persistent" type="checkbox" />
+    <FormField name="strategy" label="Strategy" type="select" />
+    <FormField name="sessionTTLSeconds" label="Session TTL (seconds)" type="number" />
   </Form>
 </ServerEditDialog>
 ```
@@ -936,8 +936,8 @@ ConfigPage
   cwd: string
   idleSeconds: number
   maxConcurrent: number
-  sticky: boolean
-  persistent: boolean
+  strategy: string
+  sessionTTLSeconds: number
   minReady: number
   drainTimeoutSeconds: number
   protocolVersion: string

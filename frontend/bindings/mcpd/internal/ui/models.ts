@@ -184,6 +184,38 @@ export class CreateProfileRequest {
 }
 
 /**
+ * DebugSnapshotResponse is the metadata returned after exporting a debug snapshot.
+ */
+export class DebugSnapshotResponse {
+    "path": string;
+    "size": number;
+    "generatedAt": string;
+
+    /** Creates a new DebugSnapshotResponse instance. */
+    constructor($$source: Partial<DebugSnapshotResponse> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("size" in $$source)) {
+            this["size"] = 0;
+        }
+        if (!("generatedAt" in $$source)) {
+            this["generatedAt"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DebugSnapshotResponse instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DebugSnapshotResponse {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DebugSnapshotResponse($$parsedSource as Partial<DebugSnapshotResponse>);
+    }
+}
+
+/**
  * DeleteProfileRequest removes a profile file.
  */
 export class DeleteProfileRequest {
@@ -1051,8 +1083,8 @@ export class ServerSpecDetail {
     "cwd": string;
     "idleSeconds": number;
     "maxConcurrent": number;
-    "sticky": boolean;
-    "persistent": boolean;
+    "strategy": string;
+    "sessionTTLSeconds": number;
     "disabled": boolean;
     "minReady": number;
     "drainTimeoutSeconds": number;
@@ -1082,11 +1114,11 @@ export class ServerSpecDetail {
         if (!("maxConcurrent" in $$source)) {
             this["maxConcurrent"] = 0;
         }
-        if (!("sticky" in $$source)) {
-            this["sticky"] = false;
+        if (!("strategy" in $$source)) {
+            this["strategy"] = "";
         }
-        if (!("persistent" in $$source)) {
-            this["persistent"] = false;
+        if (!("sessionTTLSeconds" in $$source)) {
+            this["sessionTTLSeconds"] = 0;
         }
         if (!("disabled" in $$source)) {
             this["disabled"] = false;

@@ -58,6 +58,18 @@ export function ServerItem({
 }: ServerItemProps) {
   const specKey = server.specKey ?? server.name
   const isDisabled = Boolean(server.disabled)
+  const strategyLabel = {
+    stateless: 'Stateless',
+    stateful: 'Stateful',
+    persistent: 'Persistent',
+    singleton: 'Singleton',
+  }[server.strategy] ?? server.strategy
+  const showStrategyBadge = server.strategy !== 'stateless'
+  const sessionTTLSeconds = server.sessionTTLSeconds
+  const sessionTTLLabel =
+    sessionTTLSeconds > 0
+      ? `Session TTL ${sessionTTLSeconds}s`
+      : 'Session TTL Off'
 
   return (
     <AccordionItem
@@ -72,11 +84,11 @@ export function ServerItem({
             {isDisabled && (
               <Badge variant="warning" size="sm">Disabled</Badge>
             )}
-            {server.persistent && (
-              <Badge variant="secondary" size="sm">Persistent</Badge>
+            {showStrategyBadge && (
+              <Badge variant="secondary" size="sm">{strategyLabel}</Badge>
             )}
-            {server.sticky && (
-              <Badge variant="outline" size="sm">Sticky</Badge>
+            {server.strategy === 'stateful' && (
+              <Badge variant="outline" size="sm">{sessionTTLLabel}</Badge>
             )}
           </div>
         </div>
@@ -202,6 +214,20 @@ export function ServerItem({
               <p className="text-muted-foreground">Min Ready</p>
               <p className="font-mono">{server.minReady}</p>
             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <p className="text-muted-foreground">Strategy</p>
+              <p className="font-mono">{strategyLabel}</p>
+            </div>
+            {server.strategy === 'stateful' && (
+              <div>
+                <p className="text-muted-foreground">Session TTL</p>
+                <p className="font-mono">
+                  {sessionTTLSeconds > 0 ? `${sessionTTLSeconds}s` : 'Off'}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Exposed Tools */}

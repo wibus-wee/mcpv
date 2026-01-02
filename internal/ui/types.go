@@ -47,6 +47,13 @@ type ConfigModeResponse struct {
 	IsWritable bool   `json:"isWritable"` // Whether the config is writable
 }
 
+// DebugSnapshotResponse is the metadata returned after exporting a debug snapshot.
+type DebugSnapshotResponse struct {
+	Path        string `json:"path"`
+	Size        int64  `json:"size"`
+	GeneratedAt string `json:"generatedAt"`
+}
+
 // StartCoreOptions controls how the core is started in Wails.
 type StartCoreOptions struct {
 	Mode           string `json:"mode,omitempty"`
@@ -121,8 +128,8 @@ type ServerSpecDetail struct {
 	Cwd                 string            `json:"cwd"`
 	IdleSeconds         int               `json:"idleSeconds"`
 	MaxConcurrent       int               `json:"maxConcurrent"`
-	Sticky              bool              `json:"sticky"`
-	Persistent          bool              `json:"persistent"`
+	Strategy            string            `json:"strategy"`
+	SessionTTLSeconds   int               `json:"sessionTTLSeconds"`
 	Disabled            bool              `json:"disabled"`
 	MinReady            int               `json:"minReady"`
 	DrainTimeoutSeconds int               `json:"drainTimeoutSeconds"`

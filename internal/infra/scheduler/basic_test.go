@@ -47,7 +47,7 @@ func TestBasicScheduler_StickyBinding(t *testing.T) {
 		Name:            "svc",
 		Cmd:             []string{"./svc"},
 		MaxConcurrent:   1,
-		Sticky:          true,
+		Strategy:        domain.StrategyStateful,
 		ProtocolVersion: domain.DefaultProtocolVersion,
 	}
 	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
@@ -99,7 +99,7 @@ func TestBasicScheduler_IdleReapRespectsMinReady(t *testing.T) {
 		MaxConcurrent:   1,
 		IdleSeconds:     0,
 		MinReady:        1,
-		Persistent:      false,
+		Strategy:        domain.StrategyStateless,
 		ProtocolVersion: domain.DefaultProtocolVersion,
 	}
 	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
@@ -123,7 +123,7 @@ func TestBasicScheduler_IdleReapStopsWhenBelowMinReady(t *testing.T) {
 		MaxConcurrent:   1,
 		IdleSeconds:     0,
 		MinReady:        0,
-		Persistent:      false,
+		Strategy:        domain.StrategyStateless,
 		ProtocolVersion: domain.DefaultProtocolVersion,
 	}
 	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
@@ -137,15 +137,16 @@ func TestBasicScheduler_IdleReapStopsWhenBelowMinReady(t *testing.T) {
 	require.Equal(t, domain.InstanceStateStopped, inst.State)
 }
 
-func TestBasicScheduler_StickySkipIdle(t *testing.T) {
+func TestBasicScheduler_StatefulWithBindingSkipsIdle(t *testing.T) {
 	lc := &fakeLifecycle{}
 	spec := domain.ServerSpec{
-		Name:            "svc",
-		Cmd:             []string{"./svc"},
-		MaxConcurrent:   1,
-		IdleSeconds:     0,
-		Sticky:          true,
-		ProtocolVersion: domain.DefaultProtocolVersion,
+		Name:              "svc",
+		Cmd:               []string{"./svc"},
+		MaxConcurrent:     1,
+		IdleSeconds:       0,
+		Strategy:          domain.StrategyStateful,
+		SessionTTLSeconds: 3600, // 1 hour, won't expire
+		ProtocolVersion:   domain.DefaultProtocolVersion,
 	}
 	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
 	require.NoError(t, err)
@@ -154,8 +155,118 @@ func TestBasicScheduler_StickySkipIdle(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, s.Release(context.Background(), inst))
 
+	// Instance should not be reaped because it has an active binding
 	s.reapIdle()
 	require.Equal(t, domain.InstanceStateReady, inst.State)
+}
+
+func TestBasicScheduler_StatefulSessionTTLLimitsBindings(t *testing.T) {
+	lc := &fakeLifecycle{}
+	spec := domain.ServerSpec{
+		Name:              "svc",
+		Cmd:               []string{"./svc"},
+		MaxConcurrent:     1,
+		IdleSeconds:       0,
+		Strategy:          domain.StrategyStateful,
+		SessionTTLSeconds: 1,
+		ProtocolVersion:   domain.DefaultProtocolVersion,
+	}
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{
+		Logger: zap.NewNop(),
+	})
+	require.NoError(t, err)
+
+	inst, err := s.Acquire(context.Background(), "svc", "rk")
+	require.NoError(t, err)
+	require.Equal(t, "rk", inst.StickyKey)
+	require.NoError(t, s.Release(context.Background(), inst))
+
+	state := s.getPool("svc", spec)
+	state.mu.Lock()
+	binding := state.sticky["rk"]
+	require.NotNil(t, binding)
+	binding.lastAccess = time.Now().Add(-2 * time.Second)
+	state.mu.Unlock()
+
+	s.reapStaleBindings()
+
+	state.mu.Lock()
+	_, exists := state.sticky["rk"]
+	state.mu.Unlock()
+	require.False(t, exists)
+	require.Equal(t, "", inst.StickyKey)
+}
+
+func TestBasicScheduler_StatefulSessionTTLZeroKeepsBindings(t *testing.T) {
+	lc := &fakeLifecycle{}
+	spec := domain.ServerSpec{
+		Name:              "svc",
+		Cmd:               []string{"./svc"},
+		MaxConcurrent:     1,
+		IdleSeconds:       0,
+		Strategy:          domain.StrategyStateful,
+		SessionTTLSeconds: 0,
+		ProtocolVersion:   domain.DefaultProtocolVersion,
+	}
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
+	require.NoError(t, err)
+
+	inst, err := s.Acquire(context.Background(), "svc", "rk")
+	require.NoError(t, err)
+	require.NoError(t, s.Release(context.Background(), inst))
+
+	state := s.getPool("svc", spec)
+	state.mu.Lock()
+	binding := state.sticky["rk"]
+	require.NotNil(t, binding)
+	binding.lastAccess = time.Now().Add(-2 * time.Second)
+	state.mu.Unlock()
+
+	s.reapStaleBindings()
+
+	state.mu.Lock()
+	_, exists := state.sticky["rk"]
+	state.mu.Unlock()
+	require.True(t, exists)
+	require.Equal(t, "rk", inst.StickyKey)
+}
+
+func TestBasicScheduler_IdleReapSkipsPersistentAndSingleton(t *testing.T) {
+	cases := []struct {
+		name     string
+		strategy domain.InstanceStrategy
+	}{
+		{name: "persistent", strategy: domain.StrategyPersistent},
+		{name: "singleton", strategy: domain.StrategySingleton},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			lc := &fakeLifecycle{}
+			spec := domain.ServerSpec{
+				Name:            "svc",
+				Cmd:             []string{"./svc"},
+				MaxConcurrent:   1,
+				IdleSeconds:     0,
+				Strategy:        tc.strategy,
+				ProtocolVersion: domain.DefaultProtocolVersion,
+			}
+			s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
+			require.NoError(t, err)
+
+			inst, err := s.Acquire(context.Background(), "svc", "")
+			require.NoError(t, err)
+			require.NoError(t, s.Release(context.Background(), inst))
+
+			s.reapIdle()
+			require.Equal(t, domain.InstanceStateReady, inst.State)
+
+			state := s.getPool("svc", spec)
+			state.mu.Lock()
+			require.Len(t, state.instances, 1)
+			state.mu.Unlock()
+		})
+	}
 }
 
 func TestBasicScheduler_PingFailureStopsInstance(t *testing.T) {

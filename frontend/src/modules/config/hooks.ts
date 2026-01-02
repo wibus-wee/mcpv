@@ -14,6 +14,8 @@ import { useSetAtom } from 'jotai'
 import { useCallback, useEffect, useState } from 'react'
 import useSWR from 'swr'
 
+import { withSWRPreset } from '@/lib/swr-config'
+
 import {
   callersAtom,
   configModeAtom,
@@ -131,10 +133,10 @@ export function useRuntimeStatus() {
   return useSWR<ServerRuntimeStatus[]>(
     'runtime-status',
     () => WailsService.GetRuntimeStatus(),
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 10000,
-    },
+    withSWRPreset('fastCached', {
+      refreshInterval: 2000,
+      dedupingInterval: 2000,
+    }),
   )
 }
 
@@ -142,9 +144,9 @@ export function useServerInitStatus() {
   return useSWR<ServerInitStatus[]>(
     'server-init-status',
     () => WailsService.GetServerInitStatus(),
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 10000,
-    },
+    withSWRPreset('fastCached', {
+      refreshInterval: 2000,
+      dedupingInterval: 2000,
+    }),
   )
 }

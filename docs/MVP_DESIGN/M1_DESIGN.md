@@ -7,7 +7,7 @@
 - 打通应用装配：app 层串起 catalog → scheduler/router/lifecycle stub（占位实现可返回未实现错误或日志），为 M2 闭环做准备。
 
 ### 非目标（留给 M2+）
-- 真正的 Acquire/Release 路由闭环、并发控制、sticky/persistent 语义。
+- 真正的 Acquire/Release 路由闭环、并发控制、stateful/persistent/singleton 语义。
 - idle 回收、minReady 维持、健康探测重建。
 - /metrics、healthz 端点与完整观测字段。
 - 真实的 JSON-RPC 入口和响应转发。
@@ -26,16 +26,16 @@
 - `internal/infra/catalog`: 读取文件（viper），环境变量覆盖，基础校验（必填、范围、协议版本非空/格式、maxConcurrent>=1、数值非负）。
 - `internal/infra/transport`: 首选复用 `github.com/modelcontextprotocol/go-sdk` 的 Stdio/Command transport 封装 JSON-RPC 读写；M1 可用简化 stub（不落地 JSON-RPC），但接口签名固定。当前实现基于子进程 stdio 行分隔 JSON，未接 initialize 语义。
 - `internal/infra/lifecycle`: 调用 Transport.Start，发送 initialize 请求（go-sdk 协议类型），校验协议版本，返回 Instance 并持有 conn/stop。
-- `internal/infra/router` / `scheduler`: 提供 Basic 实现；scheduler 维护实例表、sticky/MaxConcurrent，router 通过 scheduler 获取实例后直接转发 JSON-RPC（无能力过滤）；后续补全 idle/minReady/健康等策略。
+- `internal/infra/router` / `scheduler`: 提供 Basic 实现；scheduler 维护实例表、stateful 绑定/MaxConcurrent，router 通过 scheduler 获取实例后直接转发 JSON-RPC（无能力过滤）；后续补全 idle/minReady/健康等策略。
 - `internal/infra/telemetry`: zap logger 初始化辅助（可选），metrics 占位。
 
 ### 配置与校验
 - 输入：`--config` 路径，支持 YAML/JSON；使用 viper 读取，支持 `${ENV}` 覆盖。
-- 结构：`servers: []ServerSpec`，字段同 PRD（name、cmd、env、cwd、idleSeconds、maxConcurrent、sticky、persistent、minReady、protocolVersion）。
+- 结构：`servers: []ServerSpec`，字段同 PRD（name、cmd、env、cwd、idleSeconds、maxConcurrent、strategy、sessionTTLSeconds、minReady、protocolVersion）。
 - 校验规则（M1 必做）：
   - name 非空；cmd 至少一项；maxConcurrent >=1；idleSeconds >=0；minReady >=0。
   - protocolVersion 非空，匹配 `YYYY-MM-DD` 简单格式（符合 2025-11-25）。
-  - env 可为空；cwd 可为空；sticky/persistent 为布尔。
+  - env 可为空；cwd 可为空；strategy 为字符串，sessionTTLSeconds 为整数。
 - `mcpd validate`：加载配置并校验，错误打印并 exit 1；成功 exit 0。
 
 ### 数据与接口约定（保持稳定，后续实现填充）

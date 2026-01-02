@@ -22,8 +22,7 @@ servers:
     cmd: ["./git-helper"]
     idleSeconds: 60
     maxConcurrent: 2
-    sticky: false
-    persistent: false
+    strategy: stateless
     minReady: 0
     protocolVersion: "2025-11-25"
 	`)
@@ -39,8 +38,7 @@ servers:
 		Cmd:                 []string{"./git-helper"},
 		IdleSeconds:         60,
 		MaxConcurrent:       2,
-		Sticky:              false,
-		Persistent:          false,
+		Strategy:            domain.StrategyStateless,
 		MinReady:            0,
 		DrainTimeoutSeconds: domain.DefaultDrainTimeoutSeconds,
 		ProtocolVersion:     domain.DefaultProtocolVersion,
@@ -77,8 +75,7 @@ servers:
     cmd: ["${SERVER_CMD}"]
     idleSeconds: 0
     maxConcurrent: 1
-    sticky: false
-    persistent: false
+    strategy: stateless
     minReady: 0
     protocolVersion: "2025-11-25"
 `)
@@ -98,8 +95,7 @@ servers:
     cmd: ["./from-env"]
     idleSeconds: 0
     maxConcurrent: 1
-    sticky: false
-    persistent: false
+    strategy: stateless
     minReady: 0
     protocolVersion: "2025-11-25"
 `)
@@ -117,16 +113,14 @@ servers:
     cmd: ["./a"]
     idleSeconds: 0
     maxConcurrent: 1
-    sticky: false
-    persistent: false
+    strategy: stateless
     minReady: 0
     protocolVersion: "2025-11-25"
   - name: dup
     cmd: ["./b"]
     idleSeconds: 0
     maxConcurrent: 1
-    sticky: false
-    persistent: false
+    strategy: stateless
     minReady: 0
     protocolVersion: "2025-11-25"
 `)
@@ -144,8 +138,7 @@ servers:
     cmd: ["./a"]
     idleSeconds: 0
     maxConcurrent: 1
-    sticky: false
-    persistent: false
+    strategy: stateless
     minReady: 0
     protocolVersion: "2024-01"
 `)
@@ -163,8 +156,7 @@ servers:
     cmd: []
     idleSeconds: -1
     maxConcurrent: 0
-    sticky: false
-    persistent: false
+    strategy: stateless
     minReady: -2
     protocolVersion: ""
 `)
@@ -196,8 +188,7 @@ servers:
     cmd: ["./a"]
     idleSeconds: 0
     maxConcurrent: 1
-    sticky: false
-    persistent: false
+    strategy: stateless
     minReady: 0
     protocolVersion: "2025-11-25"
 `)
@@ -236,8 +227,7 @@ servers:
     cmd: ["./a"]
     idleSeconds: 0
     maxConcurrent: 1
-    sticky: false
-    persistent: false
+    strategy: stateless
     minReady: 0
     protocolVersion: "2025-11-25"
 `)
@@ -278,6 +268,41 @@ servers:
 	require.Equal(t, domain.DefaultDrainTimeoutSeconds, got.DrainTimeoutSeconds)
 }
 
+func TestLoader_StatefulSessionTTLOmittedUsesDefault(t *testing.T) {
+	file := writeTempConfig(t, `
+servers:
+  - name: stateful-default
+    cmd: ["./svc"]
+    strategy: stateful
+`)
+
+	loader := NewLoader(zap.NewNop())
+	catalog, err := loader.Load(context.Background(), file)
+	require.NoError(t, err)
+
+	got := catalog.Specs["stateful-default"]
+	require.Equal(t, domain.StrategyStateful, got.Strategy)
+	require.Equal(t, domain.DefaultSessionTTLSeconds, got.SessionTTLSeconds)
+}
+
+func TestLoader_StatefulSessionTTLZeroPreserved(t *testing.T) {
+	file := writeTempConfig(t, `
+servers:
+  - name: stateful-no-ttl
+    cmd: ["./svc"]
+    strategy: stateful
+    sessionTTLSeconds: 0
+`)
+
+	loader := NewLoader(zap.NewNop())
+	catalog, err := loader.Load(context.Background(), file)
+	require.NoError(t, err)
+
+	got := catalog.Specs["stateful-no-ttl"]
+	require.Equal(t, domain.StrategyStateful, got.Strategy)
+	require.Equal(t, 0, got.SessionTTLSeconds)
+}
+
 func TestLoader_SchemaUnknownKey(t *testing.T) {
 	file := writeTempConfig(t, `
 unknownKey: true
@@ -286,8 +311,7 @@ servers:
     cmd: ["./a"]
     idleSeconds: 0
     maxConcurrent: 1
-    sticky: false
-    persistent: false
+    strategy: stateless
     minReady: 0
     protocolVersion: "2025-11-25"
 `)
@@ -306,8 +330,7 @@ servers:
     cmd: ["./a"]
     idleSeconds: 0
     maxConcurrent: 1
-    sticky: false
-    persistent: false
+    strategy: stateless
     minReady: 0
     protocolVersion: "2025-11-25"
 `)

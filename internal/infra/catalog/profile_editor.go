@@ -24,8 +24,8 @@ type serverSpecYAML struct {
 	Cwd                 string            `yaml:"cwd,omitempty"`
 	IdleSeconds         int               `yaml:"idleSeconds"`
 	MaxConcurrent       int               `yaml:"maxConcurrent"`
-	Sticky              bool              `yaml:"sticky"`
-	Persistent          bool              `yaml:"persistent"`
+	Strategy            string            `yaml:"strategy,omitempty"`
+	SessionTTLSeconds   int               `yaml:"sessionTTLSeconds,omitempty"`
 	Disabled            bool              `yaml:"disabled,omitempty"`
 	MinReady            int               `yaml:"minReady"`
 	DrainTimeoutSeconds int               `yaml:"drainTimeoutSeconds"`
@@ -246,8 +246,8 @@ func toServerSpecYAML(spec domain.ServerSpec) serverSpecYAML {
 		Cwd:                 spec.Cwd,
 		IdleSeconds:         spec.IdleSeconds,
 		MaxConcurrent:       spec.MaxConcurrent,
-		Sticky:              spec.Sticky,
-		Persistent:          spec.Persistent,
+		Strategy:            string(spec.Strategy),
+		SessionTTLSeconds:   spec.SessionTTLSeconds,
 		Disabled:            spec.Disabled,
 		MinReady:            spec.MinReady,
 		DrainTimeoutSeconds: spec.DrainTimeoutSeconds,

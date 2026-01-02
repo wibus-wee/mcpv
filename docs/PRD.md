@@ -13,8 +13,8 @@
 三、范围（MVP）
 - 支持 stdio transport 启动 MCP server（子进程）。
 - 请求路由：单入口接受 JSON-RPC payload，指定 serverType，选择实例，转发请求并返回响应。
-- 弹性策略：按需启动，无流量/空闲超时自动回收；支持标记 sticky/persistent 跳过回收；支持 MinReady 保温。
-- Catalog 配置：声明 server types（命令、env、cwd、idleSeconds、maxConcurrent、sticky、persistent、minReady、protocolVersion），启动时加载并校验。
+- 弹性策略：按需启动，无流量/空闲超时自动回收；支持 strategy（stateless/stateful/persistent/singleton），stateful 通过 sessionTTLSeconds 控制绑定有效期，persistent/singleton 跳过回收；支持 MinReady 保温。
+- Catalog 配置：声明 server types（命令、env、cwd、idleSeconds、maxConcurrent、strategy、sessionTTLSeconds、minReady、protocolVersion），启动时加载并校验。
 - 健康与握手：启动后执行 initialize 协商，校验 protocolVersion；支持 ping 探活。
 - 观测：结构化日志；基础 metrics（启动耗时、启动失败计数、活跃实例、回收计数、请求延迟/失败率）。
 - CLI：`mcpd serve`（运行）、`mcpd validate`（校验配置）；输出 JSON 结构化日志。
@@ -30,7 +30,7 @@
 五、功能需求（详细）
 1) Catalog
 - 输入：YAML/JSON 文件，支持环境变量覆盖。
-- 字段：name, cmd[], env{key:val}, cwd, idleSeconds, maxConcurrent, sticky, persistent, minReady, protocolVersion (预期版本)。
+- 字段：name, cmd[], env{key:val}, cwd, idleSeconds, maxConcurrent, strategy, sessionTTLSeconds, minReady, protocolVersion (预期版本)。
 - 校验：必填 name/cmd；数值非负；protocolVersion 必须与 MCP 规范列表匹配（至少检查非空+格式）；maxConcurrent >=1。
 - 运行时：加载一次，失败即退出；可选热加载（非 MVP）。
 
@@ -42,12 +42,12 @@
 3) 路由与调度
 - Router.Route(serverType, routingKey, payload):
   - Acquire：优先选择 Ready 且 Busy < maxConcurrent 的实例；没有则启动新实例（受并发保护）。
-  - Sticky：若 spec.Sticky=true，按 routingKey 绑定实例；找不到时可新建。
+  - Stateful：若 spec.Strategy=stateful，按 routingKey 绑定实例；绑定受 sessionTTLSeconds 过期影响。
   - 失败策略：无可用且启动失败 → 返回错误；不实现排队（MVP）。
 - Release：请求完成后 Busy--，更新 LastActive，若 Busy=0 → Ready。
 
 4) 弹性缩容
-- IdleManager：周期扫描实例表，若非 sticky/persistent 且 lastActive 超过 idleSeconds → Draining → StopInstance。
+- IdleManager：周期扫描实例表，若非 persistent/singleton 且 lastActive 超过 idleSeconds → Draining → StopInstance；stateful 需无有效绑定才可回收。
 - MinReady：保持至少 minReady 个 Ready 实例（不回收）。
 
 5) 健康检查
@@ -136,8 +136,7 @@ servers:
       TOKEN: "${GIT_TOKEN}"
     idleSeconds: 60
     maxConcurrent: 4
-    sticky: false
-    persistent: false
+    strategy: stateless
     minReady: 0
     protocolVersion: "2025-11-25"
 
@@ -145,8 +144,8 @@ servers:
     cmd: ["./mcp-vector"]
     idleSeconds: 300
     maxConcurrent: 2
-    sticky: true
-    persistent: true
+    strategy: stateful
+    sessionTTLSeconds: 0
     minReady: 1
     protocolVersion: "2025-11-25"
 ```
@@ -180,12 +179,12 @@ servers:
 
 十四、风险与缓解
 - 冷启动慢：提供 minReady/idleSeconds 配置；允许 prewarm。
-- 状态粘性：sticky/persistent 标记防误回收；默认非粘性。
+- 状态粘性：stateful 通过 routingKey 绑定实例，并受 sessionTTLSeconds 约束；默认 stateless。
 - 配置错误：启动前校验并阻断；错误信息清晰。
 - 进程泄漏：StopFn 实现需优雅终止，超时强杀；注册退出钩子。
 
 十五、验收标准（MVP）
 - `mcpd serve --config <profile-store-dir>` 能加载并运行，无 panic；能处理至少一个 serverType 的 JSON-RPC 请求并返回响应。
-- idleSeconds 到期自动回收实例（非 sticky/persistent）。
+- idleSeconds 到期自动回收实例（非 persistent/singleton 且 stateful 无有效绑定）。
 - 日志包含关键事件，metrics 能暴露（可选）。
 - `mcpd validate` 对合法配置返回 0，对非法配置输出错误并返回非 0。

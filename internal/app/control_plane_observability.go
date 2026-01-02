@@ -90,7 +90,7 @@ func (o *observabilityService) GetServerInitStatus(ctx context.Context) ([]domai
 	if o.state.initManager == nil {
 		return nil, nil
 	}
-	return o.state.initManager.Statuses(), nil
+	return o.state.initManager.Statuses(ctx), nil
 }
 
 func (o *observabilityService) WatchRuntimeStatus(ctx context.Context, caller string) (<-chan domain.RuntimeStatusSnapshot, error) {

@@ -48,9 +48,25 @@ func setRuntimeDefaults(v *viper.Viper) {
 }
 
 type rawCatalog struct {
-	Servers          []domain.ServerSpec      `mapstructure:"servers"`
+	Servers          []rawServerSpec          `mapstructure:"servers"`
 	SubAgent         rawProfileSubAgentConfig `mapstructure:"subAgent"`
 	rawRuntimeConfig `mapstructure:",squash"`
+}
+
+type rawServerSpec struct {
+	Name                string            `mapstructure:"name"`
+	Cmd                 []string          `mapstructure:"cmd"`
+	Env                 map[string]string `mapstructure:"env"`
+	Cwd                 string            `mapstructure:"cwd"`
+	IdleSeconds         int               `mapstructure:"idleSeconds"`
+	MaxConcurrent       int               `mapstructure:"maxConcurrent"`
+	Strategy            string            `mapstructure:"strategy"`
+	SessionTTLSeconds   *int              `mapstructure:"sessionTTLSeconds"`
+	Disabled            bool              `mapstructure:"disabled"`
+	MinReady            int               `mapstructure:"minReady"`
+	DrainTimeoutSeconds int               `mapstructure:"drainTimeoutSeconds"`
+	ProtocolVersion     string            `mapstructure:"protocolVersion"`
+	ExposeTools         []string          `mapstructure:"exposeTools"`
 }
 
 type rawProfileSubAgentConfig struct {
@@ -189,19 +205,19 @@ func (l *Loader) Load(ctx context.Context, path string) (domain.Catalog, error) 
 	validationErrors = append(validationErrors, runtimeErrs...)
 
 	for i, spec := range cfg.Servers {
-		spec = normalizeServerSpec(spec)
-		if _, exists := nameSeen[spec.Name]; exists {
-			validationErrors = append(validationErrors, fmt.Sprintf("servers[%d]: duplicate name %q", i, spec.Name))
-		} else if spec.Name != "" {
-			nameSeen[spec.Name] = struct{}{}
+		normalized := normalizeServerSpec(spec)
+		if _, exists := nameSeen[normalized.Name]; exists {
+			validationErrors = append(validationErrors, fmt.Sprintf("servers[%d]: duplicate name %q", i, normalized.Name))
+		} else if normalized.Name != "" {
+			nameSeen[normalized.Name] = struct{}{}
 		}
 
-		if errs := validateServerSpec(spec, i); len(errs) > 0 {
+		if errs := validateServerSpec(normalized, i); len(errs) > 0 {
 			validationErrors = append(validationErrors, errs...)
 			continue
 		}
 
-		specs[spec.Name] = spec
+		specs[normalized.Name] = normalized
 	}
 
 	if len(validationErrors) > 0 {
@@ -227,7 +243,29 @@ func decodeRuntimeConfig(expanded string) (rawRuntimeConfig, error) {
 	return cfg, nil
 }
 
-func normalizeServerSpec(spec domain.ServerSpec) domain.ServerSpec {
+func normalizeServerSpec(raw rawServerSpec) domain.ServerSpec {
+	strategy := domain.InstanceStrategy(raw.Strategy)
+	if strategy == "" {
+		strategy = domain.DefaultStrategy
+	}
+
+	spec := domain.ServerSpec{
+		Name:                raw.Name,
+		Cmd:                 raw.Cmd,
+		Env:                 raw.Env,
+		Cwd:                 raw.Cwd,
+		IdleSeconds:         raw.IdleSeconds,
+		MaxConcurrent:       raw.MaxConcurrent,
+		Strategy:            strategy,
+		Disabled:            raw.Disabled,
+		MinReady:            raw.MinReady,
+		DrainTimeoutSeconds: raw.DrainTimeoutSeconds,
+		ProtocolVersion:     raw.ProtocolVersion,
+		ExposeTools:         raw.ExposeTools,
+	}
+	if raw.SessionTTLSeconds != nil {
+		spec.SessionTTLSeconds = *raw.SessionTTLSeconds
+	}
 	if spec.ProtocolVersion == "" {
 		spec.ProtocolVersion = domain.DefaultProtocolVersion
 	}
@@ -236,6 +274,9 @@ func normalizeServerSpec(spec domain.ServerSpec) domain.ServerSpec {
 	}
 	if spec.DrainTimeoutSeconds == 0 {
 		spec.DrainTimeoutSeconds = domain.DefaultDrainTimeoutSeconds
+	}
+	if spec.Strategy == domain.StrategyStateful && raw.SessionTTLSeconds == nil {
+		spec.SessionTTLSeconds = domain.DefaultSessionTTLSeconds
 	}
 	return spec
 }
@@ -257,6 +298,19 @@ func validateServerSpec(spec domain.ServerSpec, index int) []string {
 	}
 	if spec.MinReady < 0 {
 		errs = append(errs, fmt.Sprintf("servers[%d]: minReady must be >= 0", index))
+	}
+
+	// Validate strategy
+	switch spec.Strategy {
+	case domain.StrategyStateless, domain.StrategyStateful, domain.StrategyPersistent, domain.StrategySingleton:
+		// valid
+	default:
+		errs = append(errs, fmt.Sprintf("servers[%d]: strategy must be one of: stateless, stateful, persistent, singleton", index))
+	}
+
+	// Validate sessionTTLSeconds for stateful strategy
+	if spec.Strategy == domain.StrategyStateful && spec.SessionTTLSeconds < 0 {
+		errs = append(errs, fmt.Sprintf("servers[%d]: sessionTTLSeconds must be >= 0 for stateful strategy", index))
 	}
 
 	versionPattern := regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)

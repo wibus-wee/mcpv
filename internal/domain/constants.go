@@ -23,4 +23,8 @@ const (
 	DefaultRPCKeepaliveTimeSeconds    = 30
 	DefaultRPCKeepaliveTimeoutSeconds = 10
 	DefaultRPCSocketMode              = "0660"
+
+	// Instance strategy defaults
+	DefaultStrategy          = StrategyStateless
+	DefaultSessionTTLSeconds = 300 // 5 minutes
 )

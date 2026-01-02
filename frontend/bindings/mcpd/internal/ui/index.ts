@@ -12,6 +12,7 @@ export {
     ConfigModeResponse,
     CoreStateResponse,
     CreateProfileRequest,
+    DebugSnapshotResponse,
     DeleteProfileRequest,
     DeleteServerRequest,
     ImportMcpServersRequest,

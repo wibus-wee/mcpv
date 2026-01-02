@@ -194,36 +194,56 @@ type AggregatedServer = {
   key: string
   name: string
   protocolVersions: Set<string>
-  persistent: boolean
-  sticky: boolean
+  strategies: Set<string>
+  sessionTTLSeconds: number
+  sessionTTLMixed: boolean
   maxConcurrent: number
   exposeToolsCount: number
   profileNames: Set<string>
 }
 
 type ServerTagInput = {
-  persistent: boolean
-  sticky: boolean
+  strategy: string
+  strategyMixed: boolean
+  sessionTTLSeconds: number
+  sessionTTLMixed: boolean
   maxConcurrent: number
   exposeToolsCount: number
   profileCount: number
 }
 
 const buildServerTags = ({
-  persistent,
-  sticky,
+  strategy,
+  strategyMixed,
+  sessionTTLSeconds,
+  sessionTTLMixed,
   maxConcurrent,
   exposeToolsCount,
   profileCount,
 }: ServerTagInput) => {
   const tags: string[] = []
 
-  if (persistent) {
-    tags.push('Persistent')
+  const strategyLabel = {
+    stateless: 'Stateless',
+    stateful: 'Stateful',
+    persistent: 'Persistent',
+    singleton: 'Singleton',
+  }[strategy] ?? strategy
+
+  if (strategyMixed) {
+    tags.push('Strategy Mixed')
+  } else if (strategy !== 'stateless') {
+    tags.push(strategyLabel)
   }
 
-  if (sticky) {
-    tags.push('Sticky')
+  if (strategy === 'stateful') {
+    if (sessionTTLMixed) {
+      tags.push('Session TTL Mixed')
+    } else if (sessionTTLSeconds > 0) {
+      tags.push(`Session TTL ${sessionTTLSeconds}s`)
+    } else {
+      tags.push('Session TTL Off')
+    }
   }
 
   if (maxConcurrent > 0) {
@@ -315,8 +335,10 @@ const buildTopology = (
       const existing = serversByKey.get(serverKey)
 
       if (existing) {
-        existing.persistent ||= server.persistent
-        existing.sticky ||= server.sticky
+        existing.strategies.add(server.strategy)
+        if (existing.sessionTTLSeconds !== server.sessionTTLSeconds) {
+          existing.sessionTTLMixed = true
+        }
         existing.maxConcurrent = Math.max(
           existing.maxConcurrent,
           server.maxConcurrent,
@@ -332,8 +354,9 @@ const buildTopology = (
           key: serverKey,
           name: server.name,
           protocolVersions: new Set([protocolLabel]),
-          persistent: server.persistent,
-          sticky: server.sticky,
+          strategies: new Set([server.strategy]),
+          sessionTTLSeconds: server.sessionTTLSeconds,
+          sessionTTLMixed: false,
           maxConcurrent: server.maxConcurrent,
           exposeToolsCount: server.exposeTools.length,
           profileNames: new Set([profile.name]),
@@ -437,8 +460,13 @@ const buildTopology = (
         name: entry.name,
         protocolVersion,
         tags: buildServerTags({
-          persistent: entry.persistent,
-          sticky: entry.sticky,
+          strategy:
+            entry.strategies.size === 1
+              ? Array.from(entry.strategies)[0]
+              : 'mixed',
+          strategyMixed: entry.strategies.size > 1,
+          sessionTTLSeconds: entry.sessionTTLSeconds,
+          sessionTTLMixed: entry.sessionTTLMixed,
           maxConcurrent: entry.maxConcurrent,
           exposeToolsCount: entry.exposeToolsCount,
           profileCount: entry.profileNames.size,

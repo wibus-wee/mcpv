@@ -53,8 +53,7 @@ servers:
     cmd: ["./a"]
     idleSeconds: 60
     maxConcurrent: 1
-    sticky: false
-    persistent: false
+    strategy: stateless
     minReady: 0
     protocolVersion: "2025-11-25"
 `
@@ -66,8 +65,7 @@ servers:
 			Cmd:                 []string{"./b"},
 			IdleSeconds:         60,
 			MaxConcurrent:       1,
-			Sticky:              false,
-			Persistent:          false,
+			Strategy:            domain.StrategyStateless,
 			MinReady:            0,
 			DrainTimeoutSeconds: domain.DefaultDrainTimeoutSeconds,
 			ProtocolVersion:     domain.DefaultProtocolVersion,
@@ -99,8 +97,7 @@ servers:
     cmd: ["./a"]
     idleSeconds: 60
     maxConcurrent: 1
-    sticky: false
-    persistent: false
+    strategy: stateless
     minReady: 0
     protocolVersion: "2025-11-25"
 `
@@ -112,8 +109,7 @@ servers:
 			Cmd:                 []string{"./b"},
 			IdleSeconds:         60,
 			MaxConcurrent:       1,
-			Sticky:              false,
-			Persistent:          false,
+			Strategy:            domain.StrategyStateless,
 			MinReady:            0,
 			DrainTimeoutSeconds: domain.DefaultDrainTimeoutSeconds,
 			ProtocolVersion:     domain.DefaultProtocolVersion,
@@ -130,8 +126,7 @@ servers:
     cmd: ["./a"]
     idleSeconds: 60
     maxConcurrent: 1
-    sticky: false
-    persistent: false
+    strategy: stateless
     minReady: 0
     protocolVersion: "2025-11-25"
 `
@@ -162,16 +157,14 @@ servers:
     cmd: ["./a"]
     idleSeconds: 60
     maxConcurrent: 1
-    sticky: false
-    persistent: false
+    strategy: stateless
     minReady: 0
     protocolVersion: "2025-11-25"
   - name: second
     cmd: ["./b"]
     idleSeconds: 60
     maxConcurrent: 1
-    sticky: false
-    persistent: false
+    strategy: stateless
     minReady: 0
     protocolVersion: "2025-11-25"
 `

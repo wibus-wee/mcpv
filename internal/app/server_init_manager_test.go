@@ -126,7 +126,7 @@ func waitForStatus(t *testing.T, manager *ServerInitializationManager, specKey s
 
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		for _, status := range manager.Statuses() {
+		for _, status := range manager.Statuses(context.Background()) {
 			if status.SpecKey != specKey {
 				continue
 			}

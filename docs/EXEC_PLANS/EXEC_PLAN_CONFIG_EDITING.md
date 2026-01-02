@@ -128,8 +128,8 @@ This document must be maintained in accordance with `.agent/PLANS.md` in the rep
         cmd: ["node", "./weather-demo-mcp/build/index.js"]
         idleSeconds: 60
         maxConcurrent: 1
-        sticky: false
-        persistent: false
+        strategy: stateless
+        sessionTTLSeconds: 0
         minReady: 0
         protocolVersion: "2025-11-25"
         disabled: true

@@ -95,8 +95,11 @@
         "cwd": {"type": "string"},
         "idleSeconds": {"type": "integer"},
         "maxConcurrent": {"type": "integer"},
-        "sticky": {"type": "boolean"},
-        "persistent": {"type": "boolean"},
+        "strategy": {
+          "type": "string",
+          "enum": ["stateless", "stateful", "persistent", "singleton"]
+        },
+        "sessionTTLSeconds": {"type": "integer"},
         "disabled": {"type": "boolean"},
         "minReady": {"type": "integer"},
         "drainTimeoutSeconds": {"type": "integer"},

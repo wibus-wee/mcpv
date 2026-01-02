@@ -51,11 +51,20 @@ export function DeleteServer(req: $models.DeleteServerRequest): $CancellableProm
 }
 
 /**
+ * ExportDebugSnapshot writes a debug snapshot to disk and returns its location.
+ */
+export function ExportDebugSnapshot(): $CancellablePromise<$models.DebugSnapshotResponse> {
+    return $Call.ByID(2556702106).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * GetActiveCallers returns active caller registrations.
  */
 export function GetActiveCallers(): $CancellablePromise<$models.ActiveCaller[]> {
     return $Call.ByID(3529704171).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -64,7 +73,7 @@ export function GetActiveCallers(): $CancellablePromise<$models.ActiveCaller[]> 
  */
 export function GetBootstrapProgress(): $CancellablePromise<$models.BootstrapProgressResponse> {
     return $Call.ByID(175857232).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
@@ -73,7 +82,7 @@ export function GetBootstrapProgress(): $CancellablePromise<$models.BootstrapPro
  */
 export function GetCallers(): $CancellablePromise<{ [_: string]: string }> {
     return $Call.ByID(1738435433).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType4($result);
     });
 }
 
@@ -82,7 +91,7 @@ export function GetCallers(): $CancellablePromise<{ [_: string]: string }> {
  */
 export function GetConfigMode(): $CancellablePromise<$models.ConfigModeResponse> {
     return $Call.ByID(2990028974).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
@@ -98,7 +107,7 @@ export function GetConfigPath(): $CancellablePromise<string> {
  */
 export function GetCoreState(): $CancellablePromise<$models.CoreStateResponse> {
     return $Call.ByID(1503257149).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType6($result);
     });
 }
 
@@ -107,7 +116,7 @@ export function GetCoreState(): $CancellablePromise<$models.CoreStateResponse> {
  */
 export function GetInfo(): $CancellablePromise<$models.InfoResponse> {
     return $Call.ByID(659019143).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType7($result);
     });
 }
 
@@ -116,7 +125,7 @@ export function GetInfo(): $CancellablePromise<$models.InfoResponse> {
  */
 export function GetProfile(name: string): $CancellablePromise<$models.ProfileDetail | null> {
     return $Call.ByID(3878580060, name).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType9($result);
     });
 }
 
@@ -125,7 +134,7 @@ export function GetProfile(name: string): $CancellablePromise<$models.ProfileDet
  */
 export function GetProfileSubAgentConfig(profileName: string): $CancellablePromise<$models.ProfileSubAgentConfigDetail> {
     return $Call.ByID(1813077673, profileName).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType10($result);
     });
 }
 
@@ -141,7 +150,7 @@ export function GetPrompt(name: string, args: json$0.RawMessage): $CancellablePr
  */
 export function GetRuntimeStatus(): $CancellablePromise<$models.ServerRuntimeStatus[]> {
     return $Call.ByID(2938457663).then(($result: any) => {
-        return $$createType11($result);
+        return $$createType12($result);
     });
 }
 
@@ -150,7 +159,7 @@ export function GetRuntimeStatus(): $CancellablePromise<$models.ServerRuntimeSta
  */
 export function GetServerInitStatus(): $CancellablePromise<$models.ServerInitStatus[]> {
     return $Call.ByID(2208834076).then(($result: any) => {
-        return $$createType13($result);
+        return $$createType14($result);
     });
 }
 
@@ -159,7 +168,7 @@ export function GetServerInitStatus(): $CancellablePromise<$models.ServerInitSta
  */
 export function GetSubAgentConfig(): $CancellablePromise<$models.SubAgentConfigDetail> {
     return $Call.ByID(2210812234).then(($result: any) => {
-        return $$createType14($result);
+        return $$createType15($result);
     });
 }
 
@@ -198,7 +207,7 @@ export function IsSubAgentAvailable(): $CancellablePromise<boolean> {
  */
 export function ListProfiles(): $CancellablePromise<$models.ProfileSummary[]> {
     return $Call.ByID(3827145375).then(($result: any) => {
-        return $$createType16($result);
+        return $$createType17($result);
     });
 }
 
@@ -207,7 +216,7 @@ export function ListProfiles(): $CancellablePromise<$models.ProfileSummary[]> {
  */
 export function ListPrompts(cursor: string): $CancellablePromise<$models.PromptPage | null> {
     return $Call.ByID(2106692208, cursor).then(($result: any) => {
-        return $$createType18($result);
+        return $$createType19($result);
     });
 }
 
@@ -216,7 +225,7 @@ export function ListPrompts(cursor: string): $CancellablePromise<$models.PromptP
  */
 export function ListResources(cursor: string): $CancellablePromise<$models.ResourcePage | null> {
     return $Call.ByID(3909930490, cursor).then(($result: any) => {
-        return $$createType20($result);
+        return $$createType21($result);
     });
 }
 
@@ -225,7 +234,7 @@ export function ListResources(cursor: string): $CancellablePromise<$models.Resou
  */
 export function ListTools(): $CancellablePromise<$models.ToolEntry[]> {
     return $Call.ByID(1487086052).then(($result: any) => {
-        return $$createType22($result);
+        return $$createType23($result);
     });
 }
 
@@ -356,26 +365,27 @@ export function StopLogStream(): $CancellablePromise<void> {
 }
 
 // Private type creation functions
-const $$createType0 = $models.ActiveCaller.createFrom;
-const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $models.BootstrapProgressResponse.createFrom;
-const $$createType3 = $Create.Map($Create.Any, $Create.Any);
-const $$createType4 = $models.ConfigModeResponse.createFrom;
-const $$createType5 = $models.CoreStateResponse.createFrom;
-const $$createType6 = $models.InfoResponse.createFrom;
-const $$createType7 = $models.ProfileDetail.createFrom;
-const $$createType8 = $Create.Nullable($$createType7);
-const $$createType9 = $models.ProfileSubAgentConfigDetail.createFrom;
-const $$createType10 = $models.ServerRuntimeStatus.createFrom;
-const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = $models.ServerInitStatus.createFrom;
-const $$createType13 = $Create.Array($$createType12);
-const $$createType14 = $models.SubAgentConfigDetail.createFrom;
-const $$createType15 = $models.ProfileSummary.createFrom;
-const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = $models.PromptPage.createFrom;
-const $$createType18 = $Create.Nullable($$createType17);
-const $$createType19 = $models.ResourcePage.createFrom;
-const $$createType20 = $Create.Nullable($$createType19);
-const $$createType21 = $models.ToolEntry.createFrom;
-const $$createType22 = $Create.Array($$createType21);
+const $$createType0 = $models.DebugSnapshotResponse.createFrom;
+const $$createType1 = $models.ActiveCaller.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = $models.BootstrapProgressResponse.createFrom;
+const $$createType4 = $Create.Map($Create.Any, $Create.Any);
+const $$createType5 = $models.ConfigModeResponse.createFrom;
+const $$createType6 = $models.CoreStateResponse.createFrom;
+const $$createType7 = $models.InfoResponse.createFrom;
+const $$createType8 = $models.ProfileDetail.createFrom;
+const $$createType9 = $Create.Nullable($$createType8);
+const $$createType10 = $models.ProfileSubAgentConfigDetail.createFrom;
+const $$createType11 = $models.ServerRuntimeStatus.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = $models.ServerInitStatus.createFrom;
+const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = $models.SubAgentConfigDetail.createFrom;
+const $$createType16 = $models.ProfileSummary.createFrom;
+const $$createType17 = $Create.Array($$createType16);
+const $$createType18 = $models.PromptPage.createFrom;
+const $$createType19 = $Create.Nullable($$createType18);
+const $$createType20 = $models.ResourcePage.createFrom;
+const $$createType21 = $Create.Nullable($$createType20);
+const $$createType22 = $models.ToolEntry.createFrom;
+const $$createType23 = $Create.Array($$createType22);

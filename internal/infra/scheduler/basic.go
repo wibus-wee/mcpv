@@ -58,6 +58,11 @@ type trackedInstance struct {
 	drainDone chan struct{}
 }
 
+type stickyBinding struct {
+	inst       *trackedInstance
+	lastAccess time.Time
+}
+
 type poolState struct {
 	mu          sync.Mutex
 	spec        domain.ServerSpec
@@ -71,7 +76,7 @@ type poolState struct {
 	generation  uint64
 	instances   []*trackedInstance
 	draining    []*trackedInstance
-	sticky      map[string]*trackedInstance
+	sticky      map[string]*stickyBinding
 }
 
 type stopCandidate struct {
@@ -182,8 +187,28 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 			s.recordInstanceStop(state)
 			return nil, ErrNoCapacity
 		}
+
+		// For singleton, check if we already have an instance
+		if state.spec.Strategy == domain.StrategySingleton && len(state.instances) > 0 {
+			state.mu.Unlock()
+			if waitCh != nil {
+				close(waitCh)
+			}
+			stopErr := s.lifecycle.StopInstance(context.Background(), newInst, "singleton already exists")
+			s.observeInstanceStop(state.spec.Name, stopErr)
+			s.recordInstanceStop(state)
+			// Try to acquire the existing singleton
+			state.mu.Lock()
+			inst, err := state.acquireReadyLocked(routingKey)
+			state.mu.Unlock()
+			if err == nil {
+				return inst, nil
+			}
+			return nil, ErrNoCapacity
+		}
+
 		state.instances = append(state.instances, tracked)
-		if state.spec.Sticky && routingKey != "" {
+		if state.spec.Strategy == domain.StrategyStateful && routingKey != "" {
 			state.bindStickyLocked(routingKey, tracked)
 		}
 		instance := state.markBusyLocked(tracked)
@@ -470,26 +495,59 @@ func (s *BasicScheduler) snapshotPools() []poolEntry {
 }
 
 func (s *poolState) acquireReadyLocked(routingKey string) (*domain.Instance, error) {
-	if s.spec.Sticky && routingKey != "" {
-		if inst := s.lookupStickyLocked(routingKey); inst != nil {
+	switch s.spec.Strategy {
+	case domain.StrategySingleton:
+		// Singleton: return the single instance if available
+		if len(s.instances) > 0 {
+			inst := s.instances[0]
 			if !isRoutable(inst.instance.State) {
-				s.unbindStickyLocked(routingKey)
-			} else {
-				if inst.instance.BusyCount >= s.spec.MaxConcurrent {
-					return nil, ErrStickyBusy
+				return nil, domain.ErrNoReadyInstance
+			}
+			if inst.instance.BusyCount >= s.spec.MaxConcurrent {
+				return nil, ErrNoCapacity
+			}
+			return s.markBusyLocked(inst), nil
+		}
+		return nil, domain.ErrNoReadyInstance
+
+	case domain.StrategyStateful:
+		// Stateful: check sticky binding first
+		if routingKey != "" {
+			if binding := s.lookupStickyLocked(routingKey); binding != nil {
+				if !isRoutable(binding.inst.instance.State) {
+					s.unbindStickyLocked(routingKey)
+				} else {
+					if binding.inst.instance.BusyCount >= s.spec.MaxConcurrent {
+						return nil, ErrStickyBusy
+					}
+					binding.lastAccess = time.Now()
+					return s.markBusyLocked(binding.inst), nil
 				}
-				return s.markBusyLocked(inst), nil
 			}
 		}
-	}
+		// Fall through to find available instance
+		if inst := s.findReadyInstanceLocked(); inst != nil {
+			return s.markBusyLocked(inst), nil
+		}
+		return nil, domain.ErrNoReadyInstance
 
-	if inst := s.findReadyInstanceLocked(); inst != nil {
-		return s.markBusyLocked(inst), nil
+	case domain.StrategyStateless, domain.StrategyPersistent:
+		// Stateless/Persistent: round-robin across available instances
+		if inst := s.findReadyInstanceLocked(); inst != nil {
+			return s.markBusyLocked(inst), nil
+		}
+		return nil, domain.ErrNoReadyInstance
+
+	default:
+		// Unknown strategy, treat as stateless
+		if inst := s.findReadyInstanceLocked(); inst != nil {
+			return s.markBusyLocked(inst), nil
+		}
+		return nil, domain.ErrNoReadyInstance
 	}
-	return nil, domain.ErrNoReadyInstance
 }
 
-func (s *poolState) lookupStickyLocked(routingKey string) *trackedInstance {
+func (s *poolState) lookupStickyLocked(routingKey string) *stickyBinding {
 	if s.sticky == nil {
 		return nil
 	}
@@ -498,9 +556,13 @@ func (s *poolState) lookupStickyLocked(routingKey string) *trackedInstance {
 
 func (s *poolState) bindStickyLocked(routingKey string, inst *trackedInstance) {
 	if s.sticky == nil {
-		s.sticky = make(map[string]*trackedInstance)
+		s.sticky = make(map[string]*stickyBinding)
 	}
-	s.sticky[routingKey] = inst
+	s.sticky[routingKey] = &stickyBinding{
+		inst:       inst,
+		lastAccess: time.Now(),
+	}
+	inst.instance.StickyKey = routingKey
 }
 
 func (s *poolState) unbindStickyLocked(routingKey string) {
@@ -648,9 +710,22 @@ func (s *BasicScheduler) reapIdle() {
 			if inst.instance.State != domain.InstanceStateReady {
 				continue
 			}
-			if spec.Persistent || spec.Sticky {
+
+			// Check strategy-based reclaim rules
+			switch spec.Strategy {
+			case domain.StrategyPersistent, domain.StrategySingleton:
+				// Never reclaim persistent or singleton instances
 				continue
+			case domain.StrategyStateful:
+				// Stateful: only reclaim if no active bindings for this instance
+				if entry.state.hasActiveBindingsForInstanceLocked(inst) {
+					continue
+				}
+				// Fall through to idle check
+			case domain.StrategyStateless:
+				// Fall through to idle check
 			}
+
 			if readyCount <= minReady {
 				continue
 			}
@@ -685,6 +760,57 @@ func (s *BasicScheduler) reapIdle() {
 		candidate.state.mu.Unlock()
 		s.observePoolStats(candidate.state)
 	}
+
+	// Reap stale sticky bindings for stateful strategies
+	s.reapStaleBindings()
+}
+
+func (s *BasicScheduler) reapStaleBindings() {
+	now := time.Now()
+
+	for _, entry := range s.snapshotPools() {
+		if entry.state.spec.Strategy != domain.StrategyStateful {
+			continue
+		}
+
+		ttl := time.Duration(entry.state.spec.SessionTTLSeconds) * time.Second
+		if ttl <= 0 {
+			continue
+		}
+
+		entry.state.mu.Lock()
+		for key, binding := range entry.state.sticky {
+			if now.Sub(binding.lastAccess) > ttl {
+				s.logger.Info("binding expired",
+					telemetry.EventField("binding_expired"),
+					telemetry.ServerTypeField(entry.specKey),
+					zap.String("routingKey", key),
+					telemetry.DurationField(now.Sub(binding.lastAccess)),
+				)
+				if binding.inst != nil && binding.inst.instance != nil {
+					binding.inst.instance.StickyKey = ""
+				}
+				delete(entry.state.sticky, key)
+			}
+		}
+		if len(entry.state.sticky) == 0 {
+			entry.state.sticky = nil
+		}
+		entry.state.mu.Unlock()
+	}
+}
+
+// hasActiveBindingsForInstanceLocked checks if an instance has any active sticky bindings
+func (s *poolState) hasActiveBindingsForInstanceLocked(inst *trackedInstance) bool {
+	if s.sticky == nil {
+		return false
+	}
+	for _, binding := range s.sticky {
+		if binding.inst == inst {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *BasicScheduler) probeInstances() {
@@ -874,8 +1000,8 @@ func (s *poolState) removeInstanceLocked(inst *trackedInstance) int {
 	}
 
 	if s.sticky != nil {
-		for key, bound := range s.sticky {
-			if bound == inst {
+		for key, binding := range s.sticky {
+			if binding.inst == inst {
 				delete(s.sticky, key)
 			}
 		}

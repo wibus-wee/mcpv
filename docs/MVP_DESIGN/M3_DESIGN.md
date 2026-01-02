@@ -4,7 +4,7 @@
 
 ### 目标
 - 增强稳定性与协议正确性：能力白名单、生效的超时配置、健康探测。
-- 提升运行态弹性：完善 idle/minReady/persistent 回收策略和状态管理。
+- 提升运行态弹性：完善 idle/minReady/stateful/persistent/singleton 回收策略和状态管理。
 - Tool 聚合：动态抓取下游 MCP servers 的 tool list，暴露统一的 mcpd tool 视图。
 - 运维/退出：优雅清理、可观测性基础（日志字段规范、metrics 钩子）。
 

@@ -5,12 +5,12 @@
   - 在 app 层串起：加载 catalog → 创建 scheduler/router/lifecycle stub → `mcpd serve` 作为 core gRPC 控制面主循环。
   - 新增 `mcpd-gateway` 作为 MCP Server 入口，连接 core 并桥接 tools/list/tools/call。
 - 调度与路由闭环（M2）
-  - 实现 Scheduler（实例表 + Acquire/Release 状态机 + Busy 计数 + sticky 绑定）。
+  - 实现 Scheduler（实例表 + Acquire/Release 状态机 + Busy 计数 + stateful 绑定）。
   - 实现 Lifecycle.Start/Stop：spawn 子进程、握手、状态迁移；Stop 支持优雅超时+强杀。
   - 实现 Router.Route：选择实例、并发上限快速失败、启动保护；返回 JSON-RPC 响应。
   - 打通单入口 JSON-RPC 路由（stdin），支持 starting/busy 错误。
 - 弹性与健康（M3）
-  - IdleManager：周期扫描 lastActive，尊重 sticky/persistent/minReady，Draining→Stop。
+  - IdleManager：周期扫描 lastActive，尊重 stateful/persistent/singleton/minReady，Draining→Stop。
   - Probe：定期 ping Ready/Busy，失败标记 Failed→回收或重建策略。
   - Metrics：启动耗时、启动失败、活跃实例、回收计数、请求延迟/失败率；/metrics 端点。
 - 稳定性与观测（M4）

@@ -4,6 +4,7 @@
 
 import {
   AlertCircleIcon,
+  FileDownIcon,
   Loader2Icon,
   PlayIcon,
   RefreshCwIcon,
@@ -11,12 +12,16 @@ import {
   SquareIcon,
 } from 'lucide-react'
 import { m } from 'motion/react'
+import { useState } from 'react'
+
+import { WailsService } from '@bindings/mcpd/internal/ui'
 
 import { UniversalEmptyState } from '@/components/common/universal-empty-state'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { toastManager } from '@/components/ui/toast'
 import { useCoreActions, useCoreState } from '@/hooks/use-core-state'
 
 import { ConnectIdeSheet } from '@/components/common/connect-ide-sheet'
@@ -39,9 +44,33 @@ function DashboardHeader() {
     startCore,
     stopCore,
   } = useCoreActions()
+  const [isExporting, setIsExporting] = useState(false)
   const appLabel = appInfo?.name
     ? `${appInfo.name} · ${appInfo.version === "dev" ? "dev" : `v${appInfo.version}`} (${appInfo.build})`
     : 'mcpd'
+
+  const handleExportDebug = async () => {
+    if (isExporting) {
+      return
+    }
+    setIsExporting(true)
+    try {
+      const result = await WailsService.ExportDebugSnapshot()
+      toastManager.add({
+        type: 'success',
+        title: 'Debug snapshot exported',
+        description: result.path,
+      })
+    } catch (err) {
+      toastManager.add({
+        type: 'error',
+        title: 'Export failed',
+        description: err instanceof Error ? err.message : 'Export failed',
+      })
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   return (
     <m.div
@@ -101,6 +130,15 @@ function DashboardHeader() {
                   </>
                 )
                 : null}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportDebug}
+          disabled={isExporting}
+        >
+          <FileDownIcon className="size-4" />
+          {isExporting ? 'Exporting...' : 'Export Debug'}
+        </Button>
         <Button
           variant="ghost"
           size="icon-sm"

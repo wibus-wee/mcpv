@@ -5,6 +5,31 @@ import (
 	"time"
 )
 
+// InstanceStrategy defines how instances are managed for a server spec.
+type InstanceStrategy string
+
+const (
+	// StrategyStateless: requests are distributed across instances via round-robin.
+	// Instances are reclaimed after idle timeout.
+	// Use for: HTTP APIs, stateless compute tasks.
+	StrategyStateless InstanceStrategy = "stateless"
+
+	// StrategyStateful: requests with the same routingKey are routed to the same instance.
+	// Bindings expire after sessionTTLSeconds, then instances can be reclaimed after idle timeout.
+	// Use for: file system sessions, temporary caches.
+	StrategyStateful InstanceStrategy = "stateful"
+
+	// StrategyPersistent: instances are never reclaimed regardless of idle state.
+	// No session binding. Requests are distributed via round-robin.
+	// Use for: database connection pools, long-lived services.
+	StrategyPersistent InstanceStrategy = "persistent"
+
+	// StrategySingleton: only one instance exists globally.
+	// Never reclaimed. All requests go to the single instance.
+	// Use for: config servers, task queues.
+	StrategySingleton InstanceStrategy = "singleton"
+)
+
 type ServerSpec struct {
 	Name                string            `json:"name"`
 	Cmd                 []string          `json:"cmd"`
@@ -12,8 +37,8 @@ type ServerSpec struct {
 	Cwd                 string            `json:"cwd,omitempty"`
 	IdleSeconds         int               `json:"idleSeconds"`
 	MaxConcurrent       int               `json:"maxConcurrent"`
-	Sticky              bool              `json:"sticky"`
-	Persistent          bool              `json:"persistent"`
+	Strategy            InstanceStrategy  `json:"strategy"`
+	SessionTTLSeconds   int               `json:"sessionTTLSeconds,omitempty"`
 	Disabled            bool              `json:"disabled,omitempty"`
 	MinReady            int               `json:"minReady"`
 	DrainTimeoutSeconds int               `json:"drainTimeoutSeconds"`

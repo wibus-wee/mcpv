@@ -18,7 +18,6 @@ This is the frontend for the mcpd Wails application, a cross-platform GUI for th
 - **Desktop Runtime**: Wails v3 (@wailsio/runtime)
 - **Testing**: Vitest + React Testing Library
 - **Linting**: ESLint (hyoban config)
-- **Formatting**: Prettier
 
 ## Development Commands
 

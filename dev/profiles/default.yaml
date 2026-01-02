@@ -7,8 +7,7 @@ servers:
       maxConcurrent: 1
       minReady: 1
       name: weather
-      persistent: false
+      strategy: stateless
       protocolVersion: "2025-11-25"
-      sticky: false
 subAgent:
     enabled: true

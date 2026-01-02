@@ -234,13 +234,58 @@ func (m *ServerInitializationManager) RetrySpec(specKey string) error {
 	return nil
 }
 
-func (m *ServerInitializationManager) Statuses() []domain.ServerInitStatus {
+func (m *ServerInitializationManager) Statuses(ctx context.Context) []domain.ServerInitStatus {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
+	scheduler := m.scheduler
 	result := make([]domain.ServerInitStatus, 0, len(m.statuses))
 	for _, status := range m.statuses {
 		result = append(result, status)
+	}
+	m.mu.Unlock()
+
+	if scheduler != nil {
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		pools, err := scheduler.GetPoolStatus(ctx)
+		if err == nil {
+			readyBySpec := make(map[string]int, len(pools))
+			failedBySpec := make(map[string]int, len(pools))
+			minReadyBySpec := make(map[string]int, len(pools))
+			for _, pool := range pools {
+				ready := 0
+				failed := 0
+				for _, inst := range pool.Instances {
+					switch inst.State {
+					case domain.InstanceStateReady, domain.InstanceStateBusy:
+						ready++
+					case domain.InstanceStateFailed:
+						failed++
+					}
+				}
+				readyBySpec[pool.SpecKey] = ready
+				failedBySpec[pool.SpecKey] = failed
+				minReadyBySpec[pool.SpecKey] = pool.MinReady
+			}
+
+			for i := range result {
+				specKey := result[i].SpecKey
+				if minReady, ok := minReadyBySpec[specKey]; ok {
+					result[i].MinReady = minReady
+				}
+				ready := readyBySpec[specKey]
+				failed := failedBySpec[specKey]
+				state := deriveInitState(result[i], ready, failed)
+				result[i].Ready = ready
+				result[i].Failed = failed
+				result[i].State = state
+				if state == domain.ServerInitReady {
+					result[i].LastError = ""
+					result[i].RetryCount = 0
+					result[i].NextRetryAt = time.Time{}
+				}
+			}
+		}
 	}
 
 	sort.Slice(result, func(i, j int) bool {
@@ -402,6 +447,34 @@ func (m *ServerInitializationManager) applyResult(specKey string, target, ready,
 		status.LastError = lastError
 		status.UpdatedAt = time.Now()
 	})
+}
+
+func deriveInitState(status domain.ServerInitStatus, ready, failed int) domain.ServerInitState {
+	target := status.MinReady
+	if target <= 0 {
+		if ready > 0 {
+			return domain.ServerInitReady
+		}
+		return domain.ServerInitPending
+	}
+
+	if status.State == domain.ServerInitSuspended && ready < target {
+		return domain.ServerInitSuspended
+	}
+	if status.State == domain.ServerInitFailed && ready < target {
+		return domain.ServerInitFailed
+	}
+
+	switch {
+	case ready >= target:
+		return domain.ServerInitReady
+	case ready > 0:
+		return domain.ServerInitDegraded
+	case failed > 0:
+		return domain.ServerInitFailed
+	default:
+		return domain.ServerInitStarting
+	}
 }
 
 func (m *ServerInitializationManager) snapshot(ctx context.Context, specKey string) (int, int) {

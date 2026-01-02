@@ -20,8 +20,7 @@ servers:
     cmd: ["./git-helper"]
     idleSeconds: 60
     maxConcurrent: 2
-    sticky: false
-    persistent: false
+    strategy: stateless
     minReady: 0
     protocolVersion: "2025-11-25"
 `)
@@ -154,8 +153,7 @@ func writeProfile(t *testing.T, path string, name string) {
     cmd: ["./` + name + `"]
     idleSeconds: 0
     maxConcurrent: 1
-    sticky: false
-    persistent: false
+    strategy: stateless
     minReady: 0
     protocolVersion: "2025-11-25"
 `
