@@ -12,7 +12,6 @@ This directory was refactored from a single 800+ line file into smaller, focused
 profile-detail/
 ├── index.tsx           # Main entry point (ProfileDetailPanel)
 ├── profile-content.tsx # Main content layout (presentational)
-├── runtime-section.tsx # Runtime configuration accordion
 ├── subagent-section.tsx# SubAgent toggle accordion
 ├── server-item.tsx     # Individual server accordion item
 ├── detail-row.tsx      # Key-value display component
@@ -23,7 +22,6 @@ profile-detail/
 
 - **index.tsx**: Main `ProfileDetailPanel` component - orchestrates data fetching and state
 - **profile-content.tsx**: Presentational component rendering profile details
-- **runtime-section.tsx**: Displays runtime configuration in an accordion
 - **subagent-section.tsx**: SubAgent toggle with local state management
 - **server-item.tsx**: Individual server display with actions (toggle, delete)
 - **detail-row.tsx**: Reusable key-value row component

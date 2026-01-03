@@ -16,7 +16,7 @@
 ## Components
 
 - **components/profiles-list.tsx**: 左侧 profiles 列表与选择状态
-- **components/profile-detail-panel.tsx**: profile 详情面板，含 runtime 与 servers 编辑
+- **components/profile-detail-panel.tsx**: profile 详情面板，包含 servers 与 SubAgent 信息
 - **components/callers-list.tsx**: caller 到 profile 的映射列表与编辑入口
 - **components/import-mcp-servers-sheet.tsx**: MCP JSON 导入入口与流程
 - **components/server-runtime-status.tsx**: server pool 运行状态指示器

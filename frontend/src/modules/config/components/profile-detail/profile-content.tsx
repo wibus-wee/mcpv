@@ -41,7 +41,6 @@ import {
 import { Spring } from '@/lib/spring'
 
 import type { NoticeState } from '../../hooks/use-config-reload'
-import { RuntimeSection } from './runtime-section'
 import { ServerItem, type ServerSpecWithKey } from './server-item'
 import { SubAgentSection } from './subagent-section'
 
@@ -163,13 +162,8 @@ export function ProfileContent({
         />
       </div>
 
-      {/* Runtime Config & SubAgent */}
-      <Accordion multiple defaultValue={['runtime']}>
-        <RuntimeSection
-          profile={profile}
-          canEdit={canEditServers}
-          disabledHint={serverActionHint}
-        />
+      {/* SubAgent */}
+      <Accordion multiple defaultValue={['subagent']}>
         <SubAgentSection
           profile={profile}
           canEdit={canEditServers}

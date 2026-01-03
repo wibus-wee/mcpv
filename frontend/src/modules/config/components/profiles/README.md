@@ -2,20 +2,18 @@
 
 # Modules/Config/Components/Profiles
 
-Profile-related components for flat, desktop-style configuration UI.
+Profile 相关的配置组件集合。
 
 ## Files
 
-- **profile-overview-section.tsx**: Overview section with active callers and stats
-- **profile-subagent-section.tsx**: SubAgent enable/disable section
-- **profile-servers-section.tsx**: Servers list section with ServerItem components
-- **profile-runtime-section.tsx**: Runtime configuration section (moved to Settings page)
-- **index.ts**: Centralized exports
+- **profile-overview-section.tsx**: Profile 概览与活跃 caller 统计
+- **profile-subagent-section.tsx**: SubAgent 启用/禁用设置
+- **profile-servers-section.tsx**: Servers 列表与 ServerItem 组件
+- **index.ts**: 统一导出入口
 
 ## Design Pattern
 
-All section components follow the flat, VS Code-style layout:
-- No Card shadow or heavy borders
-- Section headers with description
-- SettingRow for configuration fields
-- Separator between sections
+各 section 采用轻量化的平铺布局：
+- 无 Card 阴影与厚重边框
+- 标题与描述分层展示
+- section 之间使用分隔线
