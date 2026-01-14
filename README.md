@@ -59,7 +59,7 @@ The project is under active development:
 - [x] Multi-Profile & Caller Mapping
 - [x] Eino-based SubAgent Tool Filtering
 - [x] Wails UI & Log Streaming
-- [ ] **Hot Reload (Configuration Update without Restart) - Planned**
+- [x] Hot Reload
 - [ ] **Auto-discovery & Config Import - Planned**
 
 ## 📄 License
