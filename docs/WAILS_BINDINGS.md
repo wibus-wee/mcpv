@@ -15,32 +15,40 @@ Wails 的 bindings 生成器会：
 ## 项目结构与 Bindings
 
 ```
-cmd/mcpd-wails/
-├── app.go          # 入口文件，注册 WailsService
-└── embed.go        # 前端资源
+app.go                 # 入口文件，注册多个 Wails services
 
 internal/ui/
-└── service.go      # WailsService（唯一被注册的服务）
+├── service.go         # ServiceRegistry（统一注册入口）
+├── service_deps.go    # 共享依赖容器
+├── core_service.go    # CoreService
+├── discovery_service.go
+├── config_service.go
+├── profile_service.go
+├── runtime_service.go
+├── log_service.go
+├── subagent_service.go
+├── system_service.go
+└── debug_service.go
 
-internal/app/       # 核心层，不会生成 bindings
-internal/domain/    # 领域层，不会生成 bindings
-internal/infra/     # 基础设施层，不会生成 bindings
+internal/app/          # 核心层，不会生成 bindings
+internal/domain/       # 领域层，不会生成 bindings
+internal/infra/        # 基础设施层，不会生成 bindings
 ```
 
 ### 为什么 internal/app 等包会被扫描？
 
-因为 `WailsService` 引用了 `internal/app.App`，Go 静态分析器需要理解完整的类型依赖树。但这**不会**为 `internal/app` 生成 bindings，因为它没有被注册为 Service。
+因为 UI services 引用了 `internal/app.App`（通过 ServiceDeps / Manager），Go 静态分析器需要理解完整的类型依赖树。但这**不会**为 `internal/app` 生成 bindings，因为它没有被注册为 Service。
 
 ## 使用方式
 
 ### 基础命令
 
 ```bash
-# 生成 TypeScript bindings
-wails3 generate bindings -ts ./cmd/mcpd-wails
+# 生成 TypeScript bindings（当前入口为仓库根目录的 app.go）
+wails3 generate bindings -ts
 
 # 隐藏警告信息
-wails3 generate bindings -ts -silent ./cmd/mcpd-wails
+wails3 generate bindings -ts -silent
 
 # 或使用 Makefile
 make wails-bindings
@@ -50,16 +58,16 @@ make wails-bindings
 
 ```bash
 # 生成 TypeScript interfaces（而非 classes）
-wails3 generate bindings -ts -i ./cmd/mcpd-wails
+wails3 generate bindings -ts -i
 
 # 自定义输出目录
-wails3 generate bindings -ts -d ./frontend/src/bindings ./cmd/mcpd-wails
+wails3 generate bindings -ts -d ./frontend/bindings
 
 # 使用方法名而非 ID（更易调试）
-wails3 generate bindings -ts -names ./cmd/mcpd-wails
+wails3 generate bindings -ts -names
 
 # 不生成 index 文件
-wails3 generate bindings -ts -noindex ./cmd/mcpd-wails
+wails3 generate bindings -ts -noindex
 ```
 
 ## 关于警告信息
@@ -79,49 +87,54 @@ WARNING [warn] /path/to/file.go:1:1: package requires newer Go version go1.25 (a
 ### Assets 未定义错误
 
 ```
-WARNING [warn] /Users/.../cmd/mcpd-wails/app.go:37:43: undefined: Assets
+WARNING [warn] /Users/.../app.go:37:43: undefined: Assets
 ```
 
 **原因**：`embed.go` 和 `app.go` 在同一个 package，但静态分析器可能暂时找不到
 **影响**：无，运行时 Assets 正常可用
-**解决**：确保 `embed.go` 存在且格式正确（已修复）
+**解决**：确保 `embed.go` 存在且格式正确
 
 ## 生成结果示例
 
 ```bash
 $ make wails-bindings
-INFO  Processed: 600 Packages, 1 Service, 4 Methods, 0 Enums, 13 Models, 0 Events
-INFO  Output directory: /Users/wibus/dev/mcpd/frontend/bindings
+INFO  Processed: <N> Packages, <M> Services, <K> Methods, <E> Enums, <T> Models, <X> Events
+INFO  Output directory: /Users/wibus/conductor/workspaces/mcpd/tianjin/frontend/bindings
 ```
 
 **解读**：
-- **600 Packages**：扫描的 Go 包总数（包括依赖）
-- **1 Service**：注册的服务数量（WailsService）
-- **4 Methods**：导出的方法数量（GetVersion, Ping, HandleURLScheme, SetWailsApp）
-- **13 Models**：涉及的数据模型数量
+- **Services** 数量对应 `ServiceRegistry.Services()` 注册的 service 数
+- **Methods** 是所有 service 的导出方法总数
 
 生成的文件：
 ```
 frontend/bindings/
-├── index.ts                    # 总入口
-├── models.ts                   # 数据模型
-└── mcpd/ui/
-    └── WailsService.ts         # WailsService 的 TS bindings
+├── index.ts
+├── models.ts
+└── mcpd/internal/ui/
+    ├── coreservice.ts
+    ├── configservice.ts
+    ├── debugservice.ts
+    ├── discoveryservice.ts
+    ├── logservice.ts
+    ├── profileservice.ts
+    ├── runtimeservice.ts
+    ├── subagentservice.ts
+    └── systemservice.ts
 ```
 
 ## 前端使用
 
 ```typescript
-import { WailsService } from './bindings/mcpd/ui/WailsService'
+import { CoreService, SystemService } from '@bindings/mcpd/internal/ui'
 
-// 调用 Go 方法
-const version = await WailsService.GetVersion()
-const pong = await WailsService.Ping()
+const version = await SystemService.GetVersion()
+const state = await CoreService.GetCoreState()
 ```
 
 ## 开发流程
 
-1. **修改 Go Service**（如 `internal/ui/service.go`）
+1. **修改 Go Service**（如 `internal/ui/*_service.go`）
 2. **重新生成 bindings**：`make wails-bindings`
 3. **前端使用新的 bindings**
 
@@ -143,11 +156,11 @@ make wails-build
 ## 最佳实践
 
 1. **只在 `internal/ui` 中暴露前端需要的方法**
-   - ✅ 导出方法：`GetVersion()`, `Ping()`
+   - ✅ 导出方法：`GetVersion()`, `GetCoreState()`
    - ❌ 不要暴露：内部逻辑、数据库操作
 
 2. **保持 Service 薄**
-   - `internal/ui/service.go` 只做桥接
+   - `internal/ui/*_service.go` 只做桥接
    - 核心逻辑在 `internal/app`
 
 3. **使用有意义的类型**

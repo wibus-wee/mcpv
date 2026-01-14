@@ -3,7 +3,7 @@
 // Position: Tab content in config page, uses divide-y pattern for visual separation
 
 import type { ProfileSummary } from '@bindings/mcpd/internal/ui'
-import { WailsService } from '@bindings/mcpd/internal/ui'
+import { ProfileService } from '@bindings/mcpd/internal/ui'
 import { ArrowRightIcon, TrashIcon, UsersIcon } from 'lucide-react'
 import { m } from 'motion/react'
 import { useMemo, useState } from 'react'
@@ -103,7 +103,7 @@ export function CallersList({
     const profile = draftProfile
     setIsCreating(true)
     try {
-      await WailsService.SetCallerMapping({ caller, profile })
+      await ProfileService.SetCallerMapping({ caller, profile })
       const reloadResult = await reloadConfig()
       setDraftCaller('')
       setDraftProfile('')
@@ -123,7 +123,7 @@ export function CallersList({
     }
     setPendingCaller(caller)
     try {
-      await WailsService.SetCallerMapping({ caller, profile })
+      await ProfileService.SetCallerMapping({ caller, profile })
       const reloadResult = await reloadConfig()
       if (!reloadResult.ok) {
         return
@@ -140,7 +140,7 @@ export function CallersList({
     }
     setPendingCaller(caller)
     try {
-      await WailsService.RemoveCallerMapping(caller)
+      await ProfileService.RemoveCallerMapping(caller)
       const reloadResult = await reloadConfig()
       if (!reloadResult.ok) {
         return

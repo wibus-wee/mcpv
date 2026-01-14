@@ -25,16 +25,14 @@ func main() {
 	configPath := "." // 默认配置目录，后续可通过命令行或设置修改
 
 	uiLogger := logger.With(zap.String(telemetry.FieldLogSource, telemetry.LogSourceUI))
-	wailsService := ui.NewWailsService(coreApp, uiLogger)
+	serviceRegistry := ui.NewServiceRegistry(coreApp, uiLogger)
 	manager := ui.NewManager(nil, coreApp, configPath)
-	wailsService.SetManager(manager)
+	serviceRegistry.SetManager(manager)
 
 	wailsApp := application.New(application.Options{
 		Name:        "MCPD",
 		Description: "MCP Server Manager",
-		Services: []application.Service{
-			application.NewService(wailsService),
-		},
+		Services:    serviceRegistry.Services(),
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(Assets),
 		},
@@ -48,7 +46,7 @@ func main() {
 	})
 
 	// 3. 注入 Wails 应用实例
-	wailsService.SetWailsApp(wailsApp)
+	serviceRegistry.SetWailsApp(wailsApp)
 	manager.SetWailsApp(wailsApp)
 
 	wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{

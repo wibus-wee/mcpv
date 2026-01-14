@@ -1,15 +1,15 @@
-// Input: SWR, WailsService bindings
+// Input: SWR, CoreService/DiscoveryService bindings
 // Output: Dashboard data fetching hooks (useAppInfo, useTools, useResources, usePrompts, useBootstrapProgress)
 // Position: Data fetching hooks for dashboard module
 
 import type { BootstrapProgressResponse } from '@bindings/mcpd/internal/ui'
-import { WailsService } from '@bindings/mcpd/internal/ui'
+import { CoreService, DiscoveryService } from '@bindings/mcpd/internal/ui'
 import useSWR from 'swr'
 
 export function useAppInfo() {
   const swr = useSWR(
     'app-info',
-    () => WailsService.GetInfo(),
+    () => CoreService.GetInfo(),
     {
       revalidateOnFocus: false,
       dedupingInterval: 30000,
@@ -24,7 +24,7 @@ export function useAppInfo() {
 export function useTools() {
   const swr = useSWR(
     'tools',
-    () => WailsService.ListTools(),
+    () => DiscoveryService.ListTools(),
     {
       revalidateOnFocus: false,
       dedupingInterval: 10000,
@@ -40,7 +40,7 @@ export function useResources() {
   const swr = useSWR(
     'resources',
     async () => {
-      const page = await WailsService.ListResources('')
+      const page = await DiscoveryService.ListResources('')
       return page?.resources ?? []
     },
     {
@@ -58,7 +58,7 @@ export function usePrompts() {
   const swr = useSWR(
     'prompts',
     async () => {
-      const page = await WailsService.ListPrompts('')
+      const page = await DiscoveryService.ListPrompts('')
       return page?.prompts ?? []
     },
     {
@@ -84,7 +84,7 @@ export type BootstrapState = 'pending' | 'running' | 'completed' | 'failed'
 export function useBootstrapProgress(enabled = true) {
   const swr = useSWR<BootstrapProgressResponse | null>(
     enabled ? 'bootstrap-progress' : null,
-    () => WailsService.GetBootstrapProgress(),
+    () => CoreService.GetBootstrapProgress(),
     {
       refreshInterval: (data) => {
         // Poll faster during active bootstrap

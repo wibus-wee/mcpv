@@ -14,7 +14,7 @@ import {
 import { m } from 'motion/react'
 import { useState } from 'react'
 
-import { WailsService } from '@bindings/mcpd/internal/ui'
+import { DebugService } from '@bindings/mcpd/internal/ui'
 
 import { UniversalEmptyState } from '@/components/common/universal-empty-state'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -55,7 +55,7 @@ function DashboardHeader() {
     }
     setIsExporting(true)
     try {
-      const result = await WailsService.ExportDebugSnapshot()
+      const result = await DebugService.ExportDebugSnapshot()
       toastManager.add({
         type: 'success',
         title: 'Debug snapshot exported',

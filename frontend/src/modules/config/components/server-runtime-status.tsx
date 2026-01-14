@@ -3,7 +3,7 @@
 // Position: Runtime status display component for server instances
 
 import type { ServerInitStatus, ServerRuntimeStatus } from '@bindings/mcpd/internal/ui'
-import { WailsService } from '@bindings/mcpd/internal/ui'
+import { RuntimeService } from '@bindings/mcpd/internal/ui'
 import { useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
@@ -492,7 +492,7 @@ function InitStatusLine({
 		setIsRetrying(true)
 		setRetryError(null)
 		try {
-			await WailsService.RetryServerInit({ specKey: status.specKey })
+			await RuntimeService.RetryServerInit({ specKey: status.specKey })
 		} catch (err) {
 			setRetryError(err instanceof Error ? err.message : 'Retry failed')
 		} finally {

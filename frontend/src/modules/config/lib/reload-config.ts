@@ -1,4 +1,4 @@
-import { WailsService } from '@bindings/mcpd/internal/ui'
+import { ConfigService } from '@bindings/mcpd/internal/ui'
 
 export type ReloadOutcome =
   | { ok: true }
@@ -29,7 +29,7 @@ const formatReloadError = (err: unknown) => {
 
 export const reloadConfig = async (): Promise<ReloadOutcome> => {
   try {
-    await WailsService.ReloadConfig()
+    await ConfigService.ReloadConfig()
     return { ok: true }
   } catch (err) {
     return { ok: false, message: formatReloadError(err) }

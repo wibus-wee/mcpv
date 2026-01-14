@@ -10,7 +10,7 @@ import type {
   ServerInitStatus,
   ServerRuntimeStatus,
 } from '@bindings/mcpd/internal/ui'
-import { WailsService } from '@bindings/mcpd/internal/ui'
+import { LogService } from '@bindings/mcpd/internal/ui'
 import { Events } from '@wailsio/runtime'
 import { Provider, useAtomValue } from 'jotai'
 import { LazyMotion, MotionConfig } from 'motion/react'
@@ -154,14 +154,14 @@ function WailsEventsBridge() {
 
     const start = async () => {
       try {
-        await WailsService.StartLogStream(level)
+        await LogService.StartLogStream(level)
       }
       catch (err) {
         console.error('[WailsEvents] Failed to start log stream', err)
         return
       }
       if (cancelled) {
-        await WailsService.StopLogStream().catch(() => {})
+        await LogService.StopLogStream().catch(() => {})
         return
       }
 
@@ -214,7 +214,7 @@ function WailsEventsBridge() {
         unbind?.()
         unbind = undefined
         stopRef.current = null
-        WailsService.StopLogStream().catch(() => {})
+        LogService.StopLogStream().catch(() => {})
       }
     }
 

@@ -2,7 +2,7 @@
 // Output: SubAgent configuration atoms for runtime and per-profile settings
 // Position: Global state atoms for SubAgent feature
 
-import { GetProfileSubAgentConfig, GetSubAgentConfig, IsSubAgentAvailable } from '@bindings/mcpd/internal/ui/wailsservice'
+import { SubAgentService } from '@bindings/mcpd/internal/ui'
 import { atom } from 'jotai'
 import { atomWithRefresh } from 'jotai/utils'
 
@@ -23,7 +23,7 @@ export interface ProfileSubAgentConfig {
 // Atom to fetch runtime-level SubAgent config
 export const subAgentConfigAtom = atomWithRefresh(async () => {
   try {
-    const config = await GetSubAgentConfig()
+    const config = await SubAgentService.GetSubAgentConfig()
     return config as SubAgentConfig
   } catch (error) {
     console.error('Failed to fetch SubAgent config:', error)
@@ -34,7 +34,7 @@ export const subAgentConfigAtom = atomWithRefresh(async () => {
 // Atom to check if SubAgent infrastructure is available
 export const isSubAgentAvailableAtom = atom(async () => {
   try {
-    return await IsSubAgentAvailable()
+    return await SubAgentService.IsSubAgentAvailable()
   } catch (error) {
     console.error('Failed to check SubAgent availability:', error)
     return false
@@ -45,7 +45,7 @@ export const isSubAgentAvailableAtom = atom(async () => {
 export const profileSubAgentConfigAtom = atom(
   async (_get, { profileName }: { profileName: string }) => {
     try {
-      const config = await GetProfileSubAgentConfig(profileName)
+      const config = await SubAgentService.GetProfileSubAgentConfig(profileName)
       return config as ProfileSubAgentConfig
     } catch (error) {
       console.error(`Failed to fetch SubAgent config for profile ${profileName}:`, error)

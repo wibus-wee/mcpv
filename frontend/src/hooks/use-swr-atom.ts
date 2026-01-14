@@ -35,7 +35,7 @@ interface UseSWRAtomOptions<T> extends SWRConfiguration<T> {
  * export function useProfiles() {
  *   return useSWRAtom(
  *     'profiles',
- *     () => WailsService.ListProfiles(),
+ *     () => ProfileService.ListProfiles(),
  *     profilesAtom,
  *     { preset: 'cached' }
  *   )
@@ -46,7 +46,7 @@ interface UseSWRAtomOptions<T> extends SWRConfiguration<T> {
  * export function useActiveProfiles() {
  *   return useSWRAtom(
  *     'profiles',
- *     () => WailsService.ListProfiles(),
+ *     () => ProfileService.ListProfiles(),
  *     activeProfilesAtom,
  *     {
  *       preset: 'cached',

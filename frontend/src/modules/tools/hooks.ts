@@ -1,4 +1,4 @@
-// Input: WailsService bindings, SWR, runtime status hook
+// Input: DiscoveryService bindings, SWR, runtime status hook
 // Input: Wails bindings, SWR, profile/runtime hooks
 // Output: useToolsByServer hook for grouping tools by server
 // Position: Data layer for tools module
@@ -7,7 +7,7 @@ import { useMemo } from "react";
 import useSWR from "swr";
 
 import type { ServerSpecDetail, ToolEntry } from "@bindings/mcpd/internal/ui";
-import { WailsService } from "@bindings/mcpd/internal/ui";
+import { DiscoveryService } from "@bindings/mcpd/internal/ui";
 
 import {
   useProfiles,
@@ -30,7 +30,7 @@ export function useToolsByServer() {
     data: tools,
     isLoading: toolsLoading,
     error: toolsError,
-  } = useSWR<ToolEntry[]>("tools", () => WailsService.ListTools());
+  } = useSWR<ToolEntry[]>("tools", () => DiscoveryService.ListTools());
 
   const {
     data: runtimeStatus,

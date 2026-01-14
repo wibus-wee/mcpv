@@ -49,7 +49,7 @@ interface UseConfigReloadReturn {
    *
    * @example
    * await executeWithReload(
-   *   () => WailsService.CreateProfile({ name }),
+ *   () => ProfileService.CreateProfile({ name }),
    *   {
    *     successTitle: 'Profile created',
    *     onSuccess: () => mutateProfiles(),
@@ -82,7 +82,7 @@ interface UseConfigReloadReturn {
  *
  *   const handleCreate = async () => {
  *     await executeWithReload(
- *       () => WailsService.CreateProfile({ name }),
+ *       () => ProfileService.CreateProfile({ name }),
  *       {
  *         successTitle: 'Profile created',
  *         successDescription: 'Changes applied.',

@@ -1,9 +1,9 @@
-// Input: ProfileDetail type, WailsService
+// Input: ProfileDetail type, SubAgentService
 // Output: SubAgentSection accordion component
 // Position: Profile SubAgent configuration toggle
 
 import type { ProfileDetail } from '@bindings/mcpd/internal/ui'
-import { WailsService } from '@bindings/mcpd/internal/ui'
+import { SubAgentService } from '@bindings/mcpd/internal/ui'
 import { AlertCircleIcon, CpuIcon } from 'lucide-react'
 import { useState } from 'react'
 
@@ -41,7 +41,7 @@ export function SubAgentSection({
     setError(null)
 
     try {
-      await WailsService.SetProfileSubAgentEnabled({
+      await SubAgentService.SetProfileSubAgentEnabled({
         profile: profile.name,
         enabled: checked,
       })

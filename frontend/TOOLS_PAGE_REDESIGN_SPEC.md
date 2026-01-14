@@ -452,7 +452,7 @@ interface ToolsGridProps {
 export function useToolsByServer() {
   const { data: tools, isLoading } = useSWR<ToolEntry[]>(
     'tools',
-    () => WailsService.GetTools()
+    () => DiscoveryService.ListTools()
   )
 
   const { data: runtimeStatus } = useRuntimeStatus()

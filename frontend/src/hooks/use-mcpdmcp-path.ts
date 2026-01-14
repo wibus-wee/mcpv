@@ -1,4 +1,4 @@
-import { WailsService } from '@bindings/mcpd/internal/ui'
+import { SystemService } from '@bindings/mcpd/internal/ui'
 import useSWR from 'swr'
 
 const fallbackPath = 'mcpdmcp'
@@ -6,7 +6,7 @@ const fallbackPath = 'mcpdmcp'
 export function useMcpdmcpPath() {
   const swr = useSWR<string>(
     'mcpdmcp-path',
-    () => WailsService.ResolveMcpdmcpPath(),
+    () => SystemService.ResolveMcpdmcpPath(),
     {
       revalidateOnFocus: false,
     },

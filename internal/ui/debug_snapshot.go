@@ -38,18 +38,19 @@ type debugSnapshotError struct {
 }
 
 // ExportDebugSnapshot writes a debug snapshot to disk and returns its location.
-func (s *WailsService) ExportDebugSnapshot(ctx context.Context) (DebugSnapshotResponse, error) {
-	if s.manager == nil {
+func (s *DebugService) ExportDebugSnapshot(ctx context.Context) (DebugSnapshotResponse, error) {
+	manager := s.deps.manager()
+	if manager == nil {
 		return DebugSnapshotResponse{}, NewUIError(ErrCodeInternal, "Manager not initialized")
 	}
 
 	now := time.Now().UTC()
 	snapshot := debugSnapshot{
 		GeneratedAt: now.Format(time.RFC3339Nano),
-		ConfigPath:  strings.TrimSpace(s.manager.GetConfigPath()),
+		ConfigPath:  strings.TrimSpace(manager.GetConfigPath()),
 	}
 
-	coreState, coreErr, uptime := s.manager.GetState()
+	coreState, coreErr, uptime := manager.GetState()
 	snapshot.Core = debugCoreState{
 		State:    string(coreState),
 		UptimeMs: uptime,
@@ -58,7 +59,7 @@ func (s *WailsService) ExportDebugSnapshot(ctx context.Context) (DebugSnapshotRe
 		snapshot.Core.Error = coreErr.Error()
 	}
 
-	cp, err := s.manager.GetControlPlane()
+	cp, err := manager.GetControlPlane()
 	if err != nil {
 		snapshot.Errors = append(snapshot.Errors, debugSnapshotError{
 			Source:  "controlPlane",

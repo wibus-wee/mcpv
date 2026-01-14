@@ -130,11 +130,12 @@
 ┌─────────────────────────────────────────────────────────┐
 │                   Backend (Go)                           │
 │  ┌────────────────────────────────────────────────────┐ │
-│  │  WailsService (internal/ui/service.go)             │ │
-│  │  ├─ GetConfigMode() → ConfigModeResponse          │ │
-│  │  ├─ ListProfiles() → []ProfileSummary             │ │
-│  │  ├─ GetProfile(name) → ProfileDetail              │ │
-│  │  └─ GetCallers() → map[string]string              │ │
+│  │  ConfigService / ProfileService                  │ │
+│  │  (internal/ui/*_service.go)                      │ │
+│  │  ├─ ConfigService.GetConfigMode() → ConfigModeResponse │ │
+│  │  ├─ ProfileService.ListProfiles() → []ProfileSummary    │ │
+│  │  ├─ ProfileService.GetProfile(name) → ProfileDetail     │ │
+│  │  └─ ProfileService.GetCallers() → map[string]string     │ │
 │  └────────────────────────────────────────────────────┘ │
 │                         ↕                                │
 │  ┌────────────────────────────────────────────────────┐ │
@@ -289,7 +290,7 @@ import { Spring } from '@/lib/spring'
 
 ### 后端技术栈（Go）
 
-- **服务层**: `internal/ui/service.go` (WailsService)
+- **服务层**: `internal/ui/*_service.go` (ConfigService / ProfileService / RuntimeService)
 - **管理层**: `internal/ui/manager.go` (Manager)
 - **数据层**: `internal/infra/catalog` (ProfileStoreLoader)
 - **绑定生成**: Wails v3 自动生成 TypeScript bindings
@@ -304,7 +305,7 @@ export function useConfigMode() {
 
   const { data, error, isLoading, mutate } = useSWR<ConfigModeResponse>(
     'config-mode',
-    () => WailsService.GetConfigMode(),
+    () => ConfigService.GetConfigMode(),
   )
 
   useEffect(() => {
@@ -332,7 +333,7 @@ export function useProfiles() {
 
   const { data, error, isLoading, mutate } = useSWR<ProfileSummary[]>(
     'profiles',
-    () => WailsService.ListProfiles(),
+    () => ProfileService.ListProfiles(),
   )
 
   useEffect(() => {
@@ -367,7 +368,7 @@ export function useProfile(name: string | null) {
 
   const { data, error, isLoading, mutate } = useSWR<ProfileDetail | null>(
     name ? ['profile', name] : null,
-    () => (name ? WailsService.GetProfile(name) : null),
+    () => (name ? ProfileService.GetProfile(name) : null),
   )
 
   useEffect(() => {
@@ -424,7 +425,7 @@ export function useCallers() {
 
   const { data, error, isLoading, mutate } = useSWR<Record<string, string>>(
     'callers',
-    () => WailsService.GetCallers(),
+    () => ProfileService.GetCallers(),
   )
 
   useEffect(() => {
@@ -462,7 +463,7 @@ export const callersAtom = atom<Record<string, string>>({})
 // internal/ui/service.go
 
 // GetConfigMode 返回配置模式和路径
-func (s *WailsService) GetConfigMode() ConfigModeResponse {
+func (s *ConfigService) GetConfigMode() ConfigModeResponse {
     store := s.manager.GetProfileStore()
     return ConfigModeResponse{
         Mode:       detectMode(store),  // "directory" or "single"
@@ -472,7 +473,7 @@ func (s *WailsService) GetConfigMode() ConfigModeResponse {
 }
 
 // ListProfiles 返回所有 profiles 的摘要信息
-func (s *WailsService) ListProfiles() []ProfileSummary {
+func (s *ProfileService) ListProfiles() []ProfileSummary {
     store := s.manager.GetProfileStore()
     var summaries []ProfileSummary
     for name, profile := range store.Profiles {
@@ -486,7 +487,7 @@ func (s *WailsService) ListProfiles() []ProfileSummary {
 }
 
 // GetProfile 返回指定 profile 的详细信息
-func (s *WailsService) GetProfile(name string) *ProfileDetail {
+func (s *ProfileService) GetProfile(name string) *ProfileDetail {
     store := s.manager.GetProfileStore()
     profile, ok := store.Profiles[name]
     if !ok {
@@ -502,7 +503,7 @@ func (s *WailsService) GetProfile(name string) *ProfileDetail {
 }
 
 // GetCallers 返回 caller → profile 映射
-func (s *WailsService) GetCallers() map[string]string {
+func (s *ProfileService) GetCallers() map[string]string {
     store := s.manager.GetProfileStore()
     return store.Callers
 }
@@ -518,22 +519,23 @@ func (s *WailsService) GetCallers() map[string]string {
 sequenceDiagram
     participant User
     participant Frontend
-    participant WailsService
+    participant ConfigService
+    participant ProfileService
     participant Manager
     participant Catalog
 
     User->>Frontend: 打开 /config 页面
-    Frontend->>WailsService: useConfigMode()
-    WailsService->>Manager: GetConfigMode()
-    Manager-->>WailsService: ConfigModeResponse
-    WailsService-->>Frontend: { mode, path, isWritable }
+    Frontend->>ConfigService: useConfigMode()
+    ConfigService->>Manager: GetConfigMode()
+    Manager-->>ConfigService: ConfigModeResponse
+    ConfigService-->>Frontend: { mode, path, isWritable }
 
-    Frontend->>WailsService: useProfiles()
-    WailsService->>Manager: ListProfiles()
+    Frontend->>ProfileService: useProfiles()
+    ProfileService->>Manager: ListProfiles()
     Manager->>Catalog: GetProfileStore()
     Catalog-->>Manager: ProfileStore
-    Manager-->>WailsService: []ProfileSummary
-    WailsService-->>Frontend: Profile 列表
+    Manager-->>ProfileService: []ProfileSummary
+    ProfileService-->>Frontend: Profile 列表
 
     Frontend->>User: 显示配置页面
 ```
@@ -544,15 +546,15 @@ sequenceDiagram
 sequenceDiagram
     participant User
     participant Frontend
-    participant WailsService
+    participant ProfileService
     participant Manager
 
     User->>Frontend: 点击 profile 卡片
     Frontend->>Frontend: setSelectedProfileName("default")
-    Frontend->>WailsService: useProfile("default")
-    WailsService->>Manager: GetProfile("default")
-    Manager-->>WailsService: ProfileDetail
-    WailsService-->>Frontend: { name, runtime, servers }
+    Frontend->>ProfileService: useProfile("default")
+    ProfileService->>Manager: GetProfile("default")
+    Manager-->>ProfileService: ProfileDetail
+    ProfileService-->>Frontend: { name, runtime, servers }
     Frontend->>User: 打开 Sheet 显示详情
 ```
 
@@ -562,18 +564,18 @@ sequenceDiagram
 sequenceDiagram
     participant User
     participant Frontend
-    participant WailsService
+    participant ConfigService
     participant Manager
     participant Catalog
 
     User->>Frontend: 点击 Refresh 按钮
     Frontend->>Frontend: setIsRefreshing(true)
-    Frontend->>WailsService: mutate() (SWR)
-    WailsService->>Manager: ReloadConfig()
+    Frontend->>ConfigService: mutate() (SWR)
+    ConfigService->>Manager: ReloadConfig()
     Manager->>Catalog: Load(path)
     Catalog-->>Manager: ProfileStore
-    Manager-->>WailsService: Success/Error
-    WailsService-->>Frontend: 新数据
+    Manager-->>ConfigService: Success/Error
+    ConfigService-->>Frontend: 新数据
     Frontend->>Frontend: setIsRefreshing(false)
     Frontend->>User: 更新 UI
 ```
@@ -584,17 +586,17 @@ sequenceDiagram
 sequenceDiagram
     participant User
     participant Frontend
-    participant WailsService
+    participant ConfigService
     participant Manager
     participant Catalog
 
     User->>Frontend: 点击 Refresh
-    Frontend->>WailsService: mutate()
-    WailsService->>Manager: ReloadConfig()
+    Frontend->>ConfigService: mutate()
+    ConfigService->>Manager: ReloadConfig()
     Manager->>Catalog: Load(path)
     Catalog-->>Manager: Error (validation failed)
-    Manager-->>WailsService: Error
-    WailsService-->>Frontend: Error
+    Manager-->>ConfigService: Error
+    ConfigService-->>Frontend: Error
     Frontend->>User: 显示 Toast 错误提示
     Frontend->>User: 保留旧配置（回退）
 ```
@@ -765,13 +767,13 @@ if (error) {
 
 **写入流程**:
 ```
-User Edit → Frontend Validation → WailsService.SaveProfile()
+User Edit → Frontend Validation → ProfileService.SaveProfile()
   → Manager.SaveProfile() → YAML Write → Reload Config
 ```
 
 **Wails 方法**:
 ```go
-func (s *WailsService) SaveProfile(name string, detail ProfileDetail) error {
+func (s *ProfileService) SaveProfile(name string, detail ProfileDetail) error {
     // 1. 转换 frontend types → domain types
     // 2. 写入 YAML 文件
     // 3. 重新加载配置
@@ -951,11 +953,11 @@ Record<string, string>  // caller → profile
 ### C. 关键 Go 方法签名
 
 ```go
-// WailsService methods
-func (s *WailsService) GetConfigMode() ConfigModeResponse
-func (s *WailsService) ListProfiles() []ProfileSummary
-func (s *WailsService) GetProfile(name string) *ProfileDetail
-func (s *WailsService) GetCallers() map[string]string
+// ConfigService/ProfileService methods
+func (s *ConfigService) GetConfigMode() ConfigModeResponse
+func (s *ProfileService) ListProfiles() []ProfileSummary
+func (s *ProfileService) GetProfile(name string) *ProfileDetail
+func (s *ProfileService) GetCallers() map[string]string
 
 // Manager methods (internal)
 func (m *Manager) LoadConfig(ctx context.Context, path string) error

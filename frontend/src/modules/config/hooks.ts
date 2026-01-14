@@ -1,4 +1,4 @@
-// Input: SWR, WailsService bindings, jotai atoms
+// Input: SWR, Config/Profile/Runtime service bindings, jotai atoms
 // Output: Config data fetching hooks including profile details and runtime status
 // Position: Data fetching hooks for config module
 
@@ -9,7 +9,7 @@ import type {
   ServerInitStatus,
   ServerRuntimeStatus,
 } from '@bindings/mcpd/internal/ui'
-import { WailsService } from '@bindings/mcpd/internal/ui'
+import { ConfigService, ProfileService, RuntimeService } from '@bindings/mcpd/internal/ui'
 import { useSetAtom } from 'jotai'
 import { useCallback, useEffect, useState } from 'react'
 import useSWR from 'swr'
@@ -28,7 +28,7 @@ export function useConfigMode() {
 
   const { data, error, isLoading, mutate } = useSWR<ConfigModeResponse>(
     'config-mode',
-    () => WailsService.GetConfigMode(),
+    () => ConfigService.GetConfigMode(),
   )
 
   useEffect(() => {
@@ -45,7 +45,7 @@ export function useProfiles() {
 
   const { data, error, isLoading, mutate } = useSWR<ProfileSummary[]>(
     'profiles',
-    () => WailsService.ListProfiles(),
+    () => ProfileService.ListProfiles(),
   )
 
   useEffect(() => {
@@ -62,7 +62,7 @@ export function useProfile(name: string | null) {
 
   const { data, error, isLoading, mutate } = useSWR<ProfileDetail | null>(
     name ? ['profile', name] : null,
-    () => (name ? WailsService.GetProfile(name) : null),
+    () => (name ? ProfileService.GetProfile(name) : null),
   )
 
   useEffect(() => {
@@ -81,7 +81,7 @@ export function useProfileDetails(profiles: ProfileSummary[] | undefined) {
     profileNames.length > 0 ? ['profile-details', ...profileNames] : null,
     async () => {
       const results = await Promise.all(
-        profileNames.map(name => WailsService.GetProfile(name)),
+        profileNames.map(name => ProfileService.GetProfile(name)),
       )
 
       return results.filter(
@@ -98,7 +98,7 @@ export function useCallers() {
 
   const { data, error, isLoading, mutate } = useSWR<Record<string, string>>(
     'callers',
-    () => WailsService.GetCallers(),
+    () => ProfileService.GetCallers(),
   )
 
   useEffect(() => {
@@ -118,7 +118,7 @@ export function useOpenConfigInEditor() {
     setIsOpening(true)
     setError(null)
     try {
-      await WailsService.OpenConfigInEditor()
+      await ConfigService.OpenConfigInEditor()
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)))
     } finally {
@@ -132,7 +132,7 @@ export function useOpenConfigInEditor() {
 export function useRuntimeStatus() {
   return useSWR<ServerRuntimeStatus[]>(
     'runtime-status',
-    () => WailsService.GetRuntimeStatus(),
+    () => RuntimeService.GetRuntimeStatus(),
     withSWRPreset('fastCached', {
       refreshInterval: 2000,
       dedupingInterval: 2000,
@@ -143,7 +143,7 @@ export function useRuntimeStatus() {
 export function useServerInitStatus() {
   return useSWR<ServerInitStatus[]>(
     'server-init-status',
-    () => WailsService.GetServerInitStatus(),
+    () => RuntimeService.GetServerInitStatus(),
     withSWRPreset('fastCached', {
       refreshInterval: 2000,
       dedupingInterval: 2000,

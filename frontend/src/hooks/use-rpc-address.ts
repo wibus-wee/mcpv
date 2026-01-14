@@ -1,5 +1,5 @@
 import type { ProfileDetail, ProfileSummary } from '@bindings/mcpd/internal/ui'
-import { WailsService } from '@bindings/mcpd/internal/ui'
+import { ProfileService } from '@bindings/mcpd/internal/ui'
 import useSWR from 'swr'
 
 import { defaultRpcAddress } from '@/lib/mcpdmcp'
@@ -18,10 +18,10 @@ export function useRpcAddress() {
   const swr = useSWR<string>(
     'rpc-address',
     async () => {
-      const profiles = await WailsService.ListProfiles()
+      const profiles = await ProfileService.ListProfiles()
       const profileName = pickProfileName(profiles)
       if (!profileName) return defaultRpcAddress
-      const detail = await WailsService.GetProfile(profileName)
+      const detail = await ProfileService.GetProfile(profileName)
       return extractRpcAddress(detail)
     },
     { revalidateOnFocus: false },

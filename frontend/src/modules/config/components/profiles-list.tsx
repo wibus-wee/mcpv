@@ -3,7 +3,7 @@
 // Position: Left panel in config page master-detail layout
 
 import type { ActiveCaller, ProfileSummary } from '@bindings/mcpd/internal/ui'
-import { WailsService } from '@bindings/mcpd/internal/ui'
+import { ProfileService } from '@bindings/mcpd/internal/ui'
 import {
   AlertCircleIcon,
   CheckCircleIcon,
@@ -139,7 +139,7 @@ export function ProfilesList({
     setCreateError(null)
     setNotice(null)
     try {
-      await WailsService.CreateProfile({ name: createName.trim() })
+      await ProfileService.CreateProfile({ name: createName.trim() })
       const reloadResult = await reloadConfig()
       if (!reloadResult.ok) {
         setNotice({

@@ -47,6 +47,30 @@ type ConfigModeResponse struct {
 	IsWritable bool   `json:"isWritable"` // Whether the config is writable
 }
 
+// CoreStateResponse is the core lifecycle status for the frontend.
+type CoreStateResponse struct {
+	State  string `json:"state"`
+	Uptime int64  `json:"uptime"`
+	Error  string `json:"error,omitempty"`
+}
+
+// InfoResponse exposes control plane metadata to the frontend.
+type InfoResponse struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	Build   string `json:"build"`
+}
+
+// BootstrapProgressResponse represents bootstrap progress for the frontend.
+type BootstrapProgressResponse struct {
+	State     string            `json:"state"`
+	Total     int               `json:"total"`
+	Completed int               `json:"completed"`
+	Failed    int               `json:"failed"`
+	Current   string            `json:"current"`
+	Errors    map[string]string `json:"errors,omitempty"`
+}
+
 // DebugSnapshotResponse is the metadata returned after exporting a debug snapshot.
 type DebugSnapshotResponse struct {
 	Path        string `json:"path"`

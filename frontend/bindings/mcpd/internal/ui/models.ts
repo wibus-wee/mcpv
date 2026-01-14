@@ -43,7 +43,7 @@ export class ActiveCaller {
 }
 
 /**
- * BootstrapProgressResponse represents bootstrap progress for the UI
+ * BootstrapProgressResponse represents bootstrap progress for the frontend.
  */
 export class BootstrapProgressResponse {
     "state": string;
@@ -131,7 +131,7 @@ export class ConfigModeResponse {
 }
 
 /**
- * CoreStateResponse 前端获取 Core 状态的响应
+ * CoreStateResponse is the core lifecycle status for the frontend.
  */
 export class CoreStateResponse {
     "state": string;
@@ -342,7 +342,7 @@ export class ImportServerSpec {
 }
 
 /**
- * InfoResponse 控制面板信息响应
+ * InfoResponse exposes control plane metadata to the frontend.
  */
 export class InfoResponse {
     "name": string;
@@ -423,26 +423,6 @@ export class InstanceStatus {
             $$parsedSource["lastStartCause"] = $$createField7_0($$parsedSource["lastStartCause"]);
         }
         return new InstanceStatus($$parsedSource as Partial<InstanceStatus>);
-    }
-}
-
-/**
- * Manager coordinates Core lifecycle and all UI services
- */
-export class Manager {
-
-    /** Creates a new Manager instance. */
-    constructor($$source: Partial<Manager> = {}) {
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new Manager instance from a string or object.
-     */
-    static createFrom($$source: any = {}): Manager {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new Manager($$parsedSource as Partial<Manager>);
     }
 }
 

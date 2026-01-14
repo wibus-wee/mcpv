@@ -16,60 +16,59 @@ func testLogger() *zap.Logger {
 	return zap.NewNop()
 }
 
-func TestNewWailsService(t *testing.T) {
-	coreApp := &app.App{}
-	svc := NewWailsService(coreApp, testLogger())
+func TestNewServiceRegistry(t *testing.T) {
+	registry := NewServiceRegistry(&app.App{}, testLogger())
 
-	assert.NotNil(t, svc)
-	assert.Equal(t, coreApp, svc.coreApp)
+	require.NotNil(t, registry)
+	assert.NotNil(t, registry.System)
+	assert.NotNil(t, registry.Core)
+	assert.NotNil(t, registry.Discovery)
+	assert.NotNil(t, registry.Log)
+	assert.NotNil(t, registry.Config)
+	assert.NotNil(t, registry.Profile)
+	assert.NotNil(t, registry.Runtime)
+	assert.NotNil(t, registry.SubAgent)
+	assert.NotNil(t, registry.Debug)
 }
 
-func TestWailsService_GetVersion(t *testing.T) {
-	svc := NewWailsService(&app.App{}, testLogger())
+func TestSystemService_GetVersion(t *testing.T) {
+	svc := NewSystemService(NewServiceDeps(&app.App{}, testLogger()))
 
 	version := svc.GetVersion()
 
 	assert.NotEmpty(t, version)
 }
 
-func TestWailsService_Ping(t *testing.T) {
-	svc := NewWailsService(&app.App{}, testLogger())
+func TestSystemService_Ping(t *testing.T) {
+	svc := NewSystemService(NewServiceDeps(&app.App{}, testLogger()))
 
 	result := svc.Ping(context.Background())
 
 	assert.Equal(t, "pong", result)
 }
 
-func TestWailsService_SetManager(t *testing.T) {
-	svc := NewWailsService(&app.App{}, testLogger())
-	manager := NewManager(nil, &app.App{}, "/path/to/config.yaml")
-
-	svc.SetManager(manager)
-
-	assert.Same(t, manager, svc.manager)
-}
-
-func TestWailsService_GetCoreState_NoManager(t *testing.T) {
-	svc := NewWailsService(&app.App{}, testLogger())
+func TestCoreService_GetCoreState_NoManager(t *testing.T) {
+	svc := NewCoreService(NewServiceDeps(&app.App{}, testLogger()))
 
 	state := svc.GetCoreState()
 
 	assert.Equal(t, "unknown", state.State)
 }
 
-func TestWailsService_GetCoreState_WithManager(t *testing.T) {
-	svc := NewWailsService(&app.App{}, testLogger())
+func TestCoreService_GetCoreState_WithManager(t *testing.T) {
+	deps := NewServiceDeps(&app.App{}, testLogger())
 	manager := NewManager(nil, &app.App{}, "")
-	svc.SetManager(manager)
+	deps.setManager(manager)
+	service := NewCoreService(deps)
 
-	state := svc.GetCoreState()
+	state := service.GetCoreState()
 
 	assert.Equal(t, string(CoreStateStopped), state.State)
 	assert.Equal(t, int64(0), state.Uptime)
 }
 
-func TestWailsService_GetBootstrapProgress_NoManager(t *testing.T) {
-	svc := NewWailsService(&app.App{}, testLogger())
+func TestCoreService_GetBootstrapProgress_NoManager(t *testing.T) {
+	svc := NewCoreService(NewServiceDeps(&app.App{}, testLogger()))
 
 	progress, err := svc.GetBootstrapProgress(context.Background())
 
@@ -77,10 +76,11 @@ func TestWailsService_GetBootstrapProgress_NoManager(t *testing.T) {
 	assert.Equal(t, string(domain.BootstrapPending), progress.State)
 }
 
-func TestWailsService_GetBootstrapProgress_CoreNotRunning(t *testing.T) {
-	svc := NewWailsService(&app.App{}, testLogger())
+func TestCoreService_GetBootstrapProgress_CoreNotRunning(t *testing.T) {
+	deps := NewServiceDeps(&app.App{}, testLogger())
 	manager := NewManager(nil, &app.App{}, "")
-	svc.SetManager(manager)
+	deps.setManager(manager)
+	svc := NewCoreService(deps)
 
 	progress, err := svc.GetBootstrapProgress(context.Background())
 
@@ -88,8 +88,8 @@ func TestWailsService_GetBootstrapProgress_CoreNotRunning(t *testing.T) {
 	assert.Equal(t, string(domain.BootstrapPending), progress.State)
 }
 
-func TestWailsService_StartCore_NoManager(t *testing.T) {
-	svc := NewWailsService(&app.App{}, testLogger())
+func TestCoreService_StartCore_NoManager(t *testing.T) {
+	svc := NewCoreService(NewServiceDeps(&app.App{}, testLogger()))
 
 	err := svc.StartCore(context.Background())
 
@@ -99,8 +99,8 @@ func TestWailsService_StartCore_NoManager(t *testing.T) {
 	assert.Equal(t, ErrCodeInternal, uiErr.Code)
 }
 
-func TestWailsService_StopCore_NoManager(t *testing.T) {
-	svc := NewWailsService(&app.App{}, testLogger())
+func TestCoreService_StopCore_NoManager(t *testing.T) {
+	svc := NewCoreService(NewServiceDeps(&app.App{}, testLogger()))
 
 	err := svc.StopCore()
 
@@ -110,8 +110,8 @@ func TestWailsService_StopCore_NoManager(t *testing.T) {
 	assert.Equal(t, ErrCodeInternal, uiErr.Code)
 }
 
-func TestWailsService_RestartCore_NoManager(t *testing.T) {
-	svc := NewWailsService(&app.App{}, testLogger())
+func TestCoreService_RestartCore_NoManager(t *testing.T) {
+	svc := NewCoreService(NewServiceDeps(&app.App{}, testLogger()))
 
 	err := svc.RestartCore(context.Background())
 
@@ -121,8 +121,8 @@ func TestWailsService_RestartCore_NoManager(t *testing.T) {
 	assert.Equal(t, ErrCodeInternal, uiErr.Code)
 }
 
-func TestWailsService_ListTools_NoManager(t *testing.T) {
-	svc := NewWailsService(&app.App{}, testLogger())
+func TestDiscoveryService_ListTools_NoManager(t *testing.T) {
+	svc := NewDiscoveryService(NewServiceDeps(&app.App{}, testLogger()))
 
 	tools, err := svc.ListTools(context.Background())
 
@@ -130,8 +130,8 @@ func TestWailsService_ListTools_NoManager(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestWailsService_ListResources_NoManager(t *testing.T) {
-	svc := NewWailsService(&app.App{}, testLogger())
+func TestDiscoveryService_ListResources_NoManager(t *testing.T) {
+	svc := NewDiscoveryService(NewServiceDeps(&app.App{}, testLogger()))
 
 	resources, err := svc.ListResources(context.Background(), "")
 
@@ -139,8 +139,8 @@ func TestWailsService_ListResources_NoManager(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestWailsService_ListPrompts_NoManager(t *testing.T) {
-	svc := NewWailsService(&app.App{}, testLogger())
+func TestDiscoveryService_ListPrompts_NoManager(t *testing.T) {
+	svc := NewDiscoveryService(NewServiceDeps(&app.App{}, testLogger()))
 
 	prompts, err := svc.ListPrompts(context.Background(), "")
 
@@ -148,8 +148,8 @@ func TestWailsService_ListPrompts_NoManager(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestWailsService_CallTool_NoManager(t *testing.T) {
-	svc := NewWailsService(&app.App{}, testLogger())
+func TestDiscoveryService_CallTool_NoManager(t *testing.T) {
+	svc := NewDiscoveryService(NewServiceDeps(&app.App{}, testLogger()))
 
 	result, err := svc.CallTool(context.Background(), "test-tool", nil, "")
 
@@ -157,8 +157,8 @@ func TestWailsService_CallTool_NoManager(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestWailsService_ReadResource_NoManager(t *testing.T) {
-	svc := NewWailsService(&app.App{}, testLogger())
+func TestDiscoveryService_ReadResource_NoManager(t *testing.T) {
+	svc := NewDiscoveryService(NewServiceDeps(&app.App{}, testLogger()))
 
 	result, err := svc.ReadResource(context.Background(), "file:///test")
 
@@ -166,8 +166,8 @@ func TestWailsService_ReadResource_NoManager(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestWailsService_GetPrompt_NoManager(t *testing.T) {
-	svc := NewWailsService(&app.App{}, testLogger())
+func TestDiscoveryService_GetPrompt_NoManager(t *testing.T) {
+	svc := NewDiscoveryService(NewServiceDeps(&app.App{}, testLogger()))
 
 	result, err := svc.GetPrompt(context.Background(), "test-prompt", nil)
 
@@ -175,8 +175,8 @@ func TestWailsService_GetPrompt_NoManager(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestWailsService_GetInfo_NoManager(t *testing.T) {
-	svc := NewWailsService(&app.App{}, testLogger())
+func TestCoreService_GetInfo_NoManager(t *testing.T) {
+	svc := NewCoreService(NewServiceDeps(&app.App{}, testLogger()))
 
 	info, err := svc.GetInfo(context.Background())
 
@@ -184,8 +184,8 @@ func TestWailsService_GetInfo_NoManager(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestWailsService_StartLogStream_NoManager(t *testing.T) {
-	svc := NewWailsService(&app.App{}, testLogger())
+func TestLogService_StartLogStream_NoManager(t *testing.T) {
+	svc := NewLogService(NewServiceDeps(&app.App{}, testLogger()))
 
 	err := svc.StartLogStream(context.Background(), "info")
 
@@ -195,8 +195,8 @@ func TestWailsService_StartLogStream_NoManager(t *testing.T) {
 	assert.Equal(t, ErrCodeInternal, uiErr.Code)
 }
 
-func TestWailsService_StopLogStream_NoActive(t *testing.T) {
-	svc := NewWailsService(&app.App{}, testLogger())
+func TestLogService_StopLogStream_NoActive(t *testing.T) {
+	svc := NewLogService(NewServiceDeps(&app.App{}, testLogger()))
 
 	// Should not panic when no stream is active
 	svc.StopLogStream()

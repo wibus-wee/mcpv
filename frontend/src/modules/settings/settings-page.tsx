@@ -1,4 +1,4 @@
-// Input: WailsService runtime bindings, react-hook-form, config mode hook, UI components, SWR
+// Input: ConfigService/ProfileService bindings, react-hook-form, config mode hook, UI components, SWR
 // Output: SettingsPage component with runtime configuration form
 // Position: Settings module page for global runtime settings
 
@@ -7,7 +7,7 @@ import type {
   ProfileSummary,
   RuntimeConfigDetail,
 } from '@bindings/mcpd/internal/ui'
-import { WailsService } from '@bindings/mcpd/internal/ui'
+import { ConfigService, ProfileService } from '@bindings/mcpd/internal/ui'
 import {
   AlertCircleIcon,
   SaveIcon,
@@ -283,7 +283,7 @@ export const SettingsPage = () => {
     isLoading: profilesLoading,
   } = useSWR<ProfileSummary[]>(
     'profiles',
-    () => WailsService.ListProfiles(),
+    () => ProfileService.ListProfiles(),
   )
 
   const runtimeProfileName = profiles?.find(profile => profile.isDefault)?.name
@@ -297,7 +297,7 @@ export const SettingsPage = () => {
     mutate: mutateRuntimeProfile,
   } = useSWR<ProfileDetail | null>(
     runtimeProfileName ? ['profile', runtimeProfileName] : null,
-    () => (runtimeProfileName ? WailsService.GetProfile(runtimeProfileName) : null),
+    () => (runtimeProfileName ? ProfileService.GetProfile(runtimeProfileName) : null),
   )
 
   useEffect(() => {
@@ -337,7 +337,7 @@ export const SettingsPage = () => {
       return
     }
     try {
-      await WailsService.UpdateRuntimeConfig(values)
+      await ConfigService.UpdateRuntimeConfig(values)
 
       const reloadResult = await reloadConfig()
       if (!reloadResult.ok) {

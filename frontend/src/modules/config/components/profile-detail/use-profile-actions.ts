@@ -1,8 +1,8 @@
-// Input: WailsService, reloadConfig, profile mutations
+// Input: ProfileService, reloadConfig, profile mutations
 // Output: useProfileActions hook for profile operations
 // Position: Business logic hook for profile detail panel
 
-import { WailsService } from '@bindings/mcpd/internal/ui'
+import { ProfileService } from '@bindings/mcpd/internal/ui'
 import { useCallback, useEffect, useState } from 'react'
 
 import type { NoticeState } from '../../hooks/use-config-reload'
@@ -65,7 +65,7 @@ export function useProfileActions({
     setNotice(null)
 
     try {
-      await WailsService.SetServerDisabled({
+      await ProfileService.SetServerDisabled({
         profile: profileName,
         server: server.name,
         disabled,
@@ -108,7 +108,7 @@ export function useProfileActions({
     setNotice(null)
 
     try {
-      await WailsService.DeleteServer({
+      await ProfileService.DeleteServer({
         profile: profileName,
         server: server.name,
       })
@@ -150,7 +150,7 @@ export function useProfileActions({
     setNotice(null)
 
     try {
-      await WailsService.DeleteProfile({ name: profileName })
+      await ProfileService.DeleteProfile({ name: profileName })
 
       const reloadResult = await reloadConfig()
       if (!reloadResult.ok) {

@@ -1,9 +1,9 @@
-// Input: ProfileDetail, WailsService for SubAgent toggle
+// Input: ProfileDetail, SubAgentService for SubAgent toggle
 // Output: ProfileSubAgentSection - SubAgent configuration section
 // Position: Section component in profile detail view
 
 import type { ProfileDetail, UpdateProfileSubAgentRequest } from '@bindings/mcpd/internal/ui'
-import { WailsService } from '@bindings/mcpd/internal/ui'
+import { SubAgentService } from '@bindings/mcpd/internal/ui'
 import { useState } from 'react'
 
 import { Switch } from '@/components/ui/switch'
@@ -34,7 +34,7 @@ export function ProfileSubAgentSection({
         profile: profile.name,
         enabled: checked,
       }
-      await WailsService.SetProfileSubAgentEnabled(req)
+      await SubAgentService.SetProfileSubAgentEnabled(req)
       onToggle()
       toastManager.add({
         type: 'success',

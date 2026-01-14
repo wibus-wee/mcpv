@@ -1,10 +1,9 @@
-// Input: WailsService bindings, SWR hooks
+// Input: CoreService bindings, SWR hooks
 // Output: Core state hooks and actions with CoreStatus type
 // Position: Shared core state accessors for app-wide status
 
 import type { CoreStateResponse } from '@bindings/mcpd/internal/ui'
-import { WailsService } from '@bindings/mcpd/internal/ui'
-import { StartCoreWithOptions } from '@bindings/mcpd/internal/ui/wailsservice'
+import { CoreService } from '@bindings/mcpd/internal/ui'
 import { useCallback } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 
@@ -25,7 +24,7 @@ const toCoreStatus = (state?: string): CoreStatus => {
 export function useCoreState() {
   const swr = useSWR<CoreStateResponse>(
     coreStateKey,
-    () => WailsService.GetCoreState(),
+    () => CoreService.GetCoreState(),
     {
       refreshInterval: 5000,
       revalidateOnFocus: true,
@@ -70,7 +69,7 @@ export function useCoreActions() {
       const options: StartCoreOptions = {
         mode: import.meta.env.DEV ? 'dev' : 'prod',
       }
-      await StartCoreWithOptions(options)
+      await CoreService.StartCoreWithOptions(options)
     }
     catch (error) {
       updateCoreState('stopped')
@@ -83,7 +82,7 @@ export function useCoreActions() {
     const previousStatus = getCurrentStatus()
     updateCoreState('stopped')
     try {
-      await WailsService.StopCore()
+      await CoreService.StopCore()
     }
     catch (error) {
       updateCoreState(previousStatus)
@@ -95,7 +94,7 @@ export function useCoreActions() {
   const restartCore = useCallback(async () => {
     updateCoreState('starting')
     try {
-      await WailsService.RestartCore()
+      await CoreService.RestartCore()
     }
     catch (error) {
       updateCoreState('error')

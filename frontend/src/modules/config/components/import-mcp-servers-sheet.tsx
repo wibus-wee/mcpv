@@ -30,7 +30,7 @@ import {
   type ImportServerDraft,
 } from '../lib/mcp-import'
 import { useConfigMode, useProfileDetails, useProfiles } from '../hooks'
-import { ImportMcpServers } from '@bindings/mcpd/internal/ui/wailsservice'
+import { ConfigService } from '@bindings/mcpd/internal/ui'
 import { reloadConfig } from '../lib/reload-config'
 
 export const ImportMcpServersSheet = () => {
@@ -149,7 +149,7 @@ export const ImportMcpServersSheet = () => {
     }
 
     try {
-      await ImportMcpServers(payload)
+      await ConfigService.ImportMcpServers(payload)
       const reloadResult = await reloadConfig()
       if (!reloadResult.ok) {
         setIsSaved(false)
