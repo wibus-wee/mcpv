@@ -21,7 +21,7 @@
 - 错误与 backpressure：并发超限可快速失败；启动中可返回“启动中”错误（不排队为 MVP）。
 
 四、超出范围（MVP 后）
-- Streamable HTTP/SSE transport；MCP Authorization。
+- 本地 HTTP MCP server 管理（streamable HTTP 连接外部 server 已支持）；MCP Authorization。
 - 远端/容器/K8s runtime 适配。
 - 预热池高级策略、优先级队列、任务排队。
 - 多租户隔离、ACL、鉴权。

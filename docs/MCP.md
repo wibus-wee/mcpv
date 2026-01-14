@@ -25,7 +25,8 @@
 
 ## 传输与会话
 - `mcpd` MVP 使用 stdio 子进程：建议逐行（`\n`）分隔 JSON-RPC 消息，启动后立即发送 `initialize`。
-- HTTP 规范：新版本为 Streamable HTTP（可 SSE 下行、POST 上行，支持会话 ID `MCP-Session-Id`）；老版 HTTP+SSE 兼容策略可忽略（MVP 不实现）。
+- HTTP 规范：新版本为 Streamable HTTP（可 SSE 下行、POST 上行，支持会话 ID `MCP-Session-Id`）；老版 HTTP+SSE 兼容策略可忽略。
+- `mcpd` 现支持连接外部 Streamable HTTP MCP server（不负责启动本地 HTTP server），以 `transport: streamable_http` + `http.endpoint` 配置。
 - 会话 ID 规则（仅 HTTP 相关）：服务器可在 `initialize` 响应头返回 `MCP-Session-Id`，后续请求需回传；服务器终止会话后返回 404。
 
 ## 资源（Resources）
@@ -94,4 +95,3 @@
 - 子进程启动后：发送 `initialize`（带客户端能力、版本），等待成功响应后才进入路由阶段。
 - 路由层：仅允许声明过的 method（prompts/resources/tools/tasks/elicitation/sampling/completion/logging）；未声明能力直接返回 `-32601`。
 - 缩容/重建：若 `initialize` 或后续 `ping`（可用 `tools/call` 健康探针或自定义资源读取）失败，标记实例 Failed 并清理。
-

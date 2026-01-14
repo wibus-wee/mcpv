@@ -43,9 +43,17 @@ func NewCommandLauncher(logger *zap.Logger) domain.Launcher {
 }
 
 func NewMCPTransport(logger *zap.Logger, listChanges *notifications.ListChangeHub) domain.Transport {
-	return transport.NewMCPTransport(transport.MCPTransportOptions{
+	stdioTransport := transport.NewMCPTransport(transport.MCPTransportOptions{
 		Logger:            logger,
 		ListChangeEmitter: listChanges,
+	})
+	httpTransport := transport.NewStreamableHTTPTransport(transport.StreamableHTTPTransportOptions{
+		Logger:            logger,
+		ListChangeEmitter: listChanges,
+	})
+	return transport.NewCompositeTransport(transport.CompositeTransportOptions{
+		Stdio:          stdioTransport,
+		StreamableHTTP: httpTransport,
 	})
 }
 

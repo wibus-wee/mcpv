@@ -149,29 +149,41 @@ type RPCTLSConfigDetail struct {
 
 // ServerSpecDetail contains server specification for frontend
 type ServerSpecDetail struct {
-	Name                string            `json:"name"`
-	SpecKey             string            `json:"specKey"`
-	Cmd                 []string          `json:"cmd"`
-	Env                 map[string]string `json:"env"`
-	Cwd                 string            `json:"cwd"`
-	IdleSeconds         int               `json:"idleSeconds"`
-	MaxConcurrent       int               `json:"maxConcurrent"`
-	Strategy            string            `json:"strategy"`
-	SessionTTLSeconds   int               `json:"sessionTTLSeconds"`
-	Disabled            bool              `json:"disabled"`
-	MinReady            int               `json:"minReady"`
-	ActivationMode      string            `json:"activationMode"`
-	DrainTimeoutSeconds int               `json:"drainTimeoutSeconds"`
-	ProtocolVersion     string            `json:"protocolVersion"`
-	ExposeTools         []string          `json:"exposeTools"`
+	Name                string                      `json:"name"`
+	SpecKey             string                      `json:"specKey"`
+	Transport           string                      `json:"transport"`
+	Cmd                 []string                    `json:"cmd"`
+	Env                 map[string]string           `json:"env"`
+	Cwd                 string                      `json:"cwd"`
+	IdleSeconds         int                         `json:"idleSeconds"`
+	MaxConcurrent       int                         `json:"maxConcurrent"`
+	Strategy            string                      `json:"strategy"`
+	SessionTTLSeconds   int                         `json:"sessionTTLSeconds"`
+	Disabled            bool                        `json:"disabled"`
+	MinReady            int                         `json:"minReady"`
+	ActivationMode      string                      `json:"activationMode"`
+	DrainTimeoutSeconds int                         `json:"drainTimeoutSeconds"`
+	ProtocolVersion     string                      `json:"protocolVersion"`
+	ExposeTools         []string                    `json:"exposeTools"`
+	HTTP                *StreamableHTTPConfigDetail `json:"http,omitempty"`
+}
+
+// StreamableHTTPConfigDetail contains streamable HTTP configuration for frontend
+type StreamableHTTPConfigDetail struct {
+	Endpoint   string            `json:"endpoint"`
+	Headers    map[string]string `json:"headers,omitempty"`
+	MaxRetries int               `json:"maxRetries"`
 }
 
 // ImportServerSpec represents a server spec from MCP JSON import.
 type ImportServerSpec struct {
-	Name string            `json:"name"`
-	Cmd  []string          `json:"cmd"`
-	Env  map[string]string `json:"env,omitempty"`
-	Cwd  string            `json:"cwd,omitempty"`
+	Name            string                      `json:"name"`
+	Transport       string                      `json:"transport,omitempty"`
+	Cmd             []string                    `json:"cmd,omitempty"`
+	Env             map[string]string           `json:"env,omitempty"`
+	Cwd             string                      `json:"cwd,omitempty"`
+	ProtocolVersion string                      `json:"protocolVersion,omitempty"`
+	HTTP            *StreamableHTTPConfigDetail `json:"http,omitempty"`
 }
 
 // ImportMcpServersRequest is the payload for importing MCP servers into profiles.

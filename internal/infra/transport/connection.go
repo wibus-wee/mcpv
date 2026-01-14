@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
@@ -108,6 +109,23 @@ func (c *clientConn) Call(ctx context.Context, payload json.RawMessage) (json.Ra
 		c.removePending(key)
 		return nil, ctx.Err()
 	}
+}
+
+func (c *clientConn) Notify(ctx context.Context, method string, params json.RawMessage) error {
+	if c.isClosed() {
+		return domain.ErrConnectionClosed
+	}
+	if strings.TrimSpace(method) == "" {
+		return errors.New("method is required")
+	}
+	req := &jsonrpc.Request{
+		Method: method,
+		Params: params,
+	}
+	if err := c.conn.Write(ctx, req); err != nil {
+		return fmt.Errorf("write notification: %w", err)
+	}
+	return nil
 }
 
 func (c *clientConn) Close() error {

@@ -142,9 +142,11 @@ export const ImportMcpServersSheet = () => {
       profiles: selectedProfiles,
       servers: servers.map(server => ({
         name: server.name.trim(),
+        transport: server.transport,
         cmd: server.cmd,
         env: server.env,
         cwd: server.cwd,
+        ...(server.http ? { http: server.http } : {}),
       })),
     }
 
@@ -292,7 +294,9 @@ export const ImportMcpServersSheet = () => {
                       />
                     </div>
                     <div className="text-xs text-muted-foreground wrap-break-word">
-                      {server.cmd.join(' ')}
+                      {server.transport === 'streamable_http'
+                        ? `endpoint: ${server.http?.endpoint ?? ''}`
+                        : server.cmd.join(' ')}
                     </div>
                     {(server.cwd || Object.keys(server.env).length > 0) && (
                       <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">

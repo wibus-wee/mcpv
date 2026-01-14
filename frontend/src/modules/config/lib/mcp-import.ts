@@ -1,21 +1,32 @@
 export type ImportServerDraft = {
   id: string
   name: string
+  transport: 'stdio' | 'streamable_http'
   cmd: string[]
   env: Record<string, string>
   cwd: string
+  http?: StreamableHTTPDraft
 }
 
 export type ImportServerSpec = {
   name: string
+  transport?: 'stdio' | 'streamable_http'
   cmd: string[]
   env: Record<string, string>
   cwd: string
+  protocolVersion?: string
+  http?: StreamableHTTPDraft
 }
 
 export type ImportMcpServersRequest = {
   profiles: string[]
   servers: ImportServerSpec[]
+}
+
+export type StreamableHTTPDraft = {
+  endpoint: string
+  headers: Record<string, string>
+  maxRetries?: number
 }
 
 type McpServerEntry = {
@@ -24,6 +35,10 @@ type McpServerEntry = {
   env?: unknown
   cwd?: unknown
   transport?: unknown
+  endpoint?: unknown
+  url?: unknown
+  headers?: unknown
+  maxRetries?: unknown
 }
 
 type ParseResult = {
@@ -68,14 +83,31 @@ export function parseMcpServersJson(input: string): ParseResult {
     }
 
     const entry = raw as McpServerEntry
-    const command = entry.command
-    if (typeof command !== 'string' || command.trim() === '') {
-      errors.push(`${prefix}: command is required.`)
+    const transport = parseTransport(entry.transport, prefix, errors)
+    if (!transport) {
       return
     }
 
-    if (entry.transport !== undefined && entry.transport !== 'stdio') {
-      errors.push(`${prefix}: only stdio transport is supported.`)
+    if (transport === 'streamable_http') {
+      const http = parseStreamableHTTP(entry, prefix, errors)
+      if (!http) {
+        return
+      }
+      servers.push({
+        id: `${index}-${name}`,
+        name,
+        transport,
+        cmd: [],
+        env: {},
+        cwd: '',
+        http,
+      })
+      return
+    }
+
+    const command = entry.command
+    if (typeof command !== 'string' || command.trim() === '') {
+      errors.push(`${prefix}: command is required.`)
       return
     }
 
@@ -97,6 +129,7 @@ export function parseMcpServersJson(input: string): ParseResult {
     servers.push({
       id: `${index}-${name}`,
       name,
+      transport,
       cmd: [command, ...args],
       env,
       cwd,
@@ -112,6 +145,65 @@ export function parseMcpServersJson(input: string): ParseResult {
   }
 
   return { servers, errors: [] }
+}
+
+function parseTransport(
+  raw: unknown,
+  prefix: string,
+  errors: string[],
+): 'stdio' | 'streamable_http' | null {
+  if (raw === undefined) {
+    return 'stdio'
+  }
+  if (typeof raw !== 'string') {
+    errors.push(`${prefix}: transport must be a string.`)
+    return null
+  }
+  const normalized = raw.trim().toLowerCase()
+  if (!normalized) {
+    return 'stdio'
+  }
+  if (normalized === 'stdio') {
+    return 'stdio'
+  }
+  if (normalized === 'streamable_http' || normalized === 'streamable-http') {
+    return 'streamable_http'
+  }
+  errors.push(`${prefix}: transport must be stdio or streamable_http.`)
+  return null
+}
+
+function parseStreamableHTTP(
+  entry: McpServerEntry,
+  prefix: string,
+  errors: string[],
+): StreamableHTTPDraft | null {
+  if (entry.command || entry.args || entry.cwd || entry.env) {
+    errors.push(`${prefix}: streamable_http transport does not support command/args/env/cwd.`)
+    return null
+  }
+
+  const rawEndpoint = entry.endpoint ?? entry.url
+  if (typeof rawEndpoint !== 'string' || rawEndpoint.trim() === '') {
+    errors.push(`${prefix}: endpoint is required for streamable_http transport.`)
+    return null
+  }
+
+  const headers = parseHeaders(entry.headers, prefix, errors)
+  if (headers === null) {
+    return null
+  }
+
+  const maxRetries = parseMaxRetries(entry.maxRetries, prefix, errors)
+  if (maxRetries === null) {
+    return null
+  }
+
+  return {
+    endpoint: rawEndpoint.trim(),
+    headers,
+    ...(maxRetries !== undefined ? { maxRetries } : {}),
+  }
 }
 
 function parseArgs(
@@ -158,6 +250,44 @@ function parseEnv(
     env[key] = value
   })
   return env
+}
+
+function parseHeaders(
+  raw: unknown,
+  prefix: string,
+  errors: string[],
+): Record<string, string> | null {
+  if (raw === undefined) {
+    return {}
+  }
+  if (!isRecord(raw)) {
+    errors.push(`${prefix}: headers must be an object.`)
+    return null
+  }
+  const headers: Record<string, string> = {}
+  Object.entries(raw).forEach(([key, value]) => {
+    if (typeof value !== 'string') {
+      errors.push(`${prefix}: headers.${key} must be a string.`)
+      return
+    }
+    headers[key] = value
+  })
+  return headers
+}
+
+function parseMaxRetries(
+  raw: unknown,
+  prefix: string,
+  errors: string[],
+): number | undefined | null {
+  if (raw === undefined) {
+    return undefined
+  }
+  if (typeof raw !== 'number' || Number.isNaN(raw)) {
+    errors.push(`${prefix}: maxRetries must be a number.`)
+    return null
+  }
+  return raw
 }
 
 function parseCwd(

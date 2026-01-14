@@ -35,6 +35,7 @@ servers:
 	got := catalog.Specs["git-helper"]
 	expect := domain.ServerSpec{
 		Name:                "git-helper",
+		Transport:           domain.TransportStdio,
 		Cmd:                 []string{"./git-helper"},
 		IdleSeconds:         60,
 		MaxConcurrent:       2,
@@ -270,6 +271,72 @@ servers:
 	require.Equal(t, domain.DefaultProtocolVersion, got.ProtocolVersion)
 	require.Equal(t, domain.DefaultMaxConcurrent, got.MaxConcurrent)
 	require.Equal(t, domain.DefaultDrainTimeoutSeconds, got.DrainTimeoutSeconds)
+	require.Equal(t, domain.TransportStdio, got.Transport)
+}
+
+func TestLoader_StreamableHTTPSuccess(t *testing.T) {
+	file := writeTempConfig(t, `
+servers:
+  - name: remote
+    transport: streamable_http
+    idleSeconds: 0
+    maxConcurrent: 2
+    strategy: stateless
+    minReady: 0
+    protocolVersion: "2025-06-18"
+    http:
+      endpoint: "https://example.com/mcp"
+      headers:
+        Authorization: "Bearer token"
+      maxRetries: 2
+`)
+
+	loader := NewLoader(zap.NewNop())
+	catalog, err := loader.Load(context.Background(), file)
+	require.NoError(t, err)
+
+	got := catalog.Specs["remote"]
+	require.Equal(t, domain.TransportStreamableHTTP, got.Transport)
+	require.Nil(t, got.Cmd)
+	require.Equal(t, "https://example.com/mcp", got.HTTP.Endpoint)
+	require.Equal(t, 2, got.HTTP.MaxRetries)
+	require.Equal(t, "Bearer token", got.HTTP.Headers["Authorization"])
+	require.Equal(t, "2025-06-18", got.ProtocolVersion)
+}
+
+func TestLoader_StreamableHTTPImplicitTransport(t *testing.T) {
+	file := writeTempConfig(t, `
+servers:
+  - name: remote
+    http:
+      endpoint: "https://example.com/mcp"
+`)
+
+	loader := NewLoader(zap.NewNop())
+	catalog, err := loader.Load(context.Background(), file)
+	require.NoError(t, err)
+
+	got := catalog.Specs["remote"]
+	require.Equal(t, domain.TransportStreamableHTTP, got.Transport)
+	require.Equal(t, "https://example.com/mcp", got.HTTP.Endpoint)
+	require.Equal(t, domain.DefaultStreamableHTTPProtocolVersion, got.ProtocolVersion)
+}
+
+func TestLoader_StreamableHTTPInvalid(t *testing.T) {
+	file := writeTempConfig(t, `
+servers:
+  - name: remote
+    transport: streamable_http
+    cmd: ["./svc"]
+    http:
+      endpoint: "file://nope"
+`)
+
+	loader := NewLoader(zap.NewNop())
+	_, err := loader.Load(context.Background(), file)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "cmd must be empty")
+	require.Contains(t, err.Error(), "http.endpoint must be a valid http(s) URL")
 }
 
 func TestLoader_StatefulSessionTTLOmittedUsesDefault(t *testing.T) {

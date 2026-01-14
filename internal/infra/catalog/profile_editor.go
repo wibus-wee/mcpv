@@ -18,20 +18,28 @@ type ProfileUpdate struct {
 }
 
 type serverSpecYAML struct {
-	Name                string            `yaml:"name"`
-	Cmd                 []string          `yaml:"cmd"`
-	Env                 map[string]string `yaml:"env,omitempty"`
-	Cwd                 string            `yaml:"cwd,omitempty"`
-	IdleSeconds         int               `yaml:"idleSeconds"`
-	MaxConcurrent       int               `yaml:"maxConcurrent"`
-	Strategy            string            `yaml:"strategy,omitempty"`
-	SessionTTLSeconds   int               `yaml:"sessionTTLSeconds,omitempty"`
-	Disabled            bool              `yaml:"disabled,omitempty"`
-	MinReady            int               `yaml:"minReady"`
-	ActivationMode      string            `yaml:"activationMode,omitempty"`
-	DrainTimeoutSeconds int               `yaml:"drainTimeoutSeconds"`
-	ProtocolVersion     string            `yaml:"protocolVersion"`
-	ExposeTools         []string          `yaml:"exposeTools,omitempty"`
+	Name                string              `yaml:"name"`
+	Transport           string              `yaml:"transport,omitempty"`
+	Cmd                 []string            `yaml:"cmd"`
+	Env                 map[string]string   `yaml:"env,omitempty"`
+	Cwd                 string              `yaml:"cwd,omitempty"`
+	IdleSeconds         int                 `yaml:"idleSeconds"`
+	MaxConcurrent       int                 `yaml:"maxConcurrent"`
+	Strategy            string              `yaml:"strategy,omitempty"`
+	SessionTTLSeconds   int                 `yaml:"sessionTTLSeconds,omitempty"`
+	Disabled            bool                `yaml:"disabled,omitempty"`
+	MinReady            int                 `yaml:"minReady"`
+	ActivationMode      string              `yaml:"activationMode,omitempty"`
+	DrainTimeoutSeconds int                 `yaml:"drainTimeoutSeconds"`
+	ProtocolVersion     string              `yaml:"protocolVersion"`
+	ExposeTools         []string            `yaml:"exposeTools,omitempty"`
+	HTTP                *streamableHTTPYAML `yaml:"http,omitempty"`
+}
+
+type streamableHTTPYAML struct {
+	Endpoint   string            `yaml:"endpoint"`
+	Headers    map[string]string `yaml:"headers,omitempty"`
+	MaxRetries int               `yaml:"maxRetries,omitempty"`
 }
 
 func ResolveProfilePath(storePath string, profileName string) (string, error) {
@@ -239,9 +247,22 @@ func toServerSpecYAML(spec domain.ServerSpec) serverSpecYAML {
 	if len(exposeTools) == 0 {
 		exposeTools = nil
 	}
+	var httpCfg *streamableHTTPYAML
+	if spec.HTTP != nil && domain.NormalizeTransport(spec.Transport) == domain.TransportStreamableHTTP {
+		headers := spec.HTTP.Headers
+		if len(headers) == 0 {
+			headers = nil
+		}
+		httpCfg = &streamableHTTPYAML{
+			Endpoint:   spec.HTTP.Endpoint,
+			Headers:    headers,
+			MaxRetries: spec.HTTP.MaxRetries,
+		}
+	}
 
 	return serverSpecYAML{
 		Name:                spec.Name,
+		Transport:           string(domain.NormalizeTransport(spec.Transport)),
 		Cmd:                 spec.Cmd,
 		Env:                 env,
 		Cwd:                 spec.Cwd,
@@ -255,6 +276,7 @@ func toServerSpecYAML(spec domain.ServerSpec) serverSpecYAML {
 		DrainTimeoutSeconds: spec.DrainTimeoutSeconds,
 		ProtocolVersion:     spec.ProtocolVersion,
 		ExposeTools:         exposeTools,
+		HTTP:                httpCfg,
 	}
 }
 
