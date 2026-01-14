@@ -55,6 +55,7 @@ export {
     StartCause,
     StartCausePolicy,
     StartCoreOptions,
+    StreamableHTTPConfigDetail,
     SubAgentConfigDetail,
     ToolEntry,
     UpdateCallerMappingRequest,

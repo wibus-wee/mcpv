@@ -73,6 +73,18 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 		telemetry.ServerTypeField(spec.Name),
 	)
 
+	transportKind := domain.NormalizeTransport(spec.Transport)
+	if !domain.IsSupportedProtocolVersion(transportKind, spec.ProtocolVersion) {
+		err := fmt.Errorf("%w: %s", domain.ErrUnsupportedProtocol, spec.ProtocolVersion)
+		m.logger.Error("instance start failed",
+			telemetry.EventField(telemetry.EventStartFailure),
+			telemetry.ServerTypeField(spec.Name),
+			telemetry.DurationField(time.Since(started)),
+			zap.Error(err),
+		)
+		return nil, err
+	}
+
 	startCtx, cancelStart := context.WithCancel(baseCtx)
 	var detached atomic.Bool
 	stopBridge := func() bool { return true }
@@ -86,35 +98,40 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 	}
 	defer stopBridge()
 
-	streams, stop, err := m.launcher.Start(startCtx, specKey, spec)
-	if err != nil {
-		cancelStart()
-		m.logger.Error("instance start failed",
-			telemetry.EventField(telemetry.EventStartFailure),
-			telemetry.ServerTypeField(spec.Name),
-			telemetry.DurationField(time.Since(started)),
-			zap.Error(err),
-		)
-		return nil, fmt.Errorf("start launcher: %w", err)
-	}
-	if streams.Reader == nil || streams.Writer == nil {
-		err := errors.New("launcher returned nil streams")
-		cancelStart()
-		m.logger.Error("instance start failed",
-			telemetry.EventField(telemetry.EventStartFailure),
-			telemetry.ServerTypeField(spec.Name),
-			telemetry.DurationField(time.Since(started)),
-			zap.Error(err),
-		)
-		if stop != nil {
-			_ = stop(ctx)
+	var streams domain.IOStreams
+	var stop domain.StopFn
+	if transportKind == domain.TransportStdio {
+		var err error
+		streams, stop, err = m.launcher.Start(startCtx, specKey, spec)
+		if err != nil {
+			cancelStart()
+			m.logger.Error("instance start failed",
+				telemetry.EventField(telemetry.EventStartFailure),
+				telemetry.ServerTypeField(spec.Name),
+				telemetry.DurationField(time.Since(started)),
+				zap.Error(err),
+			)
+			return nil, fmt.Errorf("start launcher: %w", err)
 		}
-		return nil, err
+		if streams.Reader == nil || streams.Writer == nil {
+			err := errors.New("launcher returned nil streams")
+			cancelStart()
+			m.logger.Error("instance start failed",
+				telemetry.EventField(telemetry.EventStartFailure),
+				telemetry.ServerTypeField(spec.Name),
+				telemetry.DurationField(time.Since(started)),
+				zap.Error(err),
+			)
+			if stop != nil {
+				_ = stop(ctx)
+			}
+			return nil, err
+		}
+		if stop == nil {
+			stop = func(context.Context) error { return nil }
+		}
 	}
 	spawnedAt = time.Now()
-	if stop == nil {
-		stop = func(context.Context) error { return nil }
-	}
 
 	conn, err := m.transport.Connect(startCtx, specKey, spec, streams)
 	if err != nil {
@@ -125,7 +142,9 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 			telemetry.DurationField(time.Since(started)),
 			zap.Error(err),
 		)
-		_ = stop(ctx)
+		if stop != nil {
+			_ = stop(ctx)
+		}
 		return nil, fmt.Errorf("connect transport: %w", err)
 	}
 	if conn == nil {
@@ -137,7 +156,9 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 			telemetry.DurationField(time.Since(started)),
 			zap.Error(err),
 		)
-		_ = stop(ctx)
+		if stop != nil {
+			_ = stop(ctx)
+		}
 		return nil, err
 	}
 
@@ -152,20 +173,6 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 		Conn:       conn,
 	}
 
-	if spec.ProtocolVersion != domain.DefaultProtocolVersion {
-		err := fmt.Errorf("%w: %s", domain.ErrUnsupportedProtocol, spec.ProtocolVersion)
-		cancelStart()
-		m.logger.Error("instance start failed",
-			telemetry.EventField(telemetry.EventStartFailure),
-			telemetry.ServerTypeField(spec.Name),
-			telemetry.DurationField(time.Since(started)),
-			zap.Error(err),
-		)
-		_ = conn.Close()
-		_ = stop(ctx)
-		return nil, err
-	}
-
 	instance.State = domain.InstanceStateHandshaking
 	caps, err := m.initializeWithRetry(ctx, conn, spec)
 	if err != nil {
@@ -177,7 +184,9 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 			zap.Error(err),
 		)
 		_ = conn.Close()
-		_ = stop(ctx)
+		if stop != nil {
+			_ = stop(ctx)
+		}
 		return nil, fmt.Errorf("initialize: %w", err)
 	}
 	if setter, ok := conn.(interface {
@@ -185,6 +194,7 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 	}); ok {
 		setter.SetCapabilities(caps)
 	}
+	m.notifyInitialized(ctx, conn, spec)
 	instance.State = domain.InstanceStateReady
 	instance.HandshakedAt = time.Now()
 	instance.LastHeartbeatAt = instance.HandshakedAt
@@ -210,7 +220,7 @@ func (m *Manager) initializeWithRetry(ctx context.Context, conn domain.Conn, spe
 	var lastErr error
 	attempts := initializeRetryCount + 1
 	for attempt := 1; attempt <= attempts; attempt++ {
-		caps, err := m.initialize(ctx, conn)
+		caps, err := m.initialize(ctx, conn, spec.ProtocolVersion)
 		if err == nil {
 			return caps, nil
 		}
@@ -234,13 +244,13 @@ func (m *Manager) initializeWithRetry(ctx context.Context, conn domain.Conn, spe
 	return domain.ServerCapabilities{}, lastErr
 }
 
-func (m *Manager) initialize(ctx context.Context, conn domain.Conn) (domain.ServerCapabilities, error) {
+func (m *Manager) initialize(ctx context.Context, conn domain.Conn, protocolVersion string) (domain.ServerCapabilities, error) {
 	// Allow longer timeout for slow-starting servers (e.g., npx downloads)
 	pingCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	initParams := &mcp.InitializeParams{
-		ProtocolVersion: domain.DefaultProtocolVersion,
+		ProtocolVersion: protocolVersion,
 		ClientInfo: &mcp.Implementation{
 			Name:    "mcpd",
 			Version: "0.1.0",
@@ -274,6 +284,23 @@ func (m *Manager) initialize(ctx context.Context, conn domain.Conn) (domain.Serv
 	}
 
 	return m.validateInitializeResponse(rawResp)
+}
+
+func (m *Manager) notifyInitialized(ctx context.Context, conn domain.Conn, spec domain.ServerSpec) {
+	notifier, ok := conn.(interface {
+		Notify(context.Context, string, json.RawMessage) error
+	})
+	if !ok {
+		return
+	}
+	notifyCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if err := notifier.Notify(notifyCtx, "notifications/initialized", json.RawMessage(`{}`)); err != nil {
+		m.logger.Debug("send initialized notification failed",
+			telemetry.ServerTypeField(spec.Name),
+			zap.Error(err),
+		)
+	}
 }
 
 func (m *Manager) StopInstance(ctx context.Context, instance *domain.Instance, reason string) error {

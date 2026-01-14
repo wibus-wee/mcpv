@@ -1,3 +1,3 @@
 package transport
 
-// Package transport contains stdio and future transport implementations for MCP servers.
+// Package transport contains stdio and streamable HTTP transport implementations for MCP servers.

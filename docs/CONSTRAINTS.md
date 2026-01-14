@@ -1,7 +1,7 @@
 ## 约束与基线
 
 - 语言/运行时：Go 1.25+（工具链 1.25.0），纯 CLI；保持纯 Go、无 CGO，兼容 Wails 3 打包。
-- 传输/协议：MVP 仅支持 MCP stdio 子进程，遵循 MCP 2025-11-25 协议版本校验；初始化需完成 `initialize` 握手。优先复用 `github.com/modelcontextprotocol/go-sdk` 的 Stdio/Command transport 与协议类型。
+- 传输/协议：MVP 支持 MCP stdio 子进程与外部 streamable HTTP（仅连接，不管理本地 HTTP server），stdio 遵循 MCP 2025-11-25，streamable HTTP 支持 2025-06-18/2025-03-26/2024-11-05；初始化需完成 `initialize` 握手。优先复用 `github.com/modelcontextprotocol/go-sdk` 的 Stdio/Streamable transport 与协议类型。
 - 伸缩：按需启动、idle 超时回收；`stateful` 在绑定未过期时跳过回收，`persistent`/`singleton` 永不回收；`minReady` 作为激活态 warm pool，`activationMode` 控制无 caller 是否常驻。
 - 并发/回压：每实例 `maxConcurrent` 硬限制，超限快速失败；启动中可返回 `starting`。
 - 配置：catalog YAML/JSON + 环境覆盖，启动时校验必填与数值范围；校验失败即退出。

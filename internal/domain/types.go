@@ -30,21 +30,36 @@ const (
 	StrategySingleton InstanceStrategy = "singleton"
 )
 
+type TransportKind string
+
+const (
+	TransportStdio          TransportKind = "stdio"
+	TransportStreamableHTTP TransportKind = "streamable_http"
+)
+
+type StreamableHTTPConfig struct {
+	Endpoint   string            `json:"endpoint"`
+	Headers    map[string]string `json:"headers,omitempty"`
+	MaxRetries int               `json:"maxRetries"`
+}
+
 type ServerSpec struct {
-	Name                string            `json:"name"`
-	Cmd                 []string          `json:"cmd"`
-	Env                 map[string]string `json:"env,omitempty"`
-	Cwd                 string            `json:"cwd,omitempty"`
-	IdleSeconds         int               `json:"idleSeconds"`
-	MaxConcurrent       int               `json:"maxConcurrent"`
-	Strategy            InstanceStrategy  `json:"strategy"`
-	SessionTTLSeconds   int               `json:"sessionTTLSeconds,omitempty"`
-	Disabled            bool              `json:"disabled,omitempty"`
-	MinReady            int               `json:"minReady"`
-	ActivationMode      ActivationMode    `json:"activationMode"`
-	DrainTimeoutSeconds int               `json:"drainTimeoutSeconds"`
-	ProtocolVersion     string            `json:"protocolVersion"`
-	ExposeTools         []string          `json:"exposeTools,omitempty"`
+	Name                string                `json:"name"`
+	Transport           TransportKind         `json:"transport"`
+	Cmd                 []string              `json:"cmd"`
+	Env                 map[string]string     `json:"env,omitempty"`
+	Cwd                 string                `json:"cwd,omitempty"`
+	IdleSeconds         int                   `json:"idleSeconds"`
+	MaxConcurrent       int                   `json:"maxConcurrent"`
+	Strategy            InstanceStrategy      `json:"strategy"`
+	SessionTTLSeconds   int                   `json:"sessionTTLSeconds,omitempty"`
+	Disabled            bool                  `json:"disabled,omitempty"`
+	MinReady            int                   `json:"minReady"`
+	ActivationMode      ActivationMode        `json:"activationMode"`
+	DrainTimeoutSeconds int                   `json:"drainTimeoutSeconds"`
+	ProtocolVersion     string                `json:"protocolVersion"`
+	ExposeTools         []string              `json:"exposeTools,omitempty"`
+	HTTP                *StreamableHTTPConfig `json:"http,omitempty"`
 }
 
 type RuntimeConfig struct {

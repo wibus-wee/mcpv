@@ -165,10 +165,23 @@ func mapServerSpecDetail(spec domain.ServerSpec, specKey string) ServerSpecDetai
 	if exposeTools == nil {
 		exposeTools = []string{}
 	}
+	var httpCfg *StreamableHTTPConfigDetail
+	if spec.HTTP != nil {
+		headers := spec.HTTP.Headers
+		if headers == nil {
+			headers = make(map[string]string)
+		}
+		httpCfg = &StreamableHTTPConfigDetail{
+			Endpoint:   spec.HTTP.Endpoint,
+			Headers:    headers,
+			MaxRetries: spec.HTTP.MaxRetries,
+		}
+	}
 
 	return ServerSpecDetail{
 		Name:                spec.Name,
 		SpecKey:             specKey,
+		Transport:           string(domain.NormalizeTransport(spec.Transport)),
 		Cmd:                 spec.Cmd,
 		Env:                 env,
 		Cwd:                 spec.Cwd,
@@ -182,6 +195,7 @@ func mapServerSpecDetail(spec domain.ServerSpec, specKey string) ServerSpecDetai
 		DrainTimeoutSeconds: spec.DrainTimeoutSeconds,
 		ProtocolVersion:     spec.ProtocolVersion,
 		ExposeTools:         exposeTools,
+		HTTP:                httpCfg,
 	}
 }
 

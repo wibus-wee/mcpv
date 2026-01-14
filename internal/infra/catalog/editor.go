@@ -323,42 +323,84 @@ func NormalizeImportRequest(req ImportRequest) (ImportRequest, error) {
 
 	servers := make([]domain.ServerSpec, 0, len(req.Servers))
 	seenServers := make(map[string]struct{}, len(req.Servers))
-	for _, server := range req.Servers {
+	for index, server := range req.Servers {
 		name := strings.TrimSpace(server.Name)
 		if name == "" {
 			return ImportRequest{}, &EditorError{Kind: EditorErrorInvalidRequest, Message: "Server name is required"}
-		}
-		if len(server.Cmd) == 0 {
-			return ImportRequest{}, &EditorError{Kind: EditorErrorInvalidRequest, Message: fmt.Sprintf("Server %q: cmd is required", name)}
-		}
-		for _, cmd := range server.Cmd {
-			if strings.TrimSpace(cmd) == "" {
-				return ImportRequest{}, &EditorError{Kind: EditorErrorInvalidRequest, Message: fmt.Sprintf("Server %q: cmd contains empty value", name)}
-			}
 		}
 		if _, exists := seenServers[name]; exists {
 			return ImportRequest{}, &EditorError{Kind: EditorErrorInvalidRequest, Message: fmt.Sprintf("Duplicate server name %q", name)}
 		}
 		seenServers[name] = struct{}{}
 
-		servers = append(servers, domain.ServerSpec{
-			Name:                name,
-			Cmd:                 append([]string{}, server.Cmd...),
-			Env:                 normalizeImportEnv(server.Env),
-			Cwd:                 strings.TrimSpace(server.Cwd),
-			IdleSeconds:         60,
-			MaxConcurrent:       domain.DefaultMaxConcurrent,
-			Strategy:            domain.DefaultStrategy,
-			MinReady:            0,
-			DrainTimeoutSeconds: domain.DefaultDrainTimeoutSeconds,
-			ProtocolVersion:     domain.DefaultProtocolVersion,
-		})
+		spec, err := normalizeImportServerSpec(name, server)
+		if err != nil {
+			return ImportRequest{}, &EditorError{Kind: EditorErrorInvalidRequest, Message: err.Error()}
+		}
+		if errs := validateServerSpec(spec, index); len(errs) > 0 {
+			return ImportRequest{}, &EditorError{Kind: EditorErrorInvalidRequest, Message: strings.Join(errs, "; ")}
+		}
+		servers = append(servers, spec)
 	}
 
 	return ImportRequest{
 		Profiles: profileNames,
 		Servers:  servers,
 	}, nil
+}
+
+func normalizeImportServerSpec(name string, server domain.ServerSpec) (domain.ServerSpec, error) {
+	transport := domain.NormalizeTransport(server.Transport)
+	switch transport {
+	case domain.TransportStdio:
+		if len(server.Cmd) == 0 {
+			return domain.ServerSpec{}, fmt.Errorf("server %q: cmd is required", name)
+		}
+		for _, cmd := range server.Cmd {
+			if strings.TrimSpace(cmd) == "" {
+				return domain.ServerSpec{}, fmt.Errorf("server %q: cmd contains empty value", name)
+			}
+		}
+	case domain.TransportStreamableHTTP:
+		if server.HTTP == nil || strings.TrimSpace(server.HTTP.Endpoint) == "" {
+			return domain.ServerSpec{}, fmt.Errorf("server %q: http.endpoint is required", name)
+		}
+		if len(server.Cmd) > 0 {
+			return domain.ServerSpec{}, fmt.Errorf("server %q: cmd must be empty for streamable_http transport", name)
+		}
+	default:
+		return domain.ServerSpec{}, fmt.Errorf("server %q: transport must be stdio or streamable_http", name)
+	}
+
+	spec := domain.ServerSpec{
+		Name:                name,
+		Transport:           transport,
+		Cmd:                 append([]string{}, server.Cmd...),
+		Env:                 normalizeImportEnv(server.Env),
+		Cwd:                 strings.TrimSpace(server.Cwd),
+		IdleSeconds:         60,
+		MaxConcurrent:       domain.DefaultMaxConcurrent,
+		Strategy:            domain.DefaultStrategy,
+		MinReady:            0,
+		DrainTimeoutSeconds: domain.DefaultDrainTimeoutSeconds,
+		ProtocolVersion:     strings.TrimSpace(server.ProtocolVersion),
+		HTTP:                server.HTTP,
+	}
+	if spec.ProtocolVersion == "" {
+		if transport == domain.TransportStreamableHTTP {
+			spec.ProtocolVersion = domain.DefaultStreamableHTTPProtocolVersion
+		} else {
+			spec.ProtocolVersion = domain.DefaultProtocolVersion
+		}
+	}
+	if transport == domain.TransportStreamableHTTP && spec.HTTP != nil {
+		spec.HTTP.Endpoint = strings.TrimSpace(spec.HTTP.Endpoint)
+		if spec.HTTP.MaxRetries == 0 {
+			spec.HTTP.MaxRetries = domain.DefaultStreamableHTTPMaxRetries
+		}
+	}
+
+	return spec, nil
 }
 
 func normalizeImportEnv(env map[string]string) map[string]string {

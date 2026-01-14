@@ -88,6 +88,10 @@
       "additionalProperties": false,
       "properties": {
         "name": {"type": "string"},
+        "transport": {
+          "type": "string",
+          "enum": ["stdio", "streamable_http", "streamable-http"]
+        },
         "cmd": {
           "type": "array",
           "items": {"type": "string"}
@@ -112,7 +116,20 @@
         "exposeTools": {
           "type": "array",
           "items": {"type": "string"}
-        }
+        },
+        "http": {"$ref": "#/$defs/streamableHttpConfig"}
+      }
+    },
+    "streamableHttpConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "endpoint": {"type": "string"},
+        "headers": {
+          "type": "object",
+          "additionalProperties": {"type": "string"}
+        },
+        "maxRetries": {"type": "integer"}
       }
     }
   }

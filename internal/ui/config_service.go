@@ -143,10 +143,13 @@ func (s *ConfigService) ImportMcpServers(ctx context.Context, req ImportMcpServe
 	}
 	for _, server := range req.Servers {
 		importReq.Servers = append(importReq.Servers, domain.ServerSpec{
-			Name: strings.TrimSpace(server.Name),
-			Cmd:  append([]string{}, server.Cmd...),
-			Env:  server.Env,
-			Cwd:  strings.TrimSpace(server.Cwd),
+			Name:            strings.TrimSpace(server.Name),
+			Transport:       domain.TransportKind(strings.TrimSpace(server.Transport)),
+			Cmd:             append([]string{}, server.Cmd...),
+			Env:             server.Env,
+			Cwd:             strings.TrimSpace(server.Cwd),
+			ProtocolVersion: strings.TrimSpace(server.ProtocolVersion),
+			HTTP:            mapStreamableHTTPConfig(server.HTTP),
 		})
 	}
 
@@ -154,4 +157,19 @@ func (s *ConfigService) ImportMcpServers(ctx context.Context, req ImportMcpServe
 		return mapCatalogError(err)
 	}
 	return nil
+}
+
+func mapStreamableHTTPConfig(cfg *StreamableHTTPConfigDetail) *domain.StreamableHTTPConfig {
+	if cfg == nil {
+		return nil
+	}
+	headers := cfg.Headers
+	if headers == nil {
+		headers = make(map[string]string)
+	}
+	return &domain.StreamableHTTPConfig{
+		Endpoint:   strings.TrimSpace(cfg.Endpoint),
+		Headers:    headers,
+		MaxRetries: cfg.MaxRetries,
+	}
 }

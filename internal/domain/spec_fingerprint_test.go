@@ -152,3 +152,57 @@ func TestSpecFingerprint_EmptyEnvStable(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, keyA, keyB)
 }
+
+func TestSpecFingerprint_StreamableHTTPDiffEndpoint(t *testing.T) {
+	specA := ServerSpec{
+		Name:            "svc",
+		Transport:       TransportStreamableHTTP,
+		ProtocolVersion: DefaultStreamableHTTPProtocolVersion,
+		HTTP: &StreamableHTTPConfig{
+			Endpoint:   "https://example.com/mcp",
+			MaxRetries: 5,
+		},
+	}
+	specB := specA
+	specB.HTTP = &StreamableHTTPConfig{
+		Endpoint:   "https://example.com/other",
+		MaxRetries: 5,
+	}
+
+	keyA, err := SpecFingerprint(specA)
+	require.NoError(t, err)
+	keyB, err := SpecFingerprint(specB)
+	require.NoError(t, err)
+	require.NotEqual(t, keyA, keyB)
+}
+
+func TestSpecFingerprint_StreamableHTTPHeaderOrder(t *testing.T) {
+	specA := ServerSpec{
+		Name:            "svc",
+		Transport:       TransportStreamableHTTP,
+		ProtocolVersion: DefaultStreamableHTTPProtocolVersion,
+		HTTP: &StreamableHTTPConfig{
+			Endpoint: "https://example.com/mcp",
+			Headers: map[string]string{
+				"Authorization": "Bearer a",
+				"X-Test":        "1",
+			},
+			MaxRetries: 5,
+		},
+	}
+	specB := specA
+	specB.HTTP = &StreamableHTTPConfig{
+		Endpoint: "https://example.com/mcp",
+		Headers: map[string]string{
+			"X-Test":        "1",
+			"Authorization": "Bearer a",
+		},
+		MaxRetries: 5,
+	}
+
+	keyA, err := SpecFingerprint(specA)
+	require.NoError(t, err)
+	keyB, err := SpecFingerprint(specB)
+	require.NoError(t, err)
+	require.Equal(t, keyA, keyB)
+}

@@ -5,8 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -58,20 +61,28 @@ type rawCatalog struct {
 }
 
 type rawServerSpec struct {
-	Name                string            `mapstructure:"name"`
-	Cmd                 []string          `mapstructure:"cmd"`
-	Env                 map[string]string `mapstructure:"env"`
-	Cwd                 string            `mapstructure:"cwd"`
-	IdleSeconds         int               `mapstructure:"idleSeconds"`
-	MaxConcurrent       int               `mapstructure:"maxConcurrent"`
-	Strategy            string            `mapstructure:"strategy"`
-	SessionTTLSeconds   *int              `mapstructure:"sessionTTLSeconds"`
-	Disabled            bool              `mapstructure:"disabled"`
-	MinReady            int               `mapstructure:"minReady"`
-	ActivationMode      string            `mapstructure:"activationMode"`
-	DrainTimeoutSeconds int               `mapstructure:"drainTimeoutSeconds"`
-	ProtocolVersion     string            `mapstructure:"protocolVersion"`
-	ExposeTools         []string          `mapstructure:"exposeTools"`
+	Name                string                  `mapstructure:"name"`
+	Transport           string                  `mapstructure:"transport"`
+	Cmd                 []string                `mapstructure:"cmd"`
+	Env                 map[string]string       `mapstructure:"env"`
+	Cwd                 string                  `mapstructure:"cwd"`
+	IdleSeconds         int                     `mapstructure:"idleSeconds"`
+	MaxConcurrent       int                     `mapstructure:"maxConcurrent"`
+	Strategy            string                  `mapstructure:"strategy"`
+	SessionTTLSeconds   *int                    `mapstructure:"sessionTTLSeconds"`
+	Disabled            bool                    `mapstructure:"disabled"`
+	MinReady            int                     `mapstructure:"minReady"`
+	ActivationMode      string                  `mapstructure:"activationMode"`
+	DrainTimeoutSeconds int                     `mapstructure:"drainTimeoutSeconds"`
+	ProtocolVersion     string                  `mapstructure:"protocolVersion"`
+	ExposeTools         []string                `mapstructure:"exposeTools"`
+	HTTP                rawStreamableHTTPConfig `mapstructure:"http"`
+}
+
+type rawStreamableHTTPConfig struct {
+	Endpoint   string            `mapstructure:"endpoint"`
+	Headers    map[string]string `mapstructure:"headers"`
+	MaxRetries *int              `mapstructure:"maxRetries"`
 }
 
 type rawProfileSubAgentConfig struct {
@@ -258,9 +269,17 @@ func normalizeServerSpec(raw rawServerSpec) domain.ServerSpec {
 		strategy = domain.DefaultStrategy
 	}
 	activationMode := strings.ToLower(strings.TrimSpace(raw.ActivationMode))
+	transport := domain.NormalizeTransport(domain.TransportKind(raw.Transport))
+	if transport == domain.TransportStdio && strings.TrimSpace(raw.Transport) == "" {
+		if strings.TrimSpace(raw.HTTP.Endpoint) != "" || len(raw.HTTP.Headers) > 0 || raw.HTTP.MaxRetries != nil {
+			transport = domain.TransportStreamableHTTP
+		}
+	}
+	httpConfig := normalizeStreamableHTTPConfig(raw.HTTP, transport)
 
 	spec := domain.ServerSpec{
 		Name:                raw.Name,
+		Transport:           transport,
 		Cmd:                 raw.Cmd,
 		Env:                 raw.Env,
 		Cwd:                 raw.Cwd,
@@ -273,12 +292,17 @@ func normalizeServerSpec(raw rawServerSpec) domain.ServerSpec {
 		DrainTimeoutSeconds: raw.DrainTimeoutSeconds,
 		ProtocolVersion:     raw.ProtocolVersion,
 		ExposeTools:         raw.ExposeTools,
+		HTTP:                httpConfig,
 	}
 	if raw.SessionTTLSeconds != nil {
 		spec.SessionTTLSeconds = *raw.SessionTTLSeconds
 	}
 	if spec.ProtocolVersion == "" {
-		spec.ProtocolVersion = domain.DefaultProtocolVersion
+		if transport == domain.TransportStreamableHTTP {
+			spec.ProtocolVersion = domain.DefaultStreamableHTTPProtocolVersion
+		} else {
+			spec.ProtocolVersion = domain.DefaultProtocolVersion
+		}
 	}
 	if spec.MaxConcurrent == 0 {
 		spec.MaxConcurrent = domain.DefaultMaxConcurrent
@@ -292,14 +316,75 @@ func normalizeServerSpec(raw rawServerSpec) domain.ServerSpec {
 	return spec
 }
 
+func normalizeStreamableHTTPConfig(raw rawStreamableHTTPConfig, transport domain.TransportKind) *domain.StreamableHTTPConfig {
+	if domain.NormalizeTransport(transport) != domain.TransportStreamableHTTP {
+		return nil
+	}
+
+	maxRetries := domain.DefaultStreamableHTTPMaxRetries
+	if raw.MaxRetries != nil {
+		maxRetries = *raw.MaxRetries
+	}
+
+	headers := normalizeHTTPHeaders(raw.Headers)
+
+	return &domain.StreamableHTTPConfig{
+		Endpoint:   strings.TrimSpace(raw.Endpoint),
+		Headers:    headers,
+		MaxRetries: maxRetries,
+	}
+}
+
+func normalizeHTTPHeaders(headers map[string]string) map[string]string {
+	if len(headers) == 0 {
+		return nil
+	}
+
+	keys := make([]string, 0, len(headers))
+	for key := range headers {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	normalized := make(map[string]string, len(headers))
+	for _, key := range keys {
+		trimmedKey := strings.TrimSpace(key)
+		if trimmedKey == "" {
+			continue
+		}
+		value := strings.TrimSpace(headers[key])
+		normalized[http.CanonicalHeaderKey(trimmedKey)] = value
+	}
+	if len(normalized) == 0 {
+		return nil
+	}
+	return normalized
+}
+
 func validateServerSpec(spec domain.ServerSpec, index int) []string {
 	var errs []string
 
 	if spec.Name == "" {
 		errs = append(errs, fmt.Sprintf("servers[%d]: name is required", index))
 	}
-	if len(spec.Cmd) == 0 {
-		errs = append(errs, fmt.Sprintf("servers[%d]: cmd is required", index))
+	transport := domain.NormalizeTransport(spec.Transport)
+	switch transport {
+	case domain.TransportStdio:
+		if len(spec.Cmd) == 0 {
+			errs = append(errs, fmt.Sprintf("servers[%d]: cmd is required", index))
+		}
+	case domain.TransportStreamableHTTP:
+		if len(spec.Cmd) > 0 {
+			errs = append(errs, fmt.Sprintf("servers[%d]: cmd must be empty for streamable_http transport", index))
+		}
+		if spec.Cwd != "" {
+			errs = append(errs, fmt.Sprintf("servers[%d]: cwd must be empty for streamable_http transport", index))
+		}
+		if len(spec.Env) > 0 {
+			errs = append(errs, fmt.Sprintf("servers[%d]: env must be empty for streamable_http transport", index))
+		}
+	default:
+		errs = append(errs, fmt.Sprintf("servers[%d]: transport must be stdio or streamable_http", index))
 	}
 	if spec.MaxConcurrent < 1 {
 		errs = append(errs, fmt.Sprintf("servers[%d]: maxConcurrent must be >= 1", index))
@@ -334,8 +419,12 @@ func validateServerSpec(spec domain.ServerSpec, index int) []string {
 		if !versionPattern.MatchString(spec.ProtocolVersion) {
 			errs = append(errs, fmt.Sprintf("servers[%d]: protocolVersion must match YYYY-MM-DD", index))
 		}
-		if spec.ProtocolVersion != domain.DefaultProtocolVersion {
-			errs = append(errs, fmt.Sprintf("servers[%d]: protocolVersion must be %s", index, domain.DefaultProtocolVersion))
+		if !domain.IsSupportedProtocolVersion(transport, spec.ProtocolVersion) {
+			if transport == domain.TransportStreamableHTTP {
+				errs = append(errs, fmt.Sprintf("servers[%d]: protocolVersion must be one of %s for streamable_http transport", index, strings.Join(domain.StreamableHTTPProtocolVersions, ", ")))
+			} else {
+				errs = append(errs, fmt.Sprintf("servers[%d]: protocolVersion must be %s", index, domain.DefaultProtocolVersion))
+			}
 		}
 	}
 
@@ -345,7 +434,56 @@ func validateServerSpec(spec domain.ServerSpec, index int) []string {
 		}
 	}
 
+	if transport == domain.TransportStreamableHTTP {
+		errs = append(errs, validateStreamableHTTPSpec(spec, index)...)
+	}
+
 	return errs
+}
+
+func validateStreamableHTTPSpec(spec domain.ServerSpec, index int) []string {
+	var errs []string
+
+	if spec.HTTP == nil {
+		return append(errs, fmt.Sprintf("servers[%d]: http config is required for streamable_http transport", index))
+	}
+	endpoint := strings.TrimSpace(spec.HTTP.Endpoint)
+	if endpoint == "" {
+		errs = append(errs, fmt.Sprintf("servers[%d]: http.endpoint is required for streamable_http transport", index))
+	} else {
+		if parsed, err := url.Parse(endpoint); err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+			errs = append(errs, fmt.Sprintf("servers[%d]: http.endpoint must be a valid http(s) URL", index))
+		}
+	}
+
+	if spec.HTTP.MaxRetries < -1 {
+		errs = append(errs, fmt.Sprintf("servers[%d]: http.maxRetries must be >= -1", index))
+	}
+
+	for key, value := range spec.HTTP.Headers {
+		name := strings.TrimSpace(key)
+		if name == "" {
+			errs = append(errs, fmt.Sprintf("servers[%d]: http.headers contains empty header name", index))
+			continue
+		}
+		if isReservedHTTPHeader(name) {
+			errs = append(errs, fmt.Sprintf("servers[%d]: http.headers.%s is reserved and cannot be set", index, name))
+		}
+		if strings.TrimSpace(value) == "" {
+			errs = append(errs, fmt.Sprintf("servers[%d]: http.headers.%s must not be empty", index, name))
+		}
+	}
+
+	return errs
+}
+
+func isReservedHTTPHeader(header string) bool {
+	switch strings.ToLower(strings.TrimSpace(header)) {
+	case "content-type", "accept", "mcp-protocol-version", "mcp-session-id", "last-event-id":
+		return true
+	default:
+		return false
+	}
 }
 
 func normalizeRuntimeConfig(cfg rawRuntimeConfig) (domain.RuntimeConfig, []string) {
