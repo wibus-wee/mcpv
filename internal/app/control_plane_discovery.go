@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"sort"
+	"sync"
 
 	"mcpd/internal/domain"
 	"mcpd/internal/infra/mcpcodec"
@@ -13,12 +14,127 @@ import (
 type discoveryService struct {
 	state    *controlPlaneState
 	registry *callerRegistry
+
+	mu               sync.Mutex
+	toolWatchers     map[string][]*callerWatcher[domain.ToolSnapshot]
+	resourceWatchers map[string][]*callerWatcher[domain.ResourceSnapshot]
+	promptWatchers   map[string][]*callerWatcher[domain.PromptSnapshot]
 }
 
 const snapshotPageSize = 200
 
 func newDiscoveryService(state *controlPlaneState, registry *callerRegistry) *discoveryService {
-	return &discoveryService{state: state, registry: registry}
+	return &discoveryService{
+		state:            state,
+		registry:         registry,
+		toolWatchers:     make(map[string][]*callerWatcher[domain.ToolSnapshot]),
+		resourceWatchers: make(map[string][]*callerWatcher[domain.ResourceSnapshot]),
+		promptWatchers:   make(map[string][]*callerWatcher[domain.PromptSnapshot]),
+	}
+}
+
+// indexSubscriber is an interface for types that can be subscribed to for snapshots.
+type indexSubscriber[T any] interface {
+	Subscribe(ctx context.Context) <-chan T
+}
+
+// callerWatcher manages a caller's subscription that can switch between profile indexes.
+// Data flows directly from the profile's GenericIndex to the output channel.
+type callerWatcher[T any] struct {
+	caller   string
+	output   chan T
+	getIndex func(*profileRuntime) indexSubscriber[T]
+
+	mu        sync.Mutex
+	subCtx    context.Context
+	subCancel context.CancelFunc
+}
+
+// switchProfile cancels the current subscription and subscribes to the new profile's index.
+// The new index will immediately send its current snapshot.
+func (w *callerWatcher[T]) switchProfile(ctx context.Context, profile *profileRuntime) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	// Cancel old subscription
+	if w.subCancel != nil {
+		w.subCancel()
+	}
+
+	if profile == nil {
+		return
+	}
+
+	index := w.getIndex(profile)
+	if index == nil {
+		return
+	}
+
+	// Create new subscription context
+	w.subCtx, w.subCancel = context.WithCancel(ctx)
+
+	// Subscribe directly to the profile's index
+	// GenericIndex.Subscribe() immediately sends current snapshot
+	indexCh := index.Subscribe(w.subCtx)
+
+	// Forward from index channel to output channel
+	go func() {
+		for {
+			select {
+			case <-w.subCtx.Done():
+				return
+			case snapshot, ok := <-indexCh:
+				if !ok {
+					return
+				}
+				select {
+				case w.output <- snapshot:
+				default:
+					// Drop if output is full (non-blocking)
+				}
+			}
+		}
+	}()
+}
+
+// StartProfileChangeListener starts listening for profile changes and switches watchers accordingly.
+func (d *discoveryService) StartProfileChangeListener(ctx context.Context) {
+	changes := d.registry.WatchProfileChanges(ctx)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case event, ok := <-changes:
+				if !ok {
+					return
+				}
+				d.handleProfileChange(ctx, event)
+			}
+		}
+	}()
+}
+
+func (d *discoveryService) handleProfileChange(ctx context.Context, event profileChangeEvent) {
+	newProfile, _ := d.state.Profile(event.NewProfile)
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	// Switch all tool watchers for this caller
+	for _, w := range d.toolWatchers[event.Caller] {
+		w.switchProfile(ctx, newProfile)
+	}
+
+	// Switch all resource watchers for this caller
+	for _, w := range d.resourceWatchers[event.Caller] {
+		w.switchProfile(ctx, newProfile)
+	}
+
+	// Switch all prompt watchers for this caller
+	for _, w := range d.promptWatchers[event.Caller] {
+		w.switchProfile(ctx, newProfile)
+	}
 }
 
 func (d *discoveryService) ListTools(ctx context.Context, caller string) (domain.ToolSnapshot, error) {
@@ -89,10 +205,50 @@ func (d *discoveryService) WatchTools(ctx context.Context, caller string) (<-cha
 	if err != nil {
 		return closedToolSnapshotChannel(), err
 	}
-	if profile.tools == nil {
-		return closedToolSnapshotChannel(), nil
+
+	watcher := &callerWatcher[domain.ToolSnapshot]{
+		caller: caller,
+		output: make(chan domain.ToolSnapshot, 1),
+		getIndex: func(p *profileRuntime) indexSubscriber[domain.ToolSnapshot] {
+			if p == nil || p.tools == nil {
+				return nil
+			}
+			return p.tools
+		},
 	}
-	return profile.tools.Subscribe(ctx), nil
+
+	// Initial subscription to current profile
+	watcher.switchProfile(ctx, profile)
+
+	// Register watcher for profile change notifications
+	d.mu.Lock()
+	d.toolWatchers[caller] = append(d.toolWatchers[caller], watcher)
+	d.mu.Unlock()
+
+	// Cleanup on context done
+	go func() {
+		<-ctx.Done()
+		watcher.mu.Lock()
+		if watcher.subCancel != nil {
+			watcher.subCancel()
+		}
+		watcher.mu.Unlock()
+
+		d.mu.Lock()
+		watchers := d.toolWatchers[caller]
+		for i, w := range watchers {
+			if w == watcher {
+				d.toolWatchers[caller] = append(watchers[:i], watchers[i+1:]...)
+				break
+			}
+		}
+		if len(d.toolWatchers[caller]) == 0 {
+			delete(d.toolWatchers, caller)
+		}
+		d.mu.Unlock()
+	}()
+
+	return watcher.output, nil
 }
 
 func (d *discoveryService) CallTool(ctx context.Context, caller, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
@@ -195,10 +351,50 @@ func (d *discoveryService) WatchResources(ctx context.Context, caller string) (<
 	if err != nil {
 		return closedResourceSnapshotChannel(), err
 	}
-	if profile.resources == nil {
-		return closedResourceSnapshotChannel(), nil
+
+	watcher := &callerWatcher[domain.ResourceSnapshot]{
+		caller: caller,
+		output: make(chan domain.ResourceSnapshot, 1),
+		getIndex: func(p *profileRuntime) indexSubscriber[domain.ResourceSnapshot] {
+			if p == nil || p.resources == nil {
+				return nil
+			}
+			return p.resources
+		},
 	}
-	return profile.resources.Subscribe(ctx), nil
+
+	// Initial subscription to current profile
+	watcher.switchProfile(ctx, profile)
+
+	// Register watcher for profile change notifications
+	d.mu.Lock()
+	d.resourceWatchers[caller] = append(d.resourceWatchers[caller], watcher)
+	d.mu.Unlock()
+
+	// Cleanup on context done
+	go func() {
+		<-ctx.Done()
+		watcher.mu.Lock()
+		if watcher.subCancel != nil {
+			watcher.subCancel()
+		}
+		watcher.mu.Unlock()
+
+		d.mu.Lock()
+		watchers := d.resourceWatchers[caller]
+		for i, w := range watchers {
+			if w == watcher {
+				d.resourceWatchers[caller] = append(watchers[:i], watchers[i+1:]...)
+				break
+			}
+		}
+		if len(d.resourceWatchers[caller]) == 0 {
+			delete(d.resourceWatchers, caller)
+		}
+		d.mu.Unlock()
+	}()
+
+	return watcher.output, nil
 }
 
 func (d *discoveryService) ReadResource(ctx context.Context, caller, uri string) (json.RawMessage, error) {
@@ -291,10 +487,50 @@ func (d *discoveryService) WatchPrompts(ctx context.Context, caller string) (<-c
 	if err != nil {
 		return closedPromptSnapshotChannel(), err
 	}
-	if profile.prompts == nil {
-		return closedPromptSnapshotChannel(), nil
+
+	watcher := &callerWatcher[domain.PromptSnapshot]{
+		caller: caller,
+		output: make(chan domain.PromptSnapshot, 1),
+		getIndex: func(p *profileRuntime) indexSubscriber[domain.PromptSnapshot] {
+			if p == nil || p.prompts == nil {
+				return nil
+			}
+			return p.prompts
+		},
 	}
-	return profile.prompts.Subscribe(ctx), nil
+
+	// Initial subscription to current profile
+	watcher.switchProfile(ctx, profile)
+
+	// Register watcher for profile change notifications
+	d.mu.Lock()
+	d.promptWatchers[caller] = append(d.promptWatchers[caller], watcher)
+	d.mu.Unlock()
+
+	// Cleanup on context done
+	go func() {
+		<-ctx.Done()
+		watcher.mu.Lock()
+		if watcher.subCancel != nil {
+			watcher.subCancel()
+		}
+		watcher.mu.Unlock()
+
+		d.mu.Lock()
+		watchers := d.promptWatchers[caller]
+		for i, w := range watchers {
+			if w == watcher {
+				d.promptWatchers[caller] = append(watchers[:i], watchers[i+1:]...)
+				break
+			}
+		}
+		if len(d.promptWatchers[caller]) == 0 {
+			delete(d.promptWatchers, caller)
+		}
+		d.mu.Unlock()
+	}()
+
+	return watcher.output, nil
 }
 
 func (d *discoveryService) GetPrompt(ctx context.Context, caller, name string, args json.RawMessage) (json.RawMessage, error) {

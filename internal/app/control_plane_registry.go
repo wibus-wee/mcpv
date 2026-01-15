@@ -16,23 +16,32 @@ import (
 type callerRegistry struct {
 	state *controlPlaneState
 
-	mu               sync.Mutex
-	activeCallers    map[string]callerState
-	activeCallerSubs map[chan domain.ActiveCallerSnapshot]struct{}
-	profileCounts    map[string]int
-	specCounts       map[string]int
-	monitorStarted   bool
+	mu                sync.Mutex
+	activeCallers     map[string]callerState
+	activeCallerSubs  map[chan domain.ActiveCallerSnapshot]struct{}
+	profileChangeSubs map[chan profileChangeEvent]struct{}
+	profileCounts     map[string]int
+	specCounts        map[string]int
+	monitorStarted    bool
+}
+
+// profileChangeEvent is emitted when a caller's profile mapping changes.
+type profileChangeEvent struct {
+	Caller     string
+	OldProfile string
+	NewProfile string
 }
 
 const callerReapTimeoutMultiplier = 2
 
 func newCallerRegistry(state *controlPlaneState) *callerRegistry {
 	return &callerRegistry{
-		state:            state,
-		activeCallers:    make(map[string]callerState),
-		activeCallerSubs: make(map[chan domain.ActiveCallerSnapshot]struct{}),
-		profileCounts:    make(map[string]int),
-		specCounts:       make(map[string]int),
+		state:             state,
+		activeCallers:     make(map[string]callerState),
+		activeCallerSubs:  make(map[chan domain.ActiveCallerSnapshot]struct{}),
+		profileChangeSubs: make(map[chan profileChangeEvent]struct{}),
+		profileCounts:     make(map[string]int),
+		specCounts:        make(map[string]int),
 	}
 }
 
@@ -190,6 +199,24 @@ func (r *callerRegistry) WatchActiveCallers(ctx context.Context) (<-chan domain.
 	}()
 
 	return ch, nil
+}
+
+// WatchProfileChanges returns a channel that receives events when a caller's profile mapping changes.
+func (r *callerRegistry) WatchProfileChanges(ctx context.Context) <-chan profileChangeEvent {
+	ch := make(chan profileChangeEvent, 16)
+	r.mu.Lock()
+	r.profileChangeSubs[ch] = struct{}{}
+	r.mu.Unlock()
+
+	go func() {
+		<-ctx.Done()
+		r.mu.Lock()
+		delete(r.profileChangeSubs, ch)
+		r.mu.Unlock()
+		close(ch)
+	}()
+
+	return ch
 }
 
 func (r *callerRegistry) resolveProfile(caller string) (*profileRuntime, error) {
@@ -448,6 +475,8 @@ func (r *callerRegistry) ApplyCatalogUpdate(ctx context.Context, update domain.C
 	profiles := r.state.Profiles()
 	now := time.Now()
 
+	var profileChanges []profileChangeEvent
+
 	r.mu.Lock()
 	oldProfileCounts := copyCounts(r.profileCounts)
 	oldSpecCounts := copyCounts(r.specCounts)
@@ -455,6 +484,11 @@ func (r *callerRegistry) ApplyCatalogUpdate(ctx context.Context, update domain.C
 	for caller, state := range r.activeCallers {
 		profileName := resolveProfileNameForCaller(caller, callers, profiles)
 		if profileName != state.profile {
+			profileChanges = append(profileChanges, profileChangeEvent{
+				Caller:     caller,
+				OldProfile: state.profile,
+				NewProfile: profileName,
+			})
 			state.profile = profileName
 			r.activeCallers[caller] = state
 		}
@@ -479,6 +513,12 @@ func (r *callerRegistry) ApplyCatalogUpdate(ctx context.Context, update domain.C
 	r.activateProfiles(profilesToStart)
 	r.deactivateProfiles(profilesToStop)
 	r.broadcastActiveCallers(finalizeActiveCallerSnapshot(snapshot))
+
+	// Broadcast profile changes after all state updates are complete
+	for _, change := range profileChanges {
+		r.broadcastProfileChange(change)
+	}
+
 	return nil
 }
 
@@ -497,6 +537,23 @@ func sendActiveCallerSnapshot(ch chan domain.ActiveCallerSnapshot, snapshot doma
 	select {
 	case ch <- snapshot:
 	default:
+	}
+}
+
+func (r *callerRegistry) broadcastProfileChange(event profileChangeEvent) {
+	r.mu.Lock()
+	subs := make([]chan profileChangeEvent, 0, len(r.profileChangeSubs))
+	for ch := range r.profileChangeSubs {
+		subs = append(subs, ch)
+	}
+	r.mu.Unlock()
+
+	for _, ch := range subs {
+		select {
+		case ch <- event:
+		default:
+			// Drop if channel is full
+		}
 	}
 }
 

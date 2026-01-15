@@ -35,6 +35,7 @@ func NewControlPlane(
 }
 
 func (c *ControlPlane) StartCallerMonitor(ctx context.Context) {
+	c.discovery.StartProfileChangeListener(ctx)
 	c.registry.StartMonitor(ctx)
 }
 
