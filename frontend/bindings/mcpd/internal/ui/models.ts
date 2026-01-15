@@ -309,7 +309,7 @@ export class ImportMcpServersRequest {
 export class ImportServerSpec {
     "name": string;
     "transport"?: string;
-    "cmd": string[];
+    "cmd"?: string[];
     "env"?: { [_: string]: string };
     "cwd"?: string;
     "protocolVersion"?: string;
@@ -319,9 +319,6 @@ export class ImportServerSpec {
     constructor($$source: Partial<ImportServerSpec> = {}) {
         if (!("name" in $$source)) {
             this["name"] = "";
-        }
-        if (!("cmd" in $$source)) {
-            this["cmd"] = [];
         }
 
         Object.assign(this, $$source);
