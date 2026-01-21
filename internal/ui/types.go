@@ -357,7 +357,9 @@ type ProfileSubAgentConfigDetail struct {
 type UpdateSubAgentConfigRequest struct {
 	Model              string `json:"model"`
 	Provider           string `json:"provider"`
+	APIKey             *string `json:"apiKey,omitempty"`
 	APIKeyEnvVar       string `json:"apiKeyEnvVar"`
+	BaseURL            string `json:"baseURL"`
 	MaxToolsPerRequest int    `json:"maxToolsPerRequest"`
 	FilterPrompt       string `json:"filterPrompt"`
 }
@@ -366,4 +368,18 @@ type UpdateSubAgentConfigRequest struct {
 type UpdateProfileSubAgentRequest struct {
 	Profile string `json:"profile"`
 	Enabled bool   `json:"enabled"`
+}
+
+type ProxyFetchRequest struct {
+	URL       string            `json:"url"`
+	Method    string            `json:"method"`
+	Headers   map[string]string `json:"headers,omitempty"`
+	Body      string            `json:"body,omitempty"`
+	TimeoutMs int               `json:"timeoutMs"`
+}
+
+type ProxyFetchResponse struct {
+	Status  int               `json:"status"`
+	Headers map[string]string `json:"headers"`
+	Body    string            `json:"body"`
 }

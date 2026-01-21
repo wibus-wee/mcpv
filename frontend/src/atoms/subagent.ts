@@ -11,6 +11,7 @@ export interface SubAgentConfig {
   model: string
   provider: string
   apiKeyEnvVar: string
+  baseURL: string
   maxToolsPerRequest: number
   filterPrompt: string
 }

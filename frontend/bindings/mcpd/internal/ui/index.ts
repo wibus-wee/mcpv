@@ -7,6 +7,7 @@ import * as DebugService from "./debugservice.js";
 import * as DiscoveryService from "./discoveryservice.js";
 import * as LogService from "./logservice.js";
 import * as ProfileService from "./profileservice.js";
+import * as ProxyService from "./proxyservice.js";
 import * as RuntimeService from "./runtimeservice.js";
 import * as SubAgentService from "./subagentservice.js";
 import * as SystemService from "./systemservice.js";
@@ -17,6 +18,7 @@ export {
     DiscoveryService,
     LogService,
     ProfileService,
+    ProxyService,
     RuntimeService,
     SubAgentService,
     SystemService
@@ -43,6 +45,8 @@ export {
     ProfileSummary,
     PromptEntry,
     PromptPage,
+    ProxyFetchRequest,
+    ProxyFetchResponse,
     RPCConfigDetail,
     RPCTLSConfigDetail,
     ResourceEntry,
@@ -61,5 +65,6 @@ export {
     UpdateCallerMappingRequest,
     UpdateProfileSubAgentRequest,
     UpdateRuntimeConfigRequest,
-    UpdateServerStateRequest
+    UpdateServerStateRequest,
+    UpdateSubAgentConfigRequest
 } from "./models.js";

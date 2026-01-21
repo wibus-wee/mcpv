@@ -15,66 +15,66 @@ import { formatDuration, formatLatency, getElapsedMs } from '@/lib/time'
 import { useRuntimeStatus, useServerInitStatus } from '../hooks'
 
 const stateVariants: Record<
-  string,
-  'secondary' | 'info' | 'success' | 'warning' | 'error'
+	string,
+	'secondary' | 'info' | 'success' | 'warning' | 'error'
 > = {
-  ready: 'success',
-  busy: 'warning',
-  starting: 'info',
-  initializing: 'info',
-  handshaking: 'info',
-  draining: 'secondary',
-  stopped: 'secondary',
-  failed: 'error',
+	ready: 'success',
+	busy: 'warning',
+	starting: 'info',
+	initializing: 'info',
+	handshaking: 'info',
+	draining: 'secondary',
+	stopped: 'secondary',
+	failed: 'error',
 }
 
 const stateLabels: Record<string, string> = {
-  ready: 'Ready',
-  busy: 'Busy',
-  starting: 'Starting',
-  initializing: 'Initializing',
-  handshaking: 'Handshaking',
-  draining: 'Draining',
-  stopped: 'Stopped',
-  failed: 'Failed',
+	ready: 'Ready',
+	busy: 'Busy',
+	starting: 'Starting',
+	initializing: 'Initializing',
+	handshaking: 'Handshaking',
+	draining: 'Draining',
+	stopped: 'Stopped',
+	failed: 'Failed',
 }
 
 function StateBadge({
-  state,
-  size = 'sm',
-  label,
-  className,
+	state,
+	size = 'sm',
+	label,
+	className,
 }: {
-  state: string
-  size?: 'sm' | 'default'
-  label?: string
-  className?: string
+	state: string
+	size?: 'sm' | 'default'
+	label?: string
+	className?: string
 }) {
-  const variant = stateVariants[state] || 'secondary'
-  const text = label ?? stateLabels[state] ?? state
-  return (
-    <Badge
-      variant={variant}
-      size={size}
-      className={cn('font-medium', className)}
-    >
-      {text}
-    </Badge>
-  )
+	const variant = stateVariants[state] || 'secondary'
+	const text = label ?? stateLabels[state] ?? state
+	return (
+		<Badge
+			variant={variant}
+			size={size}
+			className={cn('font-medium', className)}
+		>
+			{text}
+		</Badge>
+	)
 }
 
 function StateCountBadge({ state, count }: { state: string; count: number }) {
-  if (count <= 0) {
-    return null
-  }
-  return (
-    <StateBadge
-      state={state}
-      size="sm"
-      label={`${stateLabels[state] ?? state} ${count}`}
-      className="tabular-nums"
-    />
-  )
+	if (count <= 0) {
+		return null
+	}
+	return (
+		<StateBadge
+			state={state}
+			size="sm"
+			label={`${stateLabels[state] ?? state} ${count}`}
+			className="tabular-nums"
+		/>
+	)
 }
 
 interface ServerRuntimeIndicatorProps {
@@ -521,7 +521,7 @@ function InitStatusLine({
 			)}
 			{status.lastError && (
 				<span
-					className="text-destructive truncate max-w-xs"
+					className="text-destructive cursor-help"
 					title={status.lastError}
 				>
 					{status.lastError}
@@ -559,18 +559,18 @@ const initVariant: Record<string, 'secondary' | 'info' | 'success' | 'warning' |
 
 function formatInitLabel(status: ServerInitStatus) {
 	switch (status.state) {
-	case 'ready':
-		return 'Init ready'
-	case 'degraded':
-		return 'Init degraded'
-	case 'failed':
-		return 'Init failed'
-	case 'starting':
-		return 'Init starting'
-	case 'suspended':
-		return 'Init suspended'
-	default:
-		return 'Init pending'
+		case 'ready':
+			return 'Init ready'
+		case 'degraded':
+			return 'Init degraded'
+		case 'failed':
+			return 'Init failed'
+		case 'starting':
+			return 'Init starting'
+		case 'suspended':
+			return 'Init suspended'
+		default:
+			return 'Init pending'
 	}
 }
 

@@ -46,6 +46,13 @@ export function SetProfileSubAgentEnabled(req: $models.UpdateProfileSubAgentRequ
     return $Call.ByID(2622835255, req);
 }
 
+/**
+ * UpdateSubAgentConfig updates the runtime-level SubAgent config.
+ */
+export function UpdateSubAgentConfig(req: $models.UpdateSubAgentConfigRequest): $CancellablePromise<void> {
+    return $Call.ByID(1112802088, req);
+}
+
 // Private type creation functions
 const $$createType0 = $models.ProfileSubAgentConfigDetail.createFrom;
 const $$createType1 = $models.SubAgentConfigDetail.createFrom;

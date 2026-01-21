@@ -708,6 +708,74 @@ export class PromptPage {
     }
 }
 
+export class ProxyFetchRequest {
+    "url": string;
+    "method": string;
+    "headers"?: { [_: string]: string };
+    "body"?: string;
+    "timeoutMs": number;
+
+    /** Creates a new ProxyFetchRequest instance. */
+    constructor($$source: Partial<ProxyFetchRequest> = {}) {
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+        if (!("method" in $$source)) {
+            this["method"] = "";
+        }
+        if (!("timeoutMs" in $$source)) {
+            this["timeoutMs"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProxyFetchRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ProxyFetchRequest {
+        const $$createField2_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("headers" in $$parsedSource) {
+            $$parsedSource["headers"] = $$createField2_0($$parsedSource["headers"]);
+        }
+        return new ProxyFetchRequest($$parsedSource as Partial<ProxyFetchRequest>);
+    }
+}
+
+export class ProxyFetchResponse {
+    "status": number;
+    "headers": { [_: string]: string };
+    "body": string;
+
+    /** Creates a new ProxyFetchResponse instance. */
+    constructor($$source: Partial<ProxyFetchResponse> = {}) {
+        if (!("status" in $$source)) {
+            this["status"] = 0;
+        }
+        if (!("headers" in $$source)) {
+            this["headers"] = {};
+        }
+        if (!("body" in $$source)) {
+            this["body"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProxyFetchResponse instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ProxyFetchResponse {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("headers" in $$parsedSource) {
+            $$parsedSource["headers"] = $$createField1_0($$parsedSource["headers"]);
+        }
+        return new ProxyFetchResponse($$parsedSource as Partial<ProxyFetchResponse>);
+    }
+}
+
 /**
  * RPCConfigDetail for frontend
  */
@@ -1543,6 +1611,51 @@ export class UpdateServerStateRequest {
     static createFrom($$source: any = {}): UpdateServerStateRequest {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new UpdateServerStateRequest($$parsedSource as Partial<UpdateServerStateRequest>);
+    }
+}
+
+/**
+ * UpdateSubAgentConfigRequest updates the runtime-level SubAgent config
+ */
+export class UpdateSubAgentConfigRequest {
+    "model": string;
+    "provider": string;
+    "apiKey"?: string | null;
+    "apiKeyEnvVar": string;
+    "baseURL": string;
+    "maxToolsPerRequest": number;
+    "filterPrompt": string;
+
+    /** Creates a new UpdateSubAgentConfigRequest instance. */
+    constructor($$source: Partial<UpdateSubAgentConfigRequest> = {}) {
+        if (!("model" in $$source)) {
+            this["model"] = "";
+        }
+        if (!("provider" in $$source)) {
+            this["provider"] = "";
+        }
+        if (!("apiKeyEnvVar" in $$source)) {
+            this["apiKeyEnvVar"] = "";
+        }
+        if (!("baseURL" in $$source)) {
+            this["baseURL"] = "";
+        }
+        if (!("maxToolsPerRequest" in $$source)) {
+            this["maxToolsPerRequest"] = 0;
+        }
+        if (!("filterPrompt" in $$source)) {
+            this["filterPrompt"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateSubAgentConfigRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateSubAgentConfigRequest {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UpdateSubAgentConfigRequest($$parsedSource as Partial<UpdateSubAgentConfigRequest>);
     }
 }
 

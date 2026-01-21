@@ -197,7 +197,7 @@ export function RouterErrorComponent({ error, reset }: ErrorComponentProps) {
       initial={{ opacity: 0, y: 20 }}
       transition={Spring.smooth(0.5)}
     >
-      <Empty className="max-w-md border border-border/50 bg-card/50 backdrop-blur-sm">
+      <Empty className="max-w-md border border-border bg-card/50 backdrop-blur-sm">
         <EmptyHeader>
           <EmptyMedia className="mb-4" variant="default">
             <IsometricErrorBox />

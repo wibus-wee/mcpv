@@ -29,6 +29,8 @@ import { buildCliSnippet, buildClientConfig, buildTomlConfig } from '@/lib/mcpdm
 import { useMcpdmcpPath } from '@/hooks/use-mcpdmcp-path'
 import { useRpcAddress } from '@/hooks/use-rpc-address'
 import { useCallers } from '@/modules/config/hooks'
+import { useSidebar } from '../ui/sidebar'
+import { m } from 'motion/react'
 
 type ClientTab = 'cursor' | 'claude' | 'vscode' | 'codex'
 
@@ -110,7 +112,7 @@ export function ConnectIdeSheet() {
   const { path } = useMcpdmcpPath()
   const { rpcAddress } = useRpcAddress()
   const { data: callers } = useCallers()
-
+  const sidebar = useSidebar();
   const callerOptions = useMemo(
     () => (callers ? Object.keys(callers) : []),
     [callers],
@@ -168,7 +170,11 @@ export function ConnectIdeSheet() {
     <Sheet open={open} onOpenChange={setOpen}>
       <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
         <RocketIcon className="size-4" />
-        Connect IDE
+        <m.span
+          initial={{ opacity: 0, width: 0 }}
+          animate={{ opacity: sidebar.open ? 1 : 0, width: sidebar.open ? 'auto' : 0 }}
+          transition={{ duration: 0.2 }}
+        > Connect IDE</m.span>
       </Button>
       <SheetContent side="right" showCloseButton>
         <SheetHeader>

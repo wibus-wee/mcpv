@@ -128,6 +128,27 @@ func (e *Editor) UpdateRuntimeConfig(ctx context.Context, update RuntimeConfigUp
 	return nil
 }
 
+func (e *Editor) UpdateSubAgentConfig(ctx context.Context, update SubAgentConfigUpdate) error {
+	storePath, err := e.storePath()
+	if err != nil {
+		return err
+	}
+
+	path, err := ResolveRuntimePath(storePath, true)
+	if err != nil {
+		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to resolve runtime config path", Err: err}
+	}
+
+	runtimeUpdate, err := UpdateSubAgentConfig(path, update)
+	if err != nil {
+		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to update SubAgent config", Err: err}
+	}
+	if err := writeRuntimeUpdate(runtimeUpdate); err != nil {
+		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to write runtime config", Err: err}
+	}
+	return nil
+}
+
 func (e *Editor) SetServerDisabled(ctx context.Context, profileName, serverName string, disabled bool) error {
 	profileName = strings.TrimSpace(profileName)
 	serverName = strings.TrimSpace(serverName)

@@ -35,6 +35,16 @@ type RuntimeConfigUpdate struct {
 	ToolNamespaceStrategy      string
 }
 
+type SubAgentConfigUpdate struct {
+	Model              *string
+	Provider           *string
+	APIKey             *string
+	APIKeyEnvVar       *string
+	BaseURL            *string
+	MaxToolsPerRequest *int
+	FilterPrompt       *string
+}
+
 func ResolveRuntimePath(storePath string, allowCreate bool) (string, error) {
 	if storePath == "" {
 		return "", errors.New("profile store path is required")
@@ -92,6 +102,53 @@ func UpdateRuntimeConfig(path string, update RuntimeConfigUpdate) (RuntimeUpdate
 	doc["defaultActivationMode"] = strings.TrimSpace(update.DefaultActivationMode)
 	doc["exposeTools"] = update.ExposeTools
 	doc["toolNamespaceStrategy"] = strings.TrimSpace(update.ToolNamespaceStrategy)
+
+	merged, err := yaml.Marshal(doc)
+	if err != nil {
+		return RuntimeUpdate{}, fmt.Errorf("render runtime config: %w", err)
+	}
+
+	return RuntimeUpdate{Path: path, Data: merged}, nil
+}
+
+func UpdateSubAgentConfig(path string, update SubAgentConfigUpdate) (RuntimeUpdate, error) {
+	if path == "" {
+		return RuntimeUpdate{}, errors.New("runtime config path is required")
+	}
+
+	doc, err := loadRuntimeDocument(path)
+	if err != nil {
+		return RuntimeUpdate{}, err
+	}
+
+	subAgent, ok := doc["subAgent"].(map[string]any)
+	if !ok || subAgent == nil {
+		subAgent = make(map[string]any)
+	}
+
+	if update.Model != nil {
+		subAgent["model"] = strings.TrimSpace(*update.Model)
+	}
+	if update.Provider != nil {
+		subAgent["provider"] = strings.TrimSpace(*update.Provider)
+	}
+	if update.APIKey != nil {
+		subAgent["apiKey"] = strings.TrimSpace(*update.APIKey)
+	}
+	if update.APIKeyEnvVar != nil {
+		subAgent["apiKeyEnvVar"] = strings.TrimSpace(*update.APIKeyEnvVar)
+	}
+	if update.BaseURL != nil {
+		subAgent["baseURL"] = strings.TrimSpace(*update.BaseURL)
+	}
+	if update.MaxToolsPerRequest != nil {
+		subAgent["maxToolsPerRequest"] = *update.MaxToolsPerRequest
+	}
+	if update.FilterPrompt != nil {
+		subAgent["filterPrompt"] = strings.TrimSpace(*update.FilterPrompt)
+	}
+
+	doc["subAgent"] = subAgent
 
 	merged, err := yaml.Marshal(doc)
 	if err != nil {
