@@ -38,18 +38,18 @@ func InitializeApplication(ctx context.Context, cfg ServeConfig, logging Logging
 		return nil, err
 	}
 	metadataCache := domain.NewMetadataCache()
-	v := NewProfileRuntimes(catalogState, scheduler, metrics, healthTracker, metadataCache, listChangeHub, logger)
+	appRuntimeState := NewRuntimeState(catalogState, scheduler, metrics, healthTracker, metadataCache, listChangeHub, logger)
 	serverInitializationManager := NewServerInitializationManager(scheduler, catalogState, logger)
 	bootstrapManager := NewBootstrapManagerProvider(lifecycle, scheduler, catalogState, metadataCache, logger)
-	appControlPlaneState := NewControlPlaneState(ctx, v, catalogState, scheduler, serverInitializationManager, bootstrapManager, logger)
-	appCallerRegistry := newCallerRegistry(appControlPlaneState)
-	appDiscoveryService := newDiscoveryService(appControlPlaneState, appCallerRegistry)
+	appControlPlaneState := NewControlPlaneState(ctx, appRuntimeState, catalogState, scheduler, serverInitializationManager, bootstrapManager, logger)
+	appClientRegistry := newClientRegistry(appControlPlaneState)
+	appDiscoveryService := newDiscoveryService(appControlPlaneState, appClientRegistry)
 	logBroadcaster := NewLogBroadcaster(appLogging)
-	appObservabilityService := newObservabilityService(appControlPlaneState, appCallerRegistry, logBroadcaster)
-	appAutomationService := newAutomationService(appControlPlaneState, appCallerRegistry, appDiscoveryService)
-	controlPlane := NewControlPlane(appControlPlaneState, appCallerRegistry, appDiscoveryService, appObservabilityService, appAutomationService)
+	appObservabilityService := newObservabilityService(appControlPlaneState, appClientRegistry, logBroadcaster)
+	appAutomationService := newAutomationService(appControlPlaneState, appClientRegistry, appDiscoveryService)
+	controlPlane := NewControlPlane(appControlPlaneState, appClientRegistry, appDiscoveryService, appObservabilityService, appAutomationService)
 	server := NewRPCServer(controlPlane, catalogState, logger)
-	reloadManager := NewReloadManager(dynamicCatalogProvider, appControlPlaneState, appCallerRegistry, scheduler, serverInitializationManager, metrics, healthTracker, metadataCache, listChangeHub, logger)
+	reloadManager := NewReloadManager(dynamicCatalogProvider, appControlPlaneState, appClientRegistry, scheduler, serverInitializationManager, metrics, healthTracker, metadataCache, listChangeHub, logger)
 	application := NewApplication(ctx, cfg, logger, registry, metrics, healthTracker, catalogState, appControlPlaneState, scheduler, serverInitializationManager, bootstrapManager, controlPlane, server, reloadManager)
 	return application, nil
 }

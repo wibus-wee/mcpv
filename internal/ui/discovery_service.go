@@ -52,8 +52,12 @@ func (s *DiscoveryService) ListResources(ctx context.Context, cursor string) (*R
 	if err != nil {
 		return nil, err
 	}
+	client, err := s.deps.ensureUIClient(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-	page, err := cp.ListResourcesAllProfiles(ctx, cursor)
+	page, err := cp.ListResources(ctx, client, cursor)
 	if err != nil {
 		return nil, MapDomainError(err)
 	}
@@ -71,8 +75,12 @@ func (s *DiscoveryService) ListPrompts(ctx context.Context, cursor string) (*Pro
 	if err != nil {
 		return nil, err
 	}
+	client, err := s.deps.ensureUIClient(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-	page, err := cp.ListPromptsAllProfiles(ctx, cursor)
+	page, err := cp.ListPrompts(ctx, client, cursor)
 	if err != nil {
 		return nil, MapDomainError(err)
 	}
@@ -90,9 +98,12 @@ func (s *DiscoveryService) CallTool(ctx context.Context, name string, args json.
 	if err != nil {
 		return nil, err
 	}
+	client, err := s.deps.ensureUIClient(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-	specKey := s.deps.extractSpecKeyFromCache(name)
-	result, err := cp.CallToolAllProfiles(ctx, name, args, routingKey, specKey)
+	result, err := cp.CallTool(ctx, client, name, args, routingKey)
 	if err != nil {
 		return nil, MapDomainError(err)
 	}
@@ -105,8 +116,12 @@ func (s *DiscoveryService) ReadResource(ctx context.Context, uri string) (json.R
 	if err != nil {
 		return nil, err
 	}
+	client, err := s.deps.ensureUIClient(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-	result, err := cp.ReadResourceAllProfiles(ctx, uri, "")
+	result, err := cp.ReadResource(ctx, client, uri)
 	if err != nil {
 		return nil, MapDomainError(err)
 	}
@@ -119,8 +134,12 @@ func (s *DiscoveryService) GetPrompt(ctx context.Context, name string, args json
 	if err != nil {
 		return nil, err
 	}
+	client, err := s.deps.ensureUIClient(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-	result, err := cp.GetPromptAllProfiles(ctx, name, args, "")
+	result, err := cp.GetPrompt(ctx, client, name, args)
 	if err != nil {
 		return nil, MapDomainError(err)
 	}

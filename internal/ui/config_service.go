@@ -53,7 +53,7 @@ func (s *ConfigService) GetConfigMode() ConfigModeResponse {
 		return ConfigModeResponse{Mode: "unknown", Path: path}
 	}
 	return ConfigModeResponse{
-		Mode:       "directory",
+		Mode:       "file",
 		Path:       info.Path,
 		IsWritable: info.IsWritable,
 	}
@@ -101,7 +101,7 @@ func (s *ConfigService) ReloadConfig(ctx context.Context) error {
 	return manager.ReloadConfig(ctx)
 }
 
-// UpdateRuntimeConfig writes runtime.yaml updates to the profile store.
+// UpdateRuntimeConfig writes runtime updates into the config file.
 func (s *ConfigService) UpdateRuntimeConfig(ctx context.Context, req UpdateRuntimeConfigRequest) error {
 	editor, err := s.deps.catalogEditor()
 	if err != nil {
@@ -112,8 +112,8 @@ func (s *ConfigService) UpdateRuntimeConfig(ctx context.Context, req UpdateRunti
 		PingIntervalSeconds:        req.PingIntervalSeconds,
 		ToolRefreshSeconds:         req.ToolRefreshSeconds,
 		ToolRefreshConcurrency:     req.ToolRefreshConcurrency,
-		CallerCheckSeconds:         req.CallerCheckSeconds,
-		CallerInactiveSeconds:      req.CallerInactiveSeconds,
+		ClientCheckSeconds:         req.ClientCheckSeconds,
+		ClientInactiveSeconds:      req.ClientInactiveSeconds,
 		ServerInitRetryBaseSeconds: req.ServerInitRetryBaseSeconds,
 		ServerInitRetryMaxSeconds:  req.ServerInitRetryMaxSeconds,
 		ServerInitMaxRetries:       req.ServerInitMaxRetries,
@@ -130,7 +130,7 @@ func (s *ConfigService) UpdateRuntimeConfig(ctx context.Context, req UpdateRunti
 	return nil
 }
 
-// ImportMcpServers writes imported MCP servers into selected profiles.
+// ImportMcpServers writes imported MCP servers into the config file.
 func (s *ConfigService) ImportMcpServers(ctx context.Context, req ImportMcpServersRequest) error {
 	editor, err := s.deps.catalogEditor()
 	if err != nil {
@@ -138,8 +138,7 @@ func (s *ConfigService) ImportMcpServers(ctx context.Context, req ImportMcpServe
 	}
 
 	importReq := catalog.ImportRequest{
-		Profiles: req.Profiles,
-		Servers:  make([]domain.ServerSpec, 0, len(req.Servers)),
+		Servers: make([]domain.ServerSpec, 0, len(req.Servers)),
 	}
 	for _, server := range req.Servers {
 		importReq.Servers = append(importReq.Servers, domain.ServerSpec{
@@ -148,6 +147,7 @@ func (s *ConfigService) ImportMcpServers(ctx context.Context, req ImportMcpServe
 			Cmd:             append([]string{}, server.Cmd...),
 			Env:             server.Env,
 			Cwd:             strings.TrimSpace(server.Cwd),
+			Tags:            append([]string(nil), server.Tags...),
 			ProtocolVersion: strings.TrimSpace(server.ProtocolVersion),
 			HTTP:            mapStreamableHTTPConfig(server.HTTP),
 		})

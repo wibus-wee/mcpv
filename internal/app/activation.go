@@ -42,10 +42,9 @@ func policyStartCause(runtime domain.RuntimeConfig, spec domain.ServerSpec, minR
 	}
 }
 
-func callerStartCause(runtime domain.RuntimeConfig, spec domain.ServerSpec, caller, profile string, minReady int) domain.StartCause {
+func clientStartCause(runtime domain.RuntimeConfig, spec domain.ServerSpec, client string, minReady int) domain.StartCause {
 	cause := policyStartCause(runtime, spec, minReady)
-	cause.Reason = domain.StartCauseCallerActivate
-	cause.Caller = caller
-	cause.Profile = profile
+	cause.Reason = domain.StartCauseClientActivate
+	cause.Client = client
 	return cause
 }

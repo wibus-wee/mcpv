@@ -13,7 +13,7 @@ import (
 // ControlPlane aggregates control plane services behind a facade.
 type ControlPlane struct {
 	state         *controlPlaneState
-	registry      *callerRegistry
+	registry      *clientRegistry
 	discovery     *discoveryService
 	observability *observabilityService
 	automation    *automationService
@@ -22,7 +22,7 @@ type ControlPlane struct {
 // NewControlPlane constructs a control plane facade from services.
 func NewControlPlane(
 	state *controlPlaneState,
-	registry *callerRegistry,
+	registry *clientRegistry,
 	discovery *discoveryService,
 	observability *observabilityService,
 	automation *automationService,
@@ -36,9 +36,9 @@ func NewControlPlane(
 	}
 }
 
-// StartCallerMonitor begins caller monitoring and profile change handling.
-func (c *ControlPlane) StartCallerMonitor(ctx context.Context) {
-	c.discovery.StartProfileChangeListener(ctx)
+// StartClientMonitor begins client monitoring and tag change handling.
+func (c *ControlPlane) StartClientMonitor(ctx context.Context) {
+	c.discovery.StartClientChangeListener(ctx)
 	c.registry.StartMonitor(ctx)
 }
 
@@ -47,34 +47,29 @@ func (c *ControlPlane) Info(ctx context.Context) (domain.ControlPlaneInfo, error
 	return c.state.info, nil
 }
 
-// RegisterCaller registers a caller with the control plane.
-func (c *ControlPlane) RegisterCaller(ctx context.Context, caller string, pid int) (string, error) {
-	return c.registry.RegisterCaller(ctx, caller, pid)
+// RegisterClient registers a client with the control plane.
+func (c *ControlPlane) RegisterClient(ctx context.Context, client string, pid int, tags []string) (domain.ClientRegistration, error) {
+	return c.registry.RegisterClient(ctx, client, pid, tags)
 }
 
-// UnregisterCaller unregisters a caller.
-func (c *ControlPlane) UnregisterCaller(ctx context.Context, caller string) error {
-	return c.registry.UnregisterCaller(ctx, caller)
+// UnregisterClient unregisters a client.
+func (c *ControlPlane) UnregisterClient(ctx context.Context, client string) error {
+	return c.registry.UnregisterClient(ctx, client)
 }
 
-// ListActiveCallers lists active callers.
-func (c *ControlPlane) ListActiveCallers(ctx context.Context) ([]domain.ActiveCaller, error) {
-	return c.registry.ListActiveCallers(ctx)
+// ListActiveClients lists active clients.
+func (c *ControlPlane) ListActiveClients(ctx context.Context) ([]domain.ActiveClient, error) {
+	return c.registry.ListActiveClients(ctx)
 }
 
-// WatchActiveCallers streams active caller updates.
-func (c *ControlPlane) WatchActiveCallers(ctx context.Context) (<-chan domain.ActiveCallerSnapshot, error) {
-	return c.registry.WatchActiveCallers(ctx)
+// WatchActiveClients streams active client updates.
+func (c *ControlPlane) WatchActiveClients(ctx context.Context) (<-chan domain.ActiveClientSnapshot, error) {
+	return c.registry.WatchActiveClients(ctx)
 }
 
-// ListTools lists tools visible to a caller.
-func (c *ControlPlane) ListTools(ctx context.Context, caller string) (domain.ToolSnapshot, error) {
-	return c.discovery.ListTools(ctx, caller)
-}
-
-// ListToolsAllProfiles lists tools across all profiles.
-func (c *ControlPlane) ListToolsAllProfiles(ctx context.Context) (domain.ToolSnapshot, error) {
-	return c.discovery.ListToolsAllProfiles(ctx)
+// ListTools lists tools visible to a client.
+func (c *ControlPlane) ListTools(ctx context.Context, client string) (domain.ToolSnapshot, error) {
+	return c.discovery.ListTools(ctx, client)
 }
 
 // ListToolCatalog returns the full tool catalog snapshot.
@@ -82,84 +77,59 @@ func (c *ControlPlane) ListToolCatalog(ctx context.Context) (domain.ToolCatalogS
 	return c.discovery.ListToolCatalog(ctx)
 }
 
-// WatchTools streams tool snapshots for a caller.
-func (c *ControlPlane) WatchTools(ctx context.Context, caller string) (<-chan domain.ToolSnapshot, error) {
-	return c.discovery.WatchTools(ctx, caller)
+// WatchTools streams tool snapshots for a client.
+func (c *ControlPlane) WatchTools(ctx context.Context, client string) (<-chan domain.ToolSnapshot, error) {
+	return c.discovery.WatchTools(ctx, client)
 }
 
-// CallTool executes a tool on behalf of a caller.
-func (c *ControlPlane) CallTool(ctx context.Context, caller, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
-	return c.discovery.CallTool(ctx, caller, name, args, routingKey)
+// CallTool executes a tool on behalf of a client.
+func (c *ControlPlane) CallTool(ctx context.Context, client, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
+	return c.discovery.CallTool(ctx, client, name, args, routingKey)
 }
 
-// CallToolAllProfiles executes a tool across all profiles.
-func (c *ControlPlane) CallToolAllProfiles(ctx context.Context, name string, args json.RawMessage, routingKey, specKey string) (json.RawMessage, error) {
-	return c.discovery.CallToolAllProfiles(ctx, name, args, routingKey, specKey)
+// ListResources lists resources visible to a client.
+func (c *ControlPlane) ListResources(ctx context.Context, client string, cursor string) (domain.ResourcePage, error) {
+	return c.discovery.ListResources(ctx, client, cursor)
 }
 
-// ListResources lists resources visible to a caller.
-func (c *ControlPlane) ListResources(ctx context.Context, caller string, cursor string) (domain.ResourcePage, error) {
-	return c.discovery.ListResources(ctx, caller, cursor)
+// WatchResources streams resource snapshots for a client.
+func (c *ControlPlane) WatchResources(ctx context.Context, client string) (<-chan domain.ResourceSnapshot, error) {
+	return c.discovery.WatchResources(ctx, client)
 }
 
-// ListResourcesAllProfiles lists resources across all profiles.
-func (c *ControlPlane) ListResourcesAllProfiles(ctx context.Context, cursor string) (domain.ResourcePage, error) {
-	return c.discovery.ListResourcesAllProfiles(ctx, cursor)
+// ReadResource reads a resource on behalf of a client.
+func (c *ControlPlane) ReadResource(ctx context.Context, client, uri string) (json.RawMessage, error) {
+	return c.discovery.ReadResource(ctx, client, uri)
 }
 
-// WatchResources streams resource snapshots for a caller.
-func (c *ControlPlane) WatchResources(ctx context.Context, caller string) (<-chan domain.ResourceSnapshot, error) {
-	return c.discovery.WatchResources(ctx, caller)
+// ListPrompts lists prompts visible to a client.
+func (c *ControlPlane) ListPrompts(ctx context.Context, client string, cursor string) (domain.PromptPage, error) {
+	return c.discovery.ListPrompts(ctx, client, cursor)
 }
 
-// ReadResource reads a resource on behalf of a caller.
-func (c *ControlPlane) ReadResource(ctx context.Context, caller, uri string) (json.RawMessage, error) {
-	return c.discovery.ReadResource(ctx, caller, uri)
+// WatchPrompts streams prompt snapshots for a client.
+func (c *ControlPlane) WatchPrompts(ctx context.Context, client string) (<-chan domain.PromptSnapshot, error) {
+	return c.discovery.WatchPrompts(ctx, client)
 }
 
-// ReadResourceAllProfiles reads a resource across all profiles.
-func (c *ControlPlane) ReadResourceAllProfiles(ctx context.Context, uri, specKey string) (json.RawMessage, error) {
-	return c.discovery.ReadResourceAllProfiles(ctx, uri, specKey)
+// GetPrompt resolves a prompt for a client.
+func (c *ControlPlane) GetPrompt(ctx context.Context, client, name string, args json.RawMessage) (json.RawMessage, error) {
+	return c.discovery.GetPrompt(ctx, client, name, args)
 }
 
-// ListPrompts lists prompts visible to a caller.
-func (c *ControlPlane) ListPrompts(ctx context.Context, caller string, cursor string) (domain.PromptPage, error) {
-	return c.discovery.ListPrompts(ctx, caller, cursor)
+// StreamLogs streams logs for a client.
+func (c *ControlPlane) StreamLogs(ctx context.Context, client string, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
+	return c.observability.StreamLogs(ctx, client, minLevel)
 }
 
-// ListPromptsAllProfiles lists prompts across all profiles.
-func (c *ControlPlane) ListPromptsAllProfiles(ctx context.Context, cursor string) (domain.PromptPage, error) {
-	return c.discovery.ListPromptsAllProfiles(ctx, cursor)
+// StreamLogsAllServers streams logs across all servers.
+func (c *ControlPlane) StreamLogsAllServers(ctx context.Context, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
+	return c.observability.StreamLogsAllServers(ctx, minLevel)
 }
 
-// WatchPrompts streams prompt snapshots for a caller.
-func (c *ControlPlane) WatchPrompts(ctx context.Context, caller string) (<-chan domain.PromptSnapshot, error) {
-	return c.discovery.WatchPrompts(ctx, caller)
-}
-
-// GetPrompt resolves a prompt for a caller.
-func (c *ControlPlane) GetPrompt(ctx context.Context, caller, name string, args json.RawMessage) (json.RawMessage, error) {
-	return c.discovery.GetPrompt(ctx, caller, name, args)
-}
-
-// GetPromptAllProfiles resolves a prompt across all profiles.
-func (c *ControlPlane) GetPromptAllProfiles(ctx context.Context, name string, args json.RawMessage, specKey string) (json.RawMessage, error) {
-	return c.discovery.GetPromptAllProfiles(ctx, name, args, specKey)
-}
-
-// StreamLogs streams logs for a caller.
-func (c *ControlPlane) StreamLogs(ctx context.Context, caller string, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
-	return c.observability.StreamLogs(ctx, caller, minLevel)
-}
-
-// StreamLogsAllProfiles streams logs across all profiles.
-func (c *ControlPlane) StreamLogsAllProfiles(ctx context.Context, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
-	return c.observability.StreamLogsAllProfiles(ctx, minLevel)
-}
-
-// GetProfileStore returns the profile store.
-func (c *ControlPlane) GetProfileStore() domain.ProfileStore {
-	return c.state.ProfileStore()
+// GetCatalog returns the current catalog.
+func (c *ControlPlane) GetCatalog() domain.Catalog {
+	return c.state.Catalog()
 }
 
 // GetPoolStatus returns the current pool status snapshot.
@@ -180,24 +150,24 @@ func (c *ControlPlane) RetryServerInit(ctx context.Context, specKey string) erro
 	return c.state.initManager.RetrySpec(specKey)
 }
 
-// WatchRuntimeStatus streams runtime status snapshots for a caller.
-func (c *ControlPlane) WatchRuntimeStatus(ctx context.Context, caller string) (<-chan domain.RuntimeStatusSnapshot, error) {
-	return c.observability.WatchRuntimeStatus(ctx, caller)
+// WatchRuntimeStatus streams runtime status snapshots for a client.
+func (c *ControlPlane) WatchRuntimeStatus(ctx context.Context, client string) (<-chan domain.RuntimeStatusSnapshot, error) {
+	return c.observability.WatchRuntimeStatus(ctx, client)
 }
 
-// WatchRuntimeStatusAllProfiles streams runtime status snapshots across profiles.
-func (c *ControlPlane) WatchRuntimeStatusAllProfiles(ctx context.Context) (<-chan domain.RuntimeStatusSnapshot, error) {
-	return c.observability.WatchRuntimeStatusAllProfiles(ctx)
+// WatchRuntimeStatusAllServers streams runtime status snapshots across servers.
+func (c *ControlPlane) WatchRuntimeStatusAllServers(ctx context.Context) (<-chan domain.RuntimeStatusSnapshot, error) {
+	return c.observability.WatchRuntimeStatusAllServers(ctx)
 }
 
-// WatchServerInitStatus streams server init status snapshots for a caller.
-func (c *ControlPlane) WatchServerInitStatus(ctx context.Context, caller string) (<-chan domain.ServerInitStatusSnapshot, error) {
-	return c.observability.WatchServerInitStatus(ctx, caller)
+// WatchServerInitStatus streams server init status snapshots for a client.
+func (c *ControlPlane) WatchServerInitStatus(ctx context.Context, client string) (<-chan domain.ServerInitStatusSnapshot, error) {
+	return c.observability.WatchServerInitStatus(ctx, client)
 }
 
-// WatchServerInitStatusAllProfiles streams server init status snapshots across profiles.
-func (c *ControlPlane) WatchServerInitStatusAllProfiles(ctx context.Context) (<-chan domain.ServerInitStatusSnapshot, error) {
-	return c.observability.WatchServerInitStatusAllProfiles(ctx)
+// WatchServerInitStatusAllServers streams server init status snapshots across servers.
+func (c *ControlPlane) WatchServerInitStatusAllServers(ctx context.Context) (<-chan domain.ServerInitStatusSnapshot, error) {
+	return c.observability.WatchServerInitStatusAllServers(ctx)
 }
 
 // SetRuntimeStatusIndex updates the runtime status index.
@@ -215,9 +185,9 @@ func (c *ControlPlane) SetSubAgent(agent domain.SubAgent) {
 	c.automation.SetSubAgent(agent)
 }
 
-// IsSubAgentEnabledForCaller reports whether SubAgent is enabled for a caller.
-func (c *ControlPlane) IsSubAgentEnabledForCaller(caller string) bool {
-	return c.automation.IsSubAgentEnabledForCaller(caller)
+// IsSubAgentEnabledForClient reports whether SubAgent is enabled for a client.
+func (c *ControlPlane) IsSubAgentEnabledForClient(client string) bool {
+	return c.automation.IsSubAgentEnabledForClient(client)
 }
 
 // IsSubAgentEnabled reports whether SubAgent is enabled.
@@ -225,19 +195,19 @@ func (c *ControlPlane) IsSubAgentEnabled() bool {
 	return c.automation.IsSubAgentEnabled()
 }
 
-// GetToolSnapshotForCaller returns the tool snapshot for a caller.
-func (c *ControlPlane) GetToolSnapshotForCaller(caller string) (domain.ToolSnapshot, error) {
-	return c.discovery.GetToolSnapshotForCaller(caller)
+// GetToolSnapshotForClient returns the tool snapshot for a client.
+func (c *ControlPlane) GetToolSnapshotForClient(client string) (domain.ToolSnapshot, error) {
+	return c.discovery.GetToolSnapshotForClient(client)
 }
 
 // AutomaticMCP filters tools using the automatic MCP flow.
-func (c *ControlPlane) AutomaticMCP(ctx context.Context, caller string, params domain.AutomaticMCPParams) (domain.AutomaticMCPResult, error) {
-	return c.automation.AutomaticMCP(ctx, caller, params)
+func (c *ControlPlane) AutomaticMCP(ctx context.Context, client string, params domain.AutomaticMCPParams) (domain.AutomaticMCPResult, error) {
+	return c.automation.AutomaticMCP(ctx, client, params)
 }
 
 // AutomaticEval evaluates a tool call using the automatic MCP flow.
-func (c *ControlPlane) AutomaticEval(ctx context.Context, caller string, params domain.AutomaticEvalParams) (json.RawMessage, error) {
-	return c.automation.AutomaticEval(ctx, caller, params)
+func (c *ControlPlane) AutomaticEval(ctx context.Context, client string, params domain.AutomaticEvalParams) (json.RawMessage, error) {
+	return c.automation.AutomaticEval(ctx, client, params)
 }
 
 // GetBootstrapProgress returns bootstrap progress.

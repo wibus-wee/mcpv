@@ -249,7 +249,7 @@ func (m *Manager) startWatchers() {
 
 	// Watch runtime status
 	go func() {
-		updates, err := m.controlPlane.WatchRuntimeStatusAllProfiles(ctx)
+		updates, err := m.controlPlane.WatchRuntimeStatusAllServers(ctx)
 		if err != nil {
 			emitError(m.wails, ErrCodeInternal, "Failed to start runtime status watcher", err.Error())
 			return
@@ -261,7 +261,7 @@ func (m *Manager) startWatchers() {
 
 	// Watch server init status
 	go func() {
-		updates, err := m.controlPlane.WatchServerInitStatusAllProfiles(ctx)
+		updates, err := m.controlPlane.WatchServerInitStatusAllServers(ctx)
 		if err != nil {
 			emitError(m.wails, ErrCodeInternal, "Failed to start server init status watcher", err.Error())
 			return
@@ -271,15 +271,15 @@ func (m *Manager) startWatchers() {
 		}
 	}()
 
-	// Watch active callers
+	// Watch active clients
 	go func() {
-		updates, err := m.controlPlane.WatchActiveCallers(ctx)
+		updates, err := m.controlPlane.WatchActiveClients(ctx)
 		if err != nil {
-			emitError(m.wails, ErrCodeInternal, "Failed to start active callers watcher", err.Error())
+			emitError(m.wails, ErrCodeInternal, "Failed to start active clients watcher", err.Error())
 			return
 		}
 		for snapshot := range updates {
-			emitActiveCallersUpdated(m.wails, snapshot)
+			emitActiveClientsUpdated(m.wails, snapshot)
 		}
 	}()
 

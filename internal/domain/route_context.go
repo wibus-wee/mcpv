@@ -5,10 +5,9 @@ import (
 	"time"
 )
 
-// RouteContext carries caller metadata for routing.
+// RouteContext carries client metadata for routing.
 type RouteContext struct {
-	Caller  string
-	Profile string
+	Client string
 }
 
 type routeContextKey struct{}
@@ -21,8 +20,8 @@ const (
 	StartCauseBootstrap StartCauseReason = "bootstrap"
 	// StartCauseToolCall indicates a tool call triggered the start.
 	StartCauseToolCall StartCauseReason = "tool_call"
-	// StartCauseCallerActivate indicates caller activation triggered the start.
-	StartCauseCallerActivate StartCauseReason = "caller_activate"
+	// StartCauseClientActivate indicates client activation triggered the start.
+	StartCauseClientActivate StartCauseReason = "client_activate"
 	// StartCausePolicyAlwaysOn indicates always-on policy triggered the start.
 	StartCausePolicyAlwaysOn StartCauseReason = "policy_always_on"
 	// StartCausePolicyMinReady indicates min-ready policy triggered the start.
@@ -38,9 +37,8 @@ type StartCausePolicy struct {
 // StartCause describes why an instance was started.
 type StartCause struct {
 	Reason    StartCauseReason  `json:"reason"`
-	Caller    string            `json:"caller,omitempty"`
+	Client    string            `json:"client,omitempty"`
 	ToolName  string            `json:"toolName,omitempty"`
-	Profile   string            `json:"profile,omitempty"`
 	Policy    *StartCausePolicy `json:"policy,omitempty"`
 	Timestamp time.Time         `json:"timestamp"`
 }

@@ -61,17 +61,17 @@ func (s *RuntimeService) RetryServerInit(ctx context.Context, req RetryServerIni
 	return nil
 }
 
-// GetActiveCallers returns active caller registrations.
-func (s *RuntimeService) GetActiveCallers(ctx context.Context) ([]ActiveCaller, error) {
+// GetActiveClients returns active client registrations.
+func (s *RuntimeService) GetActiveClients(ctx context.Context) ([]ActiveClient, error) {
 	cp, err := s.deps.getControlPlane()
 	if err != nil {
 		return nil, err
 	}
 
-	callers, err := cp.ListActiveCallers(ctx)
+	clients, err := cp.ListActiveClients(ctx)
 	if err != nil {
 		return nil, MapDomainError(err)
 	}
 
-	return mapActiveCallers(callers), nil
+	return mapActiveClients(clients), nil
 }

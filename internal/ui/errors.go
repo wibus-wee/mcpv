@@ -31,7 +31,6 @@ const (
 	ErrCodeToolNotFound       = "TOOL_NOT_FOUND"
 	ErrCodeResourceNotFound   = "RESOURCE_NOT_FOUND"
 	ErrCodePromptNotFound     = "PROMPT_NOT_FOUND"
-	ErrCodeProfileNotFound    = "PROFILE_NOT_FOUND"
 	ErrCodeInvalidCursor      = "INVALID_CURSOR"
 	ErrCodeInvalidConfig      = "INVALID_CONFIG"
 	ErrCodeInvalidRequest     = "INVALID_REQUEST"
@@ -54,9 +53,9 @@ func MapDomainError(err error) *UIError {
 		return NewUIError(ErrCodePromptNotFound, "Prompt not found")
 	case errors.Is(err, domain.ErrInvalidCursor):
 		return NewUIError(ErrCodeInvalidCursor, "Invalid pagination cursor")
-	case errors.Is(err, domain.ErrCallerNotRegistered):
+	case errors.Is(err, domain.ErrClientNotRegistered):
 		// This shouldn't happen in UI layer, but handle it gracefully
-		return NewUIError(ErrCodeInternal, "Internal error: caller not registered")
+		return NewUIError(ErrCodeInternal, "Internal error: client not registered")
 	default:
 		return NewUIErrorWithDetails(ErrCodeInternal, "Internal error", err.Error())
 	}

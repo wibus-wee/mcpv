@@ -54,6 +54,7 @@ type ServerSpec struct {
 	Cmd                 []string              `json:"cmd"`
 	Env                 map[string]string     `json:"env,omitempty"`
 	Cwd                 string                `json:"cwd,omitempty"`
+	Tags                []string              `json:"tags,omitempty"`
 	IdleSeconds         int                   `json:"idleSeconds"`
 	MaxConcurrent       int                   `json:"maxConcurrent"`
 	Strategy            InstanceStrategy      `json:"strategy"`
@@ -73,8 +74,8 @@ type RuntimeConfig struct {
 	PingIntervalSeconds        int                 `json:"pingIntervalSeconds"`
 	ToolRefreshSeconds         int                 `json:"toolRefreshSeconds"`
 	ToolRefreshConcurrency     int                 `json:"toolRefreshConcurrency"`
-	CallerCheckSeconds         int                 `json:"callerCheckSeconds"`
-	CallerInactiveSeconds      int                 `json:"callerInactiveSeconds"`
+	ClientCheckSeconds         int                 `json:"clientCheckSeconds"`
+	ClientInactiveSeconds      int                 `json:"clientInactiveSeconds"`
 	ServerInitRetryBaseSeconds int                 `json:"serverInitRetryBaseSeconds"`
 	ServerInitRetryMaxSeconds  int                 `json:"serverInitRetryMaxSeconds"`
 	ServerInitMaxRetries       int                 `json:"serverInitMaxRetries"`
@@ -118,9 +119,8 @@ type RPCTLSConfig struct {
 
 // Catalog groups runtime and server spec configuration.
 type Catalog struct {
-	Specs    map[string]ServerSpec
-	Runtime  RuntimeConfig
-	SubAgent ProfileSubAgentConfig // Per-profile SubAgent settings (enabled/disabled)
+	Specs   map[string]ServerSpec
+	Runtime RuntimeConfig
 }
 
 // ServerCapabilities describes the capabilities reported by a server.
@@ -279,8 +279,8 @@ var ErrPromptNotFound = errors.New("prompt not found")
 // ErrInvalidCursor indicates a pagination cursor is invalid.
 var ErrInvalidCursor = errors.New("invalid cursor")
 
-// ErrCallerNotRegistered indicates the caller is unknown.
-var ErrCallerNotRegistered = errors.New("caller not registered")
+// ErrClientNotRegistered indicates the client is unknown.
+var ErrClientNotRegistered = errors.New("client not registered")
 
 // ErrNoReadyInstance indicates no instance is ready to serve the request.
 var ErrNoReadyInstance = errors.New("no ready instance")

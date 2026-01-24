@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -17,9 +16,8 @@ import (
 type EditorErrorKind string
 
 const (
-	EditorErrorInvalidRequest  EditorErrorKind = "invalid_request"
-	EditorErrorProfileNotFound EditorErrorKind = "profile_not_found"
-	EditorErrorInvalidConfig   EditorErrorKind = "invalid_config"
+	EditorErrorInvalidRequest EditorErrorKind = "invalid_request"
+	EditorErrorInvalidConfig  EditorErrorKind = "invalid_config"
 )
 
 type EditorError struct {
@@ -45,8 +43,7 @@ type ConfigInfo struct {
 }
 
 type ImportRequest struct {
-	Profiles []string
-	Servers  []domain.ServerSpec
+	Servers []domain.ServerSpec
 }
 
 type Editor struct {
@@ -65,13 +62,13 @@ func NewEditor(path string, logger *zap.Logger) *Editor {
 }
 
 func (e *Editor) Inspect(ctx context.Context) (ConfigInfo, error) {
-	path, err := e.storePath()
+	path, err := e.configPath(false)
 	if err != nil {
 		return ConfigInfo{}, err
 	}
 	return ConfigInfo{
 		Path:       path,
-		IsWritable: isWritable(path),
+		IsWritable: isWritableFile(path),
 	}, nil
 }
 
@@ -80,45 +77,29 @@ func (e *Editor) ImportServers(ctx context.Context, req ImportRequest) error {
 	if err != nil {
 		return err
 	}
-	storePath, err := e.storePath()
+	configPath, err := e.configPath(false)
 	if err != nil {
 		return err
 	}
 
-	updates := make([]ProfileUpdate, 0, len(normalized.Profiles))
-	for _, name := range normalized.Profiles {
-		path, err := ResolveProfilePath(storePath, name)
-		if err != nil {
-			return &EditorError{Kind: EditorErrorProfileNotFound, Message: "Profile not found", Err: err}
-		}
-		update, err := BuildProfileUpdate(path, normalized.Servers)
-		if err != nil {
-			return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to update profile", Err: err}
-		}
-		updates = append(updates, update)
+	update, err := BuildProfileUpdate(configPath, normalized.Servers)
+	if err != nil {
+		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to update config", Err: err}
 	}
-
-	for _, update := range updates {
-		if err := os.WriteFile(update.Path, update.Data, fsutil.DefaultFileMode); err != nil {
-			return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to write profile file", Err: err}
-		}
+	if err := os.WriteFile(update.Path, update.Data, fsutil.DefaultFileMode); err != nil {
+		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to write config file", Err: err}
 	}
 	return nil
 }
 
 // UpdateRuntimeConfig updates runtime.yaml in the profile store.
 func (e *Editor) UpdateRuntimeConfig(ctx context.Context, update RuntimeConfigUpdate) error {
-	storePath, err := e.storePath()
+	configPath, err := e.configPath(false)
 	if err != nil {
 		return err
 	}
 
-	path, err := ResolveRuntimePath(storePath, true)
-	if err != nil {
-		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to resolve runtime config path", Err: err}
-	}
-
-	runtimeUpdate, err := UpdateRuntimeConfig(path, update)
+	runtimeUpdate, err := UpdateRuntimeConfig(configPath, update)
 	if err != nil {
 		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to update runtime config", Err: err}
 	}
@@ -129,17 +110,12 @@ func (e *Editor) UpdateRuntimeConfig(ctx context.Context, update RuntimeConfigUp
 }
 
 func (e *Editor) UpdateSubAgentConfig(ctx context.Context, update SubAgentConfigUpdate) error {
-	storePath, err := e.storePath()
+	configPath, err := e.configPath(false)
 	if err != nil {
 		return err
 	}
 
-	path, err := ResolveRuntimePath(storePath, true)
-	if err != nil {
-		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to resolve runtime config path", Err: err}
-	}
-
-	runtimeUpdate, err := UpdateSubAgentConfig(path, update)
+	runtimeUpdate, err := UpdateSubAgentConfig(configPath, update)
 	if err != nil {
 		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to update SubAgent config", Err: err}
 	}
@@ -149,197 +125,49 @@ func (e *Editor) UpdateSubAgentConfig(ctx context.Context, update SubAgentConfig
 	return nil
 }
 
-func (e *Editor) SetServerDisabled(ctx context.Context, profileName, serverName string, disabled bool) error {
-	profileName = strings.TrimSpace(profileName)
+func (e *Editor) SetServerDisabled(ctx context.Context, serverName string, disabled bool) error {
 	serverName = strings.TrimSpace(serverName)
-	if profileName == "" || serverName == "" {
-		return &EditorError{Kind: EditorErrorInvalidRequest, Message: "Profile and server are required"}
+	if serverName == "" {
+		return &EditorError{Kind: EditorErrorInvalidRequest, Message: "Server name is required"}
 	}
 
-	storePath, err := e.storePath()
+	configPath, err := e.configPath(false)
 	if err != nil {
 		return err
 	}
-	path, err := ResolveProfilePath(storePath, profileName)
-	if err != nil {
-		return &EditorError{Kind: EditorErrorProfileNotFound, Message: "Profile not found", Err: err}
-	}
-	update, err := SetServerDisabled(path, serverName, disabled)
+	update, err := SetServerDisabled(configPath, serverName, disabled)
 	if err != nil {
 		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to update server", Err: err}
 	}
 	if err := os.WriteFile(update.Path, update.Data, fsutil.DefaultFileMode); err != nil {
-		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to write profile file", Err: err}
+		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to write config file", Err: err}
 	}
 	return nil
 }
 
-func (e *Editor) DeleteServer(ctx context.Context, profileName, serverName string) error {
-	profileName = strings.TrimSpace(profileName)
+func (e *Editor) DeleteServer(ctx context.Context, serverName string) error {
 	serverName = strings.TrimSpace(serverName)
-	if profileName == "" || serverName == "" {
-		return &EditorError{Kind: EditorErrorInvalidRequest, Message: "Profile and server are required"}
+	if serverName == "" {
+		return &EditorError{Kind: EditorErrorInvalidRequest, Message: "Server name is required"}
 	}
 
-	storePath, err := e.storePath()
+	configPath, err := e.configPath(false)
 	if err != nil {
 		return err
 	}
-	path, err := ResolveProfilePath(storePath, profileName)
-	if err != nil {
-		return &EditorError{Kind: EditorErrorProfileNotFound, Message: "Profile not found", Err: err}
-	}
-	update, err := DeleteServer(path, serverName)
+	update, err := DeleteServer(configPath, serverName)
 	if err != nil {
 		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to delete server", Err: err}
 	}
 	if err := os.WriteFile(update.Path, update.Data, fsutil.DefaultFileMode); err != nil {
-		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to write profile file", Err: err}
-	}
-	return nil
-}
-
-func (e *Editor) CreateProfile(ctx context.Context, profileName string) error {
-	profileName = strings.TrimSpace(profileName)
-	if profileName == "" {
-		return &EditorError{Kind: EditorErrorInvalidRequest, Message: "Profile name is required"}
-	}
-
-	storePath, err := e.storePath()
-	if err != nil {
-		return err
-	}
-	if _, err := CreateProfile(storePath, profileName); err != nil {
-		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to create profile", Err: err}
-	}
-	return nil
-}
-
-func (e *Editor) DeleteProfile(ctx context.Context, profileName string) error {
-	profileName = strings.TrimSpace(profileName)
-	if profileName == "" {
-		return &EditorError{Kind: EditorErrorInvalidRequest, Message: "Profile name is required"}
-	}
-
-	storePath, err := e.storePath()
-	if err != nil {
-		return err
-	}
-
-	storeLoader := NewProfileStoreLoader(e.logger)
-	store, err := storeLoader.Load(ctx, storePath, ProfileStoreOptions{AllowCreate: false})
-	if err != nil {
-		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to load profile store", Err: err}
-	}
-	for caller, profile := range store.Callers {
-		if profile == profileName {
-			return &EditorError{Kind: EditorErrorInvalidRequest, Message: "Profile is referenced by callers", Err: errors.New(caller)}
-		}
-	}
-
-	if err := DeleteProfile(storePath, profileName); err != nil {
-		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to delete profile", Err: err}
-	}
-	return nil
-}
-
-func (e *Editor) SetCallerMapping(ctx context.Context, caller, profile string) error {
-	caller = strings.TrimSpace(caller)
-	profile = strings.TrimSpace(profile)
-	if caller == "" || profile == "" {
-		return &EditorError{Kind: EditorErrorInvalidRequest, Message: "Caller and profile are required"}
-	}
-
-	storePath, err := e.storePath()
-	if err != nil {
-		return err
-	}
-	storeLoader := NewProfileStoreLoader(e.logger)
-	store, err := storeLoader.Load(ctx, storePath, ProfileStoreOptions{AllowCreate: false})
-	if err != nil {
-		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to load profile store", Err: err}
-	}
-
-	update, err := SetCallerMapping(storePath, caller, profile, store.Profiles)
-	if err != nil {
-		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to update caller mapping", Err: err}
-	}
-	if err := os.WriteFile(update.Path, update.Data, fsutil.DefaultFileMode); err != nil {
-		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to write callers file", Err: err}
-	}
-	return nil
-}
-
-func (e *Editor) RemoveCallerMapping(ctx context.Context, caller string) error {
-	caller = strings.TrimSpace(caller)
-	if caller == "" {
-		return &EditorError{Kind: EditorErrorInvalidRequest, Message: "Caller is required"}
-	}
-
-	storePath, err := e.storePath()
-	if err != nil {
-		return err
-	}
-	storeLoader := NewProfileStoreLoader(e.logger)
-	store, err := storeLoader.Load(ctx, storePath, ProfileStoreOptions{AllowCreate: false})
-	if err != nil {
-		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to load profile store", Err: err}
-	}
-
-	update, err := RemoveCallerMapping(storePath, caller, store.Profiles)
-	if err != nil {
-		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to remove caller mapping", Err: err}
-	}
-	if err := os.WriteFile(update.Path, update.Data, fsutil.DefaultFileMode); err != nil {
-		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to write callers file", Err: err}
-	}
-	return nil
-}
-
-func (e *Editor) SetProfileSubAgentEnabled(ctx context.Context, profileName string, enabled bool) error {
-	profileName = strings.TrimSpace(profileName)
-	if profileName == "" {
-		return &EditorError{Kind: EditorErrorInvalidRequest, Message: "Profile name is required"}
-	}
-
-	storePath, err := e.storePath()
-	if err != nil {
-		return err
-	}
-	path, err := ResolveProfilePath(storePath, profileName)
-	if err != nil {
-		return &EditorError{Kind: EditorErrorProfileNotFound, Message: "Profile not found", Err: err}
-	}
-	update, err := SetProfileSubAgentEnabled(path, enabled)
-	if err != nil {
-		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to update SubAgent config", Err: err}
-	}
-	if err := os.WriteFile(update.Path, update.Data, fsutil.DefaultFileMode); err != nil {
-		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to write profile file", Err: err}
+		return &EditorError{Kind: EditorErrorInvalidConfig, Message: "Failed to write config file", Err: err}
 	}
 	return nil
 }
 
 func NormalizeImportRequest(req ImportRequest) (ImportRequest, error) {
-	if len(req.Profiles) == 0 {
-		return ImportRequest{}, &EditorError{Kind: EditorErrorInvalidRequest, Message: "At least one profile is required"}
-	}
 	if len(req.Servers) == 0 {
 		return ImportRequest{}, &EditorError{Kind: EditorErrorInvalidRequest, Message: "At least one server is required"}
-	}
-
-	profileNames := make([]string, 0, len(req.Profiles))
-	seenProfiles := make(map[string]struct{}, len(req.Profiles))
-	for _, name := range req.Profiles {
-		trimmed := strings.TrimSpace(name)
-		if trimmed == "" {
-			return ImportRequest{}, &EditorError{Kind: EditorErrorInvalidRequest, Message: "Profile name is required"}
-		}
-		if _, exists := seenProfiles[trimmed]; exists {
-			return ImportRequest{}, &EditorError{Kind: EditorErrorInvalidRequest, Message: fmt.Sprintf("Duplicate profile name %q", trimmed)}
-		}
-		seenProfiles[trimmed] = struct{}{}
-		profileNames = append(profileNames, trimmed)
 	}
 
 	servers := make([]domain.ServerSpec, 0, len(req.Servers))
@@ -364,10 +192,7 @@ func NormalizeImportRequest(req ImportRequest) (ImportRequest, error) {
 		servers = append(servers, spec)
 	}
 
-	return ImportRequest{
-		Profiles: profileNames,
-		Servers:  servers,
-	}, nil
+	return ImportRequest{Servers: servers}, nil
 }
 
 func normalizeImportServerSpec(name string, server domain.ServerSpec) (domain.ServerSpec, error) {
@@ -399,6 +224,7 @@ func normalizeImportServerSpec(name string, server domain.ServerSpec) (domain.Se
 		Cmd:                 append([]string{}, server.Cmd...),
 		Env:                 normalizeImportEnv(server.Env),
 		Cwd:                 strings.TrimSpace(server.Cwd),
+		Tags:                normalizeTags(server.Tags),
 		IdleSeconds:         60,
 		MaxConcurrent:       domain.DefaultMaxConcurrent,
 		Strategy:            domain.DefaultStrategy,
@@ -442,22 +268,44 @@ func normalizeImportEnv(env map[string]string) map[string]string {
 	return cleaned
 }
 
-func (e *Editor) storePath() (string, error) {
+func (e *Editor) configPath(allowCreate bool) (string, error) {
 	if e.path == "" {
-		return "", &EditorError{Kind: EditorErrorInvalidConfig, Message: "Profile store path is required"}
+		return "", &EditorError{Kind: EditorErrorInvalidConfig, Message: "Config path is required"}
 	}
 	info, err := os.Stat(e.path)
 	if err != nil {
-		return "", &EditorError{Kind: EditorErrorInvalidConfig, Message: "Profile store path is not available", Err: err}
+		if os.IsNotExist(err) && allowCreate {
+			return e.path, nil
+		}
+		return "", &EditorError{Kind: EditorErrorInvalidConfig, Message: "Config path is not available", Err: err}
 	}
-	if !info.IsDir() {
-		return "", &EditorError{Kind: EditorErrorInvalidConfig, Message: fmt.Sprintf("Profile store path must be a directory: %s", e.path)}
+	if info.IsDir() {
+		return "", &EditorError{Kind: EditorErrorInvalidConfig, Message: fmt.Sprintf("Config path must be a file: %s", e.path)}
 	}
 	return e.path, nil
 }
 
-func isWritable(path string) bool {
-	testFile := filepath.Join(path, ".write_test")
+func isWritableFile(path string) bool {
+	if path == "" {
+		return false
+	}
+	info, err := os.Stat(path)
+	if err == nil {
+		if info.IsDir() {
+			return false
+		}
+		file, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0)
+		if err != nil {
+			return false
+		}
+		file.Close()
+		return true
+	}
+	if !os.IsNotExist(err) {
+		return false
+	}
+	dir := filepath.Dir(path)
+	testFile := filepath.Join(dir, ".write_test")
 	file, err := os.Create(testFile)
 	if err != nil {
 		return false

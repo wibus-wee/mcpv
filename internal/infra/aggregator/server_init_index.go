@@ -75,6 +75,12 @@ func (idx *ServerInitIndex) Subscribe(ctx context.Context) <-chan domain.ServerI
 	return ch
 }
 
+// Current returns the latest server init status snapshot.
+func (idx *ServerInitIndex) Current() domain.ServerInitStatusSnapshot {
+	state := idx.state.Load().(serverInitStatusIndexState)
+	return state.snapshot
+}
+
 // Refresh polls the control plane for current init status and broadcasts to subscribers
 func (idx *ServerInitIndex) Refresh(ctx context.Context) error {
 	statuses, err := idx.cp.GetServerInitStatus(ctx)

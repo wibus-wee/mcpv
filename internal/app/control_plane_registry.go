@@ -3,8 +3,8 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,42 +13,37 @@ import (
 	"mcpd/internal/domain"
 )
 
-type callerRegistry struct {
+type clientRegistry struct {
 	state *controlPlaneState
 
-	mu                sync.Mutex
-	activeCallers     map[string]callerState
-	activeCallerSubs  map[chan domain.ActiveCallerSnapshot]struct{}
-	profileChangeSubs map[chan profileChangeEvent]struct{}
-	profileCounts     map[string]int
-	specCounts        map[string]int
-	monitorStarted    bool
+	mu               sync.Mutex
+	activeClients    map[string]clientState
+	activeClientSubs map[chan domain.ActiveClientSnapshot]struct{}
+	clientChangeSubs map[chan clientChangeEvent]struct{}
+	specCounts       map[string]int
+	monitorStarted   bool
 }
 
-// profileChangeEvent is emitted when a caller's profile mapping changes.
-type profileChangeEvent struct {
-	Caller     string
-	OldProfile string
-	NewProfile string
+type clientChangeEvent struct {
+	Client string
 }
 
-const callerReapTimeoutMultiplier = 2
+const clientReapTimeoutMultiplier = 2
 
-func newCallerRegistry(state *controlPlaneState) *callerRegistry {
-	return &callerRegistry{
-		state:             state,
-		activeCallers:     make(map[string]callerState),
-		activeCallerSubs:  make(map[chan domain.ActiveCallerSnapshot]struct{}),
-		profileChangeSubs: make(map[chan profileChangeEvent]struct{}),
-		profileCounts:     make(map[string]int),
-		specCounts:        make(map[string]int),
+func newClientRegistry(state *controlPlaneState) *clientRegistry {
+	return &clientRegistry{
+		state:            state,
+		activeClients:    make(map[string]clientState),
+		activeClientSubs: make(map[chan domain.ActiveClientSnapshot]struct{}),
+		clientChangeSubs: make(map[chan clientChangeEvent]struct{}),
+		specCounts:       make(map[string]int),
 	}
 }
 
-// StartMonitor begins monitoring caller heartbeats.
-func (r *callerRegistry) StartMonitor(ctx context.Context) {
+// StartMonitor begins monitoring client heartbeats.
+func (r *clientRegistry) StartMonitor(ctx context.Context) {
 	runtime := r.state.Runtime()
-	interval := time.Duration(runtime.CallerCheckSeconds) * time.Second
+	interval := time.Duration(runtime.ClientCheckSeconds) * time.Second
 	if interval <= 0 {
 		return
 	}
@@ -76,148 +71,158 @@ func (r *callerRegistry) StartMonitor(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				r.reapDeadCallers(ctx)
+				r.reapDeadClients(ctx)
 			}
 		}
 	}()
 }
 
-// RegisterCaller registers a caller and returns the profile name.
-func (r *callerRegistry) RegisterCaller(ctx context.Context, caller string, pid int) (string, error) {
-	if caller == "" {
-		return "", errors.New("caller is required")
+// RegisterClient registers a client and returns registration metadata.
+func (r *clientRegistry) RegisterClient(ctx context.Context, client string, pid int, tags []string) (domain.ClientRegistration, error) {
+	if client == "" {
+		return domain.ClientRegistration{}, errors.New("client is required")
 	}
 	if pid <= 0 {
-		return "", errors.New("pid must be > 0")
+		return domain.ClientRegistration{}, errors.New("pid must be > 0")
 	}
+	normalizedTags := normalizeTags(tags)
+	visibleSpecKeys, visibleServerCount := r.visibleSpecKeys(normalizedTags)
 
-	profileName, err := r.resolveProfileName(caller)
-	if err != nil {
-		return "", err
-	}
-
-	var toStartProfiles []string
-	var toStopProfiles []string
-	var toActivateSpecs []string
-	var toDeactivateSpecs []string
+	var toActivate []string
+	var toDeactivate []string
 	now := time.Now()
-	var snapshot domain.ActiveCallerSnapshot
+	var snapshot domain.ActiveClientSnapshot
 	var shouldBroadcast bool
+	var tagsChanged bool
 
 	r.mu.Lock()
-	if existing, ok := r.activeCallers[caller]; ok {
-		if existing.pid == pid && existing.profile == profileName {
+	if existing, ok := r.activeClients[client]; ok {
+		tagsChanged = !tagsEqual(existing.tags, normalizedTags)
+		if existing.pid == pid && !tagsChanged {
 			existing.lastHeartbeat = now
-			r.activeCallers[caller] = existing
+			r.activeClients[client] = existing
 			r.mu.Unlock()
-			return profileName, nil
+			return domain.ClientRegistration{
+				Client:             client,
+				Tags:               normalizedTags,
+				VisibleServerCount: visibleServerCount,
+			}, nil
 		}
-		if existing.profile == profileName {
-			existing.pid = pid
-			existing.lastHeartbeat = now
-			r.activeCallers[caller] = existing
-			snapshot = r.snapshotActiveCallersLocked(now)
-			shouldBroadcast = true
-			r.mu.Unlock()
-			r.broadcastActiveCallers(finalizeActiveCallerSnapshot(snapshot))
-			return profileName, nil
+		toActivate, toDeactivate = diffKeys(visibleSpecKeys, existing.specKeys)
+		existing.pid = pid
+		existing.tags = normalizedTags
+		existing.specKeys = visibleSpecKeys
+		existing.lastHeartbeat = now
+		r.activeClients[client] = existing
+		applySpecDelta(r.specCounts, toActivate, toDeactivate)
+		snapshot = r.snapshotActiveClientsLocked(now)
+		shouldBroadcast = true
+	} else {
+		r.activeClients[client] = clientState{
+			pid:           pid,
+			tags:          normalizedTags,
+			specKeys:      visibleSpecKeys,
+			lastHeartbeat: now,
 		}
-		r.removeProfileLocked(existing.profile, &toStopProfiles, &toDeactivateSpecs)
-	}
-	r.activeCallers[caller] = callerState{pid: pid, profile: profileName, lastHeartbeat: now}
-	r.addProfileLocked(profileName, &toStartProfiles, &toActivateSpecs)
-	snapshot = r.snapshotActiveCallersLocked(now)
-	shouldBroadcast = true
-	r.mu.Unlock()
-
-	toActivateSpecs, toDeactivateSpecs = filterOverlap(toActivateSpecs, toDeactivateSpecs)
-
-	if err := r.activateSpecs(ctx, toActivateSpecs, caller, profileName); err != nil {
-		_ = r.UnregisterCaller(ctx, caller)
-		return "", err
-	}
-	if err := r.deactivateSpecs(ctx, toDeactivateSpecs); err != nil {
-		r.state.logger.Warn("spec deactivation failed", zap.Error(err))
-	}
-	if shouldBroadcast {
-		r.broadcastActiveCallers(finalizeActiveCallerSnapshot(snapshot))
-	}
-	r.activateProfiles(toStartProfiles)
-	r.deactivateProfiles(toStopProfiles)
-	return profileName, nil
-}
-
-// UnregisterCaller unregisters a caller.
-func (r *callerRegistry) UnregisterCaller(ctx context.Context, caller string) error {
-	if caller == "" {
-		return errors.New("caller is required")
-	}
-	var toStopProfiles []string
-	var toDeactivateSpecs []string
-	var snapshot domain.ActiveCallerSnapshot
-	var shouldBroadcast bool
-
-	r.mu.Lock()
-	state, ok := r.activeCallers[caller]
-	if ok {
-		delete(r.activeCallers, caller)
-		r.removeProfileLocked(state.profile, &toStopProfiles, &toDeactivateSpecs)
-		snapshot = r.snapshotActiveCallersLocked(time.Now())
+		applySpecDelta(r.specCounts, visibleSpecKeys, nil)
+		toActivate = visibleSpecKeys
+		snapshot = r.snapshotActiveClientsLocked(now)
 		shouldBroadcast = true
 	}
 	r.mu.Unlock()
 
-	if err := r.deactivateSpecs(ctx, toDeactivateSpecs); err != nil {
+	toActivate, toDeactivate = filterOverlap(toActivate, toDeactivate)
+
+	if err := r.activateSpecs(ctx, toActivate, client); err != nil {
+		_ = r.UnregisterClient(ctx, client)
+		return domain.ClientRegistration{}, err
+	}
+	if err := r.deactivateSpecs(ctx, toDeactivate); err != nil {
 		r.state.logger.Warn("spec deactivation failed", zap.Error(err))
 	}
 	if shouldBroadcast {
-		r.broadcastActiveCallers(finalizeActiveCallerSnapshot(snapshot))
+		r.broadcastActiveClients(finalizeActiveClientSnapshot(snapshot))
 	}
-	r.deactivateProfiles(toStopProfiles)
+	if tagsChanged {
+		r.broadcastClientChange(clientChangeEvent{Client: client})
+	}
+
+	return domain.ClientRegistration{
+		Client:             client,
+		Tags:               normalizedTags,
+		VisibleServerCount: visibleServerCount,
+	}, nil
+}
+
+// UnregisterClient unregisters a client.
+func (r *clientRegistry) UnregisterClient(ctx context.Context, client string) error {
+	if client == "" {
+		return errors.New("client is required")
+	}
+	var toDeactivate []string
+	var snapshot domain.ActiveClientSnapshot
+	var shouldBroadcast bool
+
+	r.mu.Lock()
+	state, ok := r.activeClients[client]
+	if ok {
+		delete(r.activeClients, client)
+		applySpecDelta(r.specCounts, nil, state.specKeys)
+		toDeactivate = state.specKeys
+		snapshot = r.snapshotActiveClientsLocked(time.Now())
+		shouldBroadcast = true
+	}
+	r.mu.Unlock()
+
+	if err := r.deactivateSpecs(ctx, toDeactivate); err != nil {
+		r.state.logger.Warn("spec deactivation failed", zap.Error(err))
+	}
+	if shouldBroadcast {
+		r.broadcastActiveClients(finalizeActiveClientSnapshot(snapshot))
+	}
 	return nil
 }
 
-// ListActiveCallers lists active callers.
-func (r *callerRegistry) ListActiveCallers(ctx context.Context) ([]domain.ActiveCaller, error) {
+// ListActiveClients lists active clients.
+func (r *clientRegistry) ListActiveClients(ctx context.Context) ([]domain.ActiveClient, error) {
 	now := time.Now()
 	r.mu.Lock()
-	snapshot := r.snapshotActiveCallersLocked(now)
+	snapshot := r.snapshotActiveClientsLocked(now)
 	r.mu.Unlock()
-	return finalizeActiveCallerSnapshot(snapshot).Callers, nil
+	return finalizeActiveClientSnapshot(snapshot).Clients, nil
 }
 
-// WatchActiveCallers streams active caller updates.
-func (r *callerRegistry) WatchActiveCallers(ctx context.Context) (<-chan domain.ActiveCallerSnapshot, error) {
-	ch := make(chan domain.ActiveCallerSnapshot, 1)
+// WatchActiveClients streams active client updates.
+func (r *clientRegistry) WatchActiveClients(ctx context.Context) (<-chan domain.ActiveClientSnapshot, error) {
+	ch := make(chan domain.ActiveClientSnapshot, 1)
 	r.mu.Lock()
-	r.activeCallerSubs[ch] = struct{}{}
-	snapshot := r.snapshotActiveCallersLocked(time.Now())
+	r.activeClientSubs[ch] = struct{}{}
+	snapshot := r.snapshotActiveClientsLocked(time.Now())
 	r.mu.Unlock()
 
-	sendActiveCallerSnapshot(ch, finalizeActiveCallerSnapshot(snapshot))
+	sendActiveClientSnapshot(ch, finalizeActiveClientSnapshot(snapshot))
 
 	go func() {
 		<-ctx.Done()
 		r.mu.Lock()
-		delete(r.activeCallerSubs, ch)
+		delete(r.activeClientSubs, ch)
 		r.mu.Unlock()
 	}()
 
 	return ch, nil
 }
 
-// WatchProfileChanges returns a channel that receives events when a caller's profile mapping changes.
-// WatchProfileChanges streams profile change events.
-func (r *callerRegistry) WatchProfileChanges(ctx context.Context) <-chan profileChangeEvent {
-	ch := make(chan profileChangeEvent, 16)
+// WatchClientChanges streams client change events.
+func (r *clientRegistry) WatchClientChanges(ctx context.Context) <-chan clientChangeEvent {
+	ch := make(chan clientChangeEvent, 16)
 	r.mu.Lock()
-	r.profileChangeSubs[ch] = struct{}{}
+	r.clientChangeSubs[ch] = struct{}{}
 	r.mu.Unlock()
 
 	go func() {
 		<-ctx.Done()
 		r.mu.Lock()
-		delete(r.profileChangeSubs, ch)
+		delete(r.clientChangeSubs, ch)
 		r.mu.Unlock()
 		close(ch)
 	}()
@@ -225,113 +230,62 @@ func (r *callerRegistry) WatchProfileChanges(ctx context.Context) <-chan profile
 	return ch
 }
 
-func (r *callerRegistry) resolveProfile(caller string) (*profileRuntime, error) {
-	if caller == "" {
-		return nil, domain.ErrCallerNotRegistered
+func (r *clientRegistry) resolveClientTags(client string) ([]string, error) {
+	if client == "" {
+		return nil, domain.ErrClientNotRegistered
 	}
 	r.mu.Lock()
-	state, ok := r.activeCallers[caller]
+	state, ok := r.activeClients[client]
 	if ok {
 		state.lastHeartbeat = time.Now()
-		r.activeCallers[caller] = state
+		r.activeClients[client] = state
 	}
 	r.mu.Unlock()
 	if !ok {
-		return nil, domain.ErrCallerNotRegistered
+		return nil, domain.ErrClientNotRegistered
 	}
-	profile, ok := r.state.Profile(state.profile)
-	if !ok {
-		return nil, fmt.Errorf("profile %q not found", state.profile)
-	}
-	return profile, nil
+	return append([]string(nil), state.tags...), nil
 }
 
-func (r *callerRegistry) resolveProfileName(caller string) (string, error) {
-	profileName := domain.DefaultProfileName
-	if caller != "" {
-		callers := r.state.Callers()
-		if mapped, ok := callers[caller]; ok {
-			profileName = mapped
-		}
+func (r *clientRegistry) resolveVisibleSpecKeys(client string) ([]string, error) {
+	if client == "" {
+		return nil, domain.ErrClientNotRegistered
 	}
-	if _, ok := r.state.Profile(profileName); !ok {
-		return "", fmt.Errorf("profile %q not found", profileName)
-	}
-	return profileName, nil
-}
-
-func (r *callerRegistry) activeProfileNames() []string {
 	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	names := make([]string, 0, len(r.profileCounts))
-	for name, count := range r.profileCounts {
-		if count > 0 {
-			names = append(names, name)
-		}
+	state, ok := r.activeClients[client]
+	if ok {
+		state.lastHeartbeat = time.Now()
+		r.activeClients[client] = state
 	}
-	sort.Strings(names)
-	return names
-}
-
-func (r *callerRegistry) profileContainsSpecKey(runtime *profileRuntime, specKey string) bool {
-	for _, key := range runtime.SpecKeys() {
-		if key == specKey {
-			return true
-		}
-	}
-	return false
-}
-
-func (r *callerRegistry) addProfileLocked(profile string, profileStarts *[]string, specStarts *[]string) {
-	runtime, ok := r.state.Profile(profile)
+	r.mu.Unlock()
 	if !ok {
-		return
+		return nil, domain.ErrClientNotRegistered
 	}
-	count := r.profileCounts[profile] + 1
-	r.profileCounts[profile] = count
-	if count == 1 {
-		*profileStarts = append(*profileStarts, profile)
-	}
-	for _, specKey := range runtime.SpecKeys() {
-		specCount := r.specCounts[specKey] + 1
-		r.specCounts[specKey] = specCount
-		if specCount == 1 {
-			*specStarts = append(*specStarts, specKey)
-		}
-	}
+	return append([]string(nil), state.specKeys...), nil
 }
 
-func (r *callerRegistry) removeProfileLocked(profile string, profileStops *[]string, specStops *[]string) {
-	runtime, ok := r.state.Profile(profile)
-	if !ok {
-		return
+func (r *clientRegistry) visibleSpecKeys(tags []string) ([]string, int) {
+	catalog := r.state.Catalog()
+	serverSpecKeys := r.state.ServerSpecKeys()
+	if len(serverSpecKeys) == 0 {
+		return nil, 0
 	}
-	count := r.profileCounts[profile]
-	switch {
-	case count <= 1:
-		delete(r.profileCounts, profile)
-		if count > 0 {
-			*profileStops = append(*profileStops, profile)
+	visible := make(map[string]struct{})
+	serverCount := 0
+	for name, specKey := range serverSpecKeys {
+		spec, ok := catalog.Specs[name]
+		if !ok {
+			continue
 		}
-	default:
-		r.profileCounts[profile] = count - 1
-	}
-	for _, specKey := range runtime.SpecKeys() {
-		specCount := r.specCounts[specKey]
-		switch {
-		case specCount <= 1:
-			delete(r.specCounts, specKey)
-			if specCount > 0 {
-				*specStops = append(*specStops, specKey)
-			}
-		default:
-			r.specCounts[specKey] = specCount - 1
+		if isVisibleToTags(tags, spec.Tags) {
+			serverCount++
+			visible[specKey] = struct{}{}
 		}
 	}
+	return keysFromSet(visible), serverCount
 }
 
-func (r *callerRegistry) activateSpecs(ctx context.Context, specKeys []string, caller, profile string) error {
+func (r *clientRegistry) activateSpecs(ctx context.Context, specKeys []string, client string) error {
 	if len(specKeys) == 0 {
 		return nil
 	}
@@ -342,13 +296,10 @@ func (r *callerRegistry) activateSpecs(ctx context.Context, specKeys []string, c
 	for _, specKey := range order {
 		spec, ok := registry[specKey]
 		if !ok {
-			return fmt.Errorf("unknown spec key %q", specKey)
+			return errors.New("unknown spec key " + specKey)
 		}
 		minReady := activeMinReady(spec)
-		cause := callerStartCause(runtime, spec, caller, profile, minReady)
-		if caller == "" && profile == "" {
-			cause = policyStartCause(runtime, spec, minReady)
-		}
+		cause := clientStartCause(runtime, spec, client, minReady)
 		causeCtx := domain.WithStartCause(ctx, cause)
 		if r.state.initManager != nil {
 			err := r.state.initManager.SetMinReady(specKey, minReady, cause)
@@ -367,7 +318,7 @@ func (r *callerRegistry) activateSpecs(ctx context.Context, specKeys []string, c
 	return nil
 }
 
-func (r *callerRegistry) deactivateSpecs(ctx context.Context, specKeys []string) error {
+func (r *clientRegistry) deactivateSpecs(ctx context.Context, specKeys []string) error {
 	if len(specKeys) == 0 {
 		return nil
 	}
@@ -390,168 +341,139 @@ func (r *callerRegistry) deactivateSpecs(ctx context.Context, specKeys []string)
 			}
 			continue
 		}
-		if err := r.state.scheduler.StopSpec(ctx, specKey, "caller inactive"); err != nil && firstErr == nil {
+		if err := r.state.scheduler.StopSpec(ctx, specKey, "client inactive"); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
 	return firstErr
 }
 
-func (r *callerRegistry) activateProfiles(profiles []string) {
-	for _, profile := range profiles {
-		if runtime, ok := r.state.Profile(profile); ok {
-			runtime.Activate(r.state.ctx)
-		}
-	}
-}
-
-func (r *callerRegistry) deactivateProfiles(profiles []string) {
-	for _, profile := range profiles {
-		if runtime, ok := r.state.Profile(profile); ok {
-			runtime.Deactivate()
-		}
-	}
-}
-
-func (r *callerRegistry) reapDeadCallers(ctx context.Context) {
+func (r *clientRegistry) reapDeadClients(ctx context.Context) {
 	now := time.Now()
 	runtime := r.state.Runtime()
-	timeout := time.Duration(runtime.CallerCheckSeconds*callerReapTimeoutMultiplier) * time.Second
-	inactiveTimeout := time.Duration(runtime.CallerInactiveSeconds) * time.Second
+	timeout := time.Duration(runtime.ClientCheckSeconds*clientReapTimeoutMultiplier) * time.Second
+	inactiveTimeout := time.Duration(runtime.ClientInactiveSeconds) * time.Second
 	r.mu.Lock()
-	callers := make([]string, 0, len(r.activeCallers))
-	for caller, state := range r.activeCallers {
+	clients := make([]string, 0, len(r.activeClients))
+	for client, state := range r.activeClients {
 		if inactiveTimeout > 0 && !state.lastHeartbeat.IsZero() && now.Sub(state.lastHeartbeat) > inactiveTimeout {
-			callers = append(callers, caller)
+			clients = append(clients, client)
 			continue
 		}
 		if timeout > 0 && !state.lastHeartbeat.IsZero() && now.Sub(state.lastHeartbeat) <= timeout {
 			continue
 		}
 		if !pidAlive(state.pid) {
-			callers = append(callers, caller)
+			clients = append(clients, client)
 		}
 	}
 	r.mu.Unlock()
 
-	for _, caller := range callers {
-		if err := r.UnregisterCaller(ctx, caller); err != nil {
-			r.state.logger.Warn("caller reap failed", zap.String("caller", caller), zap.Error(err))
+	for _, client := range clients {
+		if err := r.UnregisterClient(ctx, client); err != nil {
+			r.state.logger.Warn("client reap failed", zap.String("client", client), zap.Error(err))
 		}
 	}
 }
 
-func (r *callerRegistry) snapshotActiveCallersLocked(now time.Time) domain.ActiveCallerSnapshot {
-	callers := make([]domain.ActiveCaller, 0, len(r.activeCallers))
-	for caller, state := range r.activeCallers {
-		callers = append(callers, domain.ActiveCaller{
-			Caller:        caller,
+func (r *clientRegistry) snapshotActiveClientsLocked(now time.Time) domain.ActiveClientSnapshot {
+	clients := make([]domain.ActiveClient, 0, len(r.activeClients))
+	for client, state := range r.activeClients {
+		clients = append(clients, domain.ActiveClient{
+			Client:        client,
 			PID:           state.pid,
-			Profile:       state.profile,
+			Tags:          append([]string(nil), state.tags...),
 			LastHeartbeat: state.lastHeartbeat,
 		})
 	}
 
-	return domain.ActiveCallerSnapshot{
-		Callers:     callers,
+	return domain.ActiveClientSnapshot{
+		Clients:     clients,
 		GeneratedAt: now,
 	}
 }
 
-func finalizeActiveCallerSnapshot(snapshot domain.ActiveCallerSnapshot) domain.ActiveCallerSnapshot {
-	if len(snapshot.Callers) == 0 {
+func finalizeActiveClientSnapshot(snapshot domain.ActiveClientSnapshot) domain.ActiveClientSnapshot {
+	if len(snapshot.Clients) == 0 {
 		return snapshot
 	}
-	callers := append([]domain.ActiveCaller(nil), snapshot.Callers...)
-	sort.Slice(callers, func(i, j int) bool {
-		return callers[i].Caller < callers[j].Caller
+	clients := append([]domain.ActiveClient(nil), snapshot.Clients...)
+	sort.Slice(clients, func(i, j int) bool {
+		return clients[i].Client < clients[j].Client
 	})
-	snapshot.Callers = callers
+	snapshot.Clients = clients
 	return snapshot
 }
 
-func (r *callerRegistry) broadcastActiveCallers(snapshot domain.ActiveCallerSnapshot) {
-	subs := r.copyActiveCallerSubscribers()
+func (r *clientRegistry) broadcastActiveClients(snapshot domain.ActiveClientSnapshot) {
+	subs := r.copyActiveClientSubscribers()
 	for _, ch := range subs {
-		sendActiveCallerSnapshot(ch, snapshot)
+		sendActiveClientSnapshot(ch, snapshot)
 	}
 }
 
-// ApplyCatalogUpdate updates caller state based on catalog changes.
-func (r *callerRegistry) ApplyCatalogUpdate(ctx context.Context, update domain.CatalogUpdate) error {
-	callers := r.state.Callers()
-	profiles := r.state.Profiles()
+// ApplyCatalogUpdate updates client state based on catalog changes.
+func (r *clientRegistry) ApplyCatalogUpdate(ctx context.Context, update domain.CatalogUpdate) error {
 	now := time.Now()
 
-	var profileChanges []profileChangeEvent
-
 	r.mu.Lock()
-	oldProfileCounts := copyCounts(r.profileCounts)
 	oldSpecCounts := copyCounts(r.specCounts)
+	newSpecCounts := make(map[string]int)
+	changedClients := make([]string, 0)
 
-	for caller, state := range r.activeCallers {
-		profileName := resolveProfileNameForCaller(caller, callers, profiles)
-		if profileName != state.profile {
-			profileChanges = append(profileChanges, profileChangeEvent{
-				Caller:     caller,
-				OldProfile: state.profile,
-				NewProfile: profileName,
-			})
-			state.profile = profileName
-			r.activeCallers[caller] = state
+	for client, state := range r.activeClients {
+		nextSpecKeys, _ := visibleSpecKeysForCatalog(update.Snapshot.Catalog, update.Snapshot.Summary.ServerSpecKeys, state.tags)
+		if !sameKeySet(state.specKeys, nextSpecKeys) {
+			changedClients = append(changedClients, client)
+			state.specKeys = nextSpecKeys
+			r.activeClients[client] = state
+		}
+		for _, specKey := range nextSpecKeys {
+			newSpecCounts[specKey]++
 		}
 	}
-
-	newProfileCounts, newSpecCounts := countActiveProfiles(r.activeCallers, profiles)
-	r.profileCounts = newProfileCounts
 	r.specCounts = newSpecCounts
-	snapshot := r.snapshotActiveCallersLocked(now)
+	snapshot := r.snapshotActiveClientsLocked(now)
 	r.mu.Unlock()
 
-	profilesToStart, profilesToStop := diffCounts(oldProfileCounts, newProfileCounts)
 	specsToStart, specsToStop := diffCounts(oldSpecCounts, newSpecCounts)
 	specsToStart, specsToStop = filterOverlap(specsToStart, specsToStop)
 
-	if err := r.activateSpecs(ctx, specsToStart, "", ""); err != nil {
+	if err := r.activateSpecs(ctx, specsToStart, ""); err != nil {
 		return err
 	}
 	if err := r.deactivateSpecs(ctx, specsToStop); err != nil {
 		r.state.logger.Warn("spec deactivation failed", zap.Error(err))
 	}
-	r.activateProfiles(profilesToStart)
-	r.deactivateProfiles(profilesToStop)
-	r.broadcastActiveCallers(finalizeActiveCallerSnapshot(snapshot))
-
-	// Broadcast profile changes after all state updates are complete
-	for _, change := range profileChanges {
-		r.broadcastProfileChange(change)
+	r.broadcastActiveClients(finalizeActiveClientSnapshot(snapshot))
+	for _, client := range changedClients {
+		r.broadcastClientChange(clientChangeEvent{Client: client})
 	}
-
 	return nil
 }
 
-func (r *callerRegistry) copyActiveCallerSubscribers() []chan domain.ActiveCallerSnapshot {
+func (r *clientRegistry) copyActiveClientSubscribers() []chan domain.ActiveClientSnapshot {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	subs := make([]chan domain.ActiveCallerSnapshot, 0, len(r.activeCallerSubs))
-	for ch := range r.activeCallerSubs {
+	subs := make([]chan domain.ActiveClientSnapshot, 0, len(r.activeClientSubs))
+	for ch := range r.activeClientSubs {
 		subs = append(subs, ch)
 	}
 	return subs
 }
 
-func sendActiveCallerSnapshot(ch chan domain.ActiveCallerSnapshot, snapshot domain.ActiveCallerSnapshot) {
+func sendActiveClientSnapshot(ch chan domain.ActiveClientSnapshot, snapshot domain.ActiveClientSnapshot) {
 	select {
 	case ch <- snapshot:
 	default:
 	}
 }
 
-func (r *callerRegistry) broadcastProfileChange(event profileChangeEvent) {
+func (r *clientRegistry) broadcastClientChange(event clientChangeEvent) {
 	r.mu.Lock()
-	subs := make([]chan profileChangeEvent, 0, len(r.profileChangeSubs))
-	for ch := range r.profileChangeSubs {
+	subs := make([]chan clientChangeEvent, 0, len(r.clientChangeSubs))
+	for ch := range r.clientChangeSubs {
 		subs = append(subs, ch)
 	}
 	r.mu.Unlock()
@@ -560,9 +482,114 @@ func (r *callerRegistry) broadcastProfileChange(event profileChangeEvent) {
 		select {
 		case ch <- event:
 		default:
-			// Drop if channel is full
 		}
 	}
+}
+
+func applySpecDelta(counts map[string]int, add []string, remove []string) {
+	for _, key := range add {
+		counts[key] = counts[key] + 1
+	}
+	for _, key := range remove {
+		count := counts[key]
+		switch {
+		case count <= 1:
+			delete(counts, key)
+		default:
+			counts[key] = count - 1
+		}
+	}
+}
+
+func sameKeySet(a []string, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func diffKeys(next []string, prev []string) ([]string, []string) {
+	nextSet := make(map[string]struct{}, len(next))
+	for _, key := range next {
+		nextSet[key] = struct{}{}
+	}
+	prevSet := make(map[string]struct{}, len(prev))
+	for _, key := range prev {
+		prevSet[key] = struct{}{}
+	}
+	var toActivate []string
+	for key := range nextSet {
+		if _, ok := prevSet[key]; !ok {
+			toActivate = append(toActivate, key)
+		}
+	}
+	var toDeactivate []string
+	for key := range prevSet {
+		if _, ok := nextSet[key]; !ok {
+			toDeactivate = append(toDeactivate, key)
+		}
+	}
+	return toActivate, toDeactivate
+}
+
+func visibleSpecKeysForCatalog(catalog domain.Catalog, serverSpecKeys map[string]string, tags []string) ([]string, int) {
+	if len(serverSpecKeys) == 0 {
+		return nil, 0
+	}
+	visible := make(map[string]struct{})
+	serverCount := 0
+	for name, specKey := range serverSpecKeys {
+		spec, ok := catalog.Specs[name]
+		if !ok {
+			continue
+		}
+		if isVisibleToTags(tags, spec.Tags) {
+			serverCount++
+			visible[specKey] = struct{}{}
+		}
+	}
+	return keysFromSet(visible), serverCount
+}
+
+
+func tagsEqual(a []string, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func normalizeTags(tags []string) []string {
+	if len(tags) == 0 {
+		return nil
+	}
+	unique := make(map[string]struct{}, len(tags))
+	for _, tag := range tags {
+		tag = strings.ToLower(strings.TrimSpace(tag))
+		if tag == "" {
+			continue
+		}
+		unique[tag] = struct{}{}
+	}
+	if len(unique) == 0 {
+		return nil
+	}
+	normalized := make([]string, 0, len(unique))
+	for tag := range unique {
+		normalized = append(normalized, tag)
+	}
+	sort.Strings(normalized)
+	return normalized
 }
 
 func filterOverlap(activate []string, deactivate []string) ([]string, []string) {
@@ -590,38 +617,6 @@ func filterOverlap(activate []string, deactivate []string) ([]string, []string) 
 	return filteredActivate, filteredDeactivate
 }
 
-func resolveProfileNameForCaller(caller string, callers map[string]string, profiles map[string]*profileRuntime) string {
-	profileName := domain.DefaultProfileName
-	if caller != "" {
-		if mapped, ok := callers[caller]; ok {
-			profileName = mapped
-		}
-	}
-	if _, ok := profiles[profileName]; ok {
-		return profileName
-	}
-	if _, ok := profiles[domain.DefaultProfileName]; ok {
-		return domain.DefaultProfileName
-	}
-	return profileName
-}
-
-func countActiveProfiles(active map[string]callerState, profiles map[string]*profileRuntime) (map[string]int, map[string]int) {
-	profileCounts := make(map[string]int)
-	specCounts := make(map[string]int)
-	for _, state := range active {
-		runtime, ok := profiles[state.profile]
-		if !ok {
-			continue
-		}
-		profileCounts[state.profile]++
-		for _, specKey := range runtime.SpecKeys() {
-			specCounts[specKey]++
-		}
-	}
-	return profileCounts, specCounts
-}
-
 func diffCounts(oldCounts map[string]int, newCounts map[string]int) ([]string, []string) {
 	var starts []string
 	var stops []string
@@ -639,13 +634,22 @@ func diffCounts(oldCounts map[string]int, newCounts map[string]int) ([]string, [
 	return starts, stops
 }
 
-func copyCounts(values map[string]int) map[string]int {
+func copyCounts(src map[string]int) map[string]int {
+	dst := make(map[string]int, len(src))
+	for key, value := range src {
+		dst[key] = value
+	}
+	return dst
+}
+
+func keysFromSet(values map[string]struct{}) []string {
 	if len(values) == 0 {
-		return map[string]int{}
+		return nil
 	}
-	copyMap := make(map[string]int, len(values))
-	for key, value := range values {
-		copyMap[key] = value
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
 	}
-	return copyMap
+	sort.Strings(keys)
+	return keys
 }

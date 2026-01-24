@@ -8,8 +8,8 @@
     "pingIntervalSeconds": {"type": "integer"},
     "toolRefreshSeconds": {"type": "integer"},
     "toolRefreshConcurrency": {"type": "integer"},
-    "callerCheckSeconds": {"type": "integer"},
-    "callerInactiveSeconds": {"type": "integer"},
+    "clientCheckSeconds": {"type": "integer"},
+    "clientInactiveSeconds": {"type": "integer"},
     "serverInitRetryBaseSeconds": {"type": "integer"},
     "serverInitRetryMaxSeconds": {"type": "integer"},
     "serverInitMaxRetries": {"type": "integer"},
@@ -63,9 +63,12 @@
     "subAgentConfig": {
       "type": "object",
       "additionalProperties": false,
-      "description": "SubAgent configuration (runtime-level LLM provider config + profile-level enable/disable)",
+      "description": "SubAgent configuration (runtime-level LLM provider config)",
       "properties": {
-        "enabled": {"type": "boolean"},
+        "enabledTags": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
         "model": {"type": "string"},
         "provider": {"type": "string"},
         "apiKey": {"type": "string"},
@@ -73,14 +76,6 @@
         "baseURL": {"type": "string"},
         "maxToolsPerRequest": {"type": "integer"},
         "filterPrompt": {"type": "string"}
-      }
-    },
-    "profileSubAgentConfig": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "Per-profile SubAgent settings",
-      "properties": {
-        "enabled": {"type": "boolean"}
       }
     },
     "serverSpec": {
@@ -101,6 +96,10 @@
           "additionalProperties": {"type": "string"}
         },
         "cwd": {"type": "string"},
+        "tags": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
         "idleSeconds": {"type": "integer"},
         "maxConcurrent": {"type": "integer"},
         "strategy": {

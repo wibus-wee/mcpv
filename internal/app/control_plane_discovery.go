@@ -3,9 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"sort"
-	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -16,286 +14,48 @@ import (
 
 type discoveryService struct {
 	state    *controlPlaneState
-	registry *callerRegistry
-
-	mu               sync.Mutex
-	toolWatchers     map[string][]*callerWatcher[domain.ToolSnapshot]
-	resourceWatchers map[string][]*callerWatcher[domain.ResourceSnapshot]
-	promptWatchers   map[string][]*callerWatcher[domain.PromptSnapshot]
+	registry *clientRegistry
 }
 
 const snapshotPageSize = 200
 
-func newDiscoveryService(state *controlPlaneState, registry *callerRegistry) *discoveryService {
+func newDiscoveryService(state *controlPlaneState, registry *clientRegistry) *discoveryService {
 	return &discoveryService{
-		state:            state,
-		registry:         registry,
-		toolWatchers:     make(map[string][]*callerWatcher[domain.ToolSnapshot]),
-		resourceWatchers: make(map[string][]*callerWatcher[domain.ResourceSnapshot]),
-		promptWatchers:   make(map[string][]*callerWatcher[domain.PromptSnapshot]),
+		state:    state,
+		registry: registry,
 	}
 }
 
-// indexSubscriber is an interface for types that can be subscribed to for snapshots.
-type indexSubscriber[T any] interface {
-	Subscribe(ctx context.Context) <-chan T
-}
+// StartClientChangeListener is a no-op for the server-centric discovery flow.
+func (d *discoveryService) StartClientChangeListener(ctx context.Context) {}
 
-// callerWatcher manages a caller's subscription that can switch between profile indexes.
-// Data flows directly from the profile's GenericIndex to the output channel.
-type callerWatcher[T any] struct {
-	caller   string
-	output   chan T
-	getIndex func(*profileRuntime) indexSubscriber[T]
-
-	mu        sync.Mutex
-	subCtx    context.Context
-	subCancel context.CancelFunc
-}
-
-// switchProfile cancels the current subscription and subscribes to the new profile's index.
-// The new index will immediately send its current snapshot.
-func (w *callerWatcher[T]) switchProfile(ctx context.Context, profile *profileRuntime) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	// Cancel old subscription
-	if w.subCancel != nil {
-		w.subCancel()
-	}
-
-	if profile == nil {
-		return
-	}
-
-	index := w.getIndex(profile)
-	if index == nil {
-		return
-	}
-
-	// Create new subscription context
-	w.subCtx, w.subCancel = context.WithCancel(ctx)
-
-	// Subscribe directly to the profile's index
-	// GenericIndex.Subscribe() immediately sends current snapshot
-	indexCh := index.Subscribe(w.subCtx)
-
-	// Forward from index channel to output channel
-	go func() {
-		for {
-			select {
-			case <-w.subCtx.Done():
-				return
-			case snapshot, ok := <-indexCh:
-				if !ok {
-					return
-				}
-				select {
-				case w.output <- snapshot:
-				default:
-					// Drop if output is full (non-blocking)
-				}
-			}
-		}
-	}()
-}
-
-func switchCallerWatchers[T any](ctx context.Context, watchers map[string][]*callerWatcher[T], caller string, profile *profileRuntime) {
-	for _, watcher := range watchers[caller] {
-		watcher.switchProfile(ctx, profile)
-	}
-}
-
-func watchSnapshots[T any](
-	d *discoveryService,
-	ctx context.Context,
-	caller string,
-	closedCh func() chan T,
-	getIndex func(*profileRuntime) indexSubscriber[T],
-	watchers map[string][]*callerWatcher[T],
-) (<-chan T, error) {
-	profile, err := d.registry.resolveProfile(caller)
-	if err != nil {
-		return closedCh(), err
-	}
-
-	watcher := &callerWatcher[T]{
-		caller:   caller,
-		output:   make(chan T, 1),
-		getIndex: getIndex,
-	}
-
-	watcher.switchProfile(ctx, profile)
-
-	d.mu.Lock()
-	watchers[caller] = append(watchers[caller], watcher)
-	d.mu.Unlock()
-
-	go cleanupWatcher(d, ctx, caller, watcher, watchers)
-
-	return watcher.output, nil
-}
-
-func cleanupWatcher[T any](
-	d *discoveryService,
-	ctx context.Context,
-	caller string,
-	watcher *callerWatcher[T],
-	watchers map[string][]*callerWatcher[T],
-) {
-	<-ctx.Done()
-	watcher.mu.Lock()
-	if watcher.subCancel != nil {
-		watcher.subCancel()
-	}
-	watcher.mu.Unlock()
-
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	callerWatchers := watchers[caller]
-	for i, w := range callerWatchers {
-		if w == watcher {
-			callerWatchers = append(callerWatchers[:i], callerWatchers[i+1:]...)
-			break
-		}
-	}
-	if len(callerWatchers) == 0 {
-		delete(watchers, caller)
-		return
-	}
-	watchers[caller] = callerWatchers
-}
-
-// StartProfileChangeListener watches profile changes for caller subscriptions.
-func (d *discoveryService) StartProfileChangeListener(ctx context.Context) {
-	changes := d.registry.WatchProfileChanges(ctx)
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case event, ok := <-changes:
-				if !ok {
-					return
-				}
-				d.handleProfileChange(ctx, event)
-			}
-		}
-	}()
-}
-
-func (d *discoveryService) handleProfileChange(ctx context.Context, event profileChangeEvent) {
-	newProfile, _ := d.state.Profile(event.NewProfile)
-
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	switchCallerWatchers(ctx, d.toolWatchers, event.Caller, newProfile)
-	switchCallerWatchers(ctx, d.resourceWatchers, event.Caller, newProfile)
-	switchCallerWatchers(ctx, d.promptWatchers, event.Caller, newProfile)
-}
-
-// ListTools lists tools for a caller.
-func (d *discoveryService) ListTools(ctx context.Context, caller string) (domain.ToolSnapshot, error) {
-	profile, err := d.registry.resolveProfile(caller)
+// ListTools lists tools visible to a client.
+func (d *discoveryService) ListTools(ctx context.Context, client string) (domain.ToolSnapshot, error) {
+	tags, err := d.registry.resolveClientTags(client)
 	if err != nil {
 		return domain.ToolSnapshot{}, err
 	}
-	if profile.tools == nil {
+	runtime := d.state.RuntimeState()
+	if runtime == nil || runtime.tools == nil {
 		return domain.ToolSnapshot{}, nil
 	}
-	return profile.tools.Snapshot(), nil
-}
-
-// ListToolsAllProfiles lists tools across all profiles.
-func (d *discoveryService) ListToolsAllProfiles(ctx context.Context) (domain.ToolSnapshot, error) {
-	profileNames := d.registry.activeProfileNames()
-	if len(profileNames) == 0 {
-		return domain.ToolSnapshot{}, nil
-	}
-
-	merged := make([]domain.ToolDefinition, 0)
-	seen := make(map[string]struct{})
-
-	for _, name := range profileNames {
-		runtime, ok := d.state.Profile(name)
-		if !ok || runtime.tools == nil {
-			continue
-		}
-		snapshot := runtime.tools.Snapshot()
-		for _, tool := range snapshot.Tools {
-			key := tool.SpecKey
-			if key == "" {
-				key = tool.ServerName
-			}
-			if key == "" {
-				key = tool.Name
-			}
-			dedupeKey := key + "\x00" + tool.Name
-			if _, ok := seen[dedupeKey]; ok {
-				continue
-			}
-			seen[dedupeKey] = struct{}{}
-			merged = append(merged, tool)
-		}
-	}
-
-	if len(merged) == 0 {
-		return domain.ToolSnapshot{}, nil
-	}
-
-	sort.Slice(merged, func(i, j int) bool {
-		if merged[i].SpecKey != merged[j].SpecKey {
-			return merged[i].SpecKey < merged[j].SpecKey
-		}
-		if merged[i].Name != merged[j].Name {
-			return merged[i].Name < merged[j].Name
-		}
-		return merged[i].ServerName < merged[j].ServerName
-	})
-
-	return domain.ToolSnapshot{
-		ETag:  hashutil.ToolETag(d.state.logger, merged),
-		Tools: merged,
-	}, nil
+	return d.filterToolSnapshot(runtime.tools.Snapshot(), tags), nil
 }
 
 // ListToolCatalog returns the full tool catalog snapshot.
 func (d *discoveryService) ListToolCatalog(ctx context.Context) (domain.ToolCatalogSnapshot, error) {
-	profiles := d.state.Profiles()
-	if len(profiles) == 0 {
+	runtime := d.state.RuntimeState()
+	if runtime == nil || runtime.tools == nil {
 		return domain.ToolCatalogSnapshot{}, nil
 	}
-
-	liveTools := make([]domain.ToolDefinition, 0)
-	activeProfiles := d.registry.activeProfileNames()
-	for _, name := range activeProfiles {
-		runtime, ok := d.state.Profile(name)
-		if !ok || runtime.tools == nil {
-			continue
-		}
-		snapshot := runtime.tools.Snapshot()
-		liveTools = append(liveTools, snapshot.Tools...)
-	}
-
-	cachedTools := make([]domain.ToolDefinition, 0)
-	for _, runtime := range profiles {
-		if runtime.tools == nil {
-			continue
-		}
-		snapshot := runtime.tools.CachedSnapshot()
-		if len(snapshot.Tools) == 0 {
-			continue
-		}
-		cachedTools = append(cachedTools, snapshot.Tools...)
-	}
+	live := runtime.tools.Snapshot().Tools
+	cached := runtime.tools.CachedSnapshot().Tools
 
 	cachedAt := make(map[string]time.Time)
-	if len(cachedTools) > 0 {
+	if len(cached) > 0 {
 		cache := d.metadataCache()
 		if cache != nil {
-			for _, tool := range cachedTools {
+			for _, tool := range cached {
 				specKey := tool.SpecKey
 				if specKey == "" {
 					continue
@@ -310,229 +70,427 @@ func (d *discoveryService) ListToolCatalog(ctx context.Context) (domain.ToolCata
 		}
 	}
 
-	return buildToolCatalogSnapshot(d.state.logger, liveTools, cachedTools, cachedAt), nil
+	return buildToolCatalogSnapshot(d.state.logger, live, cached, cachedAt), nil
 }
 
-// WatchTools streams tool snapshots for a caller.
-func (d *discoveryService) WatchTools(ctx context.Context, caller string) (<-chan domain.ToolSnapshot, error) {
-	return watchSnapshots(
-		d,
-		ctx,
-		caller,
-		closedToolSnapshotChannel,
-		func(p *profileRuntime) indexSubscriber[domain.ToolSnapshot] {
-			if p == nil || p.tools == nil {
-				return nil
+// WatchTools streams tool snapshots for a client.
+func (d *discoveryService) WatchTools(ctx context.Context, client string) (<-chan domain.ToolSnapshot, error) {
+	if _, err := d.registry.resolveClientTags(client); err != nil {
+		return closedToolSnapshotChannel(), err
+	}
+	runtime := d.state.RuntimeState()
+	if runtime == nil || runtime.tools == nil {
+		return closedToolSnapshotChannel(), nil
+	}
+
+	output := make(chan domain.ToolSnapshot, 1)
+	indexCh := runtime.tools.Subscribe(ctx)
+	changes := d.registry.WatchClientChanges(ctx)
+
+	go func() {
+		defer close(output)
+		var last domain.ToolSnapshot
+		last = runtime.tools.Snapshot()
+		d.sendFilteredTools(output, client, last)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case snapshot, ok := <-indexCh:
+				if !ok {
+					return
+				}
+				last = snapshot
+				d.sendFilteredTools(output, client, snapshot)
+			case event, ok := <-changes:
+				if !ok {
+					return
+				}
+				if event.Client == client {
+					d.sendFilteredTools(output, client, last)
+				}
 			}
-			return p.tools
-		},
-		d.toolWatchers,
-	)
+		}
+	}()
+
+	return output, nil
 }
 
-// CallTool executes a tool on behalf of a caller.
-func (d *discoveryService) CallTool(ctx context.Context, caller, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
-	profile, err := d.registry.resolveProfile(caller)
+// CallTool executes a tool on behalf of a client.
+func (d *discoveryService) CallTool(ctx context.Context, client, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
+	tags, err := d.registry.resolveClientTags(client)
 	if err != nil {
 		return nil, err
 	}
-	ctx = domain.WithRouteContext(ctx, domain.RouteContext{Caller: caller, Profile: profile.name})
-	ctx = domain.WithStartCause(ctx, domain.StartCause{
-		Reason:   domain.StartCauseToolCall,
-		Caller:   caller,
-		ToolName: name,
-		Profile:  profile.name,
-	})
-	if profile.tools == nil {
+	runtime := d.state.RuntimeState()
+	if runtime == nil || runtime.tools == nil {
 		return nil, domain.ErrToolNotFound
 	}
-	return profile.tools.CallTool(ctx, name, args, routingKey)
-}
-
-// CallToolAllProfiles executes a tool across all profiles.
-func (d *discoveryService) CallToolAllProfiles(ctx context.Context, name string, args json.RawMessage, routingKey, specKey string) (json.RawMessage, error) {
+	target, ok := runtime.tools.Resolve(name)
+	if !ok {
+		return nil, domain.ErrToolNotFound
+	}
+	if !d.isServerVisible(tags, target.ServerType) {
+		return nil, domain.ErrToolNotFound
+	}
+	ctx = domain.WithRouteContext(ctx, domain.RouteContext{Client: client})
 	ctx = domain.WithStartCause(ctx, domain.StartCause{
 		Reason:   domain.StartCauseToolCall,
+		Client:   client,
 		ToolName: name,
 	})
-	return d.callAcrossProfiles(ctx, specKey, domain.ErrToolNotFound, func(runtime *profileRuntime) (json.RawMessage, error) {
-		if runtime.tools == nil {
-			return nil, domain.ErrToolNotFound
-		}
-		return runtime.tools.CallTool(ctx, name, args, routingKey)
-	})
+	return runtime.tools.CallTool(ctx, name, args, routingKey)
 }
 
-// ListResources lists resources for a caller.
-func (d *discoveryService) ListResources(ctx context.Context, caller string, cursor string) (domain.ResourcePage, error) {
-	profile, err := d.registry.resolveProfile(caller)
+// ListResources lists resources visible to a client.
+func (d *discoveryService) ListResources(ctx context.Context, client string, cursor string) (domain.ResourcePage, error) {
+	tags, err := d.registry.resolveClientTags(client)
 	if err != nil {
 		return domain.ResourcePage{}, err
 	}
-	if profile.resources == nil {
+	runtime := d.state.RuntimeState()
+	if runtime == nil || runtime.resources == nil {
 		return domain.ResourcePage{Snapshot: domain.ResourceSnapshot{}}, nil
 	}
-	snapshot := profile.resources.Snapshot()
-	return paginateResources(snapshot, cursor)
+	snapshot := runtime.resources.Snapshot()
+	filtered := d.filterResourceSnapshot(snapshot, tags)
+	return paginateResources(filtered, cursor)
 }
 
-// ListResourcesAllProfiles lists resources across all profiles.
-func (d *discoveryService) ListResourcesAllProfiles(ctx context.Context, cursor string) (domain.ResourcePage, error) {
-	merged := collectUniqueAcrossProfiles(
-		d,
-		func(runtime *profileRuntime) []domain.ResourceDefinition {
-			if runtime.resources == nil {
-				return nil
-			}
-			return runtime.resources.Snapshot().Resources
-		},
-		func(resource domain.ResourceDefinition) string {
-			return resource.URI
-		},
-	)
-
-	if len(merged) == 0 {
-		return domain.ResourcePage{Snapshot: domain.ResourceSnapshot{}}, nil
+// WatchResources streams resource snapshots for a client.
+func (d *discoveryService) WatchResources(ctx context.Context, client string) (<-chan domain.ResourceSnapshot, error) {
+	if _, err := d.registry.resolveClientTags(client); err != nil {
+		return closedResourceSnapshotChannel(), err
+	}
+	runtime := d.state.RuntimeState()
+	if runtime == nil || runtime.resources == nil {
+		return closedResourceSnapshotChannel(), nil
 	}
 
-	sort.Slice(merged, func(i, j int) bool { return merged[i].URI < merged[j].URI })
-	snapshot := domain.ResourceSnapshot{
-		ETag:      hashutil.ResourceETag(d.state.logger, merged),
-		Resources: merged,
-	}
-	return paginateResources(snapshot, cursor)
-}
+	output := make(chan domain.ResourceSnapshot, 1)
+	indexCh := runtime.resources.Subscribe(ctx)
+	changes := d.registry.WatchClientChanges(ctx)
 
-// WatchResources streams resource snapshots for a caller.
-func (d *discoveryService) WatchResources(ctx context.Context, caller string) (<-chan domain.ResourceSnapshot, error) {
-	return watchSnapshots(
-		d,
-		ctx,
-		caller,
-		closedResourceSnapshotChannel,
-		func(p *profileRuntime) indexSubscriber[domain.ResourceSnapshot] {
-			if p == nil || p.resources == nil {
-				return nil
+	go func() {
+		defer close(output)
+		var last domain.ResourceSnapshot
+		last = runtime.resources.Snapshot()
+		d.sendFilteredResources(output, client, last)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case snapshot, ok := <-indexCh:
+				if !ok {
+					return
+				}
+				last = snapshot
+				d.sendFilteredResources(output, client, snapshot)
+			case event, ok := <-changes:
+				if !ok {
+					return
+				}
+				if event.Client == client {
+					d.sendFilteredResources(output, client, last)
+				}
 			}
-			return p.resources
-		},
-		d.resourceWatchers,
-	)
+		}
+	}()
+
+	return output, nil
 }
 
-// ReadResource reads a resource on behalf of a caller.
-func (d *discoveryService) ReadResource(ctx context.Context, caller, uri string) (json.RawMessage, error) {
-	profile, err := d.registry.resolveProfile(caller)
+// ReadResource reads a resource on behalf of a client.
+func (d *discoveryService) ReadResource(ctx context.Context, client, uri string) (json.RawMessage, error) {
+	tags, err := d.registry.resolveClientTags(client)
 	if err != nil {
 		return nil, err
 	}
-	ctx = domain.WithRouteContext(ctx, domain.RouteContext{Caller: caller, Profile: profile.name})
-	if profile.resources == nil {
+	runtime := d.state.RuntimeState()
+	if runtime == nil || runtime.resources == nil {
 		return nil, domain.ErrResourceNotFound
 	}
-	return profile.resources.ReadResource(ctx, uri)
+	target, ok := runtime.resources.Resolve(uri)
+	if !ok {
+		return nil, domain.ErrResourceNotFound
+	}
+	if !d.isServerVisible(tags, target.ServerType) {
+		return nil, domain.ErrResourceNotFound
+	}
+	ctx = domain.WithRouteContext(ctx, domain.RouteContext{Client: client})
+	return runtime.resources.ReadResource(ctx, uri)
 }
 
-// ReadResourceAllProfiles reads a resource across all profiles.
-func (d *discoveryService) ReadResourceAllProfiles(ctx context.Context, uri, specKey string) (json.RawMessage, error) {
-	return d.callAcrossProfiles(ctx, specKey, domain.ErrResourceNotFound, func(runtime *profileRuntime) (json.RawMessage, error) {
-		if runtime.resources == nil {
-			return nil, domain.ErrResourceNotFound
-		}
-		return runtime.resources.ReadResource(ctx, uri)
-	})
-}
-
-// ListPrompts lists prompts for a caller.
-func (d *discoveryService) ListPrompts(ctx context.Context, caller string, cursor string) (domain.PromptPage, error) {
-	profile, err := d.registry.resolveProfile(caller)
+// ListPrompts lists prompts visible to a client.
+func (d *discoveryService) ListPrompts(ctx context.Context, client string, cursor string) (domain.PromptPage, error) {
+	tags, err := d.registry.resolveClientTags(client)
 	if err != nil {
 		return domain.PromptPage{}, err
 	}
-	if profile.prompts == nil {
+	runtime := d.state.RuntimeState()
+	if runtime == nil || runtime.prompts == nil {
 		return domain.PromptPage{Snapshot: domain.PromptSnapshot{}}, nil
 	}
-	snapshot := profile.prompts.Snapshot()
-	return paginatePrompts(snapshot, cursor)
+	snapshot := runtime.prompts.Snapshot()
+	filtered := d.filterPromptSnapshot(snapshot, tags)
+	return paginatePrompts(filtered, cursor)
 }
 
-// ListPromptsAllProfiles lists prompts across all profiles.
-func (d *discoveryService) ListPromptsAllProfiles(ctx context.Context, cursor string) (domain.PromptPage, error) {
-	merged := collectUniqueAcrossProfiles(
-		d,
-		func(runtime *profileRuntime) []domain.PromptDefinition {
-			if runtime.prompts == nil {
-				return nil
-			}
-			return runtime.prompts.Snapshot().Prompts
-		},
-		func(prompt domain.PromptDefinition) string {
-			return prompt.Name
-		},
-	)
-
-	if len(merged) == 0 {
-		return domain.PromptPage{Snapshot: domain.PromptSnapshot{}}, nil
+// WatchPrompts streams prompt snapshots for a client.
+func (d *discoveryService) WatchPrompts(ctx context.Context, client string) (<-chan domain.PromptSnapshot, error) {
+	if _, err := d.registry.resolveClientTags(client); err != nil {
+		return closedPromptSnapshotChannel(), err
+	}
+	runtime := d.state.RuntimeState()
+	if runtime == nil || runtime.prompts == nil {
+		return closedPromptSnapshotChannel(), nil
 	}
 
-	sort.Slice(merged, func(i, j int) bool { return merged[i].Name < merged[j].Name })
-	snapshot := domain.PromptSnapshot{
-		ETag:    hashutil.PromptETag(d.state.logger, merged),
-		Prompts: merged,
-	}
-	return paginatePrompts(snapshot, cursor)
-}
+	output := make(chan domain.PromptSnapshot, 1)
+	indexCh := runtime.prompts.Subscribe(ctx)
+	changes := d.registry.WatchClientChanges(ctx)
 
-// WatchPrompts streams prompt snapshots for a caller.
-func (d *discoveryService) WatchPrompts(ctx context.Context, caller string) (<-chan domain.PromptSnapshot, error) {
-	return watchSnapshots(
-		d,
-		ctx,
-		caller,
-		closedPromptSnapshotChannel,
-		func(p *profileRuntime) indexSubscriber[domain.PromptSnapshot] {
-			if p == nil || p.prompts == nil {
-				return nil
+	go func() {
+		defer close(output)
+		var last domain.PromptSnapshot
+		last = runtime.prompts.Snapshot()
+		d.sendFilteredPrompts(output, client, last)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case snapshot, ok := <-indexCh:
+				if !ok {
+					return
+				}
+				last = snapshot
+				d.sendFilteredPrompts(output, client, snapshot)
+			case event, ok := <-changes:
+				if !ok {
+					return
+				}
+				if event.Client == client {
+					d.sendFilteredPrompts(output, client, last)
+				}
 			}
-			return p.prompts
-		},
-		d.promptWatchers,
-	)
+		}
+	}()
+
+	return output, nil
 }
 
-// GetPrompt resolves a prompt for a caller.
-func (d *discoveryService) GetPrompt(ctx context.Context, caller, name string, args json.RawMessage) (json.RawMessage, error) {
-	profile, err := d.registry.resolveProfile(caller)
+// GetPrompt resolves a prompt for a client.
+func (d *discoveryService) GetPrompt(ctx context.Context, client, name string, args json.RawMessage) (json.RawMessage, error) {
+	tags, err := d.registry.resolveClientTags(client)
 	if err != nil {
 		return nil, err
 	}
-	ctx = domain.WithRouteContext(ctx, domain.RouteContext{Caller: caller, Profile: profile.name})
-	if profile.prompts == nil {
+	runtime := d.state.RuntimeState()
+	if runtime == nil || runtime.prompts == nil {
 		return nil, domain.ErrPromptNotFound
 	}
-	return profile.prompts.GetPrompt(ctx, name, args)
+	target, ok := runtime.prompts.Resolve(name)
+	if !ok {
+		return nil, domain.ErrPromptNotFound
+	}
+	if !d.isServerVisible(tags, target.ServerType) {
+		return nil, domain.ErrPromptNotFound
+	}
+	ctx = domain.WithRouteContext(ctx, domain.RouteContext{Client: client})
+	return runtime.prompts.GetPrompt(ctx, name, args)
 }
 
-// GetPromptAllProfiles resolves a prompt across all profiles.
-func (d *discoveryService) GetPromptAllProfiles(ctx context.Context, name string, args json.RawMessage, specKey string) (json.RawMessage, error) {
-	return d.callAcrossProfiles(ctx, specKey, domain.ErrPromptNotFound, func(runtime *profileRuntime) (json.RawMessage, error) {
-		if runtime.prompts == nil {
-			return nil, domain.ErrPromptNotFound
-		}
-		return runtime.prompts.GetPrompt(ctx, name, args)
-	})
+// GetToolSnapshotForClient returns the tool snapshot for a client.
+func (d *discoveryService) GetToolSnapshotForClient(client string) (domain.ToolSnapshot, error) {
+	return d.ListTools(context.Background(), client)
 }
 
-// GetToolSnapshotForCaller returns the tool snapshot for a caller.
-func (d *discoveryService) GetToolSnapshotForCaller(caller string) (domain.ToolSnapshot, error) {
-	profile, err := d.registry.resolveProfile(caller)
+func (d *discoveryService) sendFilteredTools(ch chan<- domain.ToolSnapshot, client string, snapshot domain.ToolSnapshot) {
+	tags, err := d.registry.resolveClientTags(client)
 	if err != nil {
-		return domain.ToolSnapshot{}, err
+		return
 	}
-	if profile.tools == nil {
-		return domain.ToolSnapshot{}, nil
+	filtered := d.filterToolSnapshot(snapshot, tags)
+	select {
+	case ch <- filtered:
+	default:
 	}
-	return profile.tools.Snapshot(), nil
+}
+
+func (d *discoveryService) sendFilteredResources(ch chan<- domain.ResourceSnapshot, client string, snapshot domain.ResourceSnapshot) {
+	tags, err := d.registry.resolveClientTags(client)
+	if err != nil {
+		return
+	}
+	filtered := d.filterResourceSnapshot(snapshot, tags)
+	select {
+	case ch <- filtered:
+	default:
+	}
+}
+
+func (d *discoveryService) sendFilteredPrompts(ch chan<- domain.PromptSnapshot, client string, snapshot domain.PromptSnapshot) {
+	tags, err := d.registry.resolveClientTags(client)
+	if err != nil {
+		return
+	}
+	filtered := d.filterPromptSnapshot(snapshot, tags)
+	select {
+	case ch <- filtered:
+	default:
+	}
+}
+
+func (d *discoveryService) filterToolSnapshot(snapshot domain.ToolSnapshot, tags []string) domain.ToolSnapshot {
+	if len(snapshot.Tools) == 0 {
+		return domain.ToolSnapshot{}
+	}
+	visibleServers, visibleSpecKeys := d.visibleServers(tags)
+	filtered := make([]domain.ToolDefinition, 0, len(snapshot.Tools))
+	for _, tool := range snapshot.Tools {
+		if tool.ServerName != "" {
+			if _, ok := visibleServers[tool.ServerName]; !ok {
+				continue
+			}
+		} else if tool.SpecKey != "" {
+			if _, ok := visibleSpecKeys[tool.SpecKey]; !ok {
+				continue
+			}
+		}
+		filtered = append(filtered, tool)
+	}
+	if len(filtered) == 0 {
+		return domain.ToolSnapshot{}
+	}
+	sort.Slice(filtered, func(i, j int) bool {
+		if filtered[i].SpecKey != filtered[j].SpecKey {
+			return filtered[i].SpecKey < filtered[j].SpecKey
+		}
+		if filtered[i].Name != filtered[j].Name {
+			return filtered[i].Name < filtered[j].Name
+		}
+		return filtered[i].ServerName < filtered[j].ServerName
+	})
+	return domain.ToolSnapshot{
+		ETag:  hashutil.ToolETag(d.state.logger, filtered),
+		Tools: filtered,
+	}
+}
+
+func (d *discoveryService) filterResourceSnapshot(snapshot domain.ResourceSnapshot, tags []string) domain.ResourceSnapshot {
+	if len(snapshot.Resources) == 0 {
+		return domain.ResourceSnapshot{}
+	}
+	visibleServers, visibleSpecKeys := d.visibleServers(tags)
+	filtered := make([]domain.ResourceDefinition, 0, len(snapshot.Resources))
+	for _, resource := range snapshot.Resources {
+		if resource.ServerName != "" {
+			if _, ok := visibleServers[resource.ServerName]; !ok {
+				continue
+			}
+		} else if resource.SpecKey != "" {
+			if _, ok := visibleSpecKeys[resource.SpecKey]; !ok {
+				continue
+			}
+		}
+		filtered = append(filtered, resource)
+	}
+	if len(filtered) == 0 {
+		return domain.ResourceSnapshot{}
+	}
+	sort.Slice(filtered, func(i, j int) bool {
+		return filtered[i].URI < filtered[j].URI
+	})
+	return domain.ResourceSnapshot{
+		ETag:      hashutil.ResourceETag(d.state.logger, filtered),
+		Resources: filtered,
+	}
+}
+
+func (d *discoveryService) filterPromptSnapshot(snapshot domain.PromptSnapshot, tags []string) domain.PromptSnapshot {
+	if len(snapshot.Prompts) == 0 {
+		return domain.PromptSnapshot{}
+	}
+	visibleServers, visibleSpecKeys := d.visibleServers(tags)
+	filtered := make([]domain.PromptDefinition, 0, len(snapshot.Prompts))
+	for _, prompt := range snapshot.Prompts {
+		if prompt.ServerName != "" {
+			if _, ok := visibleServers[prompt.ServerName]; !ok {
+				continue
+			}
+		} else if prompt.SpecKey != "" {
+			if _, ok := visibleSpecKeys[prompt.SpecKey]; !ok {
+				continue
+			}
+		}
+		filtered = append(filtered, prompt)
+	}
+	if len(filtered) == 0 {
+		return domain.PromptSnapshot{}
+	}
+	sort.Slice(filtered, func(i, j int) bool {
+		return filtered[i].Name < filtered[j].Name
+	})
+	return domain.PromptSnapshot{
+		ETag:    hashutil.PromptETag(d.state.logger, filtered),
+		Prompts: filtered,
+	}
+}
+
+func (d *discoveryService) visibleServers(tags []string) (map[string]struct{}, map[string]struct{}) {
+	catalog := d.state.Catalog()
+	serverSpecKeys := d.state.ServerSpecKeys()
+	visibleServers := make(map[string]struct{})
+	visibleSpecKeys := make(map[string]struct{})
+	for name, specKey := range serverSpecKeys {
+		spec, ok := catalog.Specs[name]
+		if !ok {
+			continue
+		}
+		if isVisibleToTags(tags, spec.Tags) {
+			visibleServers[name] = struct{}{}
+			visibleSpecKeys[specKey] = struct{}{}
+		}
+	}
+	return visibleServers, visibleSpecKeys
+}
+
+func (d *discoveryService) isServerVisible(tags []string, serverName string) bool {
+	if serverName == "" {
+		return false
+	}
+	catalog := d.state.Catalog()
+	spec, ok := catalog.Specs[serverName]
+	if !ok {
+		return false
+	}
+	return isVisibleToTags(tags, spec.Tags)
+}
+
+func (d *discoveryService) metadataCache() *domain.MetadataCache {
+	runtime := d.state.RuntimeState()
+	if runtime == nil {
+		return nil
+	}
+	return runtime.metadataCache
+}
+
+func closedToolSnapshotChannel() chan domain.ToolSnapshot {
+	ch := make(chan domain.ToolSnapshot)
+	close(ch)
+	return ch
+}
+
+func closedResourceSnapshotChannel() chan domain.ResourceSnapshot {
+	ch := make(chan domain.ResourceSnapshot)
+	close(ch)
+	return ch
+}
+
+func closedPromptSnapshotChannel() chan domain.PromptSnapshot {
+	ch := make(chan domain.PromptSnapshot)
+	close(ch)
+	return ch
 }
 
 func paginateResources(snapshot domain.ResourceSnapshot, cursor string) (domain.ResourcePage, error) {
@@ -585,198 +543,69 @@ func paginatePrompts(snapshot domain.PromptSnapshot, cursor string) (domain.Prom
 	return domain.PromptPage{Snapshot: page, NextCursor: nextCursor}, nil
 }
 
-func collectUniqueAcrossProfiles[T any](
-	d *discoveryService,
-	list func(*profileRuntime) []T,
-	key func(T) string,
-) []T {
-	profileNames := d.registry.activeProfileNames()
-	if len(profileNames) == 0 {
-		return nil
-	}
-
-	merged := make([]T, 0)
-	seen := make(map[string]struct{})
-
-	for _, profileName := range profileNames {
-		runtime, ok := d.state.Profile(profileName)
-		if !ok {
-			continue
-		}
-		items := list(runtime)
-		for _, item := range items {
-			itemKey := key(item)
-			if itemKey == "" {
-				continue
-			}
-			if _, ok := seen[itemKey]; ok {
-				continue
-			}
-			seen[itemKey] = struct{}{}
-			merged = append(merged, item)
-		}
-	}
-
-	return merged
-}
-
-func (d *discoveryService) callAcrossProfiles(
-	ctx context.Context,
-	specKey string,
-	notFound error,
-	call func(*profileRuntime) (json.RawMessage, error),
-) (json.RawMessage, error) {
-	profileNames := d.registry.activeProfileNames()
-	for _, profileName := range profileNames {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		runtime, ok := d.state.Profile(profileName)
-		if !ok {
-			continue
-		}
-		if specKey != "" && !d.registry.profileContainsSpecKey(runtime, specKey) {
-			continue
-		}
-		result, err := call(runtime)
-		if err == nil {
-			return result, nil
-		}
-		if errors.Is(err, notFound) {
-			continue
-		}
-		return nil, err
-	}
-	return nil, notFound
-}
-
 func indexAfterResourceCursor(resources []domain.ResourceDefinition, cursor string) int {
-	idx := sort.Search(len(resources), func(i int) bool {
-		return resources[i].URI >= cursor
-	})
-	if idx >= len(resources) || resources[idx].URI != cursor {
-		return -1
+	for i, resource := range resources {
+		if resource.URI == cursor {
+			return i + 1
+		}
 	}
-	return idx + 1
+	return -1
 }
 
 func indexAfterPromptCursor(prompts []domain.PromptDefinition, cursor string) int {
-	idx := sort.Search(len(prompts), func(i int) bool {
-		return prompts[i].Name >= cursor
-	})
-	if idx >= len(prompts) || prompts[idx].Name != cursor {
-		return -1
+	for i, prompt := range prompts {
+		if prompt.Name == cursor {
+			return i + 1
+		}
 	}
-	return idx + 1
-}
-
-func (d *discoveryService) metadataCache() *domain.MetadataCache {
-	if d == nil || d.state == nil || d.state.bootstrapManager == nil {
-		return nil
-	}
-	return d.state.bootstrapManager.GetCache()
+	return -1
 }
 
 func buildToolCatalogSnapshot(logger *zap.Logger, liveTools []domain.ToolDefinition, cachedTools []domain.ToolDefinition, cachedAt map[string]time.Time) domain.ToolCatalogSnapshot {
-	entriesByKey := make(map[string]domain.ToolCatalogEntry)
-
-	for _, tool := range liveTools {
-		if tool.Name == "" {
-			continue
-		}
-		key := toolDedupKey(tool)
-		if key == "" {
-			continue
-		}
-		entriesByKey[key] = domain.ToolCatalogEntry{
-			Definition: tool,
-			Source:     domain.ToolSourceLive,
-		}
-	}
-
+	entries := make(map[string]domain.ToolCatalogEntry)
 	for _, tool := range cachedTools {
-		if tool.Name == "" {
-			continue
-		}
-		key := toolDedupKey(tool)
-		if key == "" {
-			continue
-		}
-		if _, ok := entriesByKey[key]; ok {
-			continue
-		}
-		entry := domain.ToolCatalogEntry{
-			Definition: tool,
-			Source:     domain.ToolSourceCache,
-		}
-		if tool.SpecKey != "" && cachedAt != nil {
-			if ts, ok := cachedAt[tool.SpecKey]; ok {
-				entry.CachedAt = ts
-			}
-		}
-		entriesByKey[key] = entry
+		entries[toolCatalogKey(tool)] = buildToolCatalogEntry(tool, domain.ToolSourceCache, cachedAt)
+	}
+	for _, tool := range liveTools {
+		entries[toolCatalogKey(tool)] = buildToolCatalogEntry(tool, domain.ToolSourceLive, cachedAt)
 	}
 
-	if len(entriesByKey) == 0 {
-		return domain.ToolCatalogSnapshot{}
+	list := make([]domain.ToolCatalogEntry, 0, len(entries))
+	for _, entry := range entries {
+		list = append(list, entry)
 	}
-
-	entries := make([]domain.ToolCatalogEntry, 0, len(entriesByKey))
-	for _, entry := range entriesByKey {
-		entries = append(entries, entry)
-	}
-
-	sort.Slice(entries, func(i, j int) bool {
-		left := entries[i].Definition
-		right := entries[j].Definition
-		if left.SpecKey != right.SpecKey {
-			return left.SpecKey < right.SpecKey
+	sort.Slice(list, func(i, j int) bool {
+		if list[i].Definition.SpecKey != list[j].Definition.SpecKey {
+			return list[i].Definition.SpecKey < list[j].Definition.SpecKey
 		}
-		if left.Name != right.Name {
-			return left.Name < right.Name
+		if list[i].Definition.Name != list[j].Definition.Name {
+			return list[i].Definition.Name < list[j].Definition.Name
 		}
-		return left.ServerName < right.ServerName
+		return list[i].Definition.ServerName < list[j].Definition.ServerName
 	})
 
-	tools := make([]domain.ToolDefinition, 0, len(entries))
-	for _, entry := range entries {
-		tools = append(tools, entry.Definition)
-	}
-
 	return domain.ToolCatalogSnapshot{
-		ETag:  hashutil.ToolETag(logger, tools),
-		Tools: entries,
+		Tools: list,
+		ETag:  hashutil.ToolCatalogETag(logger, list),
 	}
 }
 
-func toolDedupKey(tool domain.ToolDefinition) string {
-	key := tool.SpecKey
-	if key == "" {
-		key = tool.ServerName
+func buildToolCatalogEntry(tool domain.ToolDefinition, source domain.ToolSource, cachedAt map[string]time.Time) domain.ToolCatalogEntry {
+	entry := domain.ToolCatalogEntry{
+		Definition: tool,
+		Source:     source,
 	}
-	if key == "" {
-		key = tool.Name
+	if ts, ok := cachedAt[tool.SpecKey]; ok {
+		entry.CachedAt = ts
 	}
-	if key == "" || tool.Name == "" {
-		return ""
-	}
-	return key + "\x00" + tool.Name
+	return entry
 }
 
-func closedToolSnapshotChannel() chan domain.ToolSnapshot {
-	ch := make(chan domain.ToolSnapshot)
-	close(ch)
-	return ch
-}
-
-func closedResourceSnapshotChannel() chan domain.ResourceSnapshot {
-	ch := make(chan domain.ResourceSnapshot)
-	close(ch)
-	return ch
-}
-
-func closedPromptSnapshotChannel() chan domain.PromptSnapshot {
-	ch := make(chan domain.PromptSnapshot)
-	close(ch)
-	return ch
+func toolCatalogKey(tool domain.ToolDefinition) string {
+	name := tool.Name
+	specKey := tool.SpecKey
+	if specKey == "" {
+		specKey = tool.ServerName
+	}
+	return specKey + "\x00" + name
 }

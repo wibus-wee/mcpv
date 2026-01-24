@@ -1,0 +1,66 @@
+# Catalog configuration example for MCPD
+routeTimeoutSeconds: 10
+pingIntervalSeconds: 30
+toolRefreshSeconds: 60
+toolRefreshConcurrency: 4
+clientCheckSeconds: 5
+clientInactiveSeconds: 300
+serverInitRetryBaseSeconds: 1
+serverInitRetryMaxSeconds: 30
+serverInitMaxRetries: 5
+bootstrapMode: "metadata"
+bootstrapConcurrency: 3
+bootstrapTimeoutSeconds: 30
+defaultActivationMode: "on-demand"
+exposeTools: true
+toolNamespaceStrategy: "prefix"
+observability:
+  listenAddress: "0.0.0.0:9090"
+# rpc:
+#   listenAddress: "tcp://127.0.0.1:7090"
+#   maxRecvMsgSize: 16777216
+#   maxSendMsgSize: 16777216
+#   keepaliveTimeSeconds: 30
+#   keepaliveTimeoutSeconds: 10
+#   socketMode: "0660"
+#   tls:
+#     enabled: false
+#     certFile: ""
+#     keyFile: ""
+#     caFile: ""
+#     clientAuth: false
+subAgent:
+  enabledTags: ["vscode"]
+  model: "gpt-4o"
+  provider: "openai"
+  # apiKey: ""  # Optional: inline API key (avoid committing secrets)
+  # apiKeyEnvVar: "OPENAI_API_KEY"
+  # baseURL: ""  # Optional: custom API endpoint
+  maxToolsPerRequest: 20
+  # filterPrompt: ""  # Optional custom prompt for tool filtering
+servers:
+  - name: "weather"
+    cmd: 
+      - /bin/sh
+      - -c
+      - node ./weather-demo-mcp/build/index.js
+    tags: ["chat"]
+    idleSeconds: 60
+    maxConcurrent: 1
+    strategy: "stateless"
+    minReady: 0
+    protocolVersion: "2025-11-25"
+  - name: "weather-http"
+    transport: streamable_http
+    cmd: []
+    idleSeconds: 60
+    maxConcurrent: 10
+    strategy: stateless
+    minReady: 0
+    activationMode: always-on
+    drainTimeoutSeconds: 0
+    protocolVersion: "2025-06-18"
+    http:
+      endpoint: http://localhost:3000/mcp
+      maxRetries: 3
+

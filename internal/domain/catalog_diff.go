@@ -11,10 +11,8 @@ type CatalogDiff struct {
 	RemovedSpecKeys  []string
 	ReplacedSpecKeys []string
 	UpdatedSpecKeys  []string
-	AddedProfiles    []string
-	RemovedProfiles  []string
-	UpdatedProfiles  []string
-	CallersChanged   bool
+	TagsChanged      bool
+	RuntimeChanged   bool
 }
 
 // IsEmpty reports whether the diff contains any changes.
@@ -23,35 +21,14 @@ func (d CatalogDiff) IsEmpty() bool {
 		len(d.RemovedSpecKeys) == 0 &&
 		len(d.ReplacedSpecKeys) == 0 &&
 		len(d.UpdatedSpecKeys) == 0 &&
-		len(d.AddedProfiles) == 0 &&
-		len(d.RemovedProfiles) == 0 &&
-		len(d.UpdatedProfiles) == 0 &&
-		!d.CallersChanged
+		!d.TagsChanged &&
+		!d.RuntimeChanged
 }
 
 // DiffCatalogStates computes a diff between two catalog states.
 func DiffCatalogStates(prev CatalogState, next CatalogState) CatalogDiff {
 	diff := CatalogDiff{}
-	diff.CallersChanged = !reflect.DeepEqual(prev.Store.Callers, next.Store.Callers)
-
-	prevProfiles := prev.Summary.Profiles
-	nextProfiles := next.Summary.Profiles
-
-	for name, prevProfile := range prevProfiles {
-		nextProfile, ok := nextProfiles[name]
-		if !ok {
-			diff.RemovedProfiles = append(diff.RemovedProfiles, name)
-			continue
-		}
-		if !reflect.DeepEqual(prevProfile, nextProfile) {
-			diff.UpdatedProfiles = append(diff.UpdatedProfiles, name)
-		}
-	}
-	for name := range nextProfiles {
-		if _, ok := prevProfiles[name]; !ok {
-			diff.AddedProfiles = append(diff.AddedProfiles, name)
-		}
-	}
+	diff.RuntimeChanged = !reflect.DeepEqual(prev.Summary.Runtime, next.Summary.Runtime)
 
 	prevSpecs := prev.Summary.SpecRegistry
 	nextSpecs := next.Summary.SpecRegistry
@@ -73,22 +50,18 @@ func DiffCatalogStates(prev CatalogState, next CatalogState) CatalogDiff {
 	}
 
 	replaced := make(map[string]struct{})
-	for name, prevProfile := range prevProfiles {
-		nextProfile, ok := nextProfiles[name]
-		if !ok {
+	for name, prevKey := range prev.Summary.ServerSpecKeys {
+		nextKey, ok := next.Summary.ServerSpecKeys[name]
+		if !ok || prevKey == "" || nextKey == "" {
 			continue
 		}
-		for serverType, prevKey := range prevProfile.SpecKeys {
-			if prevKey == "" {
-				continue
-			}
-			nextKey, ok := nextProfile.SpecKeys[serverType]
-			if !ok || nextKey == "" {
-				continue
-			}
-			if nextKey != prevKey {
-				replaced[prevKey] = struct{}{}
-			}
+		if nextKey != prevKey {
+			replaced[prevKey] = struct{}{}
+		}
+		prevSpec := prev.Catalog.Specs[name]
+		nextSpec := next.Catalog.Specs[name]
+		if !tagsEqual(prevSpec.Tags, nextSpec.Tags) {
+			diff.TagsChanged = true
 		}
 	}
 	diff.ReplacedSpecKeys = keysFromSet(replaced)
@@ -97,11 +70,20 @@ func DiffCatalogStates(prev CatalogState, next CatalogState) CatalogDiff {
 	sort.Strings(diff.RemovedSpecKeys)
 	sort.Strings(diff.ReplacedSpecKeys)
 	sort.Strings(diff.UpdatedSpecKeys)
-	sort.Strings(diff.AddedProfiles)
-	sort.Strings(diff.RemovedProfiles)
-	sort.Strings(diff.UpdatedProfiles)
 
 	return diff
+}
+
+func tagsEqual(a []string, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func keysFromSet(values map[string]struct{}) []string {

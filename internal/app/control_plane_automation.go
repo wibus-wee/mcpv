@@ -18,13 +18,13 @@ const (
 
 type automationService struct {
 	state     *controlPlaneState
-	registry  *callerRegistry
+	registry  *clientRegistry
 	discovery *discoveryService
 	subAgent  domain.SubAgent
 	cache     *domain.SessionCache
 }
 
-func newAutomationService(state *controlPlaneState, registry *callerRegistry, discovery *discoveryService) *automationService {
+func newAutomationService(state *controlPlaneState, registry *clientRegistry, discovery *discoveryService) *automationService {
 	return &automationService{
 		state:     state,
 		registry:  registry,
@@ -43,50 +43,39 @@ func (a *automationService) IsSubAgentEnabled() bool {
 	return a.subAgent != nil
 }
 
-// IsSubAgentEnabledForCaller reports whether SubAgent is enabled for a caller.
-func (a *automationService) IsSubAgentEnabledForCaller(caller string) bool {
+// IsSubAgentEnabledForClient reports whether SubAgent is enabled for a client.
+func (a *automationService) IsSubAgentEnabledForClient(client string) bool {
 	if a.subAgent == nil {
 		return false
 	}
-
-	profile, err := a.registry.resolveProfile(caller)
+	tags, err := a.registry.resolveClientTags(client)
 	if err != nil {
 		return false
 	}
 
-	store := a.state.ProfileStore()
-	if store.Profiles == nil {
-		return false
+	enabledTags := a.state.Runtime().SubAgent.EnabledTags
+	if len(enabledTags) == 0 {
+		return true
 	}
-	profileData, ok := store.Profiles[profile.name]
-	if !ok {
-		return false
-	}
-
-	return profileData.Catalog.SubAgent.Enabled
+	return hasTagOverlap(tags, enabledTags)
 }
 
 // AutomaticMCP filters tools using the automatic MCP flow.
-func (a *automationService) AutomaticMCP(ctx context.Context, caller string, params domain.AutomaticMCPParams) (domain.AutomaticMCPResult, error) {
-	profile, err := a.registry.resolveProfile(caller)
+func (a *automationService) AutomaticMCP(ctx context.Context, client string, params domain.AutomaticMCPParams) (domain.AutomaticMCPResult, error) {
+	if a.subAgent != nil && a.IsSubAgentEnabledForClient(client) {
+		return a.subAgent.SelectToolsForClient(ctx, client, params)
+	}
+
+	return a.fallbackAutomaticMCP(ctx, client, params)
+}
+
+func (a *automationService) fallbackAutomaticMCP(ctx context.Context, client string, params domain.AutomaticMCPParams) (domain.AutomaticMCPResult, error) {
+	snapshot, err := a.discovery.ListTools(ctx, client)
 	if err != nil {
 		return domain.AutomaticMCPResult{}, err
 	}
 
-	if a.subAgent != nil {
-		return a.subAgent.SelectToolsForCaller(ctx, caller, params)
-	}
-
-	return a.fallbackAutomaticMCP(caller, profile, params)
-}
-
-func (a *automationService) fallbackAutomaticMCP(caller string, profile *profileRuntime, params domain.AutomaticMCPParams) (domain.AutomaticMCPResult, error) {
-	if profile.tools == nil {
-		return domain.AutomaticMCPResult{}, nil
-	}
-
-	snapshot := profile.tools.Snapshot()
-	sessionKey := domain.AutomaticMCPSessionKey(caller, params.SessionID)
+	sessionKey := domain.AutomaticMCPSessionKey(client, params.SessionID)
 
 	toolsToSend := make([]domain.ToolDefinition, 0, len(snapshot.Tools))
 	sentSchemas := make(map[string]string)
@@ -117,28 +106,39 @@ func (a *automationService) fallbackAutomaticMCP(caller string, profile *profile
 }
 
 // AutomaticEval evaluates a tool call using the automatic MCP flow.
-func (a *automationService) AutomaticEval(ctx context.Context, caller string, params domain.AutomaticEvalParams) (json.RawMessage, error) {
-	if _, err := a.getToolDefinition(caller, params.ToolName); err != nil {
+func (a *automationService) AutomaticEval(ctx context.Context, client string, params domain.AutomaticEvalParams) (json.RawMessage, error) {
+	if _, err := a.getToolDefinition(ctx, client, params.ToolName); err != nil {
 		return nil, err
 	}
 
-	return a.discovery.CallTool(ctx, caller, params.ToolName, params.Arguments, params.RoutingKey)
+	return a.discovery.CallTool(ctx, client, params.ToolName, params.Arguments, params.RoutingKey)
 }
 
-func (a *automationService) getToolDefinition(caller, name string) (domain.ToolDefinition, error) {
-	profile, err := a.registry.resolveProfile(caller)
+func (a *automationService) getToolDefinition(ctx context.Context, client, name string) (domain.ToolDefinition, error) {
+	snapshot, err := a.discovery.ListTools(ctx, client)
 	if err != nil {
 		return domain.ToolDefinition{}, err
 	}
-	if profile.tools == nil {
-		return domain.ToolDefinition{}, domain.ErrToolNotFound
-	}
-
-	snapshot := profile.tools.Snapshot()
 	for _, tool := range snapshot.Tools {
 		if tool.Name == name {
 			return tool, nil
 		}
 	}
 	return domain.ToolDefinition{}, domain.ErrToolNotFound
+}
+
+func hasTagOverlap(left []string, right []string) bool {
+	if len(left) == 0 || len(right) == 0 {
+		return false
+	}
+	set := make(map[string]struct{}, len(left))
+	for _, tag := range left {
+		set[tag] = struct{}{}
+	}
+	for _, tag := range right {
+		if _, ok := set[tag]; ok {
+			return true
+		}
+	}
+	return false
 }

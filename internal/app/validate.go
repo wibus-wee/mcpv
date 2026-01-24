@@ -17,21 +17,20 @@ func (a *App) ValidateConfig(ctx context.Context, cfg ValidateConfig) error {
 	})
 	logger := logging.Logger
 
-	storeLoader := catalog.NewProfileStoreLoader(logger)
-	store, err := storeLoader.Load(ctx, cfg.ConfigPath, catalog.ProfileStoreOptions{
-		AllowCreate: false,
-	})
+	loader := catalog.NewLoader(logger)
+	catalogData, err := loader.Load(ctx, cfg.ConfigPath)
 	if err != nil {
 		return err
 	}
 
-	if _, err := domain.BuildCatalogSummary(store); err != nil {
+	summary, err := domain.BuildCatalogSummary(catalogData)
+	if err != nil {
 		return err
 	}
 
 	logger.Info("configuration validated",
 		zap.String("config", cfg.ConfigPath),
-		zap.Int("profiles", len(store.Profiles)),
+		zap.Int("servers", summary.TotalServers),
 	)
 	return nil
 }

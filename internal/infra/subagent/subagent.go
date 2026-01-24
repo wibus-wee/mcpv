@@ -31,9 +31,9 @@ type EinoSubAgent struct {
 	logger       *zap.Logger
 }
 
-// controlPlaneProvider provides access to profile-specific tool snapshots.
+// controlPlaneProvider provides access to client-scoped tool snapshots.
 type controlPlaneProvider interface {
-	GetToolSnapshotForCaller(caller string) (domain.ToolSnapshot, error)
+	GetToolSnapshotForClient(client string) (domain.ToolSnapshot, error)
 }
 
 // NewEinoSubAgent creates a new SubAgent instance.
@@ -60,14 +60,14 @@ func NewEinoSubAgent(
 	}, nil
 }
 
-// SelectToolsForCaller filters tools based on the query using LLM reasoning
+// SelectToolsForClient filters tools based on the query using LLM reasoning
 // and applies deduplication based on session cache.
-func (s *EinoSubAgent) SelectToolsForCaller(
+func (s *EinoSubAgent) SelectToolsForClient(
 	ctx context.Context,
-	callerID string,
+	clientID string,
 	params domain.AutomaticMCPParams,
 ) (domain.AutomaticMCPResult, error) {
-	snapshot, err := s.controlPlane.GetToolSnapshotForCaller(callerID)
+	snapshot, err := s.controlPlane.GetToolSnapshotForClient(clientID)
 	if err != nil {
 		return domain.AutomaticMCPResult{}, fmt.Errorf("get tool snapshot: %w", err)
 	}
@@ -102,7 +102,7 @@ func (s *EinoSubAgent) SelectToolsForCaller(
 		selectedNames = selectedNames[:maxTools]
 	}
 
-	sessionKey := domain.AutomaticMCPSessionKey(callerID, params.SessionID)
+	sessionKey := domain.AutomaticMCPSessionKey(clientID, params.SessionID)
 
 	shouldSend := make(map[string]bool, len(selectedNames))
 	for _, name := range selectedNames {
@@ -126,9 +126,9 @@ func (s *EinoSubAgent) SelectToolsForCaller(
 	}, nil
 }
 
-// InvalidateSession clears the session cache for a caller.
-func (s *EinoSubAgent) InvalidateSession(callerID string) {
-	s.cache.Invalidate(callerID)
+// InvalidateSession clears the session cache for a client.
+func (s *EinoSubAgent) InvalidateSession(clientID string) {
+	s.cache.Invalidate(clientID)
 }
 
 // Close shuts down the SubAgent and releases resources.

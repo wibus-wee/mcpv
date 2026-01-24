@@ -22,8 +22,8 @@ type RuntimeConfigUpdate struct {
 	PingIntervalSeconds        int
 	ToolRefreshSeconds         int
 	ToolRefreshConcurrency     int
-	CallerCheckSeconds         int
-	CallerInactiveSeconds      int
+	ClientCheckSeconds         int
+	ClientInactiveSeconds      int
 	ServerInitRetryBaseSeconds int
 	ServerInitRetryMaxSeconds  int
 	ServerInitMaxRetries       int
@@ -36,6 +36,7 @@ type RuntimeConfigUpdate struct {
 }
 
 type SubAgentConfigUpdate struct {
+	EnabledTags        *[]string
 	Model              *string
 	Provider           *string
 	APIKey             *string
@@ -91,8 +92,8 @@ func UpdateRuntimeConfig(path string, update RuntimeConfigUpdate) (RuntimeUpdate
 	doc["pingIntervalSeconds"] = update.PingIntervalSeconds
 	doc["toolRefreshSeconds"] = update.ToolRefreshSeconds
 	doc["toolRefreshConcurrency"] = update.ToolRefreshConcurrency
-	doc["callerCheckSeconds"] = update.CallerCheckSeconds
-	doc["callerInactiveSeconds"] = update.CallerInactiveSeconds
+	doc["clientCheckSeconds"] = update.ClientCheckSeconds
+	doc["clientInactiveSeconds"] = update.ClientInactiveSeconds
 	doc["serverInitRetryBaseSeconds"] = update.ServerInitRetryBaseSeconds
 	doc["serverInitRetryMaxSeconds"] = update.ServerInitRetryMaxSeconds
 	doc["serverInitMaxRetries"] = update.ServerInitMaxRetries
@@ -131,6 +132,9 @@ func UpdateSubAgentConfig(path string, update SubAgentConfigUpdate) (RuntimeUpda
 	}
 	if update.Provider != nil {
 		subAgent["provider"] = strings.TrimSpace(*update.Provider)
+	}
+	if update.EnabledTags != nil {
+		subAgent["enabledTags"] = append([]string(nil), (*update.EnabledTags)...)
 	}
 	if update.APIKey != nil {
 		subAgent["apiKey"] = strings.TrimSpace(*update.APIKey)

@@ -44,7 +44,7 @@ type PromptPage struct {
 
 // ConfigModeResponse indicates the configuration mode and path
 type ConfigModeResponse struct {
-	Mode       string `json:"mode"`       // "directory" or "unknown"
+	Mode       string `json:"mode"`       // "file" or "unknown"
 	Path       string `json:"path"`       // Configuration path
 	IsWritable bool   `json:"isWritable"` // Whether the config is writable
 }
@@ -88,29 +88,14 @@ type StartCoreOptions struct {
 	HealthzEnabled *bool  `json:"healthzEnabled,omitempty"`
 }
 
-// ProfileSummary provides a brief overview of a profile
-type ProfileSummary struct {
-	Name        string `json:"name"`
-	ServerCount int    `json:"serverCount"`
-	IsDefault   bool   `json:"isDefault"`
-}
-
-// ProfileDetail contains full profile configuration
-type ProfileDetail struct {
-	Name     string                      `json:"name"`
-	Runtime  RuntimeConfigDetail         `json:"runtime"`
-	Servers  []ServerSpecDetail          `json:"servers"`
-	SubAgent ProfileSubAgentConfigDetail `json:"subAgent"`
-}
-
 // RuntimeConfigDetail contains runtime configuration for frontend
 type RuntimeConfigDetail struct {
 	RouteTimeoutSeconds        int                       `json:"routeTimeoutSeconds"`
 	PingIntervalSeconds        int                       `json:"pingIntervalSeconds"`
 	ToolRefreshSeconds         int                       `json:"toolRefreshSeconds"`
 	ToolRefreshConcurrency     int                       `json:"toolRefreshConcurrency"`
-	CallerCheckSeconds         int                       `json:"callerCheckSeconds"`
-	CallerInactiveSeconds      int                       `json:"callerInactiveSeconds"`
+	ClientCheckSeconds         int                       `json:"clientCheckSeconds"`
+	ClientInactiveSeconds      int                       `json:"clientInactiveSeconds"`
 	ServerInitRetryBaseSeconds int                       `json:"serverInitRetryBaseSeconds"`
 	ServerInitRetryMaxSeconds  int                       `json:"serverInitRetryMaxSeconds"`
 	ServerInitMaxRetries       int                       `json:"serverInitMaxRetries"`
@@ -150,6 +135,18 @@ type RPCTLSConfigDetail struct {
 }
 
 // ServerSpecDetail contains server specification for frontend
+type ServerSummary struct {
+	Name      string   `json:"name"`
+	SpecKey   string   `json:"specKey"`
+	Transport string   `json:"transport"`
+	Tags      []string `json:"tags,omitempty"`
+	Disabled  bool     `json:"disabled"`
+}
+
+// ServerDetail contains full server specification for frontend.
+type ServerDetail = ServerSpecDetail
+
+// ServerSpecDetail contains server specification for frontend
 type ServerSpecDetail struct {
 	Name                string                      `json:"name"`
 	SpecKey             string                      `json:"specKey"`
@@ -157,6 +154,7 @@ type ServerSpecDetail struct {
 	Cmd                 []string                    `json:"cmd"`
 	Env                 map[string]string           `json:"env"`
 	Cwd                 string                      `json:"cwd"`
+	Tags                []string                    `json:"tags,omitempty"`
 	IdleSeconds         int                         `json:"idleSeconds"`
 	MaxConcurrent       int                         `json:"maxConcurrent"`
 	Strategy            string                      `json:"strategy"`
@@ -184,37 +182,25 @@ type ImportServerSpec struct {
 	Cmd             []string                    `json:"cmd,omitempty"`
 	Env             map[string]string           `json:"env,omitempty"`
 	Cwd             string                      `json:"cwd,omitempty"`
+	Tags            []string                    `json:"tags,omitempty"`
 	ProtocolVersion string                      `json:"protocolVersion,omitempty"`
 	HTTP            *StreamableHTTPConfigDetail `json:"http,omitempty"`
 }
 
-// ImportMcpServersRequest is the payload for importing MCP servers into profiles.
+// ImportMcpServersRequest is the payload for importing MCP servers into the config file.
 type ImportMcpServersRequest struct {
-	Profiles []string           `json:"profiles"`
-	Servers  []ImportServerSpec `json:"servers"`
+	Servers []ImportServerSpec `json:"servers"`
 }
 
-// UpdateServerStateRequest updates the disabled state for a server in a profile.
+// UpdateServerStateRequest updates the disabled state for a server.
 type UpdateServerStateRequest struct {
-	Profile  string `json:"profile"`
 	Server   string `json:"server"`
 	Disabled bool   `json:"disabled"`
 }
 
-// DeleteServerRequest removes a server from a profile.
+// DeleteServerRequest removes a server.
 type DeleteServerRequest struct {
-	Profile string `json:"profile"`
-	Server  string `json:"server"`
-}
-
-// CreateProfileRequest creates a new profile file.
-type CreateProfileRequest struct {
-	Name string `json:"name"`
-}
-
-// DeleteProfileRequest removes a profile file.
-type DeleteProfileRequest struct {
-	Name string `json:"name"`
+	Server string `json:"server"`
 }
 
 // UpdateRuntimeConfigRequest updates runtime.yaml configuration.
@@ -223,8 +209,8 @@ type UpdateRuntimeConfigRequest struct {
 	PingIntervalSeconds        int    `json:"pingIntervalSeconds"`
 	ToolRefreshSeconds         int    `json:"toolRefreshSeconds"`
 	ToolRefreshConcurrency     int    `json:"toolRefreshConcurrency"`
-	CallerCheckSeconds         int    `json:"callerCheckSeconds"`
-	CallerInactiveSeconds      int    `json:"callerInactiveSeconds"`
+	ClientCheckSeconds         int    `json:"clientCheckSeconds"`
+	ClientInactiveSeconds      int    `json:"clientInactiveSeconds"`
 	ServerInitRetryBaseSeconds int    `json:"serverInitRetryBaseSeconds"`
 	ServerInitRetryMaxSeconds  int    `json:"serverInitRetryMaxSeconds"`
 	ServerInitMaxRetries       int    `json:"serverInitMaxRetries"`
@@ -236,21 +222,15 @@ type UpdateRuntimeConfigRequest struct {
 	ToolNamespaceStrategy      string `json:"toolNamespaceStrategy"`
 }
 
-// UpdateCallerMappingRequest updates a caller to profile mapping.
-type UpdateCallerMappingRequest struct {
-	Caller  string `json:"caller"`
-	Profile string `json:"profile"`
-}
-
 // =============================================================================
-// Caller Status Types
+// Client Status Types
 // =============================================================================
 
-type ActiveCaller struct {
-	Caller        string `json:"caller"`
-	PID           int    `json:"pid"`
-	Profile       string `json:"profile"`
-	LastHeartbeat string `json:"lastHeartbeat"`
+type ActiveClient struct {
+	Client        string   `json:"client"`
+	PID           int      `json:"pid"`
+	Tags          []string `json:"tags"`
+	LastHeartbeat string   `json:"lastHeartbeat"`
 }
 
 // =============================================================================
@@ -285,9 +265,8 @@ type StartCausePolicy struct {
 
 type StartCause struct {
 	Reason    string            `json:"reason"`
-	Caller    string            `json:"caller,omitempty"`
+	Client    string            `json:"client,omitempty"`
 	ToolName  string            `json:"toolName,omitempty"`
-	Profile   string            `json:"profile,omitempty"`
 	Policy    *StartCausePolicy `json:"policy,omitempty"`
 	Timestamp string            `json:"timestamp"`
 }
@@ -340,34 +319,25 @@ type PoolMetrics struct {
 
 // SubAgentConfigDetail contains the runtime-level SubAgent LLM provider config
 type SubAgentConfigDetail struct {
-	Model              string `json:"model"`
-	Provider           string `json:"provider"`
-	APIKeyEnvVar       string `json:"apiKeyEnvVar"`
-	BaseURL            string `json:"baseURL"`
-	MaxToolsPerRequest int    `json:"maxToolsPerRequest"`
-	FilterPrompt       string `json:"filterPrompt"`
-}
-
-// ProfileSubAgentConfigDetail contains the per-profile SubAgent settings
-type ProfileSubAgentConfigDetail struct {
-	Enabled bool `json:"enabled"`
+	EnabledTags        []string `json:"enabledTags,omitempty"`
+	Model              string   `json:"model"`
+	Provider           string   `json:"provider"`
+	APIKeyEnvVar       string   `json:"apiKeyEnvVar"`
+	BaseURL            string   `json:"baseURL"`
+	MaxToolsPerRequest int      `json:"maxToolsPerRequest"`
+	FilterPrompt       string   `json:"filterPrompt"`
 }
 
 // UpdateSubAgentConfigRequest updates the runtime-level SubAgent config
 type UpdateSubAgentConfigRequest struct {
-	Model              string `json:"model"`
-	Provider           string `json:"provider"`
-	APIKey             *string `json:"apiKey,omitempty"`
-	APIKeyEnvVar       string `json:"apiKeyEnvVar"`
-	BaseURL            string `json:"baseURL"`
-	MaxToolsPerRequest int    `json:"maxToolsPerRequest"`
-	FilterPrompt       string `json:"filterPrompt"`
-}
-
-// UpdateProfileSubAgentRequest updates the per-profile SubAgent enabled state
-type UpdateProfileSubAgentRequest struct {
-	Profile string `json:"profile"`
-	Enabled bool   `json:"enabled"`
+	EnabledTags        []string `json:"enabledTags,omitempty"`
+	Model              string   `json:"model"`
+	Provider           string   `json:"provider"`
+	APIKey             *string  `json:"apiKey,omitempty"`
+	APIKeyEnvVar       string   `json:"apiKeyEnvVar"`
+	BaseURL            string   `json:"baseURL"`
+	MaxToolsPerRequest int      `json:"maxToolsPerRequest"`
+	FilterPrompt       string   `json:"filterPrompt"`
 }
 
 type ProxyFetchRequest struct {

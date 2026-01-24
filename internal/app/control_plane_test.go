@@ -13,120 +13,87 @@ import (
 )
 
 func TestControlPlane_RequiresRegistration(t *testing.T) {
-	cp := newTestControlPlane(
-		context.Background(),
-		map[string]*profileRuntime{
-			domain.DefaultProfileName: {name: domain.DefaultProfileName},
-		},
-		map[string]string{},
-		map[string]domain.ServerSpec{},
-		&fakeScheduler{},
-		domain.RuntimeConfig{},
-	)
+	cp := newTestControlPlane(context.Background(), domain.Catalog{
+		Specs:   map[string]domain.ServerSpec{},
+		Runtime: domain.RuntimeConfig{},
+	}, &fakeScheduler{})
 
-	_, err := cp.ListTools(context.Background(), "caller")
-	require.ErrorIs(t, err, domain.ErrCallerNotRegistered)
+	_, err := cp.ListTools(context.Background(), "client")
+	require.ErrorIs(t, err, domain.ErrClientNotRegistered)
 }
 
 func TestControlPlane_RegisterUnregister(t *testing.T) {
-	specKey := "spec-a"
 	spec := domain.ServerSpec{
-		Name:            specKey,
+		Name:            "spec-a",
 		Cmd:             []string{"/bin/true"},
 		MaxConcurrent:   1,
 		ProtocolVersion: domain.DefaultProtocolVersion,
 	}
-
-	runtime := &profileRuntime{
-		name:     domain.DefaultProfileName,
-		specKeys: []string{specKey},
-	}
-	sched := &fakeScheduler{}
-	cp := newTestControlPlane(
-		context.Background(),
-		map[string]*profileRuntime{domain.DefaultProfileName: runtime},
-		map[string]string{"caller": domain.DefaultProfileName},
-		map[string]domain.ServerSpec{specKey: spec},
-		sched,
-		domain.RuntimeConfig{},
-	)
-
-	profile, err := cp.RegisterCaller(context.Background(), "caller", 1234)
+	specKey, err := domain.SpecFingerprint(spec)
 	require.NoError(t, err)
-	require.Equal(t, domain.DefaultProfileName, profile)
-	require.True(t, runtime.active)
+
+	sched := &fakeScheduler{}
+	cp := newTestControlPlane(context.Background(), domain.Catalog{
+		Specs:   map[string]domain.ServerSpec{spec.Name: spec},
+		Runtime: domain.RuntimeConfig{},
+	}, sched)
+
+	registration, err := cp.RegisterClient(context.Background(), "client", 1234, nil)
+	require.NoError(t, err)
+	require.Equal(t, "client", registration.Client)
 	require.Equal(t, []minReadyCall{{specKey: specKey, minReady: 1}}, sched.minReadyCalls)
 
-	require.NoError(t, cp.UnregisterCaller(context.Background(), "caller"))
-	require.False(t, runtime.active)
-	require.Equal(t, []stopCall{{specKey: specKey, reason: "caller inactive"}}, sched.stopCalls)
+	require.NoError(t, cp.UnregisterClient(context.Background(), "client"))
+	require.Equal(t, []stopCall{{specKey: specKey, reason: "client inactive"}}, sched.stopCalls)
 }
 
-func TestControlPlane_ReapDeadCallers_Heartbeat(t *testing.T) {
-	runtime := domain.RuntimeConfig{CallerCheckSeconds: 1, CallerInactiveSeconds: 60}
-	cp := newTestControlPlane(
-		context.Background(),
-		map[string]*profileRuntime{
-			domain.DefaultProfileName: {name: domain.DefaultProfileName},
-		},
-		map[string]string{},
-		map[string]domain.ServerSpec{},
-		&fakeScheduler{},
-		runtime,
-	)
+func TestControlPlane_ReapDeadClients_Heartbeat(t *testing.T) {
+	runtime := domain.RuntimeConfig{ClientCheckSeconds: 1, ClientInactiveSeconds: 60}
+	cp := newTestControlPlane(context.Background(), domain.Catalog{
+		Specs:   map[string]domain.ServerSpec{},
+		Runtime: runtime,
+	}, &fakeScheduler{})
 
 	cp.registry.mu.Lock()
-	cp.registry.activeCallers["caller"] = callerState{
+	cp.registry.activeClients["client"] = clientState{
 		pid:           -1,
-		profile:       domain.DefaultProfileName,
 		lastHeartbeat: time.Now(),
 	}
-	cp.registry.profileCounts[domain.DefaultProfileName] = 1
 	cp.registry.mu.Unlock()
 
-	cp.registry.reapDeadCallers(context.Background())
-	_, err := cp.registry.resolveProfile("caller")
+	cp.registry.reapDeadClients(context.Background())
+	_, err := cp.registry.resolveClientTags("client")
 	require.NoError(t, err)
 
 	cp.registry.mu.Lock()
-	cp.registry.activeCallers["caller"] = callerState{
+	cp.registry.activeClients["client"] = clientState{
 		pid:           -1,
-		profile:       domain.DefaultProfileName,
 		lastHeartbeat: time.Now().Add(-time.Minute),
 	}
-	cp.registry.profileCounts[domain.DefaultProfileName] = 1
 	cp.registry.mu.Unlock()
 
-	cp.registry.reapDeadCallers(context.Background())
-	_, err = cp.registry.resolveProfile("caller")
-	require.ErrorIs(t, err, domain.ErrCallerNotRegistered)
+	cp.registry.reapDeadClients(context.Background())
+	_, err = cp.registry.resolveClientTags("client")
+	require.ErrorIs(t, err, domain.ErrClientNotRegistered)
 }
 
-func TestControlPlane_ReapDeadCallers_TTL(t *testing.T) {
-	runtime := domain.RuntimeConfig{CallerCheckSeconds: 1, CallerInactiveSeconds: 1}
-	cp := newTestControlPlane(
-		context.Background(),
-		map[string]*profileRuntime{
-			domain.DefaultProfileName: {name: domain.DefaultProfileName},
-		},
-		map[string]string{},
-		map[string]domain.ServerSpec{},
-		&fakeScheduler{},
-		runtime,
-	)
+func TestControlPlane_ReapDeadClients_TTL(t *testing.T) {
+	runtime := domain.RuntimeConfig{ClientCheckSeconds: 1, ClientInactiveSeconds: 1}
+	cp := newTestControlPlane(context.Background(), domain.Catalog{
+		Specs:   map[string]domain.ServerSpec{},
+		Runtime: runtime,
+	}, &fakeScheduler{})
 
 	cp.registry.mu.Lock()
-	cp.registry.activeCallers["caller"] = callerState{
+	cp.registry.activeClients["client"] = clientState{
 		pid:           os.Getpid(),
-		profile:       domain.DefaultProfileName,
 		lastHeartbeat: time.Now().Add(-2 * time.Second),
 	}
-	cp.registry.profileCounts[domain.DefaultProfileName] = 1
 	cp.registry.mu.Unlock()
 
-	cp.registry.reapDeadCallers(context.Background())
-	_, err := cp.registry.resolveProfile("caller")
-	require.ErrorIs(t, err, domain.ErrCallerNotRegistered)
+	cp.registry.reapDeadClients(context.Background())
+	_, err := cp.registry.resolveClientTags("client")
+	require.ErrorIs(t, err, domain.ErrClientNotRegistered)
 }
 
 func TestPaginateResources_InvalidCursor(t *testing.T) {
@@ -155,27 +122,18 @@ func TestPaginatePrompts_InvalidCursor(t *testing.T) {
 
 func newTestControlPlane(
 	ctx context.Context,
-	profiles map[string]*profileRuntime,
-	callers map[string]string,
-	specRegistry map[string]domain.ServerSpec,
+	catalog domain.Catalog,
 	scheduler domain.Scheduler,
-	runtime domain.RuntimeConfig,
 ) *ControlPlane {
-	store := domain.ProfileStore{
-		Profiles: map[string]domain.Profile{},
-		Callers:  callers,
+	state, err := domain.NewCatalogState(catalog, 1, time.Now())
+	if err != nil {
+		panic(err)
 	}
-	summary := domain.CatalogSummary{
-		Profiles:       map[string]domain.CatalogProfile{},
-		SpecRegistry:   specRegistry,
-		DefaultRuntime: runtime,
+	runtime := &runtimeState{
+		specKeys: copySpecKeyMap(state.Summary.ServerSpecKeys),
 	}
-	state := &domain.CatalogState{
-		Store:   store,
-		Summary: summary,
-	}
-	controlState := newControlPlaneState(ctx, profiles, scheduler, nil, nil, state, zap.NewNop())
-	registry := newCallerRegistry(controlState)
+	controlState := newControlPlaneState(ctx, runtime, scheduler, nil, nil, &state, zap.NewNop())
+	registry := newClientRegistry(controlState)
 	discovery := newDiscoveryService(controlState, registry)
 	observability := newObservabilityService(controlState, registry, nil)
 	automation := newAutomationService(controlState, registry, discovery)

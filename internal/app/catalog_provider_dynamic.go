@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
-	"strings"
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -21,7 +21,7 @@ const defaultReloadDebounce = 200 * time.Millisecond
 // DynamicCatalogProvider loads and watches catalog updates.
 type DynamicCatalogProvider struct {
 	logger      *zap.Logger
-	loader      *catalog.ProfileStoreLoader
+	loader      *catalog.Loader
 	configPath  string
 	allowCreate bool
 
@@ -44,14 +44,12 @@ func NewDynamicCatalogProvider(ctx context.Context, cfg ServeConfig, logger *zap
 	if logger == nil {
 		logger = zap.NewNop()
 	}
-	loader := catalog.NewProfileStoreLoader(logger)
-	store, err := loader.Load(ctx, cfg.ConfigPath, catalog.ProfileStoreOptions{
-		AllowCreate: true,
-	})
+	loader := catalog.NewLoader(logger)
+	catalogData, err := loader.Load(ctx, cfg.ConfigPath)
 	if err != nil {
 		return nil, err
 	}
-	state, err := domain.NewCatalogState(store, 1, time.Now())
+	state, err := domain.NewCatalogState(catalogData, 1, time.Now())
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +58,7 @@ func NewDynamicCatalogProvider(ctx context.Context, cfg ServeConfig, logger *zap
 		logger:      logger.Named("catalog_provider"),
 		loader:      loader,
 		configPath:  cfg.ConfigPath,
-		allowCreate: true,
+		allowCreate: false,
 		subs:        make(map[chan domain.CatalogUpdate]struct{}),
 		watchCtx:    ctx,
 	}
@@ -118,20 +116,18 @@ func (p *DynamicCatalogProvider) reload(ctx context.Context, source domain.Catal
 	}
 
 	prev := p.state.Load().(domain.CatalogState)
-	store, err := p.loader.Load(ctx, p.configPath, catalog.ProfileStoreOptions{
-		AllowCreate: p.allowCreate,
-	})
+	catalogData, err := p.loader.Load(ctx, p.configPath)
 	if err != nil {
 		return err
 	}
 
 	nextRevision := p.revision.Load() + 1
-	next, err := domain.NewCatalogState(store, nextRevision, time.Now())
+	next, err := domain.NewCatalogState(catalogData, nextRevision, time.Now())
 	if err != nil {
 		return err
 	}
 
-	if prev.Revision > 0 && prev.Summary.DefaultRuntime != next.Summary.DefaultRuntime {
+	if prev.Revision > 0 && !reflect.DeepEqual(prev.Summary.Runtime, next.Summary.Runtime) {
 		return errors.New("runtime config changed; restart required to apply")
 	}
 
@@ -196,7 +192,7 @@ func (p *DynamicCatalogProvider) runWatcher(ctx context.Context) {
 				p.logger.Warn("config watcher error", zap.Error(err))
 			}
 		case event := <-watcher.Events:
-			if !shouldReloadForPath(event.Name) {
+			if !shouldReloadForPath(event.Name, p.configPath) {
 				continue
 			}
 			if timer == nil {
@@ -220,24 +216,14 @@ func (p *DynamicCatalogProvider) runWatcher(ctx context.Context) {
 }
 
 func (p *DynamicCatalogProvider) watchPaths() []string {
-	paths := []string{p.configPath}
-	paths = append(paths, filepath.Join(p.configPath, "profiles"))
-	return paths
+	return []string{filepath.Dir(p.configPath)}
 }
 
-func shouldReloadForPath(path string) bool {
-	if path == "" {
+func shouldReloadForPath(path string, configPath string) bool {
+	if path == "" || configPath == "" {
 		return false
 	}
-	base := filepath.Base(path)
-	if base == "runtime.yaml" || base == "runtime.yml" || base == "callers.yaml" {
-		return true
-	}
-	if filepath.Base(filepath.Dir(path)) == "profiles" {
-		ext := strings.ToLower(filepath.Ext(path))
-		return ext == ".yaml" || ext == ".yml"
-	}
-	return false
+	return filepath.Clean(path) == filepath.Clean(configPath)
 }
 
 func timerChan(timer *time.Timer) <-chan time.Time {

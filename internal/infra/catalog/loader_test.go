@@ -52,8 +52,8 @@ servers:
 	require.Equal(t, domain.DefaultPingIntervalSeconds, catalog.Runtime.PingIntervalSeconds)
 	require.Equal(t, domain.DefaultToolRefreshSeconds, catalog.Runtime.ToolRefreshSeconds)
 	require.Equal(t, domain.DefaultToolRefreshConcurrency, catalog.Runtime.ToolRefreshConcurrency)
-	require.Equal(t, domain.DefaultCallerCheckSeconds, catalog.Runtime.CallerCheckSeconds)
-	require.Equal(t, domain.DefaultCallerInactiveSeconds, catalog.Runtime.CallerInactiveSeconds)
+	require.Equal(t, domain.DefaultClientCheckSeconds, catalog.Runtime.ClientCheckSeconds)
+	require.Equal(t, domain.DefaultClientInactiveSeconds, catalog.Runtime.ClientInactiveSeconds)
 	require.Equal(t, domain.DefaultServerInitRetryBaseSeconds, catalog.Runtime.ServerInitRetryBaseSeconds)
 	require.Equal(t, domain.DefaultServerInitRetryMaxSeconds, catalog.Runtime.ServerInitRetryMaxSeconds)
 	require.Equal(t, domain.DefaultServerInitMaxRetries, catalog.Runtime.ServerInitMaxRetries)
@@ -211,8 +211,8 @@ func TestLoader_InvalidRuntimeConfig(t *testing.T) {
 routeTimeoutSeconds: 0
 pingIntervalSeconds: -1
 toolRefreshSeconds: -2
-callerCheckSeconds: 0
-callerInactiveSeconds: 0
+clientCheckSeconds: 0
+clientInactiveSeconds: 0
 toolNamespaceStrategy: "bad"
 rpc:
   listenAddress: ""
@@ -243,8 +243,8 @@ servers:
 	require.Contains(t, err.Error(), "routeTimeoutSeconds")
 	require.Contains(t, err.Error(), "pingIntervalSeconds")
 	require.Contains(t, err.Error(), "toolRefreshSeconds")
-	require.Contains(t, err.Error(), "callerCheckSeconds")
-	require.Contains(t, err.Error(), "callerInactiveSeconds")
+	require.Contains(t, err.Error(), "clientCheckSeconds")
+	require.Contains(t, err.Error(), "clientInactiveSeconds")
 	require.Contains(t, err.Error(), "toolNamespaceStrategy")
 	require.Contains(t, err.Error(), "rpc.listenAddress")
 	require.Contains(t, err.Error(), "rpc.maxRecvMsgSize")

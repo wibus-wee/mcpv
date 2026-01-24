@@ -76,6 +76,12 @@ func (idx *RuntimeStatusIndex) Subscribe(ctx context.Context) <-chan domain.Runt
 	return ch
 }
 
+// Current returns the latest runtime status snapshot.
+func (idx *RuntimeStatusIndex) Current() domain.RuntimeStatusSnapshot {
+	state := idx.state.Load().(runtimeStatusIndexState)
+	return state.snapshot
+}
+
 // Refresh polls the scheduler for current status and broadcasts to subscribers
 func (idx *RuntimeStatusIndex) Refresh(ctx context.Context) error {
 	poolInfos, err := idx.scheduler.GetPoolStatus(ctx)

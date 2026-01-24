@@ -40,8 +40,7 @@ func (r *MetricRouter) observe(ctx context.Context, serverType string, duration 
 	status, reason := classifyRouteResult(err)
 	r.metrics.ObserveRoute(domain.RouteMetric{
 		ServerType: serverType,
-		Caller:     meta.Caller,
-		Profile:    meta.Profile,
+		Client:     meta.Client,
 		Status:     status,
 		Reason:     reason,
 		Duration:   duration,

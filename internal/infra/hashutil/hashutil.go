@@ -1,6 +1,9 @@
 package hashutil
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 
 	"go.uber.org/zap"
@@ -27,6 +30,18 @@ func ResourceETag(logger *zap.Logger, resources []domain.ResourceDefinition) str
 func PromptETag(logger *zap.Logger, prompts []domain.PromptDefinition) string {
 	return hashWithLogger(logger, "prompt", func() (string, error) {
 		return mcpcodec.HashPromptDefinitions(prompts)
+	})
+}
+
+// ToolCatalogETag returns an ETag for tool catalog entries.
+func ToolCatalogETag(logger *zap.Logger, tools []domain.ToolCatalogEntry) string {
+	return hashWithLogger(logger, "tool_catalog", func() (string, error) {
+		data, err := json.Marshal(tools)
+		if err != nil {
+			return "", err
+		}
+		sum := sha256.Sum256(data)
+		return hex.EncodeToString(sum[:]), nil
 	})
 }
 

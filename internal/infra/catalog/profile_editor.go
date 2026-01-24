@@ -23,6 +23,7 @@ type serverSpecYAML struct {
 	Cmd                 []string            `yaml:"cmd"`
 	Env                 map[string]string   `yaml:"env,omitempty"`
 	Cwd                 string              `yaml:"cwd,omitempty"`
+	Tags                []string            `yaml:"tags,omitempty"`
 	IdleSeconds         int                 `yaml:"idleSeconds"`
 	MaxConcurrent       int                 `yaml:"maxConcurrent"`
 	Strategy            string              `yaml:"strategy,omitempty"`
@@ -266,6 +267,7 @@ func toServerSpecYAML(spec domain.ServerSpec) serverSpecYAML {
 		Cmd:                 spec.Cmd,
 		Env:                 env,
 		Cwd:                 spec.Cwd,
+		Tags:                append([]string(nil), spec.Tags...),
 		IdleSeconds:         spec.IdleSeconds,
 		MaxConcurrent:       spec.MaxConcurrent,
 		Strategy:            string(spec.Strategy),

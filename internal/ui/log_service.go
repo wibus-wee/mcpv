@@ -67,9 +67,9 @@ func (s *LogService) StartLogStream(ctx context.Context, minLevel string) error 
 	s.logStreaming = true
 
 	level := domain.LogLevel(minLevel)
-	s.logger.Info("Calling ControlPlane.StreamLogsAllProfiles", zap.String("level", string(level)))
+	s.logger.Info("Calling ControlPlane.StreamLogsAllServers", zap.String("level", string(level)))
 
-	logCh, err := cp.StreamLogsAllProfiles(streamCtx, level)
+	logCh, err := cp.StreamLogsAllServers(streamCtx, level)
 	if err != nil {
 		s.logger.Error("StreamLogs failed", zap.Error(err))
 		s.logStreaming = false

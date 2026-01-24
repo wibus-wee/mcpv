@@ -2,7 +2,6 @@ package ui
 
 import (
 	"context"
-	"fmt"
 
 	"go.uber.org/zap"
 
@@ -29,48 +28,17 @@ func (s *SubAgentService) GetSubAgentConfig(ctx context.Context) (SubAgentConfig
 		return SubAgentConfigDetail{}, err
 	}
 
-	store := cp.GetProfileStore()
-	for _, profile := range store.Profiles {
-		cfg := profile.Catalog.Runtime.SubAgent
-		return SubAgentConfigDetail{
-			Model:              cfg.Model,
-			Provider:           cfg.Provider,
-			APIKeyEnvVar:       cfg.APIKeyEnvVar,
-			BaseURL:            cfg.BaseURL,
-			MaxToolsPerRequest: cfg.MaxToolsPerRequest,
-			FilterPrompt:       cfg.FilterPrompt,
-		}, nil
-	}
-
-	return SubAgentConfigDetail{}, nil
-}
-
-// GetProfileSubAgentConfig returns the per-profile SubAgent enabled state.
-func (s *SubAgentService) GetProfileSubAgentConfig(ctx context.Context, profileName string) (ProfileSubAgentConfigDetail, error) {
-	cp, err := s.deps.getControlPlane()
-	if err != nil {
-		return ProfileSubAgentConfigDetail{}, err
-	}
-
-	store := cp.GetProfileStore()
-	profile, ok := store.Profiles[profileName]
-	if !ok {
-		return ProfileSubAgentConfigDetail{}, NewUIError(ErrCodeNotFound, fmt.Sprintf("Profile %q not found", profileName))
-	}
-
-	return ProfileSubAgentConfigDetail{Enabled: profile.Catalog.SubAgent.Enabled}, nil
-}
-
-// SetProfileSubAgentEnabled updates the per-profile SubAgent enabled state.
-func (s *SubAgentService) SetProfileSubAgentEnabled(ctx context.Context, req UpdateProfileSubAgentRequest) error {
-	editor, err := s.deps.catalogEditor()
-	if err != nil {
-		return err
-	}
-	if err := editor.SetProfileSubAgentEnabled(ctx, req.Profile, req.Enabled); err != nil {
-		return mapCatalogError(err)
-	}
-	return nil
+	catalog := cp.GetCatalog()
+	cfg := catalog.Runtime.SubAgent
+	return SubAgentConfigDetail{
+		EnabledTags:        append([]string(nil), cfg.EnabledTags...),
+		Model:              cfg.Model,
+		Provider:           cfg.Provider,
+		APIKeyEnvVar:       cfg.APIKeyEnvVar,
+		BaseURL:            cfg.BaseURL,
+		MaxToolsPerRequest: cfg.MaxToolsPerRequest,
+		FilterPrompt:       cfg.FilterPrompt,
+	}, nil
 }
 
 // UpdateSubAgentConfig updates the runtime-level SubAgent config.
@@ -88,12 +56,17 @@ func (s *SubAgentService) UpdateSubAgentConfig(ctx context.Context, req UpdateSu
 	filterPrompt := req.FilterPrompt
 
 	update := catalog.SubAgentConfigUpdate{
+		EnabledTags:        nil,
 		Model:              &model,
 		Provider:           &provider,
 		APIKeyEnvVar:       &apiKeyEnvVar,
 		BaseURL:            &baseURL,
 		MaxToolsPerRequest: &maxTools,
 		FilterPrompt:       &filterPrompt,
+	}
+	if req.EnabledTags != nil {
+		enabledTags := append([]string(nil), req.EnabledTags...)
+		update.EnabledTags = &enabledTags
 	}
 	if req.APIKey != nil {
 		apiKey := *req.APIKey

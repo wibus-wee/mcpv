@@ -18,9 +18,8 @@ type debugSnapshot struct {
 	Core               debugCoreState             `json:"core"`
 	Info               *InfoResponse              `json:"info,omitempty"`
 	Bootstrap          *BootstrapProgressResponse `json:"bootstrap,omitempty"`
-	Profiles           []ProfileSummary           `json:"profiles,omitempty"`
-	Callers            map[string]string          `json:"callers,omitempty"`
-	ActiveCallers      []ActiveCaller             `json:"activeCallers,omitempty"`
+	Servers            []ServerSpecDetail         `json:"servers,omitempty"`
+	ActiveClients      []ActiveClient             `json:"activeClients,omitempty"`
 	ServerInitStatuses []ServerInitStatus         `json:"serverInitStatuses,omitempty"`
 	RuntimeStatuses    []ServerRuntimeStatus      `json:"runtimeStatuses,omitempty"`
 	Errors             []debugSnapshotError       `json:"errors,omitempty"`
@@ -105,21 +104,15 @@ func (s *DebugService) ExportDebugSnapshot(ctx context.Context) (DebugSnapshotRe
 			snapshot.RuntimeStatuses = mapRuntimeStatuses(pools)
 		}
 
-		activeCallers, err := cp.ListActiveCallers(ctx)
+		activeClients, err := cp.ListActiveClients(ctx)
 		if err != nil {
-			appendSnapshotError(&snapshot.Errors, "activeCallers", err)
+			appendSnapshotError(&snapshot.Errors, "activeClients", err)
 		} else {
-			snapshot.ActiveCallers = mapActiveCallers(activeCallers)
+			snapshot.ActiveClients = mapActiveClients(activeClients)
 		}
 
-		store := cp.GetProfileStore()
-		snapshot.Profiles = mapProfileSummaries(store)
-		if len(store.Callers) > 0 {
-			snapshot.Callers = make(map[string]string, len(store.Callers))
-			for key, value := range store.Callers {
-				snapshot.Callers[key] = value
-			}
-		}
+		catalog := cp.GetCatalog()
+		snapshot.Servers = mapServerSummaries(catalog)
 	}
 
 	outputDir := snapshot.ConfigPath
@@ -163,14 +156,17 @@ func appendSnapshotError(errors *[]debugSnapshotError, source string, err error)
 	})
 }
 
-func mapProfileSummaries(store domain.ProfileStore) []ProfileSummary {
-	result := make([]ProfileSummary, 0, len(store.Profiles))
-	for name, profile := range store.Profiles {
-		result = append(result, ProfileSummary{
-			Name:        name,
-			ServerCount: len(profile.Catalog.Specs),
-			IsDefault:   name == domain.DefaultProfileName,
-		})
+func mapServerSummaries(catalog domain.Catalog) []ServerSpecDetail {
+	if len(catalog.Specs) == 0 {
+		return nil
+	}
+	result := make([]ServerSpecDetail, 0, len(catalog.Specs))
+	for _, spec := range catalog.Specs {
+		specKey, err := domain.SpecFingerprint(spec)
+		if err != nil {
+			continue
+		}
+		result = append(result, mapServerSpecDetail(spec, specKey))
 	}
 	return result
 }

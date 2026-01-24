@@ -20,31 +20,35 @@ func TestReloadManager_ApplyUpdate_UpdatesRuntimeAndRegistry(t *testing.T) {
 	prevSpec := serverSpec("svc", []string{"run"}, 2)
 	nextSpec := serverSpec("svc", []string{"run", "v2"}, 2)
 
-	prevState := newCatalogState(t, map[string]domain.Profile{
-		domain.DefaultProfileName: profileWithSpec(domain.DefaultProfileName, "svc", prevSpec, runtime),
-	}, nil)
-	nextState := newCatalogState(t, map[string]domain.Profile{
-		domain.DefaultProfileName: profileWithSpec(domain.DefaultProfileName, "svc", nextSpec, runtime),
-	}, nil)
+	prevCatalog := domain.Catalog{
+		Specs:   map[string]domain.ServerSpec{"svc": prevSpec},
+		Runtime: runtime,
+	}
+	nextCatalog := domain.Catalog{
+		Specs:   map[string]domain.ServerSpec{"svc": nextSpec},
+		Runtime: runtime,
+	}
 
-	prevRuntime := &profileRuntime{
-		name:     domain.DefaultProfileName,
-		specKeys: collectSpecKeys(prevState.Summary.Profiles[domain.DefaultProfileName].SpecKeys),
-		active:   true,
-	}
-	profiles := map[string]*profileRuntime{
-		domain.DefaultProfileName: prevRuntime,
-	}
+	prevState := newCatalogState(t, prevCatalog)
+	nextState := newCatalogState(t, nextCatalog)
+
+	prevSpecKey, err := domain.SpecFingerprint(prevSpec)
+	require.NoError(t, err)
+	nextSpecKey, err := domain.SpecFingerprint(nextSpec)
+	require.NoError(t, err)
+	require.NotEqual(t, prevSpecKey, nextSpecKey)
 
 	scheduler := &schedulerStub{}
 	initManager := NewServerInitializationManager(scheduler, &prevState, zap.NewNop())
-	state := newControlPlaneState(context.Background(), profiles, scheduler, initManager, nil, &prevState, zap.NewNop())
-	registry := newCallerRegistry(state)
-	registry.activeCallers["caller-1"] = callerState{
-		pid:           1,
-		profile:       domain.DefaultProfileName,
-		lastHeartbeat: time.Now(),
+	runtimeState := &runtimeState{
+		specKeys: copySpecKeyMap(prevState.Summary.ServerSpecKeys),
 	}
+	state := newControlPlaneState(context.Background(), runtimeState, scheduler, initManager, nil, &prevState, zap.NewNop())
+	registry := newClientRegistry(state)
+
+	_, err = registry.RegisterClient(context.Background(), "client-1", 1, nil)
+	require.NoError(t, err)
+	scheduler.minReadyCalls = nil
 
 	manager := NewReloadManager(nil, state, registry, scheduler, initManager, nil, nil, nil, nil, zap.NewNop())
 	update := domain.CatalogUpdate{
@@ -59,49 +63,45 @@ func TestReloadManager_ApplyUpdate_UpdatesRuntimeAndRegistry(t *testing.T) {
 	require.Equal(t, update.Diff, scheduler.lastDiff)
 	require.Equal(t, nextState.Summary.SpecRegistry, scheduler.lastRegistry)
 
-	updatedRuntime, ok := state.Profile(domain.DefaultProfileName)
-	require.True(t, ok)
-	require.Same(t, prevRuntime, updatedRuntime)
-	require.Equal(t, collectSpecKeys(nextState.Summary.Profiles[domain.DefaultProfileName].SpecKeys), updatedRuntime.SpecKeys())
-
-	require.Equal(t, 1, registry.profileCounts[domain.DefaultProfileName])
-	specKey := collectSpecKeys(nextState.Summary.Profiles[domain.DefaultProfileName].SpecKeys)[0]
-	require.Equal(t, 1, registry.specCounts[specKey])
-	require.Len(t, scheduler.minReadyCalls, 1)
-	require.Equal(t, reloadMinReadyCall{specKey: specKey, minReady: 2}, scheduler.minReadyCalls[0])
+	require.Contains(t, scheduler.minReadyCalls, reloadMinReadyCall{specKey: nextSpecKey, minReady: 2})
+	require.Equal(t, 1, registry.specCounts[nextSpecKey])
 }
 
-func TestReloadManager_ApplyUpdate_RemovesProfile(t *testing.T) {
-	runtime := domain.RuntimeConfig{}
-	defaultSpec := serverSpec("default", []string{"run"}, 1)
-	extraSpec := serverSpec("extra", []string{"run", "extra"}, 1)
+func TestReloadManager_ApplyUpdate_RemovesServer(t *testing.T) {
+	prevSpec := serverSpec("default", []string{"run"}, 1)
+	removedSpec := serverSpec("extra", []string{"run", "extra"}, 1)
 
-	prevState := newCatalogState(t, map[string]domain.Profile{
-		domain.DefaultProfileName: profileWithSpec(domain.DefaultProfileName, "default", defaultSpec, runtime),
-		"extra":                   profileWithSpec("extra", "extra", extraSpec, runtime),
-	}, nil)
-	nextState := newCatalogState(t, map[string]domain.Profile{
-		domain.DefaultProfileName: profileWithSpec(domain.DefaultProfileName, "default", defaultSpec, runtime),
-	}, nil)
+	prevCatalog := domain.Catalog{
+		Specs: map[string]domain.ServerSpec{
+			"default": prevSpec,
+			"extra":   removedSpec,
+		},
+		Runtime: domain.RuntimeConfig{},
+	}
+	nextCatalog := domain.Catalog{
+		Specs: map[string]domain.ServerSpec{
+			"default": prevSpec,
+		},
+		Runtime: domain.RuntimeConfig{},
+	}
 
-	removedRuntime := &profileRuntime{
-		name:     "extra",
-		specKeys: collectSpecKeys(prevState.Summary.Profiles["extra"].SpecKeys),
-		active:   true,
-	}
-	defaultRuntime := &profileRuntime{
-		name:     domain.DefaultProfileName,
-		specKeys: collectSpecKeys(prevState.Summary.Profiles[domain.DefaultProfileName].SpecKeys),
-		active:   true,
-	}
-	profiles := map[string]*profileRuntime{
-		domain.DefaultProfileName: defaultRuntime,
-		"extra":                   removedRuntime,
-	}
+	prevState := newCatalogState(t, prevCatalog)
+	nextState := newCatalogState(t, nextCatalog)
+
+	removedSpecKey, err := domain.SpecFingerprint(removedSpec)
+	require.NoError(t, err)
 
 	scheduler := &schedulerStub{}
-	state := newControlPlaneState(context.Background(), profiles, scheduler, nil, nil, &prevState, zap.NewNop())
-	registry := newCallerRegistry(state)
+	runtimeState := &runtimeState{
+		specKeys: copySpecKeyMap(prevState.Summary.ServerSpecKeys),
+	}
+	state := newControlPlaneState(context.Background(), runtimeState, scheduler, nil, nil, &prevState, zap.NewNop())
+	registry := newClientRegistry(state)
+
+	_, err = registry.RegisterClient(context.Background(), "client-1", 1, nil)
+	require.NoError(t, err)
+	scheduler.stopCalls = nil
+
 	manager := NewReloadManager(nil, state, registry, scheduler, nil, nil, nil, nil, nil, zap.NewNop())
 	update := domain.CatalogUpdate{
 		Snapshot: nextState,
@@ -110,10 +110,7 @@ func TestReloadManager_ApplyUpdate_RemovesProfile(t *testing.T) {
 	}
 
 	require.NoError(t, manager.applyUpdate(context.Background(), update))
-
-	_, ok := state.Profile("extra")
-	require.False(t, ok)
-	require.False(t, removedRuntime.active)
+	require.Contains(t, scheduler.stopCalls, removedSpecKey)
 	require.Equal(t, 1, scheduler.applyCalls)
 }
 
@@ -184,28 +181,12 @@ func copySpecRegistry(registry map[string]domain.ServerSpec) map[string]domain.S
 	return clone
 }
 
-func newCatalogState(t *testing.T, profiles map[string]domain.Profile, callers map[string]string) domain.CatalogState {
+func newCatalogState(t *testing.T, catalog domain.Catalog) domain.CatalogState {
 	t.Helper()
 
-	store := domain.ProfileStore{
-		Profiles: profiles,
-		Callers:  callers,
-	}
-	state, err := domain.NewCatalogState(store, 0, time.Time{})
+	state, err := domain.NewCatalogState(catalog, 0, time.Time{})
 	require.NoError(t, err)
 	return state
-}
-
-func profileWithSpec(profileName string, serverType string, spec domain.ServerSpec, runtime domain.RuntimeConfig) domain.Profile {
-	return domain.Profile{
-		Name: profileName,
-		Catalog: domain.Catalog{
-			Specs: map[string]domain.ServerSpec{
-				serverType: spec,
-			},
-			Runtime: runtime,
-		},
-	}
 }
 
 func serverSpec(name string, cmd []string, minReady int) domain.ServerSpec {

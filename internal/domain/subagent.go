@@ -9,6 +9,7 @@ import (
 // SubAgentConfig contains configuration for the automatic SubAgent LLM provider.
 // This is configured at the runtime level (shared across all profiles).
 type SubAgentConfig struct {
+	EnabledTags       []string `json:"enabledTags,omitempty"`
 	Model              string `json:"model"`        // e.g., "gpt-4"
 	Provider           string `json:"provider"`     // e.g., "openai"
 	APIKey             string `json:"apiKey"`       // optional inline API key
@@ -16,12 +17,6 @@ type SubAgentConfig struct {
 	BaseURL            string `json:"baseURL"`      // e.g., "https://api.openai.com/v1" (optional)
 	MaxToolsPerRequest int    `json:"maxToolsPerRequest"`
 	FilterPrompt       string `json:"filterPrompt"` // optional custom prompt
-}
-
-// ProfileSubAgentConfig contains per-profile SubAgent settings.
-// This is configured at the profile level.
-type ProfileSubAgentConfig struct {
-	Enabled bool `json:"enabled"` // Whether SubAgent is enabled for this profile
 }
 
 // AutomaticMCPResult is returned by automatic_mcp.
@@ -47,14 +42,14 @@ type AutomaticEvalParams struct {
 }
 
 // AutomaticMCPSessionKey returns the cache key for automatic_mcp deduplication.
-func AutomaticMCPSessionKey(callerID, sessionID string) string {
+func AutomaticMCPSessionKey(clientID, sessionID string) string {
 	if sessionID != "" {
 		return sessionID
 	}
-	return callerID
+	return clientID
 }
 
-// SessionCacheEntry tracks what has been sent to a caller.
+// SessionCacheEntry tracks what has been sent to a client.
 type SessionCacheEntry struct {
 	SessionKey   string
 	SentSchemas  map[string]string // toolName -> schemaHash
@@ -64,12 +59,12 @@ type SessionCacheEntry struct {
 
 // SubAgent interface for tool filtering and proxying.
 type SubAgent interface {
-	// SelectToolsForCaller filters tools based on the query using LLM reasoning
+	// SelectToolsForClient filters tools based on the query using LLM reasoning
 	// and applies deduplication based on session cache.
-	SelectToolsForCaller(ctx context.Context, callerID string, params AutomaticMCPParams) (AutomaticMCPResult, error)
+	SelectToolsForClient(ctx context.Context, clientID string, params AutomaticMCPParams) (AutomaticMCPResult, error)
 
-	// InvalidateSession clears the session cache for a caller (e.g., on context compression).
-	InvalidateSession(callerID string)
+	// InvalidateSession clears the session cache for a client (e.g., on context compression).
+	InvalidateSession(clientID string)
 
 	// Close shuts down the SubAgent and releases resources.
 	Close() error

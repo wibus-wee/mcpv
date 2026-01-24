@@ -17,34 +17,18 @@ func TestDiffCatalogStates_SpecChanges(t *testing.T) {
 	specBUpdated := ServerSpec{Name: "b", Cmd: []string{"echo", "b"}, MinReady: 2}
 	specAReplaced := ServerSpec{Name: "a", Cmd: []string{"echo", "a", "v2"}}
 
-	prevStore := ProfileStore{
-		Profiles: map[string]Profile{
-			DefaultProfileName: {
-				Name: DefaultProfileName,
-				Catalog: Catalog{
-					Specs:   map[string]ServerSpec{"alpha": specA, "beta": specB},
-					Runtime: baseRuntime,
-				},
-			},
-		},
-		Callers: map[string]string{"caller": DefaultProfileName},
+	prevCatalog := Catalog{
+		Specs:   map[string]ServerSpec{"alpha": specA, "beta": specB},
+		Runtime: baseRuntime,
 	}
-	nextStore := ProfileStore{
-		Profiles: map[string]Profile{
-			DefaultProfileName: {
-				Name: DefaultProfileName,
-				Catalog: Catalog{
-					Specs:   map[string]ServerSpec{"alpha": specAReplaced, "beta": specBUpdated},
-					Runtime: baseRuntime,
-				},
-			},
-		},
-		Callers: map[string]string{"caller": "default", "new": "default"},
+	nextCatalog := Catalog{
+		Specs:   map[string]ServerSpec{"alpha": specAReplaced, "beta": specBUpdated},
+		Runtime: baseRuntime,
 	}
 
-	prevState, err := NewCatalogState(prevStore, 1, time.Now())
+	prevState, err := NewCatalogState(prevCatalog, 1, time.Now())
 	require.NoError(t, err)
-	nextState, err := NewCatalogState(nextStore, 2, time.Now())
+	nextState, err := NewCatalogState(nextCatalog, 2, time.Now())
 	require.NoError(t, err)
 
 	diff := DiffCatalogStates(prevState, nextState)
@@ -60,5 +44,6 @@ func TestDiffCatalogStates_SpecChanges(t *testing.T) {
 	require.Contains(t, diff.AddedSpecKeys, newKeyA)
 	require.Contains(t, diff.ReplacedSpecKeys, oldKeyA)
 	require.Contains(t, diff.UpdatedSpecKeys, keyB)
-	require.True(t, diff.CallersChanged)
+	require.False(t, diff.TagsChanged)
+	require.False(t, diff.RuntimeChanged)
 }

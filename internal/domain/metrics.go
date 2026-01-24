@@ -39,8 +39,7 @@ const (
 // RouteMetric captures metrics for a routed request.
 type RouteMetric struct {
 	ServerType string
-	Caller     string
-	Profile    string
+	Client     string
 	Status     RouteStatus
 	Reason     RouteReason
 	Duration   time.Duration

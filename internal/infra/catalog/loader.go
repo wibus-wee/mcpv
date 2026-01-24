@@ -34,8 +34,8 @@ func setRuntimeDefaults(v *viper.Viper) {
 	v.SetDefault("pingIntervalSeconds", domain.DefaultPingIntervalSeconds)
 	v.SetDefault("toolRefreshSeconds", domain.DefaultToolRefreshSeconds)
 	v.SetDefault("toolRefreshConcurrency", domain.DefaultToolRefreshConcurrency)
-	v.SetDefault("callerCheckSeconds", domain.DefaultCallerCheckSeconds)
-	v.SetDefault("callerInactiveSeconds", domain.DefaultCallerInactiveSeconds)
+	v.SetDefault("clientCheckSeconds", domain.DefaultClientCheckSeconds)
+	v.SetDefault("clientInactiveSeconds", domain.DefaultClientInactiveSeconds)
 	v.SetDefault("serverInitRetryBaseSeconds", domain.DefaultServerInitRetryBaseSeconds)
 	v.SetDefault("serverInitRetryMaxSeconds", domain.DefaultServerInitRetryMaxSeconds)
 	v.SetDefault("serverInitMaxRetries", domain.DefaultServerInitMaxRetries)
@@ -56,7 +56,6 @@ func setRuntimeDefaults(v *viper.Viper) {
 
 type rawCatalog struct {
 	Servers          []rawServerSpec          `mapstructure:"servers"`
-	SubAgent         rawProfileSubAgentConfig `mapstructure:"subAgent"`
 	rawRuntimeConfig `mapstructure:",squash"`
 }
 
@@ -66,6 +65,7 @@ type rawServerSpec struct {
 	Cmd                 []string                `mapstructure:"cmd"`
 	Env                 map[string]string       `mapstructure:"env"`
 	Cwd                 string                  `mapstructure:"cwd"`
+	Tags                []string                `mapstructure:"tags"`
 	IdleSeconds         int                     `mapstructure:"idleSeconds"`
 	MaxConcurrent       int                     `mapstructure:"maxConcurrent"`
 	Strategy            string                  `mapstructure:"strategy"`
@@ -85,17 +85,13 @@ type rawStreamableHTTPConfig struct {
 	MaxRetries *int              `mapstructure:"maxRetries"`
 }
 
-type rawProfileSubAgentConfig struct {
-	Enabled bool `mapstructure:"enabled"`
-}
-
 type rawRuntimeConfig struct {
 	RouteTimeoutSeconds        int                    `mapstructure:"routeTimeoutSeconds"`
 	PingIntervalSeconds        int                    `mapstructure:"pingIntervalSeconds"`
 	ToolRefreshSeconds         int                    `mapstructure:"toolRefreshSeconds"`
 	ToolRefreshConcurrency     int                    `mapstructure:"toolRefreshConcurrency"`
-	CallerCheckSeconds         int                    `mapstructure:"callerCheckSeconds"`
-	CallerInactiveSeconds      int                    `mapstructure:"callerInactiveSeconds"`
+	ClientCheckSeconds         int                    `mapstructure:"clientCheckSeconds"`
+	ClientInactiveSeconds      int                    `mapstructure:"clientInactiveSeconds"`
 	ServerInitRetryBaseSeconds int                    `mapstructure:"serverInitRetryBaseSeconds"`
 	ServerInitRetryMaxSeconds  int                    `mapstructure:"serverInitRetryMaxSeconds"`
 	ServerInitMaxRetries       int                    `mapstructure:"serverInitMaxRetries"`
@@ -111,6 +107,7 @@ type rawRuntimeConfig struct {
 }
 
 type rawSubAgentConfig struct {
+	EnabledTags       []string `mapstructure:"enabledTags"`
 	Model              string `mapstructure:"model"`
 	Provider           string `mapstructure:"provider"`
 	APIKey             string `mapstructure:"apiKey"`
@@ -251,9 +248,8 @@ func (l *Loader) Load(ctx context.Context, path string) (domain.Catalog, error) 
 	}
 
 	return domain.Catalog{
-		Specs:    specs,
-		Runtime:  runtime,
-		SubAgent: domain.ProfileSubAgentConfig{Enabled: cfg.SubAgent.Enabled},
+		Specs:   specs,
+		Runtime: runtime,
 	}, nil
 }
 
@@ -291,6 +287,7 @@ func normalizeServerSpec(raw rawServerSpec) (domain.ServerSpec, bool) {
 		Cmd:                 raw.Cmd,
 		Env:                 raw.Env,
 		Cwd:                 raw.Cwd,
+		Tags:                normalizeTags(raw.Tags),
 		IdleSeconds:         raw.IdleSeconds,
 		MaxConcurrent:       raw.MaxConcurrent,
 		Strategy:            strategy,
@@ -367,6 +364,32 @@ func normalizeHTTPHeaders(headers map[string]string) map[string]string {
 	if len(normalized) == 0 {
 		return nil
 	}
+	return normalized
+}
+
+func normalizeTags(tags []string) []string {
+	if len(tags) == 0 {
+		return nil
+	}
+
+	unique := make(map[string]struct{}, len(tags))
+	for _, tag := range tags {
+		tag = strings.ToLower(strings.TrimSpace(tag))
+		if tag == "" {
+			continue
+		}
+		unique[tag] = struct{}{}
+	}
+
+	if len(unique) == 0 {
+		return nil
+	}
+
+	normalized := make([]string, 0, len(unique))
+	for tag := range unique {
+		normalized = append(normalized, tag)
+	}
+	sort.Strings(normalized)
 	return normalized
 }
 
@@ -524,14 +547,14 @@ func normalizeRuntimeConfig(cfg rawRuntimeConfig) (domain.RuntimeConfig, []strin
 		refreshConcurrency = domain.DefaultToolRefreshConcurrency
 	}
 
-	callerCheck := cfg.CallerCheckSeconds
-	if callerCheck <= 0 {
-		errs = append(errs, "callerCheckSeconds must be > 0")
+	clientCheck := cfg.ClientCheckSeconds
+	if clientCheck <= 0 {
+		errs = append(errs, "clientCheckSeconds must be > 0")
 	}
 
-	callerInactive := cfg.CallerInactiveSeconds
-	if callerInactive <= 0 {
-		errs = append(errs, "callerInactiveSeconds must be > 0")
+	clientInactive := cfg.ClientInactiveSeconds
+	if clientInactive <= 0 {
+		errs = append(errs, "clientInactiveSeconds must be > 0")
 	}
 
 	serverInitRetryBase := cfg.ServerInitRetryBaseSeconds
@@ -589,13 +612,14 @@ func normalizeRuntimeConfig(cfg rawRuntimeConfig) (domain.RuntimeConfig, []strin
 	rpcCfg, rpcErrs := normalizeRPCConfig(cfg.RPC)
 	errs = append(errs, rpcErrs...)
 
+	enabledTags := normalizeTags(cfg.SubAgent.EnabledTags)
 	return domain.RuntimeConfig{
 		RouteTimeoutSeconds:        routeTimeout,
 		PingIntervalSeconds:        pingInterval,
 		ToolRefreshSeconds:         toolRefresh,
 		ToolRefreshConcurrency:     refreshConcurrency,
-		CallerCheckSeconds:         callerCheck,
-		CallerInactiveSeconds:      callerInactive,
+		ClientCheckSeconds:         clientCheck,
+		ClientInactiveSeconds:      clientInactive,
 		ServerInitRetryBaseSeconds: serverInitRetryBase,
 		ServerInitRetryMaxSeconds:  serverInitRetryMax,
 		ServerInitMaxRetries:       serverInitMaxRetries,
@@ -608,6 +632,7 @@ func normalizeRuntimeConfig(cfg rawRuntimeConfig) (domain.RuntimeConfig, []strin
 		Observability:              observabilityCfg,
 		RPC:                        rpcCfg,
 		SubAgent: domain.SubAgentConfig{
+			EnabledTags:       enabledTags,
 			Model:              cfg.SubAgent.Model,
 			Provider:           cfg.SubAgent.Provider,
 			APIKey:             cfg.SubAgent.APIKey,

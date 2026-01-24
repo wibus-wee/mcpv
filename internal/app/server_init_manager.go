@@ -46,7 +46,7 @@ func NewServerInitializationManager(
 
 	summary := state.Summary
 	specs := summary.SpecRegistry
-	runtime := summary.DefaultRuntime
+	runtime := summary.Runtime
 
 	retryBase, retryMax, maxRetries := resolveServerInitRetry(runtime)
 
@@ -69,7 +69,7 @@ func NewServerInitializationManager(
 func (m *ServerInitializationManager) ApplyCatalogState(state *domain.CatalogState) {
 	summary := state.Summary
 	specs := summary.SpecRegistry
-	runtime := summary.DefaultRuntime
+	runtime := summary.Runtime
 	retryBase, retryMax, maxRetries := resolveServerInitRetry(runtime)
 
 	var added []string

@@ -78,7 +78,6 @@ func NewApplication(
 func (a *Application) Run() error {
 	a.logger.Info("configuration loaded",
 		zap.String("config", a.configPath),
-		zap.Int("profiles", len(a.summary.Profiles)),
 		zap.Int("servers", a.summary.TotalServers),
 	)
 
@@ -100,20 +99,20 @@ func (a *Application) Run() error {
 		}
 	}
 
-	if a.summary.DefaultRuntime.SubAgent.Model != "" && a.summary.DefaultRuntime.SubAgent.Provider != "" {
-		subAgent, err := initializeSubAgent(a.ctx, a.summary.DefaultRuntime.SubAgent, a.controlPlane, a.metrics, a.logger)
+	if a.summary.Runtime.SubAgent.Model != "" && a.summary.Runtime.SubAgent.Provider != "" {
+		subAgent, err := initializeSubAgent(a.ctx, a.summary.Runtime.SubAgent, a.controlPlane, a.metrics, a.logger)
 		if err != nil {
 			a.logger.Warn("failed to initialize SubAgent", zap.Error(err))
 		} else {
 			a.controlPlane.SetSubAgent(subAgent)
 			a.logger.Info("SubAgent initialized",
-				zap.String("provider", a.summary.DefaultRuntime.SubAgent.Provider),
-				zap.String("model", a.summary.DefaultRuntime.SubAgent.Model),
+				zap.String("provider", a.summary.Runtime.SubAgent.Provider),
+				zap.String("model", a.summary.Runtime.SubAgent.Model),
 			)
 		}
 	}
 
-	a.controlPlane.StartCallerMonitor(a.ctx)
+	a.controlPlane.StartClientMonitor(a.ctx)
 
 	metricsEnabled := envBool("MCPD_METRICS_ENABLED")
 	healthzEnabled := envBool("MCPD_HEALTHZ_ENABLED")
@@ -127,7 +126,7 @@ func (a *Application) Run() error {
 	}
 	if metricsEnabled || healthzEnabled {
 		go func() {
-			addr := a.summary.DefaultRuntime.Observability.ListenAddress
+			addr := a.summary.Runtime.Observability.ListenAddress
 			a.logger.Info("starting observability server", zap.String("addr", addr))
 			if err := telemetry.StartHTTPServer(a.ctx, telemetry.HTTPServerOptions{
 				Addr:          addr,
@@ -142,12 +141,12 @@ func (a *Application) Run() error {
 	}
 
 	a.scheduler.StartIdleManager(defaultIdleManagerInterval)
-	if a.summary.MinPingInterval > 0 {
-		a.scheduler.StartPingManager(time.Duration(a.summary.MinPingInterval) * time.Second)
+	if a.summary.Runtime.PingIntervalSeconds > 0 {
+		a.scheduler.StartPingManager(time.Duration(a.summary.Runtime.PingIntervalSeconds) * time.Second)
 	}
 	defer func() {
 		if a.state != nil {
-			for _, runtime := range a.state.Profiles() {
+			if runtime := a.state.RuntimeState(); runtime != nil {
 				runtime.Deactivate()
 			}
 		}

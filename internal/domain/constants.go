@@ -17,10 +17,10 @@ const (
 	DefaultToolRefreshConcurrency = 4
 	// DefaultRefreshFailureThreshold is the default refresh failure threshold.
 	DefaultRefreshFailureThreshold = 3
-	// DefaultCallerCheckSeconds is the default caller check interval in seconds.
-	DefaultCallerCheckSeconds = 5
-	// DefaultCallerInactiveSeconds is the default caller inactive threshold in seconds.
-	DefaultCallerInactiveSeconds = 300
+	// DefaultClientCheckSeconds is the default client check interval in seconds.
+	DefaultClientCheckSeconds = 5
+	// DefaultClientInactiveSeconds is the default client inactive threshold in seconds.
+	DefaultClientInactiveSeconds = 300
 	// DefaultServerInitRetryBaseSeconds is the default server init retry base in seconds.
 	DefaultServerInitRetryBaseSeconds = 1
 	// DefaultServerInitRetryMaxSeconds is the default server init retry max in seconds.

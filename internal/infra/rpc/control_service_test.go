@@ -115,7 +115,7 @@ func TestControlService_ListTools(t *testing.T) {
 
 func TestControlService_RegisterCaller(t *testing.T) {
 	svc := NewControlService(&fakeControlPlane{
-		registerProfile: "default",
+		registerRegistration: domain.ClientRegistration{Client: "caller"},
 	}, nil)
 
 	resp, err := svc.RegisterCaller(context.Background(), &controlv1.RegisterCallerRequest{
@@ -123,12 +123,12 @@ func TestControlService_RegisterCaller(t *testing.T) {
 		Pid:    1234,
 	})
 	require.NoError(t, err)
-	require.Equal(t, "default", resp.Profile)
+	require.Equal(t, "caller", resp.Profile)
 }
 
 func TestControlService_ListToolsRequiresCaller(t *testing.T) {
 	svc := NewControlService(&fakeControlPlane{
-		listToolsErr: domain.ErrCallerNotRegistered,
+		listToolsErr: domain.ErrClientNotRegistered,
 	}, nil)
 
 	_, err := svc.ListTools(context.Background(), &controlv1.ListToolsRequest{Caller: "caller"})
@@ -137,54 +137,47 @@ func TestControlService_ListToolsRequiresCaller(t *testing.T) {
 }
 
 type fakeControlPlane struct {
-	snapshot        domain.ToolSnapshot
-	resourcePage    domain.ResourcePage
-	promptPage      domain.PromptPage
-	callToolErr     error
-	readResourceErr error
-	getPromptErr    error
-	listToolsErr    error
-	registerProfile string
-	registerErr     error
-	unregisterErr   error
+	snapshot             domain.ToolSnapshot
+	resourcePage         domain.ResourcePage
+	promptPage           domain.PromptPage
+	callToolErr          error
+	readResourceErr      error
+	getPromptErr         error
+	listToolsErr         error
+	registerRegistration domain.ClientRegistration
+	registerErr          error
+	unregisterErr        error
 }
 
 func (f *fakeControlPlane) Info(ctx context.Context) (domain.ControlPlaneInfo, error) {
 	return domain.ControlPlaneInfo{}, nil
 }
 
-func (f *fakeControlPlane) RegisterCaller(ctx context.Context, caller string, pid int) (string, error) {
+func (f *fakeControlPlane) RegisterClient(ctx context.Context, client string, pid int, tags []string) (domain.ClientRegistration, error) {
 	if f.registerErr != nil {
-		return "", f.registerErr
+		return domain.ClientRegistration{}, f.registerErr
 	}
-	if f.registerProfile == "" {
-		return "default", nil
+	if f.registerRegistration.Client == "" {
+		return domain.ClientRegistration{Client: client}, nil
 	}
-	return f.registerProfile, nil
+	return f.registerRegistration, nil
 }
 
-func (f *fakeControlPlane) UnregisterCaller(ctx context.Context, caller string) error {
+func (f *fakeControlPlane) UnregisterClient(ctx context.Context, client string) error {
 	return f.unregisterErr
 }
 
-func (f *fakeControlPlane) ListActiveCallers(ctx context.Context) ([]domain.ActiveCaller, error) {
+func (f *fakeControlPlane) ListActiveClients(ctx context.Context) ([]domain.ActiveClient, error) {
 	return nil, nil
 }
 
-func (f *fakeControlPlane) WatchActiveCallers(ctx context.Context) (<-chan domain.ActiveCallerSnapshot, error) {
-	ch := make(chan domain.ActiveCallerSnapshot)
+func (f *fakeControlPlane) WatchActiveClients(ctx context.Context) (<-chan domain.ActiveClientSnapshot, error) {
+	ch := make(chan domain.ActiveClientSnapshot)
 	close(ch)
 	return ch, nil
 }
 
-func (f *fakeControlPlane) ListTools(ctx context.Context, caller string) (domain.ToolSnapshot, error) {
-	if f.listToolsErr != nil {
-		return domain.ToolSnapshot{}, f.listToolsErr
-	}
-	return f.snapshot, nil
-}
-
-func (f *fakeControlPlane) ListToolsAllProfiles(ctx context.Context) (domain.ToolSnapshot, error) {
+func (f *fakeControlPlane) ListTools(ctx context.Context, client string) (domain.ToolSnapshot, error) {
 	if f.listToolsErr != nil {
 		return domain.ToolSnapshot{}, f.listToolsErr
 	}
@@ -198,85 +191,65 @@ func (f *fakeControlPlane) ListToolCatalog(ctx context.Context) (domain.ToolCata
 	return domain.ToolCatalogSnapshot{}, nil
 }
 
-func (f *fakeControlPlane) WatchTools(ctx context.Context, caller string) (<-chan domain.ToolSnapshot, error) {
+func (f *fakeControlPlane) WatchTools(ctx context.Context, client string) (<-chan domain.ToolSnapshot, error) {
 	ch := make(chan domain.ToolSnapshot)
 	close(ch)
 	return ch, nil
 }
 
-func (f *fakeControlPlane) CallTool(ctx context.Context, caller, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
+func (f *fakeControlPlane) CallTool(ctx context.Context, client, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
 	if f.callToolErr != nil {
 		return nil, f.callToolErr
 	}
 	return json.RawMessage(`{"content":[{"type":"text","text":"ok"}]}`), nil
 }
 
-func (f *fakeControlPlane) CallToolAllProfiles(ctx context.Context, name string, args json.RawMessage, routingKey, specKey string) (json.RawMessage, error) {
-	return f.CallTool(ctx, "", name, args, routingKey)
-}
-
-func (f *fakeControlPlane) ListResources(ctx context.Context, caller string, cursor string) (domain.ResourcePage, error) {
+func (f *fakeControlPlane) ListResources(ctx context.Context, client string, cursor string) (domain.ResourcePage, error) {
 	return f.resourcePage, nil
 }
 
-func (f *fakeControlPlane) ListResourcesAllProfiles(ctx context.Context, cursor string) (domain.ResourcePage, error) {
-	return f.resourcePage, nil
-}
-
-func (f *fakeControlPlane) WatchResources(ctx context.Context, caller string) (<-chan domain.ResourceSnapshot, error) {
+func (f *fakeControlPlane) WatchResources(ctx context.Context, client string) (<-chan domain.ResourceSnapshot, error) {
 	ch := make(chan domain.ResourceSnapshot)
 	close(ch)
 	return ch, nil
 }
 
-func (f *fakeControlPlane) ReadResource(ctx context.Context, caller, uri string) (json.RawMessage, error) {
+func (f *fakeControlPlane) ReadResource(ctx context.Context, client, uri string) (json.RawMessage, error) {
 	if f.readResourceErr != nil {
 		return nil, f.readResourceErr
 	}
 	return json.RawMessage(`{"contents":[{"uri":"file:///a","text":"ok"}]}`), nil
 }
 
-func (f *fakeControlPlane) ReadResourceAllProfiles(ctx context.Context, uri, specKey string) (json.RawMessage, error) {
-	return f.ReadResource(ctx, "", uri)
-}
-
-func (f *fakeControlPlane) ListPrompts(ctx context.Context, caller string, cursor string) (domain.PromptPage, error) {
+func (f *fakeControlPlane) ListPrompts(ctx context.Context, client string, cursor string) (domain.PromptPage, error) {
 	return f.promptPage, nil
 }
 
-func (f *fakeControlPlane) ListPromptsAllProfiles(ctx context.Context, cursor string) (domain.PromptPage, error) {
-	return f.promptPage, nil
-}
-
-func (f *fakeControlPlane) WatchPrompts(ctx context.Context, caller string) (<-chan domain.PromptSnapshot, error) {
+func (f *fakeControlPlane) WatchPrompts(ctx context.Context, client string) (<-chan domain.PromptSnapshot, error) {
 	ch := make(chan domain.PromptSnapshot)
 	close(ch)
 	return ch, nil
 }
 
-func (f *fakeControlPlane) GetPrompt(ctx context.Context, caller, name string, args json.RawMessage) (json.RawMessage, error) {
+func (f *fakeControlPlane) GetPrompt(ctx context.Context, client, name string, args json.RawMessage) (json.RawMessage, error) {
 	if f.getPromptErr != nil {
 		return nil, f.getPromptErr
 	}
 	return json.RawMessage(`{"messages":[{"role":"user","content":{"type":"text","text":"ok"}}]}`), nil
 }
 
-func (f *fakeControlPlane) GetPromptAllProfiles(ctx context.Context, name string, args json.RawMessage, specKey string) (json.RawMessage, error) {
-	return f.GetPrompt(ctx, "", name, args)
-}
-
-func (f *fakeControlPlane) StreamLogs(ctx context.Context, caller string, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
+func (f *fakeControlPlane) StreamLogs(ctx context.Context, client string, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
 	ch := make(chan domain.LogEntry)
 	close(ch)
 	return ch, nil
 }
 
-func (f *fakeControlPlane) StreamLogsAllProfiles(ctx context.Context, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
+func (f *fakeControlPlane) StreamLogsAllServers(ctx context.Context, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
 	return f.StreamLogs(ctx, "", minLevel)
 }
 
-func (f *fakeControlPlane) GetProfileStore() domain.ProfileStore {
-	return domain.ProfileStore{}
+func (f *fakeControlPlane) GetCatalog() domain.Catalog {
+	return domain.Catalog{}
 }
 
 func (f *fakeControlPlane) GetPoolStatus(ctx context.Context) ([]domain.PoolInfo, error) {
@@ -301,38 +274,38 @@ func (f *fakeControlPlane) RetryServerInit(ctx context.Context, specKey string) 
 	return nil
 }
 
-func (f *fakeControlPlane) WatchRuntimeStatus(ctx context.Context, caller string) (<-chan domain.RuntimeStatusSnapshot, error) {
+func (f *fakeControlPlane) WatchRuntimeStatus(ctx context.Context, client string) (<-chan domain.RuntimeStatusSnapshot, error) {
 	ch := make(chan domain.RuntimeStatusSnapshot)
 	close(ch)
 	return ch, nil
 }
 
-func (f *fakeControlPlane) WatchRuntimeStatusAllProfiles(ctx context.Context) (<-chan domain.RuntimeStatusSnapshot, error) {
+func (f *fakeControlPlane) WatchRuntimeStatusAllServers(ctx context.Context) (<-chan domain.RuntimeStatusSnapshot, error) {
 	return f.WatchRuntimeStatus(ctx, "")
 }
 
-func (f *fakeControlPlane) WatchServerInitStatus(ctx context.Context, caller string) (<-chan domain.ServerInitStatusSnapshot, error) {
+func (f *fakeControlPlane) WatchServerInitStatus(ctx context.Context, client string) (<-chan domain.ServerInitStatusSnapshot, error) {
 	ch := make(chan domain.ServerInitStatusSnapshot)
 	close(ch)
 	return ch, nil
 }
 
-func (f *fakeControlPlane) WatchServerInitStatusAllProfiles(ctx context.Context) (<-chan domain.ServerInitStatusSnapshot, error) {
+func (f *fakeControlPlane) WatchServerInitStatusAllServers(ctx context.Context) (<-chan domain.ServerInitStatusSnapshot, error) {
 	return f.WatchServerInitStatus(ctx, "")
 }
 
-func (f *fakeControlPlane) AutomaticMCP(ctx context.Context, caller string, params domain.AutomaticMCPParams) (domain.AutomaticMCPResult, error) {
+func (f *fakeControlPlane) AutomaticMCP(ctx context.Context, client string, params domain.AutomaticMCPParams) (domain.AutomaticMCPResult, error) {
 	return domain.AutomaticMCPResult{}, nil
 }
 
-func (f *fakeControlPlane) AutomaticEval(ctx context.Context, caller string, params domain.AutomaticEvalParams) (json.RawMessage, error) {
-	return f.CallTool(ctx, caller, params.ToolName, params.Arguments, params.RoutingKey)
+func (f *fakeControlPlane) AutomaticEval(ctx context.Context, client string, params domain.AutomaticEvalParams) (json.RawMessage, error) {
+	return f.CallTool(ctx, client, params.ToolName, params.Arguments, params.RoutingKey)
 }
 
 func (f *fakeControlPlane) IsSubAgentEnabled() bool {
 	return false
 }
 
-func (f *fakeControlPlane) IsSubAgentEnabledForCaller(caller string) bool {
+func (f *fakeControlPlane) IsSubAgentEnabledForClient(client string) bool {
 	return false
 }

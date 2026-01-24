@@ -33,7 +33,7 @@ func NewPrometheusMetrics(registerer prometheus.Registerer) *PrometheusMetrics {
 				Help:    "Duration of route requests in seconds",
 				Buckets: []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10},
 			},
-			[]string{"server_type", "caller", "profile", "status", "reason"},
+			[]string{"server_type", "client", "status", "reason"},
 		),
 		instanceStarts: factory.NewCounterVec(
 			prometheus.CounterOpts{
@@ -92,8 +92,7 @@ func NewPrometheusMetrics(registerer prometheus.Registerer) *PrometheusMetrics {
 func (p *PrometheusMetrics) ObserveRoute(metric domain.RouteMetric) {
 	p.routeDuration.WithLabelValues(
 		metric.ServerType,
-		metric.Caller,
-		metric.Profile,
+		metric.Client,
 		string(metric.Status),
 		string(metric.Reason),
 	).Observe(metric.Duration.Seconds())

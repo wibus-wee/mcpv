@@ -23,14 +23,12 @@ func NewStaticCatalogProvider(ctx context.Context, cfg ServeConfig, logger *zap.
 	if logger == nil {
 		logger = zap.NewNop()
 	}
-	loader := catalog.NewProfileStoreLoader(logger)
-	store, err := loader.Load(ctx, cfg.ConfigPath, catalog.ProfileStoreOptions{
-		AllowCreate: true,
-	})
+	loader := catalog.NewLoader(logger)
+	catalogData, err := loader.Load(ctx, cfg.ConfigPath)
 	if err != nil {
 		return nil, err
 	}
-	state, err := domain.NewCatalogState(store, 1, time.Now())
+	state, err := domain.NewCatalogState(catalogData, 1, time.Now())
 	if err != nil {
 		return nil, err
 	}

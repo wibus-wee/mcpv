@@ -105,8 +105,8 @@ func TestProfileStoreLoader_RuntimeOverrideFromStore(t *testing.T) {
 	runtime := `routeTimeoutSeconds: 15
 pingIntervalSeconds: 20
 toolRefreshSeconds: 45
-callerCheckSeconds: 7
-callerInactiveSeconds: 120
+clientCheckSeconds: 7
+clientInactiveSeconds: 120
 serverInitRetryBaseSeconds: 2
 serverInitRetryMaxSeconds: 10
 serverInitMaxRetries: 7
@@ -137,8 +137,8 @@ rpc:
 		require.Equal(t, 15, profile.Catalog.Runtime.RouteTimeoutSeconds, "profile %s", name)
 		require.Equal(t, 20, profile.Catalog.Runtime.PingIntervalSeconds, "profile %s", name)
 		require.Equal(t, 45, profile.Catalog.Runtime.ToolRefreshSeconds, "profile %s", name)
-		require.Equal(t, 7, profile.Catalog.Runtime.CallerCheckSeconds, "profile %s", name)
-		require.Equal(t, 120, profile.Catalog.Runtime.CallerInactiveSeconds, "profile %s", name)
+		require.Equal(t, 7, profile.Catalog.Runtime.ClientCheckSeconds, "profile %s", name)
+		require.Equal(t, 120, profile.Catalog.Runtime.ClientInactiveSeconds, "profile %s", name)
 		require.Equal(t, 2, profile.Catalog.Runtime.ServerInitRetryBaseSeconds, "profile %s", name)
 		require.Equal(t, 10, profile.Catalog.Runtime.ServerInitRetryMaxSeconds, "profile %s", name)
 		require.Equal(t, 7, profile.Catalog.Runtime.ServerInitMaxRetries, "profile %s", name)

@@ -100,7 +100,7 @@ func NewBootstrapManagerProvider(
 	logger *zap.Logger,
 ) *BootstrapManager {
 	summary := state.Summary
-	runtime := summary.DefaultRuntime
+	runtime := summary.Runtime
 
 	mode := runtime.BootstrapMode
 	if mode == "" {
@@ -120,19 +120,11 @@ func NewBootstrapManagerProvider(
 		timeout = time.Duration(domain.DefaultBootstrapTimeoutSeconds) * time.Second
 	}
 
-	// Collect all specKeys from all profiles
-	allSpecKeys := make(map[string]string)
-	for _, profile := range summary.Profiles {
-		for k, v := range profile.SpecKeys {
-			allSpecKeys[k] = v
-		}
-	}
-
 	return NewBootstrapManager(BootstrapManagerOptions{
 		Scheduler:   scheduler,
 		Lifecycle:   lifecycle,
 		Specs:       summary.SpecRegistry,
-		SpecKeys:    allSpecKeys,
+		SpecKeys:    summary.ServerSpecKeys,
 		Runtime:     runtime,
 		Cache:       cache,
 		Logger:      logger,
@@ -142,8 +134,8 @@ func NewBootstrapManagerProvider(
 	})
 }
 
-// NewProfileRuntimes constructs runtime state for profiles.
-func NewProfileRuntimes(
+// NewRuntimeState constructs runtime state for the catalog.
+func NewRuntimeState(
 	state *domain.CatalogState,
 	scheduler domain.Scheduler,
 	metrics domain.Metrics,
@@ -151,42 +143,34 @@ func NewProfileRuntimes(
 	metadataCache *domain.MetadataCache,
 	listChanges *notifications.ListChangeHub,
 	logger *zap.Logger,
-) map[string]*profileRuntime {
-	summary := state.Summary
-	profiles := make(map[string]*profileRuntime, len(summary.Profiles))
-	for name, cfg := range summary.Profiles {
-		profiles[name] = buildProfileRuntime(name, cfg, scheduler, metrics, health, metadataCache, listChanges, logger)
-	}
-	return profiles
+) *runtimeState {
+	return buildRuntimeState(state, scheduler, metrics, health, metadataCache, listChanges, logger)
 }
 
 // NewControlPlaneState constructs a control plane state container.
 func NewControlPlaneState(
 	ctx context.Context,
-	profiles map[string]*profileRuntime,
+	runtime *runtimeState,
 	state *domain.CatalogState,
 	scheduler domain.Scheduler,
 	initManager *ServerInitializationManager,
 	bootstrapManager *BootstrapManager,
 	logger *zap.Logger,
 ) *controlPlaneState {
-	controlState := newControlPlaneState(ctx, profiles, scheduler, initManager, bootstrapManager, state, logger)
+	controlState := newControlPlaneState(ctx, runtime, scheduler, initManager, bootstrapManager, state, logger)
 
-	// Configure bootstrap waiters for all profile indexes
-	if bootstrapManager != nil {
+	if bootstrapManager != nil && runtime != nil {
 		waiter := func(ctx context.Context) error {
 			return bootstrapManager.WaitForCompletion(ctx)
 		}
-		for _, profile := range profiles {
-			if profile.tools != nil {
-				profile.tools.SetBootstrapWaiter(waiter)
-			}
-			if profile.resources != nil {
-				profile.resources.SetBootstrapWaiter(waiter)
-			}
-			if profile.prompts != nil {
-				profile.prompts.SetBootstrapWaiter(waiter)
-			}
+		if runtime.tools != nil {
+			runtime.tools.SetBootstrapWaiter(waiter)
+		}
+		if runtime.resources != nil {
+			runtime.resources.SetBootstrapWaiter(waiter)
+		}
+		if runtime.prompts != nil {
+			runtime.prompts.SetBootstrapWaiter(waiter)
 		}
 	}
 
@@ -195,34 +179,35 @@ func NewControlPlaneState(
 
 // NewRPCServer constructs the RPC server.
 func NewRPCServer(control domain.ControlPlane, state *domain.CatalogState, logger *zap.Logger) *rpc.Server {
-	return rpc.NewServer(control, state.Summary.DefaultRuntime.RPC, logger)
+	return rpc.NewServer(control, state.Summary.Runtime.RPC, logger)
 }
 
-func buildProfileRuntime(
-	name string,
-	cfg domain.CatalogProfile,
+func buildRuntimeState(
+	state *domain.CatalogState,
 	scheduler domain.Scheduler,
 	metrics domain.Metrics,
 	health *telemetry.HealthTracker,
 	metadataCache *domain.MetadataCache,
 	listChanges *notifications.ListChangeHub,
 	logger *zap.Logger,
-) *profileRuntime {
-	profileLogger := logger.With(zap.String("profile", name))
+) *runtimeState {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
 	refreshGate := aggregator.NewRefreshGate()
 	baseRouter := router.NewBasicRouter(scheduler, router.RouterOptions{
-		Timeout: time.Duration(cfg.Profile.Catalog.Runtime.RouteTimeoutSeconds) * time.Second,
-		Logger:  profileLogger,
+		Timeout: time.Duration(state.Summary.Runtime.RouteTimeoutSeconds) * time.Second,
+		Logger:  logger,
 	})
 	rt := router.NewMetricRouter(baseRouter, metrics)
-	toolIndex := aggregator.NewToolIndex(rt, cfg.Profile.Catalog.Specs, cfg.SpecKeys, cfg.Profile.Catalog.Runtime, metadataCache, profileLogger, health, refreshGate, listChanges)
-	resourceIndex := aggregator.NewResourceIndex(rt, cfg.Profile.Catalog.Specs, cfg.SpecKeys, cfg.Profile.Catalog.Runtime, metadataCache, profileLogger, health, refreshGate, listChanges)
-	promptIndex := aggregator.NewPromptIndex(rt, cfg.Profile.Catalog.Specs, cfg.SpecKeys, cfg.Profile.Catalog.Runtime, metadataCache, profileLogger, health, refreshGate, listChanges)
-	return &profileRuntime{
-		name:      name,
-		specKeys:  collectSpecKeys(cfg.SpecKeys),
-		tools:     toolIndex,
-		resources: resourceIndex,
-		prompts:   promptIndex,
+	toolIndex := aggregator.NewToolIndex(rt, state.Catalog.Specs, state.Summary.ServerSpecKeys, state.Summary.Runtime, metadataCache, logger, health, refreshGate, listChanges)
+	resourceIndex := aggregator.NewResourceIndex(rt, state.Catalog.Specs, state.Summary.ServerSpecKeys, state.Summary.Runtime, metadataCache, logger, health, refreshGate, listChanges)
+	promptIndex := aggregator.NewPromptIndex(rt, state.Catalog.Specs, state.Summary.ServerSpecKeys, state.Summary.Runtime, metadataCache, logger, health, refreshGate, listChanges)
+	return &runtimeState{
+		specKeys:      copySpecKeyMap(state.Summary.ServerSpecKeys),
+		metadataCache: metadataCache,
+		tools:         toolIndex,
+		resources:     resourceIndex,
+		prompts:       promptIndex,
 	}
 }

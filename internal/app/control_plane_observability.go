@@ -2,6 +2,10 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"sort"
 	"time"
 
 	"go.uber.org/zap"
@@ -18,14 +22,14 @@ const (
 
 type observabilityService struct {
 	state    *controlPlaneState
-	registry *callerRegistry
+	registry *clientRegistry
 	logs     *telemetry.LogBroadcaster
 
 	runtimeStatusIdx *aggregator.RuntimeStatusIndex
 	serverInitIdx    *aggregator.ServerInitIndex
 }
 
-func newObservabilityService(state *controlPlaneState, registry *callerRegistry, logs *telemetry.LogBroadcaster) *observabilityService {
+func newObservabilityService(state *controlPlaneState, registry *clientRegistry, logs *telemetry.LogBroadcaster) *observabilityService {
 	return &observabilityService{
 		state:    state,
 		registry: registry,
@@ -34,15 +38,15 @@ func newObservabilityService(state *controlPlaneState, registry *callerRegistry,
 }
 
 // StreamLogs streams logs for a caller.
-func (o *observabilityService) StreamLogs(ctx context.Context, caller string, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
-	if _, err := o.registry.resolveProfile(caller); err != nil {
+func (o *observabilityService) StreamLogs(ctx context.Context, client string, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
+	if _, err := o.registry.resolveClientTags(client); err != nil {
 		return closedLogEntryChannel(), err
 	}
 	return o.streamLogs(ctx, minLevel)
 }
 
-// StreamLogsAllProfiles streams logs across all profiles.
-func (o *observabilityService) StreamLogsAllProfiles(ctx context.Context, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
+// StreamLogsAllServers streams logs across all servers.
+func (o *observabilityService) StreamLogsAllServers(ctx context.Context, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
 	return o.streamLogs(ctx, minLevel)
 }
 
@@ -98,18 +102,49 @@ func (o *observabilityService) GetServerInitStatus(ctx context.Context) ([]domai
 }
 
 // WatchRuntimeStatus streams runtime status for a caller.
-func (o *observabilityService) WatchRuntimeStatus(ctx context.Context, caller string) (<-chan domain.RuntimeStatusSnapshot, error) {
-	if _, err := o.registry.resolveProfile(caller); err != nil {
+func (o *observabilityService) WatchRuntimeStatus(ctx context.Context, client string) (<-chan domain.RuntimeStatusSnapshot, error) {
+	if _, err := o.registry.resolveClientTags(client); err != nil {
 		return closedRuntimeStatusChannel(), err
 	}
 	if o.runtimeStatusIdx == nil {
 		return closedRuntimeStatusChannel(), nil
 	}
-	return o.runtimeStatusIdx.Subscribe(ctx), nil
+
+	output := make(chan domain.RuntimeStatusSnapshot, 1)
+	updates := o.runtimeStatusIdx.Subscribe(ctx)
+	changes := o.registry.WatchClientChanges(ctx)
+
+	go func() {
+		defer close(output)
+		var last domain.RuntimeStatusSnapshot
+		last = o.runtimeStatusIdx.Current()
+		o.sendFilteredRuntimeStatus(output, client, last)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case snapshot, ok := <-updates:
+				if !ok {
+					return
+				}
+				last = snapshot
+				o.sendFilteredRuntimeStatus(output, client, snapshot)
+			case event, ok := <-changes:
+				if !ok {
+					return
+				}
+				if event.Client == client {
+					o.sendFilteredRuntimeStatus(output, client, last)
+				}
+			}
+		}
+	}()
+
+	return output, nil
 }
 
-// WatchRuntimeStatusAllProfiles streams runtime status across profiles.
-func (o *observabilityService) WatchRuntimeStatusAllProfiles(ctx context.Context) (<-chan domain.RuntimeStatusSnapshot, error) {
+// WatchRuntimeStatusAllServers streams runtime status across all servers.
+func (o *observabilityService) WatchRuntimeStatusAllServers(ctx context.Context) (<-chan domain.RuntimeStatusSnapshot, error) {
 	if o.runtimeStatusIdx == nil {
 		return closedRuntimeStatusChannel(), nil
 	}
@@ -117,18 +152,49 @@ func (o *observabilityService) WatchRuntimeStatusAllProfiles(ctx context.Context
 }
 
 // WatchServerInitStatus streams server init status for a caller.
-func (o *observabilityService) WatchServerInitStatus(ctx context.Context, caller string) (<-chan domain.ServerInitStatusSnapshot, error) {
-	if _, err := o.registry.resolveProfile(caller); err != nil {
+func (o *observabilityService) WatchServerInitStatus(ctx context.Context, client string) (<-chan domain.ServerInitStatusSnapshot, error) {
+	if _, err := o.registry.resolveClientTags(client); err != nil {
 		return closedServerInitStatusChannel(), err
 	}
 	if o.serverInitIdx == nil {
 		return closedServerInitStatusChannel(), nil
 	}
-	return o.serverInitIdx.Subscribe(ctx), nil
+
+	output := make(chan domain.ServerInitStatusSnapshot, 1)
+	updates := o.serverInitIdx.Subscribe(ctx)
+	changes := o.registry.WatchClientChanges(ctx)
+
+	go func() {
+		defer close(output)
+		var last domain.ServerInitStatusSnapshot
+		last = o.serverInitIdx.Current()
+		o.sendFilteredServerInitStatus(output, client, last)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case snapshot, ok := <-updates:
+				if !ok {
+					return
+				}
+				last = snapshot
+				o.sendFilteredServerInitStatus(output, client, snapshot)
+			case event, ok := <-changes:
+				if !ok {
+					return
+				}
+				if event.Client == client {
+					o.sendFilteredServerInitStatus(output, client, last)
+				}
+			}
+		}
+	}()
+
+	return output, nil
 }
 
-// WatchServerInitStatusAllProfiles streams server init status across profiles.
-func (o *observabilityService) WatchServerInitStatusAllProfiles(ctx context.Context) (<-chan domain.ServerInitStatusSnapshot, error) {
+// WatchServerInitStatusAllServers streams server init status across all servers.
+func (o *observabilityService) WatchServerInitStatusAllServers(ctx context.Context) (<-chan domain.ServerInitStatusSnapshot, error) {
 	if o.serverInitIdx == nil {
 		return closedServerInitStatusChannel(), nil
 	}
@@ -235,4 +301,102 @@ func closedServerInitStatusChannel() chan domain.ServerInitStatusSnapshot {
 	ch := make(chan domain.ServerInitStatusSnapshot)
 	close(ch)
 	return ch
+}
+
+func (o *observabilityService) sendFilteredRuntimeStatus(ch chan<- domain.RuntimeStatusSnapshot, client string, snapshot domain.RuntimeStatusSnapshot) {
+	tags, err := o.registry.resolveClientTags(client)
+	if err != nil {
+		return
+	}
+	filtered := filterRuntimeStatusSnapshot(snapshot, o.visibleSpecKeys(tags))
+	select {
+	case ch <- filtered:
+	default:
+	}
+}
+
+func (o *observabilityService) sendFilteredServerInitStatus(ch chan<- domain.ServerInitStatusSnapshot, client string, snapshot domain.ServerInitStatusSnapshot) {
+	tags, err := o.registry.resolveClientTags(client)
+	if err != nil {
+		return
+	}
+	filtered := filterServerInitStatusSnapshot(snapshot, o.visibleSpecKeys(tags))
+	select {
+	case ch <- filtered:
+	default:
+	}
+}
+
+func (o *observabilityService) visibleSpecKeys(tags []string) map[string]struct{} {
+	catalog := o.state.Catalog()
+	serverSpecKeys := o.state.ServerSpecKeys()
+	visible := make(map[string]struct{})
+	for name, specKey := range serverSpecKeys {
+		spec, ok := catalog.Specs[name]
+		if !ok {
+			continue
+		}
+		if isVisibleToTags(tags, spec.Tags) {
+			visible[specKey] = struct{}{}
+		}
+	}
+	return visible
+}
+
+func filterRuntimeStatusSnapshot(snapshot domain.RuntimeStatusSnapshot, visibleSpecKeys map[string]struct{}) domain.RuntimeStatusSnapshot {
+	if len(snapshot.Statuses) == 0 || len(visibleSpecKeys) == 0 {
+		return domain.RuntimeStatusSnapshot{
+			ETag:        "",
+			Statuses:    []domain.ServerRuntimeStatus{},
+			GeneratedAt: snapshot.GeneratedAt,
+		}
+	}
+	statuses := make([]domain.ServerRuntimeStatus, 0, len(snapshot.Statuses))
+	for _, status := range snapshot.Statuses {
+		if _, ok := visibleSpecKeys[status.SpecKey]; ok {
+			statuses = append(statuses, status)
+		}
+	}
+	sort.Slice(statuses, func(i, j int) bool {
+		return statuses[i].SpecKey < statuses[j].SpecKey
+	})
+	return domain.RuntimeStatusSnapshot{
+		ETag:        runtimeStatusETag(statuses),
+		Statuses:    statuses,
+		GeneratedAt: snapshot.GeneratedAt,
+	}
+}
+
+func filterServerInitStatusSnapshot(snapshot domain.ServerInitStatusSnapshot, visibleSpecKeys map[string]struct{}) domain.ServerInitStatusSnapshot {
+	if len(snapshot.Statuses) == 0 || len(visibleSpecKeys) == 0 {
+		return domain.ServerInitStatusSnapshot{
+			Statuses:    []domain.ServerInitStatus{},
+			GeneratedAt: snapshot.GeneratedAt,
+		}
+	}
+	statuses := make([]domain.ServerInitStatus, 0, len(snapshot.Statuses))
+	for _, status := range snapshot.Statuses {
+		if _, ok := visibleSpecKeys[status.SpecKey]; ok {
+			statuses = append(statuses, status)
+		}
+	}
+	sort.Slice(statuses, func(i, j int) bool {
+		return statuses[i].SpecKey < statuses[j].SpecKey
+	})
+	return domain.ServerInitStatusSnapshot{
+		Statuses:    statuses,
+		GeneratedAt: snapshot.GeneratedAt,
+	}
+}
+
+func runtimeStatusETag(statuses []domain.ServerRuntimeStatus) string {
+	if len(statuses) == 0 {
+		return ""
+	}
+	data, err := json.Marshal(statuses)
+	if err != nil {
+		return ""
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
 }

@@ -132,17 +132,17 @@ type LogEntry struct {
 	Data      map[string]any
 }
 
-// ActiveCaller represents a registered caller in the control plane.
-type ActiveCaller struct {
-	Caller        string
+// ActiveClient represents a registered client in the control plane.
+type ActiveClient struct {
+	Client        string
 	PID           int
-	Profile       string
+	Tags          []string
 	LastHeartbeat time.Time
 }
 
-// ActiveCallerSnapshot contains a snapshot of active callers.
-type ActiveCallerSnapshot struct {
-	Callers     []ActiveCaller
+// ActiveClientSnapshot contains a snapshot of active clients.
+type ActiveClientSnapshot struct {
+	Clients     []ActiveClient
 	GeneratedAt time.Time
 }
 
@@ -197,32 +197,33 @@ type ControlPlaneInfoProvider interface {
 	Info(ctx context.Context) (ControlPlaneInfo, error)
 }
 
-// ControlPlaneRegistry manages caller registration and monitoring.
+// ClientRegistration captures registration metadata for a client.
+type ClientRegistration struct {
+	Client             string
+	Tags               []string
+	VisibleServerCount int
+}
+
+// ControlPlaneRegistry manages client registration and monitoring.
 type ControlPlaneRegistry interface {
-	RegisterCaller(ctx context.Context, caller string, pid int) (string, error)
-	UnregisterCaller(ctx context.Context, caller string) error
-	ListActiveCallers(ctx context.Context) ([]ActiveCaller, error)
-	WatchActiveCallers(ctx context.Context) (<-chan ActiveCallerSnapshot, error)
+	RegisterClient(ctx context.Context, client string, pid int, tags []string) (ClientRegistration, error)
+	UnregisterClient(ctx context.Context, client string) error
+	ListActiveClients(ctx context.Context) ([]ActiveClient, error)
+	WatchActiveClients(ctx context.Context) (<-chan ActiveClientSnapshot, error)
 }
 
 // ControlPlaneDiscovery exposes tools, resources, and prompts.
 type ControlPlaneDiscovery interface {
-	ListTools(ctx context.Context, caller string) (ToolSnapshot, error)
-	ListToolsAllProfiles(ctx context.Context) (ToolSnapshot, error)
+	ListTools(ctx context.Context, client string) (ToolSnapshot, error)
 	ListToolCatalog(ctx context.Context) (ToolCatalogSnapshot, error)
-	WatchTools(ctx context.Context, caller string) (<-chan ToolSnapshot, error)
-	CallTool(ctx context.Context, caller, name string, args json.RawMessage, routingKey string) (json.RawMessage, error)
-	CallToolAllProfiles(ctx context.Context, name string, args json.RawMessage, routingKey, specKey string) (json.RawMessage, error)
-	ListResources(ctx context.Context, caller string, cursor string) (ResourcePage, error)
-	ListResourcesAllProfiles(ctx context.Context, cursor string) (ResourcePage, error)
-	WatchResources(ctx context.Context, caller string) (<-chan ResourceSnapshot, error)
-	ReadResource(ctx context.Context, caller, uri string) (json.RawMessage, error)
-	ReadResourceAllProfiles(ctx context.Context, uri, specKey string) (json.RawMessage, error)
-	ListPrompts(ctx context.Context, caller string, cursor string) (PromptPage, error)
-	ListPromptsAllProfiles(ctx context.Context, cursor string) (PromptPage, error)
-	WatchPrompts(ctx context.Context, caller string) (<-chan PromptSnapshot, error)
-	GetPrompt(ctx context.Context, caller, name string, args json.RawMessage) (json.RawMessage, error)
-	GetPromptAllProfiles(ctx context.Context, name string, args json.RawMessage, specKey string) (json.RawMessage, error)
+	WatchTools(ctx context.Context, client string) (<-chan ToolSnapshot, error)
+	CallTool(ctx context.Context, client, name string, args json.RawMessage, routingKey string) (json.RawMessage, error)
+	ListResources(ctx context.Context, client string, cursor string) (ResourcePage, error)
+	WatchResources(ctx context.Context, client string) (<-chan ResourceSnapshot, error)
+	ReadResource(ctx context.Context, client, uri string) (json.RawMessage, error)
+	ListPrompts(ctx context.Context, client string, cursor string) (PromptPage, error)
+	WatchPrompts(ctx context.Context, client string) (<-chan PromptSnapshot, error)
+	GetPrompt(ctx context.Context, client, name string, args json.RawMessage) (json.RawMessage, error)
 }
 
 // ServerInitStatusReader provides server initialization status snapshots.
@@ -232,15 +233,15 @@ type ServerInitStatusReader interface {
 
 // ControlPlaneObservability exposes runtime status and log streaming.
 type ControlPlaneObservability interface {
-	StreamLogs(ctx context.Context, caller string, minLevel LogLevel) (<-chan LogEntry, error)
-	StreamLogsAllProfiles(ctx context.Context, minLevel LogLevel) (<-chan LogEntry, error)
+	StreamLogs(ctx context.Context, client string, minLevel LogLevel) (<-chan LogEntry, error)
+	StreamLogsAllServers(ctx context.Context, minLevel LogLevel) (<-chan LogEntry, error)
 	GetPoolStatus(ctx context.Context) ([]PoolInfo, error)
 	ServerInitStatusReader
 	RetryServerInit(ctx context.Context, specKey string) error
-	WatchRuntimeStatus(ctx context.Context, caller string) (<-chan RuntimeStatusSnapshot, error)
-	WatchRuntimeStatusAllProfiles(ctx context.Context) (<-chan RuntimeStatusSnapshot, error)
-	WatchServerInitStatus(ctx context.Context, caller string) (<-chan ServerInitStatusSnapshot, error)
-	WatchServerInitStatusAllProfiles(ctx context.Context) (<-chan ServerInitStatusSnapshot, error)
+	WatchRuntimeStatus(ctx context.Context, client string) (<-chan RuntimeStatusSnapshot, error)
+	WatchRuntimeStatusAllServers(ctx context.Context) (<-chan RuntimeStatusSnapshot, error)
+	WatchServerInitStatus(ctx context.Context, client string) (<-chan ServerInitStatusSnapshot, error)
+	WatchServerInitStatusAllServers(ctx context.Context) (<-chan ServerInitStatusSnapshot, error)
 }
 
 // ControlPlaneBootstrap exposes bootstrap status.
@@ -251,15 +252,15 @@ type ControlPlaneBootstrap interface {
 
 // ControlPlaneAutomation exposes automatic tool filtering and execution.
 type ControlPlaneAutomation interface {
-	AutomaticMCP(ctx context.Context, caller string, params AutomaticMCPParams) (AutomaticMCPResult, error)
-	AutomaticEval(ctx context.Context, caller string, params AutomaticEvalParams) (json.RawMessage, error)
+	AutomaticMCP(ctx context.Context, client string, params AutomaticMCPParams) (AutomaticMCPResult, error)
+	AutomaticEval(ctx context.Context, client string, params AutomaticEvalParams) (json.RawMessage, error)
 	IsSubAgentEnabled() bool
-	IsSubAgentEnabledForCaller(caller string) bool
+	IsSubAgentEnabledForClient(client string) bool
 }
 
 // ControlPlaneStore exposes profile storage access.
 type ControlPlaneStore interface {
-	GetProfileStore() ProfileStore
+	GetCatalog() Catalog
 }
 
 // ControlPlane groups all control plane capabilities.

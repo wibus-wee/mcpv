@@ -15,15 +15,15 @@ import (
 )
 
 func TestServerInitializationManager_Ready(t *testing.T) {
-	specKey := "alpha"
 	spec := domain.ServerSpec{Name: "alpha", MinReady: 1, ActivationMode: domain.ActivationAlwaysOn}
+	specKey := specKeyFor(t, spec)
 	scheduler := newInitSchedulerStub(map[string][]setResult{
 		specKey: {
 			{ready: 1},
 		},
 	})
 
-	manager := NewServerInitializationManager(scheduler, newTestState(map[string]domain.ServerSpec{specKey: spec}, initRuntimeConfig(2)), zap.NewNop())
+	manager := NewServerInitializationManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop())
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -35,8 +35,8 @@ func TestServerInitializationManager_Ready(t *testing.T) {
 }
 
 func TestServerInitializationManager_DegradedThenReady(t *testing.T) {
-	specKey := "beta"
 	spec := domain.ServerSpec{Name: "beta", MinReady: 2, ActivationMode: domain.ActivationAlwaysOn}
+	specKey := specKeyFor(t, spec)
 	scheduler := newInitSchedulerStub(map[string][]setResult{
 		specKey: {
 			{ready: 1, failed: 1, err: errors.New("initialization error")},
@@ -44,7 +44,7 @@ func TestServerInitializationManager_DegradedThenReady(t *testing.T) {
 		},
 	})
 
-	manager := NewServerInitializationManager(scheduler, newTestState(map[string]domain.ServerSpec{specKey: spec}, initRuntimeConfig(2)), zap.NewNop())
+	manager := NewServerInitializationManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop())
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -56,15 +56,15 @@ func TestServerInitializationManager_DegradedThenReady(t *testing.T) {
 }
 
 func TestServerInitializationManager_Cancelled(t *testing.T) {
-	specKey := "gamma"
 	spec := domain.ServerSpec{Name: "gamma", MinReady: 1, ActivationMode: domain.ActivationAlwaysOn}
+	specKey := specKeyFor(t, spec)
 	scheduler := newInitSchedulerStub(map[string][]setResult{
 		specKey: {
 			{ready: 0, failed: 0, err: errors.New("start failed")},
 		},
 	})
 
-	manager := NewServerInitializationManager(scheduler, newTestState(map[string]domain.ServerSpec{specKey: spec}, initRuntimeConfig(2)), zap.NewNop())
+	manager := NewServerInitializationManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop())
 	ctx, cancel := context.WithCancel(context.Background())
 
 	manager.Start(ctx)
@@ -75,8 +75,8 @@ func TestServerInitializationManager_Cancelled(t *testing.T) {
 }
 
 func TestServerInitializationManager_SuspendsAfterRetries(t *testing.T) {
-	specKey := "delta"
 	spec := domain.ServerSpec{Name: "delta", MinReady: 1, ActivationMode: domain.ActivationAlwaysOn}
+	specKey := specKeyFor(t, spec)
 	scheduler := newInitSchedulerStub(map[string][]setResult{
 		specKey: {
 			{ready: 0, failed: 0, err: errors.New("start failed")},
@@ -84,7 +84,7 @@ func TestServerInitializationManager_SuspendsAfterRetries(t *testing.T) {
 		},
 	})
 
-	manager := NewServerInitializationManager(scheduler, newTestState(map[string]domain.ServerSpec{specKey: spec}, initRuntimeConfig(2)), zap.NewNop())
+	manager := NewServerInitializationManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop())
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -96,8 +96,8 @@ func TestServerInitializationManager_SuspendsAfterRetries(t *testing.T) {
 }
 
 func TestServerInitializationManager_RetrySpecResets(t *testing.T) {
-	specKey := "epsilon"
 	spec := domain.ServerSpec{Name: "epsilon", MinReady: 1, ActivationMode: domain.ActivationAlwaysOn}
+	specKey := specKeyFor(t, spec)
 	scheduler := newInitSchedulerStub(map[string][]setResult{
 		specKey: {
 			{ready: 0, failed: 0, err: errors.New("start failed")},
@@ -106,7 +106,7 @@ func TestServerInitializationManager_RetrySpecResets(t *testing.T) {
 		},
 	})
 
-	manager := NewServerInitializationManager(scheduler, newTestState(map[string]domain.ServerSpec{specKey: spec}, initRuntimeConfig(2)), zap.NewNop())
+	manager := NewServerInitializationManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop())
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -150,14 +150,21 @@ func initRuntimeConfig(maxRetries int) domain.RuntimeConfig {
 }
 
 func newTestState(specs map[string]domain.ServerSpec, runtime domain.RuntimeConfig) *domain.CatalogState {
-	return &domain.CatalogState{
-		Store: domain.ProfileStore{},
-		Summary: domain.CatalogSummary{
-			Profiles:       map[string]domain.CatalogProfile{},
-			SpecRegistry:   specs,
-			DefaultRuntime: runtime,
-		},
+	state, err := domain.NewCatalogState(domain.Catalog{
+		Specs:   specs,
+		Runtime: runtime,
+	}, 0, time.Time{})
+	if err != nil {
+		panic(err)
 	}
+	return &state
+}
+
+func specKeyFor(t *testing.T, spec domain.ServerSpec) string {
+	t.Helper()
+	key, err := domain.SpecFingerprint(spec)
+	require.NoError(t, err)
+	return key
 }
 
 type setResult struct {

@@ -19,8 +19,6 @@ func mapCatalogError(err error) error {
 		switch editorErr.Kind {
 		case catalog.EditorErrorInvalidRequest:
 			return NewUIErrorWithDetails(ErrCodeInvalidRequest, editorErr.Message, detail)
-		case catalog.EditorErrorProfileNotFound:
-			return NewUIErrorWithDetails(ErrCodeProfileNotFound, editorErr.Message, detail)
 		case catalog.EditorErrorInvalidConfig:
 			return NewUIErrorWithDetails(ErrCodeInvalidConfig, editorErr.Message, detail)
 		default:

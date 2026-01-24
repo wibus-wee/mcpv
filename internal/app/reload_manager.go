@@ -16,7 +16,7 @@ import (
 type ReloadManager struct {
 	provider      domain.CatalogProvider
 	state         *controlPlaneState
-	registry      *callerRegistry
+	registry      *clientRegistry
 	scheduler     domain.Scheduler
 	initManager   *ServerInitializationManager
 	metrics       domain.Metrics
@@ -33,7 +33,7 @@ type ReloadManager struct {
 func NewReloadManager(
 	provider domain.CatalogProvider,
 	state *controlPlaneState,
-	registry *callerRegistry,
+	registry *clientRegistry,
 	scheduler domain.Scheduler,
 	initManager *ServerInitializationManager,
 	metrics domain.Metrics,
@@ -120,26 +120,11 @@ func (m *ReloadManager) run(ctx context.Context, updates <-chan domain.CatalogUp
 
 func (m *ReloadManager) applyUpdate(ctx context.Context, update domain.CatalogUpdate) error {
 	started := time.Now()
-	prevProfiles := m.state.Profiles()
-	nextProfiles := make(map[string]*profileRuntime, len(update.Snapshot.Summary.Profiles))
-	removedRuntimes := make([]*profileRuntime, 0)
-
-	for name, cfg := range update.Snapshot.Summary.Profiles {
-		if runtime, ok := prevProfiles[name]; ok {
-			runtime.UpdateCatalog(cfg)
-			nextProfiles[name] = runtime
-			continue
-		}
-		nextProfiles[name] = buildProfileRuntime(name, cfg, m.scheduler, m.metrics, m.health, m.metadataCache, m.listChanges, m.coreLogger)
-	}
-
-	var removed []string
-	for name, runtime := range prevProfiles {
-		if _, ok := nextProfiles[name]; ok {
-			continue
-		}
-		removed = append(removed, name)
-		removedRuntimes = append(removedRuntimes, runtime)
+	runtime := m.state.RuntimeState()
+	if runtime == nil {
+		runtime = buildRuntimeState(&update.Snapshot, m.scheduler, m.metrics, m.health, m.metadataCache, m.listChanges, m.coreLogger)
+	} else {
+		runtime.UpdateCatalog(update.Snapshot.Catalog, update.Snapshot.Summary.ServerSpecKeys, update.Snapshot.Summary.Runtime)
 	}
 
 	if err := m.scheduler.ApplyCatalogDiff(ctx, update.Diff, update.Snapshot.Summary.SpecRegistry); err != nil {
@@ -149,61 +134,46 @@ func (m *ReloadManager) applyUpdate(ctx context.Context, update domain.CatalogUp
 		m.initManager.ApplyCatalogState(&update.Snapshot)
 	}
 
-	m.state.UpdateCatalog(&update.Snapshot, nextProfiles)
+	m.state.UpdateCatalog(&update.Snapshot, runtime)
 
 	if err := m.registry.ApplyCatalogUpdate(ctx, update); err != nil {
 		return err
 	}
 
-	m.refreshProfiles(ctx, update, nextProfiles)
-	for _, runtime := range removedRuntimes {
-		runtime.Deactivate()
-	}
+	m.refreshRuntime(ctx, update, runtime)
 
 	m.logger.Info("config reload applied",
 		zap.Uint64("revision", update.Snapshot.Revision),
-		zap.Int("profiles", len(update.Snapshot.Summary.Profiles)),
 		zap.Int("servers", update.Snapshot.Summary.TotalServers),
 		zap.Int("added", len(update.Diff.AddedSpecKeys)),
 		zap.Int("removed", len(update.Diff.RemovedSpecKeys)),
 		zap.Int("updated", len(update.Diff.UpdatedSpecKeys)),
 		zap.Duration("latency", time.Since(started)),
 	)
-	if len(removed) > 0 {
-		m.logger.Info("profiles removed", zap.Strings("profiles", removed))
-	}
 	m.appliedRev.Store(update.Snapshot.Revision)
 	return nil
 }
 
-func (m *ReloadManager) refreshProfiles(ctx context.Context, update domain.CatalogUpdate, profiles map[string]*profileRuntime) {
-	changed := make(map[string]struct{})
-	for _, name := range update.Diff.AddedProfiles {
-		changed[name] = struct{}{}
+func (m *ReloadManager) refreshRuntime(ctx context.Context, update domain.CatalogUpdate, runtime *runtimeState) {
+	if runtime == nil {
+		return
 	}
-	for _, name := range update.Diff.UpdatedProfiles {
-		changed[name] = struct{}{}
+	if len(update.Diff.AddedSpecKeys) == 0 && len(update.Diff.UpdatedSpecKeys) == 0 && len(update.Diff.ReplacedSpecKeys) == 0 {
+		return
 	}
-
-	for name := range changed {
-		runtime, ok := profiles[name]
-		if !ok {
-			continue
+	if runtime.tools != nil {
+		if err := runtime.tools.Refresh(ctx); err != nil {
+			m.logger.Warn("tool refresh after reload failed", zap.Error(err))
 		}
-		if runtime.tools != nil {
-			if err := runtime.tools.Refresh(ctx); err != nil {
-				m.logger.Warn("tool refresh after reload failed", zap.String("profile", name), zap.Error(err))
-			}
+	}
+	if runtime.resources != nil {
+		if err := runtime.resources.Refresh(ctx); err != nil {
+			m.logger.Warn("resource refresh after reload failed", zap.Error(err))
 		}
-		if runtime.resources != nil {
-			if err := runtime.resources.Refresh(ctx); err != nil {
-				m.logger.Warn("resource refresh after reload failed", zap.String("profile", name), zap.Error(err))
-			}
-		}
-		if runtime.prompts != nil {
-			if err := runtime.prompts.Refresh(ctx); err != nil {
-				m.logger.Warn("prompt refresh after reload failed", zap.String("profile", name), zap.Error(err))
-			}
+	}
+	if runtime.prompts != nil {
+		if err := runtime.prompts.Refresh(ctx); err != nil {
+			m.logger.Warn("prompt refresh after reload failed", zap.Error(err))
 		}
 	}
 }

@@ -23,7 +23,7 @@ const (
 	// Status update events
 	EventRuntimeStatusUpdated = "runtime:status"
 	EventServerInitUpdated    = "server-init:status"
-	EventActiveCallersUpdated = "callers:active"
+	EventActiveClientsUpdated = "clients:active"
 
 	// Log streaming events
 	EventLogEntry = "logs:entry"
@@ -83,9 +83,9 @@ type ServerInitUpdatedEvent struct {
 	Statuses []ServerInitStatus `json:"statuses"`
 }
 
-// ActiveCallersUpdatedEvent represents active caller updates
-type ActiveCallersUpdatedEvent struct {
-	Callers []ActiveCaller `json:"callers"`
+// ActiveClientsUpdatedEvent represents active client updates
+type ActiveClientsUpdatedEvent struct {
+	Clients []ActiveClient `json:"clients"`
 }
 
 // Helper functions for event emission
@@ -284,21 +284,21 @@ func emitServerInitUpdated(app *application.App, snapshot domain.ServerInitStatu
 	app.Event.Emit(EventServerInitUpdated, event)
 }
 
-func emitActiveCallersUpdated(app *application.App, snapshot domain.ActiveCallerSnapshot) {
+func emitActiveClientsUpdated(app *application.App, snapshot domain.ActiveClientSnapshot) {
 	if app == nil {
 		return
 	}
-	callers := make([]ActiveCaller, 0, len(snapshot.Callers))
-	for _, caller := range snapshot.Callers {
-		callers = append(callers, ActiveCaller{
-			Caller:        caller.Caller,
-			PID:           caller.PID,
-			Profile:       caller.Profile,
-			LastHeartbeat: caller.LastHeartbeat.Format("2006-01-02T15:04:05.000Z07:00"),
+	clients := make([]ActiveClient, 0, len(snapshot.Clients))
+	for _, client := range snapshot.Clients {
+		clients = append(clients, ActiveClient{
+			Client:        client.Client,
+			PID:           client.PID,
+			Tags:          append([]string(nil), client.Tags...),
+			LastHeartbeat: client.LastHeartbeat.Format("2006-01-02T15:04:05.000Z07:00"),
 		})
 	}
-	event := ActiveCallersUpdatedEvent{
-		Callers: callers,
+	event := ActiveClientsUpdatedEvent{
+		Clients: clients,
 	}
-	app.Event.Emit(EventActiveCallersUpdated, event)
+	app.Event.Emit(EventActiveClientsUpdated, event)
 }

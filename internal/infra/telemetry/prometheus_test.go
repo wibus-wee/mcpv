@@ -30,8 +30,7 @@ func TestNewPrometheusMetrics_UsesProvidedRegistry(t *testing.T) {
 	m := NewPrometheusMetrics(registry)
 	m.ObserveRoute(domain.RouteMetric{
 		ServerType: "test-server",
-		Caller:     "caller",
-		Profile:    "profile",
+		Client:     "client",
 		Status:     domain.RouteStatusSuccess,
 		Reason:     domain.RouteReasonSuccess,
 		Duration:   10 * time.Millisecond,
@@ -75,7 +74,7 @@ func TestPrometheusMetrics_ObserveRoute(t *testing.T) {
 				Help:    "Test route duration",
 				Buckets: []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10},
 			},
-			[]string{"server_type", "caller", "profile", "status", "reason"},
+			[]string{"server_type", "client", "status", "reason"},
 		),
 		instanceStarts:  prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_starts"}, []string{"server_type"}),
 		instanceStops:   prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_stops"}, []string{"server_type"}),
@@ -91,8 +90,7 @@ func TestPrometheusMetrics_ObserveRoute(t *testing.T) {
 			name: "success",
 			metric: domain.RouteMetric{
 				ServerType: "test-server",
-				Caller:     "caller",
-				Profile:    "profile",
+				Client:     "client",
 				Status:     domain.RouteStatusSuccess,
 				Reason:     domain.RouteReasonSuccess,
 				Duration:   100 * time.Millisecond,
@@ -102,8 +100,7 @@ func TestPrometheusMetrics_ObserveRoute(t *testing.T) {
 			name: "error",
 			metric: domain.RouteMetric{
 				ServerType: "test-server",
-				Caller:     "caller",
-				Profile:    "profile",
+				Client:     "client",
 				Status:     domain.RouteStatusError,
 				Reason:     domain.RouteReasonUnknown,
 				Duration:   50 * time.Millisecond,
@@ -122,7 +119,7 @@ func TestPrometheusMetrics_ObserveRoute(t *testing.T) {
 
 func TestPrometheusMetrics_ObserveInstanceStart(t *testing.T) {
 	m := &PrometheusMetrics{
-		routeDuration:   prometheus.NewHistogramVec(prometheus.HistogramOpts{Name: "test_route2"}, []string{"server_type", "caller", "profile", "status", "reason"}),
+		routeDuration:   prometheus.NewHistogramVec(prometheus.HistogramOpts{Name: "test_route2"}, []string{"server_type", "client", "status", "reason"}),
 		instanceStarts:  prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_starts2"}, []string{"server_type"}),
 		instanceStops:   prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_stops2"}, []string{"server_type"}),
 		activeInstances: prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "test_active2"}, []string{"server_type"}),
@@ -135,7 +132,7 @@ func TestPrometheusMetrics_ObserveInstanceStart(t *testing.T) {
 
 func TestPrometheusMetrics_ObserveInstanceStop(t *testing.T) {
 	m := &PrometheusMetrics{
-		routeDuration:   prometheus.NewHistogramVec(prometheus.HistogramOpts{Name: "test_route3"}, []string{"server_type", "caller", "profile", "status", "reason"}),
+		routeDuration:   prometheus.NewHistogramVec(prometheus.HistogramOpts{Name: "test_route3"}, []string{"server_type", "client", "status", "reason"}),
 		instanceStarts:  prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_starts3"}, []string{"server_type"}),
 		instanceStops:   prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_stops3"}, []string{"server_type"}),
 		activeInstances: prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "test_active3"}, []string{"server_type"}),
@@ -148,7 +145,7 @@ func TestPrometheusMetrics_ObserveInstanceStop(t *testing.T) {
 
 func TestPrometheusMetrics_SetActiveInstances(t *testing.T) {
 	m := &PrometheusMetrics{
-		routeDuration:   prometheus.NewHistogramVec(prometheus.HistogramOpts{Name: "test_route4"}, []string{"server_type", "caller", "profile", "status", "reason"}),
+		routeDuration:   prometheus.NewHistogramVec(prometheus.HistogramOpts{Name: "test_route4"}, []string{"server_type", "client", "status", "reason"}),
 		instanceStarts:  prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_starts4"}, []string{"server_type"}),
 		instanceStops:   prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_stops4"}, []string{"server_type"}),
 		activeInstances: prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "test_active4"}, []string{"server_type"}),
@@ -162,7 +159,7 @@ func TestPrometheusMetrics_SetActiveInstances(t *testing.T) {
 
 func TestPrometheusMetrics_SetPoolCapacityRatio(t *testing.T) {
 	m := &PrometheusMetrics{
-		routeDuration:     prometheus.NewHistogramVec(prometheus.HistogramOpts{Name: "test_route5"}, []string{"server_type", "caller", "profile", "status", "reason"}),
+		routeDuration:     prometheus.NewHistogramVec(prometheus.HistogramOpts{Name: "test_route5"}, []string{"server_type", "client", "status", "reason"}),
 		instanceStarts:    prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_starts5"}, []string{"server_type"}),
 		instanceStops:     prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_stops5"}, []string{"server_type"}),
 		activeInstances:   prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "test_active5"}, []string{"server_type"}),

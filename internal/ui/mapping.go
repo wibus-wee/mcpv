@@ -101,9 +101,8 @@ func mapStartCause(cause *domain.StartCause) *StartCause {
 	}
 	mapped := &StartCause{
 		Reason:    string(cause.Reason),
-		Caller:    cause.Caller,
+		Client:    cause.Client,
 		ToolName:  cause.ToolName,
-		Profile:   cause.Profile,
 		Timestamp: timestamp,
 	}
 	if cause.Policy != nil {
@@ -189,15 +188,25 @@ func mapServerInitStatuses(statuses []domain.ServerInitStatus) []ServerInitStatu
 	})
 }
 
-func mapActiveCallers(callers []domain.ActiveCaller) []ActiveCaller {
-	return mapping.MapSlice(callers, func(caller domain.ActiveCaller) ActiveCaller {
-		return ActiveCaller{
-			Caller:        caller.Caller,
-			PID:           caller.PID,
-			Profile:       caller.Profile,
-			LastHeartbeat: caller.LastHeartbeat.Format("2006-01-02T15:04:05.000Z07:00"),
+func mapActiveClients(clients []domain.ActiveClient) []ActiveClient {
+	return mapping.MapSlice(clients, func(client domain.ActiveClient) ActiveClient {
+		return ActiveClient{
+			Client:        client.Client,
+			PID:           client.PID,
+			Tags:          append([]string(nil), client.Tags...),
+			LastHeartbeat: client.LastHeartbeat.Format("2006-01-02T15:04:05.000Z07:00"),
 		}
 	})
+}
+
+func mapServerSummary(spec domain.ServerSpec, specKey string) ServerSummary {
+	return ServerSummary{
+		Name:      spec.Name,
+		SpecKey:   specKey,
+		Transport: string(domain.NormalizeTransport(spec.Transport)),
+		Tags:      append([]string(nil), spec.Tags...),
+		Disabled:  spec.Disabled,
+	}
 }
 
 func mapServerSpecDetail(spec domain.ServerSpec, specKey string) ServerSpecDetail {
@@ -229,6 +238,7 @@ func mapServerSpecDetail(spec domain.ServerSpec, specKey string) ServerSpecDetai
 		Cmd:                 spec.Cmd,
 		Env:                 env,
 		Cwd:                 spec.Cwd,
+		Tags:                append([]string(nil), spec.Tags...),
 		IdleSeconds:         spec.IdleSeconds,
 		MaxConcurrent:       spec.MaxConcurrent,
 		Strategy:            string(spec.Strategy),
@@ -249,8 +259,8 @@ func mapRuntimeConfigDetail(cfg domain.RuntimeConfig) RuntimeConfigDetail {
 		PingIntervalSeconds:        cfg.PingIntervalSeconds,
 		ToolRefreshSeconds:         cfg.ToolRefreshSeconds,
 		ToolRefreshConcurrency:     cfg.ToolRefreshConcurrency,
-		CallerCheckSeconds:         cfg.CallerCheckSeconds,
-		CallerInactiveSeconds:      cfg.CallerInactiveSeconds,
+		ClientCheckSeconds:         cfg.ClientCheckSeconds,
+		ClientInactiveSeconds:      cfg.ClientInactiveSeconds,
 		ServerInitRetryBaseSeconds: cfg.ServerInitRetryBaseSeconds,
 		ServerInitRetryMaxSeconds:  cfg.ServerInitRetryMaxSeconds,
 		ServerInitMaxRetries:       cfg.ServerInitMaxRetries,

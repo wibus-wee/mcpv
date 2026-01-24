@@ -44,28 +44,30 @@ func (s *ControlService) GetInfo(ctx context.Context, req *controlv1.GetInfoRequ
 }
 
 func (s *ControlService) RegisterCaller(ctx context.Context, req *controlv1.RegisterCallerRequest) (*controlv1.RegisterCallerResponse, error) {
-	if req.GetCaller() == "" {
-		return nil, status.Error(codes.InvalidArgument, "caller is required")
+	client := req.GetCaller()
+	if client == "" {
+		return nil, status.Error(codes.InvalidArgument, "client is required")
 	}
 	if req.GetPid() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "pid must be > 0")
 	}
-	profile, err := s.control.RegisterCaller(ctx, req.GetCaller(), int(req.GetPid()))
+	registration, err := s.control.RegisterClient(ctx, client, int(req.GetPid()), nil)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "register caller: %v", err)
 	}
 	return &controlv1.RegisterCallerResponse{
-		Profile: profile,
+		Profile: registration.Client,
 	}, nil
 }
 
 func (s *ControlService) UnregisterCaller(ctx context.Context, req *controlv1.UnregisterCallerRequest) (*controlv1.UnregisterCallerResponse, error) {
-	if req.GetCaller() == "" {
-		return nil, status.Error(codes.InvalidArgument, "caller is required")
+	client := req.GetCaller()
+	if client == "" {
+		return nil, status.Error(codes.InvalidArgument, "client is required")
 	}
-	if err := s.control.UnregisterCaller(ctx, req.GetCaller()); err != nil {
-		if errors.Is(err, domain.ErrCallerNotRegistered) {
-			return nil, status.Error(codes.FailedPrecondition, "caller not registered")
+	if err := s.control.UnregisterClient(ctx, client); err != nil {
+		if errors.Is(err, domain.ErrClientNotRegistered) {
+			return nil, status.Error(codes.FailedPrecondition, "client not registered")
 		}
 		return nil, status.Errorf(codes.Internal, "unregister caller: %v", err)
 	}
@@ -73,9 +75,10 @@ func (s *ControlService) UnregisterCaller(ctx context.Context, req *controlv1.Un
 }
 
 func (s *ControlService) ListTools(ctx context.Context, req *controlv1.ListToolsRequest) (*controlv1.ListToolsResponse, error) {
-	snapshot, err := s.control.ListTools(ctx, req.GetCaller())
+	client := req.GetCaller()
+	snapshot, err := s.control.ListTools(ctx, client)
 	if err != nil {
-		return nil, mapCallerError("list tools", err)
+		return nil, mapClientError("list tools", err)
 	}
 	protoSnapshot, err := toProtoSnapshot(snapshot)
 	if err != nil {
@@ -88,9 +91,10 @@ func (s *ControlService) ListTools(ctx context.Context, req *controlv1.ListTools
 
 func (s *ControlService) WatchTools(req *controlv1.WatchToolsRequest, stream controlv1.ControlPlaneService_WatchToolsServer) error {
 	ctx := stream.Context()
-	current, err := s.control.ListTools(ctx, req.GetCaller())
+	client := req.GetCaller()
+	current, err := s.control.ListTools(ctx, client)
 	if err != nil {
-		return mapCallerError("list tools", err)
+		return mapClientError("list tools", err)
 	}
 	lastETag := req.GetLastEtag()
 	if lastETag == "" || lastETag != current.ETag {
@@ -104,9 +108,9 @@ func (s *ControlService) WatchTools(req *controlv1.WatchToolsRequest, stream con
 		lastETag = current.ETag
 	}
 
-	updates, err := s.control.WatchTools(ctx, req.GetCaller())
+	updates, err := s.control.WatchTools(ctx, client)
 	if err != nil {
-		return mapCallerError("watch tools", err)
+		return mapClientError("watch tools", err)
 	}
 
 	for {
@@ -136,7 +140,8 @@ func (s *ControlService) CallTool(ctx context.Context, req *controlv1.CallToolRe
 	if req.GetName() == "" {
 		return nil, status.Error(codes.InvalidArgument, "name is required")
 	}
-	result, err := s.control.CallTool(ctx, req.GetCaller(), req.GetName(), req.GetArgumentsJson(), req.GetRoutingKey())
+	client := req.GetCaller()
+	result, err := s.control.CallTool(ctx, client, req.GetName(), req.GetArgumentsJson(), req.GetRoutingKey())
 	if err != nil {
 		return nil, mapCallToolError(req.GetName(), err)
 	}
@@ -149,7 +154,8 @@ func (s *ControlService) CallTool(ctx context.Context, req *controlv1.CallToolRe
 }
 
 func (s *ControlService) ListResources(ctx context.Context, req *controlv1.ListResourcesRequest) (*controlv1.ListResourcesResponse, error) {
-	page, err := s.control.ListResources(ctx, req.GetCaller(), req.GetCursor())
+	client := req.GetCaller()
+	page, err := s.control.ListResources(ctx, client, req.GetCursor())
 	if err != nil {
 		return nil, mapListError("list resources", err)
 	}
@@ -167,9 +173,10 @@ func (s *ControlService) WatchResources(req *controlv1.WatchResourcesRequest, st
 	ctx := stream.Context()
 	lastETag := req.GetLastEtag()
 
-	updates, err := s.control.WatchResources(ctx, req.GetCaller())
+	client := req.GetCaller()
+	updates, err := s.control.WatchResources(ctx, client)
 	if err != nil {
-		return mapCallerError("watch resources", err)
+		return mapClientError("watch resources", err)
 	}
 
 	for {
@@ -199,7 +206,8 @@ func (s *ControlService) ReadResource(ctx context.Context, req *controlv1.ReadRe
 	if req.GetUri() == "" {
 		return nil, status.Error(codes.InvalidArgument, "uri is required")
 	}
-	result, err := s.control.ReadResource(ctx, req.GetCaller(), req.GetUri())
+	client := req.GetCaller()
+	result, err := s.control.ReadResource(ctx, client, req.GetUri())
 	if err != nil {
 		return nil, mapReadResourceError(req.GetUri(), err)
 	}
@@ -212,7 +220,8 @@ func (s *ControlService) ReadResource(ctx context.Context, req *controlv1.ReadRe
 }
 
 func (s *ControlService) ListPrompts(ctx context.Context, req *controlv1.ListPromptsRequest) (*controlv1.ListPromptsResponse, error) {
-	page, err := s.control.ListPrompts(ctx, req.GetCaller(), req.GetCursor())
+	client := req.GetCaller()
+	page, err := s.control.ListPrompts(ctx, client, req.GetCursor())
 	if err != nil {
 		return nil, mapListError("list prompts", err)
 	}
@@ -230,9 +239,10 @@ func (s *ControlService) WatchPrompts(req *controlv1.WatchPromptsRequest, stream
 	ctx := stream.Context()
 	lastETag := req.GetLastEtag()
 
-	updates, err := s.control.WatchPrompts(ctx, req.GetCaller())
+	client := req.GetCaller()
+	updates, err := s.control.WatchPrompts(ctx, client)
 	if err != nil {
-		return mapCallerError("watch prompts", err)
+		return mapClientError("watch prompts", err)
 	}
 
 	for {
@@ -262,7 +272,8 @@ func (s *ControlService) GetPrompt(ctx context.Context, req *controlv1.GetPrompt
 	if req.GetName() == "" {
 		return nil, status.Error(codes.InvalidArgument, "name is required")
 	}
-	result, err := s.control.GetPrompt(ctx, req.GetCaller(), req.GetName(), req.GetArgumentsJson())
+	client := req.GetCaller()
+	result, err := s.control.GetPrompt(ctx, client, req.GetName(), req.GetArgumentsJson())
 	if err != nil {
 		return nil, mapGetPromptError(req.GetName(), err)
 	}
@@ -288,8 +299,8 @@ func mapCallToolError(name string, err error) error {
 		return status.Errorf(codes.InvalidArgument, "call tool: %v", err)
 	case errors.Is(err, scheduler.ErrNoCapacity), errors.Is(err, scheduler.ErrStickyBusy):
 		return status.Errorf(codes.Unavailable, "call tool unavailable: %v", err)
-	case errors.Is(err, domain.ErrCallerNotRegistered):
-		return status.Error(codes.FailedPrecondition, "caller not registered")
+	case errors.Is(err, domain.ErrClientNotRegistered):
+		return status.Error(codes.FailedPrecondition, "client not registered")
 	default:
 		return status.Errorf(codes.Unavailable, "call tool: %v", fmt.Sprintf("%T: %v", err, err))
 	}
@@ -309,8 +320,8 @@ func mapReadResourceError(uri string, err error) error {
 		return status.Errorf(codes.InvalidArgument, "read resource: %v", err)
 	case errors.Is(err, scheduler.ErrNoCapacity), errors.Is(err, scheduler.ErrStickyBusy):
 		return status.Errorf(codes.Unavailable, "read resource unavailable: %v", err)
-	case errors.Is(err, domain.ErrCallerNotRegistered):
-		return status.Error(codes.FailedPrecondition, "caller not registered")
+	case errors.Is(err, domain.ErrClientNotRegistered):
+		return status.Error(codes.FailedPrecondition, "client not registered")
 	default:
 		return status.Errorf(codes.Unavailable, "read resource: %v", fmt.Sprintf("%T: %v", err, err))
 	}
@@ -330,16 +341,16 @@ func mapGetPromptError(name string, err error) error {
 		return status.Errorf(codes.InvalidArgument, "get prompt: %v", err)
 	case errors.Is(err, scheduler.ErrNoCapacity), errors.Is(err, scheduler.ErrStickyBusy):
 		return status.Errorf(codes.Unavailable, "get prompt unavailable: %v", err)
-	case errors.Is(err, domain.ErrCallerNotRegistered):
-		return status.Error(codes.FailedPrecondition, "caller not registered")
+	case errors.Is(err, domain.ErrClientNotRegistered):
+		return status.Error(codes.FailedPrecondition, "client not registered")
 	default:
 		return status.Errorf(codes.Unavailable, "get prompt: %v", fmt.Sprintf("%T: %v", err, err))
 	}
 }
 
 func mapListError(op string, err error) error {
-	if errors.Is(err, domain.ErrCallerNotRegistered) {
-		return status.Errorf(codes.FailedPrecondition, "%s: caller not registered", op)
+	if errors.Is(err, domain.ErrClientNotRegistered) {
+		return status.Errorf(codes.FailedPrecondition, "%s: client not registered", op)
 	}
 	if errors.Is(err, domain.ErrInvalidCursor) {
 		return status.Errorf(codes.InvalidArgument, "%s: invalid cursor", op)
@@ -350,9 +361,10 @@ func mapListError(op string, err error) error {
 func (s *ControlService) StreamLogs(req *controlv1.StreamLogsRequest, stream controlv1.ControlPlaneService_StreamLogsServer) error {
 	ctx := stream.Context()
 	minLevel := fromProtoLogLevel(req.GetMinLevel())
-	entries, err := s.control.StreamLogs(ctx, req.GetCaller(), minLevel)
+	client := req.GetCaller()
+	entries, err := s.control.StreamLogs(ctx, client, minLevel)
 	if err != nil {
-		return mapCallerError("stream logs", err)
+		return mapClientError("stream logs", err)
 	}
 
 	for {
@@ -370,9 +382,9 @@ func (s *ControlService) StreamLogs(req *controlv1.StreamLogsRequest, stream con
 	}
 }
 
-func mapCallerError(op string, err error) error {
-	if errors.Is(err, domain.ErrCallerNotRegistered) {
-		return status.Errorf(codes.FailedPrecondition, "%s: caller not registered", op)
+func mapClientError(op string, err error) error {
+	if errors.Is(err, domain.ErrClientNotRegistered) {
+		return status.Errorf(codes.FailedPrecondition, "%s: client not registered", op)
 	}
 	return status.Errorf(codes.Internal, "%s: %v", op, err)
 }
@@ -381,9 +393,10 @@ func (s *ControlService) WatchRuntimeStatus(req *controlv1.WatchRuntimeStatusReq
 	ctx := stream.Context()
 	lastETag := req.GetLastEtag()
 
-	updates, err := s.control.WatchRuntimeStatus(ctx, req.GetCaller())
+	client := req.GetCaller()
+	updates, err := s.control.WatchRuntimeStatus(ctx, client)
 	if err != nil {
-		return mapCallerError("watch runtime status", err)
+		return mapClientError("watch runtime status", err)
 	}
 
 	for {
@@ -408,9 +421,10 @@ func (s *ControlService) WatchRuntimeStatus(req *controlv1.WatchRuntimeStatusReq
 func (s *ControlService) WatchServerInitStatus(req *controlv1.WatchServerInitStatusRequest, stream controlv1.ControlPlaneService_WatchServerInitStatusServer) error {
 	ctx := stream.Context()
 
-	updates, err := s.control.WatchServerInitStatus(ctx, req.GetCaller())
+	client := req.GetCaller()
+	updates, err := s.control.WatchServerInitStatus(ctx, client)
 	if err != nil {
-		return mapCallerError("watch server init status", err)
+		return mapClientError("watch server init status", err)
 	}
 
 	for {
@@ -438,7 +452,7 @@ func (s *ControlService) AutomaticMCP(ctx context.Context, req *controlv1.Automa
 
 	result, err := s.control.AutomaticMCP(ctx, req.GetCaller(), params)
 	if err != nil {
-		return nil, mapCallerError("automatic_mcp", err)
+		return nil, mapClientError("automatic_mcp", err)
 	}
 
 	resp, err := toProtoAutomaticMCPResponse(result)
@@ -460,7 +474,8 @@ func (s *ControlService) AutomaticEval(ctx context.Context, req *controlv1.Autom
 		RoutingKey: req.GetRoutingKey(),
 	}
 
-	result, err := s.control.AutomaticEval(ctx, req.GetCaller(), params)
+	client := req.GetCaller()
+	result, err := s.control.AutomaticEval(ctx, client, params)
 	if err != nil {
 		return nil, mapCallToolError(req.GetToolName(), err)
 	}
@@ -473,7 +488,7 @@ func (s *ControlService) AutomaticEval(ctx context.Context, req *controlv1.Autom
 // IsSubAgentEnabled returns whether the SubAgent is enabled for the caller's profile.
 func (s *ControlService) IsSubAgentEnabled(ctx context.Context, req *controlv1.IsSubAgentEnabledRequest) (*controlv1.IsSubAgentEnabledResponse, error) {
 	return &controlv1.IsSubAgentEnabledResponse{
-		Enabled: s.control.IsSubAgentEnabledForCaller(req.GetCaller()),
+		Enabled: s.control.IsSubAgentEnabledForClient(req.GetCaller()),
 	}, nil
 }
 

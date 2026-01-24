@@ -25,7 +25,7 @@ func TestNewServiceRegistry(t *testing.T) {
 	assert.NotNil(t, registry.Discovery)
 	assert.NotNil(t, registry.Log)
 	assert.NotNil(t, registry.Config)
-	assert.NotNil(t, registry.Profile)
+	assert.NotNil(t, registry.Server)
 	assert.NotNil(t, registry.Runtime)
 	assert.NotNil(t, registry.SubAgent)
 	assert.NotNil(t, registry.Debug)

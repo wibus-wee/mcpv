@@ -15,21 +15,21 @@ type controlPlaneState struct {
 	mu sync.RWMutex
 
 	info             domain.ControlPlaneInfo
-	profiles         map[string]*profileRuntime
-	callers          map[string]string
+	runtimeState     *runtimeState
 	specRegistry     map[string]domain.ServerSpec
+	serverSpecKeys   map[string]string
 	scheduler        domain.Scheduler
 	initManager      *ServerInitializationManager
 	bootstrapManager *BootstrapManager
 	runtime          domain.RuntimeConfig
+	catalog          domain.Catalog
 	logger           *zap.Logger
 	ctx              context.Context
-	profileStore     domain.ProfileStore
 }
 
 func newControlPlaneState(
 	ctx context.Context,
-	profiles map[string]*profileRuntime,
+	runtime *runtimeState,
 	scheduler domain.Scheduler,
 	initManager *ServerInitializationManager,
 	bootstrapManager *BootstrapManager,
@@ -42,112 +42,109 @@ func newControlPlaneState(
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	store := state.Store
 	summary := state.Summary
-	callers := copyCallers(store.Callers)
-	if callers == nil {
-		callers = map[string]string{}
-	}
 	specRegistry := copySpecRegistryMap(summary.SpecRegistry)
+	serverSpecKeys := copySpecKeyMap(summary.ServerSpecKeys)
 
 	return &controlPlaneState{
 		info:             defaultControlPlaneInfo(),
-		profiles:         profiles,
-		callers:          callers,
+		runtimeState:     runtime,
 		specRegistry:     specRegistry,
+		serverSpecKeys:   serverSpecKeys,
 		scheduler:        scheduler,
 		initManager:      initManager,
 		bootstrapManager: bootstrapManager,
-		runtime:          summary.DefaultRuntime,
-		profileStore:     store,
+		runtime:          summary.Runtime,
+		catalog:          state.Catalog,
 		logger:           logger.Named("control_plane"),
 		ctx:              ctx,
 	}
 }
 
-type callerState struct {
+type clientState struct {
 	pid           int
-	profile       string
+	tags          []string
+	specKeys      []string
 	lastHeartbeat time.Time
 }
 
-type profileRuntime struct {
-	name      string
-	specKeys  []string
-	tools     *aggregator.ToolIndex
-	resources *aggregator.ResourceIndex
-	prompts   *aggregator.PromptIndex
+type runtimeState struct {
+	specKeys      map[string]string
+	metadataCache *domain.MetadataCache
+	tools         *aggregator.ToolIndex
+	resources     *aggregator.ResourceIndex
+	prompts       *aggregator.PromptIndex
 
 	mu     sync.RWMutex
 	active bool
 }
 
-// Activate starts indexes for the profile runtime.
-func (p *profileRuntime) Activate(ctx context.Context) {
-	p.mu.Lock()
-	if p.active {
-		p.mu.Unlock()
+// Activate starts indexes for the runtime state.
+func (r *runtimeState) Activate(ctx context.Context) {
+	r.mu.Lock()
+	if r.active {
+		r.mu.Unlock()
 		return
 	}
-	p.active = true
-	p.mu.Unlock()
+	r.active = true
+	r.mu.Unlock()
 
-	if p.tools != nil {
-		p.tools.Start(ctx)
+	if r.tools != nil {
+		r.tools.Start(ctx)
 	}
-	if p.resources != nil {
-		p.resources.Start(ctx)
+	if r.resources != nil {
+		r.resources.Start(ctx)
 	}
-	if p.prompts != nil {
-		p.prompts.Start(ctx)
+	if r.prompts != nil {
+		r.prompts.Start(ctx)
 	}
 }
 
-// Deactivate stops indexes for the profile runtime.
-func (p *profileRuntime) Deactivate() {
-	p.mu.Lock()
-	if !p.active {
-		p.mu.Unlock()
+// Deactivate stops indexes for the runtime state.
+func (r *runtimeState) Deactivate() {
+	r.mu.Lock()
+	if !r.active {
+		r.mu.Unlock()
 		return
 	}
-	p.active = false
-	p.mu.Unlock()
+	r.active = false
+	r.mu.Unlock()
 
-	if p.tools != nil {
-		p.tools.Stop()
+	if r.tools != nil {
+		r.tools.Stop()
 	}
-	if p.resources != nil {
-		p.resources.Stop()
+	if r.resources != nil {
+		r.resources.Stop()
 	}
-	if p.prompts != nil {
-		p.prompts.Stop()
+	if r.prompts != nil {
+		r.prompts.Stop()
 	}
 }
 
-// SpecKeys returns a copy of the profile spec keys.
-func (p *profileRuntime) SpecKeys() []string {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	if len(p.specKeys) == 0 {
+// SpecKeys returns a copy of the server spec keys.
+func (r *runtimeState) SpecKeys() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if len(r.specKeys) == 0 {
 		return nil
 	}
-	return append([]string(nil), p.specKeys...)
+	return collectSpecKeys(r.specKeys)
 }
 
-// UpdateCatalog refreshes profile runtime state from the catalog.
-func (p *profileRuntime) UpdateCatalog(cfg domain.CatalogProfile) {
-	p.mu.Lock()
-	p.specKeys = collectSpecKeys(cfg.SpecKeys)
-	p.mu.Unlock()
+// UpdateCatalog refreshes runtime state from the catalog.
+func (r *runtimeState) UpdateCatalog(catalog domain.Catalog, specKeys map[string]string, runtime domain.RuntimeConfig) {
+	r.mu.Lock()
+	r.specKeys = copySpecKeyMap(specKeys)
+	r.mu.Unlock()
 
-	if p.tools != nil {
-		p.tools.UpdateSpecs(cfg.Profile.Catalog.Specs, cfg.SpecKeys, cfg.Profile.Catalog.Runtime)
+	if r.tools != nil {
+		r.tools.UpdateSpecs(catalog.Specs, specKeys, runtime)
 	}
-	if p.resources != nil {
-		p.resources.UpdateSpecs(cfg.Profile.Catalog.Specs, cfg.SpecKeys, cfg.Profile.Catalog.Runtime)
+	if r.resources != nil {
+		r.resources.UpdateSpecs(catalog.Specs, specKeys, runtime)
 	}
-	if p.prompts != nil {
-		p.prompts.UpdateSpecs(cfg.Profile.Catalog.Specs, cfg.SpecKeys, cfg.Profile.Catalog.Runtime)
+	if r.prompts != nil {
+		r.prompts.UpdateSpecs(catalog.Specs, specKeys, runtime)
 	}
 }
 
@@ -160,50 +157,28 @@ func defaultControlPlaneInfo() domain.ControlPlaneInfo {
 }
 
 // UpdateCatalog replaces the control plane state with a new catalog.
-func (s *controlPlaneState) UpdateCatalog(state *domain.CatalogState, profiles map[string]*profileRuntime) {
-	store := state.Store
-	callers := copyCallers(store.Callers)
-	if callers == nil {
-		callers = map[string]string{}
-	}
-	specRegistry := copySpecRegistryMap(state.Summary.SpecRegistry)
-
+func (s *controlPlaneState) UpdateCatalog(state *domain.CatalogState, runtime *runtimeState) {
 	s.mu.Lock()
-	s.profileStore = store
-	s.callers = callers
-	s.specRegistry = specRegistry
-	s.runtime = state.Summary.DefaultRuntime
-	s.profiles = profiles
+	s.catalog = state.Catalog
+	s.runtime = state.Summary.Runtime
+	s.specRegistry = copySpecRegistryMap(state.Summary.SpecRegistry)
+	s.serverSpecKeys = copySpecKeyMap(state.Summary.ServerSpecKeys)
+	s.runtimeState = runtime
 	s.mu.Unlock()
 }
 
-// ProfileStore returns the current profile store.
-func (s *controlPlaneState) ProfileStore() domain.ProfileStore {
+// Catalog returns the current catalog.
+func (s *controlPlaneState) Catalog() domain.Catalog {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.profileStore
+	return s.catalog
 }
 
-// Callers returns a copy of the current caller mapping.
-func (s *controlPlaneState) Callers() map[string]string {
+// RuntimeState returns the runtime index state.
+func (s *controlPlaneState) RuntimeState() *runtimeState {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return copyCallers(s.callers)
-}
-
-// Profiles returns a copy of the current profile runtimes.
-func (s *controlPlaneState) Profiles() map[string]*profileRuntime {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return copyProfiles(s.profiles)
-}
-
-// Profile returns a profile runtime by name.
-func (s *controlPlaneState) Profile(name string) (*profileRuntime, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	runtime, ok := s.profiles[name]
-	return runtime, ok
+	return s.runtimeState
 }
 
 // SpecRegistry returns a copy of the current spec registry.
@@ -213,6 +188,13 @@ func (s *controlPlaneState) SpecRegistry() map[string]domain.ServerSpec {
 	return copySpecRegistryMap(s.specRegistry)
 }
 
+// ServerSpecKeys returns a copy of the current server spec keys.
+func (s *controlPlaneState) ServerSpecKeys() map[string]string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return copySpecKeyMap(s.serverSpecKeys)
+}
+
 // Runtime returns the current runtime config.
 func (s *controlPlaneState) Runtime() domain.RuntimeConfig {
 	s.mu.RLock()
@@ -220,33 +202,22 @@ func (s *controlPlaneState) Runtime() domain.RuntimeConfig {
 	return s.runtime
 }
 
-func copyCallers(src map[string]string) map[string]string {
-	if src == nil {
-		return nil
-	}
-	dst := make(map[string]string, len(src))
-	for key, value := range src {
-		dst[key] = value
-	}
-	return dst
-}
-
-func copyProfiles(src map[string]*profileRuntime) map[string]*profileRuntime {
-	if src == nil {
-		return nil
-	}
-	dst := make(map[string]*profileRuntime, len(src))
-	for key, value := range src {
-		dst[key] = value
-	}
-	return dst
-}
-
 func copySpecRegistryMap(src map[string]domain.ServerSpec) map[string]domain.ServerSpec {
 	if src == nil {
 		return nil
 	}
 	dst := make(map[string]domain.ServerSpec, len(src))
+	for key, value := range src {
+		dst[key] = value
+	}
+	return dst
+}
+
+func copySpecKeyMap(src map[string]string) map[string]string {
+	if src == nil {
+		return nil
+	}
+	dst := make(map[string]string, len(src))
 	for key, value := range src {
 		dst[key] = value
 	}
