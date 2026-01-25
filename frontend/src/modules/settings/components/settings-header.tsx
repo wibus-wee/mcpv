@@ -19,7 +19,7 @@ export const SettingsHeader = () => (
       <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
     </div>
     <p className="text-muted-foreground text-sm">
-      Runtime defaults shared across all profiles
+      Runtime defaults shared across all servers
     </p>
   </m.div>
 )

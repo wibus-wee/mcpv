@@ -3,24 +3,23 @@
 // Position: Shared types for topology module
 
 import type {
-  ActiveCaller,
-  ProfileDetail,
-  ProfileSummary,
+  ActiveClient,
+  ServerDetail,
   ServerRuntimeStatus,
+  ServerSummary,
 } from '@bindings/mcpd/internal/ui'
-import type { Node, NodeProps } from '@xyflow/react'
+import type { Node } from '@xyflow/react'
 
-export type CallerNodeData = {
+export type ClientNodeData = {
   name: string
-  profileName?: string
   pid?: number
+  tagCount: number
 }
 
-export type ProfileNodeData = {
+export type TagNodeData = {
   name: string
   serverCount: number
-  isDefault: boolean
-  isMissing: boolean
+  clientCount: number
 }
 
 export type ServerNodeData = {
@@ -35,29 +34,24 @@ export type InstanceNodeData = {
   busyCount: number
 }
 
-export type CallerFlowNode = Node<CallerNodeData, 'caller'>
-export type ProfileFlowNode = Node<ProfileNodeData, 'profile'>
+export type ClientFlowNode = Node<ClientNodeData, 'client'>
+export type TagFlowNode = Node<TagNodeData, 'tag'>
 export type ServerFlowNode = Node<ServerNodeData, 'server'>
 export type InstanceFlowNode = Node<InstanceNodeData, 'instance'>
-export type FlowNode = CallerFlowNode | ProfileFlowNode | ServerFlowNode | InstanceFlowNode
-
-export interface CallerNodeProps extends NodeProps<CallerFlowNode> {
-  isActive?: boolean
-}
+export type FlowNode = ClientFlowNode | TagFlowNode | ServerFlowNode | InstanceFlowNode
 
 export type LayoutResult = {
   nodes: FlowNode[]
   edges: import('@xyflow/react').Edge[]
-  profileCount: number
+  tagCount: number
   serverCount: number
-  callerCount: number
+  clientCount: number
   instanceCount: number
 }
 
 export type BuildTopologyInput = {
-  profiles: ProfileSummary[]
-  profileDetails: ProfileDetail[]
-  callers: Record<string, string>
-  activeCallers: ActiveCaller[]
+  servers: ServerSummary[]
+  serverDetails: ServerDetail[]
+  activeClients: ActiveClient[]
   runtimeStatus: ServerRuntimeStatus[]
 }

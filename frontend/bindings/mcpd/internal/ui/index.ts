@@ -6,9 +6,9 @@ import * as CoreService from "./coreservice.js";
 import * as DebugService from "./debugservice.js";
 import * as DiscoveryService from "./discoveryservice.js";
 import * as LogService from "./logservice.js";
-import * as ProfileService from "./profileservice.js";
 import * as ProxyService from "./proxyservice.js";
 import * as RuntimeService from "./runtimeservice.js";
+import * as ServerService from "./serverservice.js";
 import * as SubAgentService from "./subagentservice.js";
 import * as SystemService from "./systemservice.js";
 export {
@@ -17,21 +17,19 @@ export {
     DebugService,
     DiscoveryService,
     LogService,
-    ProfileService,
     ProxyService,
     RuntimeService,
+    ServerService,
     SubAgentService,
     SystemService
 };
 
 export {
-    ActiveCaller,
+    ActiveClient,
     BootstrapProgressResponse,
     ConfigModeResponse,
     CoreStateResponse,
-    CreateProfileRequest,
     DebugSnapshotResponse,
-    DeleteProfileRequest,
     DeleteServerRequest,
     ImportMcpServersRequest,
     ImportServerSpec,
@@ -40,9 +38,6 @@ export {
     ObservabilityConfigDetail,
     PoolMetrics,
     PoolStats,
-    ProfileDetail,
-    ProfileSubAgentConfigDetail,
-    ProfileSummary,
     PromptEntry,
     PromptPage,
     ProxyFetchRequest,
@@ -53,17 +48,17 @@ export {
     ResourcePage,
     RetryServerInitRequest,
     RuntimeConfigDetail,
+    ServerDetail,
     ServerInitStatus,
     ServerRuntimeStatus,
     ServerSpecDetail,
+    ServerSummary,
     StartCause,
     StartCausePolicy,
     StartCoreOptions,
     StreamableHTTPConfigDetail,
     SubAgentConfigDetail,
     ToolEntry,
-    UpdateCallerMappingRequest,
-    UpdateProfileSubAgentRequest,
     UpdateRuntimeConfigRequest,
     UpdateServerStateRequest,
     UpdateSubAgentConfigRequest

@@ -1,5 +1,3 @@
-import type { RuntimeConfigDetail } from '@bindings/mcpd/internal/ui'
-
 export const BOOTSTRAP_MODE_OPTIONS = [
   { value: 'metadata', label: 'Metadata' },
   { value: 'disabled', label: 'Disabled' },
@@ -35,8 +33,8 @@ export type RuntimeFormState = {
   pingIntervalSeconds: number
   toolRefreshSeconds: number
   toolRefreshConcurrency: number
-  callerCheckSeconds: number
-  callerInactiveSeconds: number
+  clientCheckSeconds: number
+  clientInactiveSeconds: number
   serverInitRetryBaseSeconds: number
   serverInitRetryMaxSeconds: number
   serverInitMaxRetries: number
@@ -53,8 +51,8 @@ export const DEFAULT_RUNTIME_FORM: RuntimeFormState = {
   pingIntervalSeconds: 0,
   toolRefreshSeconds: 0,
   toolRefreshConcurrency: 0,
-  callerCheckSeconds: 0,
-  callerInactiveSeconds: 0,
+  clientCheckSeconds: 0,
+  clientInactiveSeconds: 0,
   serverInitRetryBaseSeconds: 0,
   serverInitRetryMaxSeconds: 0,
   serverInitMaxRetries: 0,
@@ -71,8 +69,8 @@ export const toRuntimeFormState = (runtime: RuntimeConfigDetail): RuntimeFormSta
   pingIntervalSeconds: runtime.pingIntervalSeconds,
   toolRefreshSeconds: runtime.toolRefreshSeconds,
   toolRefreshConcurrency: runtime.toolRefreshConcurrency,
-  callerCheckSeconds: runtime.callerCheckSeconds,
-  callerInactiveSeconds: runtime.callerInactiveSeconds,
+  clientCheckSeconds: runtime.clientCheckSeconds,
+  clientInactiveSeconds: runtime.clientInactiveSeconds,
   serverInitRetryBaseSeconds: runtime.serverInitRetryBaseSeconds,
   serverInitRetryMaxSeconds: runtime.serverInitRetryMaxSeconds,
   serverInitMaxRetries: runtime.serverInitMaxRetries,
@@ -83,3 +81,4 @@ export const toRuntimeFormState = (runtime: RuntimeConfigDetail): RuntimeFormSta
   exposeTools: runtime.exposeTools,
   toolNamespaceStrategy: runtime.toolNamespaceStrategy || 'prefix',
 })
+import type { RuntimeConfigDetail } from '@bindings/mcpd/internal/ui'

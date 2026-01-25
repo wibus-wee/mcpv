@@ -3,11 +3,12 @@
 // Position: Dashboard status overview section
 
 import {
-  ActivityIcon,
   CheckCircle2Icon,
   ClockIcon,
   FileTextIcon,
+  LayersIcon,
   Loader2Icon,
+  MonitorIcon,
   ServerIcon,
   WrenchIcon,
   XCircleIcon,
@@ -18,11 +19,13 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { useActiveClients } from '@/hooks/use-active-clients'
 import { useCoreState } from '@/hooks/use-core-state'
 import { Spring } from '@/lib/spring'
 import { formatDuration } from '@/lib/time'
 
-import { usePrompts, useResources, useTools } from '../hooks'
+import { useServers } from '@/modules/config/hooks'
+import { useResources, useTools } from '../hooks'
 import { AnimatedNumber } from './sparkline'
 
 interface StatCardProps {
@@ -153,7 +156,7 @@ function CoreStatusCard() {
 }
 
 function UptimeCard() {
-  const { coreStatus, data: coreState, isLoading } = useCoreState()
+  const { data: coreState, isLoading } = useCoreState()
 
   const uptimeFormatted = coreState?.uptime ? formatDuration(coreState.uptime) : '--'
 
@@ -200,21 +203,40 @@ function UptimeCard() {
 }
 
 export function StatusCards() {
+  const { data: servers, isLoading: serversLoading } = useServers()
+  const { data: clients, isLoading: clientsLoading } = useActiveClients()
   const { tools, isLoading: toolsLoading } = useTools()
   const { resources, isLoading: resourcesLoading } = useResources()
-  const { prompts, isLoading: promptsLoading } = usePrompts()
 
   return (
-    <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
+    <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
       <CoreStatusCard />
       <UptimeCard />
+
+      <StatCard
+        title="Servers"
+        value={servers?.length ?? 0}
+        icon={<LayersIcon className="size-3.5" />}
+        description="Configured MCP servers"
+        delay={0.06}
+        loading={serversLoading}
+      />
+
+      <StatCard
+        title="Active Clients"
+        value={clients?.length ?? 0}
+        icon={<MonitorIcon className="size-3.5" />}
+        description="Clients currently connected"
+        delay={0.09}
+        loading={clientsLoading}
+      />
 
       <StatCard
         title="Tools"
         value={tools.length}
         icon={<WrenchIcon className="size-3.5" />}
         description="Available MCP tools"
-        delay={0.06}
+        delay={0.12}
         loading={toolsLoading}
       />
 
@@ -223,17 +245,8 @@ export function StatusCards() {
         value={resources.length}
         icon={<FileTextIcon className="size-3.5" />}
         description="Available resources"
-        delay={0.09}
+        delay={0.15}
         loading={resourcesLoading}
-      />
-
-      <StatCard
-        title="Prompts"
-        value={prompts.length}
-        icon={<ActivityIcon className="size-3.5" />}
-        description="Available prompt templates"
-        delay={0.12}
-        loading={promptsLoading}
       />
     </div>
   )

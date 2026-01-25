@@ -8,7 +8,7 @@
 
 ## Files
 
-- **config/**: 配置管理模块（profiles、callers、运行状态）
+- **config/**: 配置管理模块（servers、tags、clients、运行状态）
 - **dashboard/**: 仪表盘模块（核心状态、工具、日志）
 - **settings/**: 全局运行时配置的设置模块
 - **tools/**: 工具浏览与 server 详情模块

@@ -3,16 +3,16 @@
 // Position: Left panel in master-detail tools layout
 
 import { useEffect, useMemo, useState } from 'react'
-import { m, AnimatePresence } from 'motion/react'
-import { ChevronRightIcon, SearchIcon, ServerIcon, WrenchIcon } from 'lucide-react'
+import { AnimatePresence, m } from 'motion/react'
+import { ChevronRightIcon, SearchIcon, ServerIcon, TagIcon, WrenchIcon } from 'lucide-react'
 
-import type { ActiveCaller, ToolEntry } from '@bindings/mcpd/internal/ui'
+import type { ActiveClient, ToolEntry } from '@bindings/mcpd/internal/ui'
 
-import { CallerChipGroup } from '@/components/common/caller-chip-group'
+import { ClientChipGroup } from '@/components/common/client-chip-group'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { useActiveCallers } from '@/hooks/use-active-callers'
+import { useActiveClients } from '@/hooks/use-active-clients'
 import { ServerRuntimeIndicator } from '@/modules/config/components/server-runtime-status'
 import { cn } from '@/lib/utils'
 import { Spring } from '@/lib/spring'
@@ -46,19 +46,26 @@ function parseToolDescription(tool: ToolEntry): string {
   }
 }
 
+const matchesTags = (serverTags: string[], clientTags: string[]) => {
+  if (serverTags.length === 0 || clientTags.length === 0) {
+    return true
+  }
+  return serverTags.some(tag => clientTags.includes(tag))
+}
+
 export function ToolsSidebar({
   servers,
   selectedServerId,
   selectedToolId,
   onSelectServer,
   onSelectTool,
-  className
+  className,
 }: ToolsSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedServers, setExpandedServers] = useState<Set<string>>(() => {
     return new Set(servers.map(s => s.id))
   })
-  const { data: activeCallers } = useActiveCallers()
+  const { data: activeClients } = useActiveClients()
 
   const toolDescriptionById = useMemo(() => {
     const map = new Map<string, string>()
@@ -99,38 +106,33 @@ export function ToolsSidebar({
       .filter((s): s is ServerGroup => s !== null)
   }, [searchQuery, servers, toolDescriptionById])
 
-  const activeCallersByServer = useMemo(() => {
-    const byServer = new Map<string, ActiveCaller[]>()
-    const byProfile = new Map<string, ActiveCaller[]>()
-
-    const activeCallerList = activeCallers ?? []
-    activeCallerList.forEach(caller => {
-      const list = byProfile.get(caller.profile) ?? []
-      list.push(caller)
-      byProfile.set(caller.profile, list)
-    })
+  const activeClientsByServer = useMemo(() => {
+    const byServer = new Map<string, ActiveClient[]>()
+    const activeClientList = activeClients ?? []
 
     servers.forEach(server => {
-      const collected: ActiveCaller[] = []
+      const collected: ActiveClient[] = []
       const seen = new Set<string>()
+      const serverTags = server.tags ?? []
 
-      server.profileNames.forEach(profileName => {
-        const matches = byProfile.get(profileName) ?? []
-        matches.forEach(caller => {
-          const key = `${caller.caller}:${caller.pid}`
-          if (seen.has(key)) {
-            return
-          }
-          seen.add(key)
-          collected.push(caller)
-        })
+      activeClientList.forEach(client => {
+        const key = `${client.client}:${client.pid}`
+        if (seen.has(key)) {
+          return
+        }
+        const clientTags = client.tags ?? []
+        if (!matchesTags(serverTags, clientTags)) {
+          return
+        }
+        seen.add(key)
+        collected.push(client)
       })
 
       byServer.set(server.id, collected)
     })
 
     return byServer
-  }, [activeCallers, servers])
+  }, [activeClients, servers])
 
   const toggleServer = (serverId: string) => {
     setExpandedServers(prev => {
@@ -222,7 +224,9 @@ export function ToolsSidebar({
               {filteredServers.map(server => {
                 const isExpanded = expandedServers.has(server.id)
                 const isSelected = selectedServerId === server.id
-                const activeForServer = activeCallersByServer.get(server.id) ?? []
+                const activeForServer = activeClientsByServer.get(server.id) ?? []
+                const displayTags = server.tags.slice(0, 2)
+                const extraTags = server.tags.length - displayTags.length
 
                 return (
                   <div key={server.id}>
@@ -244,6 +248,13 @@ export function ToolsSidebar({
                       </m.div>
                       <ServerIcon className="size-4 text-muted-foreground" />
                       <span className="flex-1 min-w-0 truncate">{server.serverName}</span>
+                      {displayTags.length > 0 && (
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <TagIcon className="size-3" />
+                          {displayTags.join(', ')}
+                          {extraTags > 0 ? ` +${extraTags}` : ''}
+                        </span>
+                      )}
                       <ServerRuntimeIndicator specKey={server.specKey} />
                       <span className="text-xs text-muted-foreground tabular-nums">
                         {server.tools.length}
@@ -251,7 +262,7 @@ export function ToolsSidebar({
                     </button>
                     {activeForServer.length > 0 && (
                       <div className="ml-7 mb-1">
-                        <CallerChipGroup callers={activeForServer} maxVisible={2} />
+                        <ClientChipGroup clients={activeForServer} maxVisible={2} />
                       </div>
                     )}
 
@@ -282,13 +293,15 @@ export function ToolsSidebar({
                                     'text-sm text-left transition-colors',
                                     isSelected
                                       ? 'bg-primary/10 text-primary'
-                                      : 'hover:bg-muted/50 text-foreground/80'
+                                      : 'hover:bg-muted/50 text-foreground/80',
                                   )}
                                 >
-                                  <WrenchIcon className={cn(
-                                    'size-3.5 shrink-0',
-                                    isSelected ? 'text-primary' : 'text-muted-foreground'
-                                  )} />
+                                  <WrenchIcon
+                                    className={cn(
+                                      'size-3.5 shrink-0',
+                                      isSelected ? 'text-primary' : 'text-muted-foreground',
+                                    )}
+                                  />
                                   <span className="truncate font-mono text-xs">
                                     {tool.name}
                                   </span>

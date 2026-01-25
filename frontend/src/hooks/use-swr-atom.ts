@@ -30,27 +30,27 @@ interface UseSWRAtomOptions<T> extends SWRConfiguration<T> {
  *
  * @example
  * // Basic usage - syncs SWR data to atom automatically
- * const profilesAtom = atom<ProfileSummary[]>([])
+ * const serversAtom = atom<ServerSummary[]>([])
  *
- * export function useProfiles() {
+ * export function useServers() {
  *   return useSWRAtom(
- *     'profiles',
- *     () => ProfileService.ListProfiles(),
- *     profilesAtom,
+ *     'servers',
+ *     () => ServerService.ListServers(),
+ *     serversAtom,
  *     { preset: 'cached' }
  *   )
  * }
  *
  * @example
  * // With data transformation
- * export function useActiveProfiles() {
+ * export function useHealthyServers() {
  *   return useSWRAtom(
- *     'profiles',
- *     () => ProfileService.ListProfiles(),
- *     activeProfilesAtom,
+ *     'servers',
+ *     () => ServerService.ListServers(),
+ *     healthyServersAtom,
  *     {
  *       preset: 'cached',
- *       transform: (profiles) => profiles.filter(p => p.isActive),
+ *       transform: (servers) => servers.filter(s => !s.disabled),
  *     }
  *   )
  * }

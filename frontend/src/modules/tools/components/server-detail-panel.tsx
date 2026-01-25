@@ -73,8 +73,8 @@ function formatStartReason(
     }
     case 'tool_call':
       return 'Triggered by tool call'
-    case 'caller_activate':
-      return 'Triggered by caller activation'
+    case 'client_activate':
+      return 'Triggered by client activation'
     case 'policy_always_on':
       return 'always-on running'
     case 'policy_min_ready':
@@ -89,8 +89,8 @@ function formatStartTriggerLines(cause?: StartCause | null): string[] {
     return []
   }
   const lines = [] as string[]
-  if (cause.caller) {
-    lines.push(`caller: ${cause.caller}`)
+  if (cause.client) {
+    lines.push(`client: ${cause.client}`)
   }
   if (cause.toolName) {
     lines.push(`tool: ${cause.toolName}`)
@@ -187,7 +187,6 @@ export function ServerDetailPanel({
     )
   }
 
-  const profileNames = [...server.profileNames].sort((a, b) => a.localeCompare(b))
   const toolList = [...server.tools].sort((a, b) => a.name.localeCompare(b.name))
   const specDetail = server.specDetail
   const isRuntimeLoading = runtimeStatus === undefined && initStatus === undefined
@@ -320,19 +319,19 @@ export function ServerDetailPanel({
         </div>
 
         <div className="space-y-2">
-          <h3 className="text-sm font-semibold">Profiles</h3>
-          {profileNames.length > 0 ? (
+          <h3 className="text-sm font-semibold">Tags</h3>
+          {server.tags.length > 0 ? (
             <div className="flex flex-wrap gap-2">
-              {profileNames.map(profile => (
-                <Badge key={profile} variant="secondary" size="sm">
-                  {profile}
+              {server.tags.map(tag => (
+                <Badge key={tag} variant="secondary" size="sm">
+                  {tag}
                 </Badge>
               ))}
             </div>
           ) : (
             <Card className="p-4">
               <p className="text-xs text-muted-foreground text-center">
-                This server is not assigned to any profile.
+                This server does not have any tags.
               </p>
             </Card>
           )}

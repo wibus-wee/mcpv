@@ -2,17 +2,8 @@
 // Output: Settings page layout
 // Position: Settings module page for global runtime settings
 
-import { AlertCircleIcon, SettingsIcon } from 'lucide-react'
 import { m } from 'motion/react'
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty'
 import { Separator } from '@/components/ui/separator'
 import { Spring } from '@/lib/spring'
 import { useConfigMode } from '@/modules/config/hooks'
@@ -40,68 +31,35 @@ export const SettingsPage = () => {
         animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
         transition={Spring.smooth(0.4)}
       >
-        {runtime.profilesError && (
-          <Alert variant="error">
-            <AlertCircleIcon />
-            <AlertTitle>Failed to load profiles</AlertTitle>
-            <AlertDescription>
-              {runtime.profilesError instanceof Error
-                ? runtime.profilesError.message
-                : 'Unable to load configuration profiles.'}
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {!runtime.hasProfiles && !runtime.profilesLoading && !runtime.profilesError && (
-          <Empty className="min-h-[280px]">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <SettingsIcon className="size-4" />
-              </EmptyMedia>
-              <EmptyTitle>No profiles available</EmptyTitle>
-              <EmptyDescription>
-                Create a profile before editing runtime settings.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        )}
-
-        {runtime.hasProfiles && (
-          <>
-            <RuntimeSettingsCard
-              runtimeProfileName={runtime.runtimeProfileName}
-              runtimeProfile={runtime.runtimeProfile}
-              runtimeError={runtime.runtimeError}
-              canEdit={canEdit}
-              form={runtime.form}
-              statusLabel={runtime.statusLabel}
-              saveDisabledReason={runtime.saveDisabledReason}
-              showRuntimeSkeleton={runtime.showRuntimeSkeleton}
-              hasRuntimeProfile={runtime.hasRuntimeProfile}
-              onSubmit={runtime.handleSave}
-            />
-            <SubAgentSettingsCard
-              canEdit={canEdit}
-              form={subAgent.form}
-              apiKeyInput={subAgent.apiKeyInput}
-              onApiKeyChange={subAgent.setApiKeyInput}
-              modelInputValue={subAgent.modelInputValue}
-              onModelInputChange={subAgent.setModelValue}
-              onModelValueChange={subAgent.setModelValue}
-              modelLabelMap={subAgent.modelLabelMap}
-              modelOptionIDs={subAgent.modelOptionIDs}
-              modelFetchState={subAgent.modelFetchState}
-              modelFetchError={subAgent.modelFetchError}
-              modelFetchLabel={subAgent.modelFetchLabel}
-              onFetchModels={subAgent.fetchModels}
-              statusLabel={subAgent.statusLabel}
-              saveDisabledReason={subAgent.saveDisabledReason}
-              hasSubAgentChanges={subAgent.hasSubAgentChanges}
-              subAgentError={subAgent.subAgentError}
-              onSubmit={subAgent.handleSave}
-            />
-          </>
-        )}
+        <RuntimeSettingsCard
+          canEdit={canEdit}
+          form={runtime.form}
+          statusLabel={runtime.statusLabel}
+          saveDisabledReason={runtime.saveDisabledReason}
+          runtimeLoading={runtime.runtimeLoading}
+          runtimeError={runtime.runtimeError}
+          onSubmit={runtime.handleSave}
+        />
+        <SubAgentSettingsCard
+          canEdit={canEdit}
+          form={subAgent.form}
+          apiKeyInput={subAgent.apiKeyInput}
+          onApiKeyChange={subAgent.setApiKeyInput}
+          modelInputValue={subAgent.modelInputValue}
+          onModelInputChange={subAgent.setModelValue}
+          onModelValueChange={subAgent.setModelValue}
+          modelLabelMap={subAgent.modelLabelMap}
+          modelOptionIDs={subAgent.modelOptionIDs}
+          modelFetchState={subAgent.modelFetchState}
+          modelFetchError={subAgent.modelFetchError}
+          modelFetchLabel={subAgent.modelFetchLabel}
+          onFetchModels={subAgent.fetchModels}
+          statusLabel={subAgent.statusLabel}
+          saveDisabledReason={subAgent.saveDisabledReason}
+          hasSubAgentChanges={subAgent.hasSubAgentChanges}
+          subAgentError={subAgent.subAgentError}
+          onSubmit={subAgent.handleSave}
+        />
       </m.div>
     </div>
   )

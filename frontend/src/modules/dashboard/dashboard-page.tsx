@@ -26,7 +26,7 @@ import { useCoreActions, useCoreState } from '@/hooks/use-core-state'
 import { Spring } from '@/lib/spring'
 
 import {
-  ActiveCallersPanel,
+  ActiveClientsPanel,
   ActivityInsights,
   BootstrapProgressPanel,
   LogsPanel,
@@ -164,7 +164,7 @@ function DashboardInsights() {
         <ServerHealthOverview />
       </div>
       <div className="space-y-4">
-        <ActiveCallersPanel />
+        <ActiveClientsPanel />
       </div>
       <div className='lg:col-span-3'>
         <ActivityInsights />

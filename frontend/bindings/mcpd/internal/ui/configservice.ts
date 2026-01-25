@@ -31,7 +31,16 @@ export function GetConfigPath(): $CancellablePromise<string> {
 }
 
 /**
- * ImportMcpServers writes imported MCP servers into selected profiles.
+ * GetRuntimeConfig loads runtime configuration from the config file.
+ */
+export function GetRuntimeConfig(): $CancellablePromise<$models.RuntimeConfigDetail> {
+    return $Call.ByID(3662973511).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
+ * ImportMcpServers writes imported MCP servers into the config file.
  */
 export function ImportMcpServers(req: $models.ImportMcpServersRequest): $CancellablePromise<void> {
     return $Call.ByID(1112164916, req);
@@ -52,7 +61,7 @@ export function ReloadConfig(): $CancellablePromise<void> {
 }
 
 /**
- * UpdateRuntimeConfig writes runtime.yaml updates to the profile store.
+ * UpdateRuntimeConfig writes runtime updates into the config file.
  */
 export function UpdateRuntimeConfig(req: $models.UpdateRuntimeConfigRequest): $CancellablePromise<void> {
     return $Call.ByID(3819242306, req);
@@ -60,3 +69,4 @@ export function UpdateRuntimeConfig(req: $models.UpdateRuntimeConfigRequest): $C
 
 // Private type creation functions
 const $$createType0 = $models.ConfigModeResponse.createFrom;
+const $$createType1 = $models.RuntimeConfigDetail.createFrom;

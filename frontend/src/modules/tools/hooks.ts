@@ -1,28 +1,27 @@
 // Input: DiscoveryService bindings, SWR, runtime status hook
-// Input: Wails bindings, SWR, profile/runtime hooks
 // Output: useToolsByServer hook for grouping tools by server
 // Position: Data layer for tools module
 
-import { useMemo } from "react";
-import useSWR from "swr";
+import { useMemo } from 'react'
+import useSWR from 'swr'
 
-import type { ServerSpecDetail, ToolEntry } from "@bindings/mcpd/internal/ui";
-import { DiscoveryService } from "@bindings/mcpd/internal/ui";
+import type { ServerDetail, ServerSummary, ToolEntry } from '@bindings/mcpd/internal/ui'
+import { DiscoveryService } from '@bindings/mcpd/internal/ui'
 
 import {
-  useProfiles,
-  useProfileDetails,
   useRuntimeStatus,
-} from "@/modules/config/hooks";
+  useServerDetails,
+  useServers,
+} from '@/modules/config/hooks'
 
 export interface ServerGroup {
-  id: string;
-  specKey: string;
-  serverName: string;
-  tools: ToolEntry[];
-  profileNames: string[];
-  hasToolData: boolean;
-  specDetail?: ServerSpecDetail;
+  id: string
+  specKey: string
+  serverName: string
+  tools: ToolEntry[]
+  tags: string[]
+  hasToolData: boolean
+  specDetail?: ServerDetail
 }
 
 export function useToolsByServer() {
@@ -30,141 +29,131 @@ export function useToolsByServer() {
     data: tools,
     isLoading: toolsLoading,
     error: toolsError,
-  } = useSWR<ToolEntry[]>("tools", () => DiscoveryService.ListTools());
+  } = useSWR<ToolEntry[]>('tools', () => DiscoveryService.ListTools())
 
   const {
     data: runtimeStatus,
     isLoading: runtimeLoading,
     error: runtimeError,
-  } = useRuntimeStatus();
+  } = useRuntimeStatus()
   const {
-    data: profiles,
-    isLoading: profilesLoading,
-    error: profilesError,
-  } = useProfiles();
+    data: servers,
+    isLoading: serversLoading,
+    error: serversError,
+  } = useServers()
   const {
-    data: profileDetails,
+    data: serverDetails,
     isLoading: detailsLoading,
     error: detailsError,
-  } = useProfileDetails(profiles);
+  } = useServerDetails(servers)
 
   const toolsBySpecKey = useMemo(() => {
-    const map = new Map<string, ToolEntry[]>();
-    if (!tools) return map;
+    const map = new Map<string, ToolEntry[]>()
+    if (!tools) return map
 
-    tools.forEach((tool) => {
-      const specKey = tool.specKey || tool.serverName || tool.name;
-      if (!specKey) return;
-      const bucket = map.get(specKey);
+    tools.forEach(tool => {
+      const specKey = tool.specKey || tool.serverName || tool.name
+      if (!specKey) return
+      const bucket = map.get(specKey)
       if (bucket) {
-        bucket.push(tool);
+        bucket.push(tool)
       } else {
-        map.set(specKey, [tool]);
+        map.set(specKey, [tool])
       }
-    });
+    })
 
-    return map;
-  }, [tools]);
+    return map
+  }, [tools])
 
-  const serversFromProfiles = useMemo(() => {
-    const map = new Map<
-      string,
-      { serverName: string; profiles: Set<string>; specDetail?: ServerSpecDetail }
-    >();
-    if (!profileDetails) return map;
+  const serversFromSummaries = useMemo(() => {
+    const map = new Map<string, { summary: ServerSummary; tags: string[] }>()
+    if (!servers) return map
 
-    profileDetails.forEach((profile) => {
-      profile.servers.forEach((server) => {
-        if (!server.specKey) return;
-        const entry =
-          map.get(server.specKey) ?? {
-            serverName: server.name,
-            profiles: new Set<string>(),
-            specDetail: server,
-          };
-        if (!entry.serverName && server.name) {
-          entry.serverName = server.name;
-        }
-        if (!entry.specDetail) {
-          entry.specDetail = server;
-        }
-        entry.profiles.add(profile.name);
-        map.set(server.specKey, entry);
-      });
-    });
+    servers.forEach(summary => {
+      if (!summary.specKey) return
+      map.set(summary.specKey, {
+        summary,
+        tags: summary.tags ?? [],
+      })
+    })
 
-    return map;
-  }, [profileDetails]);
+    return map
+  }, [servers])
 
   const serverMap = useMemo(() => {
-    const map = new Map<string, ServerGroup>();
+    const map = new Map<string, ServerGroup>()
 
     const ensureServer = (
       specKey: string,
       serverName?: string,
-      specDetail?: ServerSpecDetail,
+      specDetail?: ServerDetail,
+      tags?: string[],
     ) => {
-      if (!specKey) return null;
-      const existing = map.get(specKey);
+      if (!specKey) return null
+      const existing = map.get(specKey)
       if (existing) {
         if (!existing.serverName && serverName) {
-          existing.serverName = serverName;
+          existing.serverName = serverName
         }
         if (!existing.specDetail && specDetail) {
-          existing.specDetail = specDetail;
+          existing.specDetail = specDetail
         }
-        return existing;
+        if (tags && tags.length > 0 && existing.tags.length === 0) {
+          existing.tags = tags
+        }
+        return existing
       }
       const entry: ServerGroup = {
         id: specKey,
         specKey,
         serverName: serverName || specKey,
         tools: [],
-        profileNames: [],
+        tags: tags ?? [],
         hasToolData: false,
         specDetail,
-      };
-      map.set(specKey, entry);
-      return entry;
-    };
-
-    serversFromProfiles.forEach((info, specKey) => {
-      const entry = ensureServer(specKey, info.serverName, info.specDetail);
-      if (entry) {
-        entry.profileNames = Array.from(info.profiles);
       }
-    });
+      map.set(specKey, entry)
+      return entry
+    }
 
-    runtimeStatus?.forEach((status) => {
-      ensureServer(status.specKey, status.serverName);
-    });
+    serversFromSummaries.forEach(({ summary, tags }, specKey) => {
+      ensureServer(specKey, summary.name, undefined, tags)
+    })
+
+    serverDetails?.forEach(detail => {
+      ensureServer(detail.specKey, detail.name, detail, detail.tags ?? [])
+    })
+
+    runtimeStatus?.forEach(status => {
+      ensureServer(status.specKey, status.serverName)
+    })
 
     toolsBySpecKey.forEach((toolList, specKey) => {
-      const entry = ensureServer(specKey);
+      const entry = ensureServer(specKey)
       if (entry) {
-        entry.tools = toolList;
-        entry.hasToolData = true;
+        entry.tools = toolList
+        entry.hasToolData = true
       }
-    });
+    })
 
-    return map;
-  }, [runtimeStatus, serversFromProfiles, toolsBySpecKey]);
+    return map
+  }, [runtimeStatus, serverDetails, serversFromSummaries, toolsBySpecKey])
 
-  const servers = useMemo(() => {
+  const groupedServers = useMemo(() => {
     return Array.from(serverMap.values()).sort((a, b) =>
-      a.serverName.localeCompare(b.serverName)
-    );
-  }, [serverMap]);
+      a.serverName.localeCompare(b.serverName),
+    )
+  }, [serverMap])
 
   const isLoading =
-    toolsLoading || profilesLoading || detailsLoading || runtimeLoading;
-  const error = toolsError || profilesError || detailsError || runtimeError;
+    toolsLoading || serversLoading || detailsLoading || runtimeLoading
+  const error = toolsError || serversError || detailsError || runtimeError
 
   return {
-    servers,
+    servers: groupedServers,
     serverMap,
     isLoading,
     error,
     runtimeStatus,
-  };
+  }
 }

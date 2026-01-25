@@ -29,7 +29,6 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty'
 import { Kbd } from '@/components/ui/kbd'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import {
   Tooltip,

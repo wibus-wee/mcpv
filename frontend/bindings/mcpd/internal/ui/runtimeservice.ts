@@ -15,10 +15,10 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
- * GetActiveCallers returns active caller registrations.
+ * GetActiveClients returns active client registrations.
  */
-export function GetActiveCallers(): $CancellablePromise<$models.ActiveCaller[]> {
-    return $Call.ByID(831132197).then(($result: any) => {
+export function GetActiveClients(): $CancellablePromise<$models.ActiveClient[]> {
+    return $Call.ByID(1366947817).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -49,7 +49,7 @@ export function RetryServerInit(req: $models.RetryServerInitRequest): $Cancellab
 }
 
 // Private type creation functions
-const $$createType0 = $models.ActiveCaller.createFrom;
+const $$createType0 = $models.ActiveClient.createFrom;
 const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = $models.ServerRuntimeStatus.createFrom;
 const $$createType3 = $Create.Array($$createType2);

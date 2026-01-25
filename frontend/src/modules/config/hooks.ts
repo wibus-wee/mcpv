@@ -1,15 +1,16 @@
-// Input: SWR, Config/Profile/Runtime service bindings, jotai atoms
-// Output: Config data fetching hooks including profile details and runtime status
+// Input: SWR, Config/Server/Runtime service bindings, jotai atoms
+// Output: Config data fetching hooks including server details and runtime status
 // Position: Data fetching hooks for config module
 
 import type {
+  ActiveClient,
   ConfigModeResponse,
-  ProfileDetail,
-  ProfileSummary,
+  ServerDetail,
   ServerInitStatus,
   ServerRuntimeStatus,
+  ServerSummary,
 } from '@bindings/mcpd/internal/ui'
-import { ConfigService, ProfileService, RuntimeService } from '@bindings/mcpd/internal/ui'
+import { ConfigService, RuntimeService, ServerService } from '@bindings/mcpd/internal/ui'
 import { useSetAtom } from 'jotai'
 import { useCallback, useEffect, useState } from 'react'
 import useSWR from 'swr'
@@ -17,10 +18,10 @@ import useSWR from 'swr'
 import { withSWRPreset } from '@/lib/swr-config'
 
 import {
-  callersAtom,
+  activeClientsAtom,
   configModeAtom,
-  profilesAtom,
-  selectedProfileAtom,
+  selectedServerAtom,
+  serversAtom,
 } from './atoms'
 
 export function useConfigMode() {
@@ -40,52 +41,52 @@ export function useConfigMode() {
   return { data, error, isLoading, mutate }
 }
 
-export function useProfiles() {
-  const setProfiles = useSetAtom(profilesAtom)
+export function useServers() {
+  const setServers = useSetAtom(serversAtom)
 
-  const { data, error, isLoading, mutate } = useSWR<ProfileSummary[]>(
-    'profiles',
-    () => ProfileService.ListProfiles(),
+  const { data, error, isLoading, mutate } = useSWR<ServerSummary[]>(
+    'servers',
+    () => ServerService.ListServers(),
   )
 
   useEffect(() => {
     if (data) {
-      setProfiles(data)
+      setServers(data)
     }
-  }, [data, setProfiles])
+  }, [data, setServers])
 
   return { data, error, isLoading, mutate }
 }
 
-export function useProfile(name: string | null) {
-  const setSelectedProfile = useSetAtom(selectedProfileAtom)
+export function useServer(name: string | null) {
+  const setSelectedServer = useSetAtom(selectedServerAtom)
 
-  const { data, error, isLoading, mutate } = useSWR<ProfileDetail | null>(
-    name ? ['profile', name] : null,
-    () => (name ? ProfileService.GetProfile(name) : null),
+  const { data, error, isLoading, mutate } = useSWR<ServerDetail | null>(
+    name ? ['server', name] : null,
+    () => (name ? ServerService.GetServer(name) : null),
   )
 
   useEffect(() => {
     if (data !== undefined) {
-      setSelectedProfile(data)
+      setSelectedServer(data)
     }
-  }, [data, setSelectedProfile])
+  }, [data, setSelectedServer])
 
   return { data, error, isLoading, mutate }
 }
 
-export function useProfileDetails(profiles: ProfileSummary[] | undefined) {
-  const profileNames = profiles?.map(profile => profile.name) ?? []
+export function useServerDetails(servers: ServerSummary[] | undefined) {
+  const serverNames = servers?.map(server => server.name) ?? []
 
-  const { data, error, isLoading, mutate } = useSWR<ProfileDetail[]>(
-    profileNames.length > 0 ? ['profile-details', ...profileNames] : null,
+  const { data, error, isLoading, mutate } = useSWR<ServerDetail[]>(
+    serverNames.length > 0 ? ['server-details', ...serverNames] : null,
     async () => {
       const results = await Promise.all(
-        profileNames.map(name => ProfileService.GetProfile(name)),
+        serverNames.map(name => ServerService.GetServer(name)),
       )
 
       return results.filter(
-        (profile): profile is ProfileDetail => profile !== null,
+        (server): server is ServerDetail => server !== null,
       )
     },
   )
@@ -93,19 +94,19 @@ export function useProfileDetails(profiles: ProfileSummary[] | undefined) {
   return { data, error, isLoading, mutate }
 }
 
-export function useCallers() {
-  const setCallers = useSetAtom(callersAtom)
+export function useClients() {
+  const setActiveClients = useSetAtom(activeClientsAtom)
 
-  const { data, error, isLoading, mutate } = useSWR<Record<string, string>>(
-    'callers',
-    () => ProfileService.GetCallers(),
+  const { data, error, isLoading, mutate } = useSWR<ActiveClient[]>(
+    'active-clients',
+    () => RuntimeService.GetActiveClients(),
   )
 
   useEffect(() => {
     if (data) {
-      setCallers(data)
+      setActiveClients(data)
     }
-  }, [data, setCallers])
+  }, [data, setActiveClients])
 
   return { data, error, isLoading, mutate }
 }

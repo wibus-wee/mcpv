@@ -3,15 +3,15 @@
 // Position: Node rendering layer for topology visualization
 
 import { Handle, Position, type NodeProps } from '@xyflow/react'
-import { LayersIcon, ServerIcon, UsersIcon } from 'lucide-react'
+import { MonitorIcon, ServerIcon, TagIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { ServerStateBadge } from '@/components/custom/status-badge'
 
 import type {
-  CallerNodeProps,
-  ProfileFlowNode,
+  ClientFlowNode,
+  TagFlowNode,
   ServerFlowNode,
   InstanceFlowNode,
 } from '../types'
@@ -19,7 +19,7 @@ import type {
 export const handleBaseClass =
   'size-2.5 border border-background bg-foreground/50 shadow-sm'
 
-export const CallerNode = ({ data, selected, isActive = false }: CallerNodeProps) => {
+export const ClientNode = ({ data, selected, isActive = false }: NodeProps<ClientFlowNode> & { isActive?: boolean }) => {
   return (
     <div
       className={cn(
@@ -37,68 +37,53 @@ export const CallerNode = ({ data, selected, isActive = false }: CallerNodeProps
         'flex items-center gap-1.5 text-[0.65rem] font-medium uppercase tracking-wide',
         isActive ? 'text-info-foreground' : 'text-info-foreground/70',
       )}>
-        <UsersIcon className="size-3" />
-        Caller
+        <MonitorIcon className="size-3" />
+        Client
       </div>
       <div className="mt-1 font-mono text-sm text-foreground">{data.name}</div>
       {data.pid !== undefined && (
         <div className="mt-1 text-xs text-muted-foreground font-mono">PID: {data.pid}</div>
       )}
-      {data.profileName && (
-        <Badge variant="outline" size="sm" className="mt-2 font-mono">
-          {data.profileName}
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <Badge variant="secondary" size="sm">
+          {data.tagCount} Tag{data.tagCount === 1 ? '' : 's'}
         </Badge>
-      )}
+      </div>
     </div>
   )
 }
 
-export const ProfileNode = ({ data, selected }: NodeProps<ProfileFlowNode>) => {
-  const label = data.isMissing ? 'Missing Profile' : 'Profile'
-  const handleTone = data.isMissing ? 'bg-warning' : 'bg-primary'
-
+export const TagNode = ({ data, selected }: NodeProps<TagFlowNode>) => {
   return (
     <div
       className={cn(
         'min-w-[190px] rounded-xl border px-3 py-2 shadow-xs transition-all',
-        data.isMissing
-          ? 'border-warning/40 bg-warning/5'
-          : 'border-primary/20 bg-primary/5',
-        selected &&
-        (data.isMissing
-          ? 'border-2 border-warning ring-2 ring-warning/20 bg-warning/20'
-          : 'border-2 border-primary ring-2 ring-primary/20 bg-primary/20'),
+        'border-primary/20 bg-primary/5',
+        selected && 'border-2 border-primary ring-2 ring-primary/20 bg-primary/20',
       )}
     >
       <Handle
         type="target"
         position={Position.Left}
-        className={cn(handleBaseClass, handleTone)}
+        className={cn(handleBaseClass, 'bg-primary')}
       />
       <Handle
         type="source"
         position={Position.Right}
-        className={cn(handleBaseClass, handleTone)}
+        className={cn(handleBaseClass, 'bg-primary')}
       />
       <div className="flex items-center gap-1.5 text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
-        <LayersIcon className="size-3" />
-        {label}
+        <TagIcon className="size-3" />
+        Tag
       </div>
       <div className="mt-1 text-sm font-semibold text-foreground">{data.name}</div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <Badge variant="secondary" size="sm">
           {data.serverCount} Server{data.serverCount === 1 ? '' : 's'}
         </Badge>
-        {data.isDefault && !data.isMissing && (
-          <Badge variant="success" size="sm">
-            Default
-          </Badge>
-        )}
-        {data.isMissing && (
-          <Badge variant="warning" size="sm">
-            Missing
-          </Badge>
-        )}
+        <Badge variant="outline" size="sm">
+          {data.clientCount} Client{data.clientCount === 1 ? '' : 's'}
+        </Badge>
       </div>
     </div>
   )
@@ -113,7 +98,7 @@ export const ServerNode = ({ data }: NodeProps<ServerFlowNode>) => {
         : `Protocol ${data.protocolVersion}`
 
   return (
-    <div className={cn("min-w-50 rounded-xl border border-border/70 bg-muted/30 px-3 py-2 shadow-xs")}>
+    <div className={cn('min-w-50 rounded-xl border border-border/70 bg-muted/30 px-3 py-2 shadow-xs')}>
       <Handle
         type="target"
         position={Position.Left}
@@ -173,8 +158,8 @@ export const InstanceNode = ({ data, selected }: NodeProps<InstanceFlowNode>) =>
 }
 
 export const nodeTypes = {
-  caller: CallerNode,
-  profile: ProfileNode,
+  client: ClientNode,
+  tag: TagNode,
   server: ServerNode,
   instance: InstanceNode,
 }

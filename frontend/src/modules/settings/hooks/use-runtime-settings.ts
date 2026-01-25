@@ -2,11 +2,8 @@
 // Output: runtime settings state + save handler
 // Position: Settings runtime hook
 
-import type {
-  ProfileDetail,
-  ProfileSummary,
-} from '@bindings/mcpd/internal/ui'
-import { ConfigService, ProfileService } from '@bindings/mcpd/internal/ui'
+import type { RuntimeConfigDetail } from '@bindings/mcpd/internal/ui'
+import { ConfigService } from '@bindings/mcpd/internal/ui'
 import { useEffect, useMemo, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import useSWR, { useSWRConfig } from 'swr'
@@ -32,79 +29,51 @@ export const useRuntimeSettings = ({ canEdit }: UseRuntimeSettingsOptions) => {
   const isDirty = formState.isDirty
 
   const {
-    data: profiles,
-    error: profilesError,
-    isLoading: profilesLoading,
-  } = useSWR<ProfileSummary[]>(
-    'profiles',
-    () => ProfileService.ListProfiles(),
-    {
-      revalidateOnFocus: false,
-    },
-  )
-
-  const runtimeProfileName = useMemo(() => {
-    return profiles?.find(profile => profile.isDefault)?.name
-      ?? profiles?.[0]?.name
-      ?? null
-  }, [profiles])
-
-  const {
-    data: runtimeProfile,
+    data: runtimeConfig,
     error: runtimeError,
     isLoading: runtimeLoading,
-    mutate: mutateRuntimeProfile,
-  } = useSWR<ProfileDetail | null>(
-    runtimeProfileName ? ['profile', runtimeProfileName] : null,
-    () => (runtimeProfileName ? ProfileService.GetProfile(runtimeProfileName) : null),
-    {
-      revalidateOnFocus: false,
-    },
+    mutate: mutateRuntime,
+  } = useSWR<RuntimeConfigDetail>(
+    'runtime-config',
+    () => ConfigService.GetRuntimeConfig(),
+    { revalidateOnFocus: false },
   )
 
   const runtimeSnapshotRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (runtimeProfile?.runtime) {
-      if (isDirty) {
-        return
-      }
-      const nextState = toRuntimeFormState(runtimeProfile.runtime)
-      const snapshot = JSON.stringify(nextState)
-      if (snapshot !== runtimeSnapshotRef.current) {
-        runtimeSnapshotRef.current = snapshot
-        reset(nextState, { keepDirty: false })
-      }
+    if (!runtimeConfig) {
       return
     }
-    if (runtimeProfile === null && !isDirty) {
-      runtimeSnapshotRef.current = null
-      reset(DEFAULT_RUNTIME_FORM, { keepDirty: false })
+    if (isDirty) {
+      return
     }
-  }, [runtimeProfile, reset, isDirty])
-
-  const hasProfiles = (profiles?.length ?? 0) > 0
-  const hasRuntimeProfile = Boolean(runtimeProfile?.runtime)
-  const showRuntimeSkeleton = profilesLoading || runtimeLoading
+    const nextState = toRuntimeFormState(runtimeConfig)
+    const snapshot = JSON.stringify(nextState)
+    if (snapshot !== runtimeSnapshotRef.current) {
+      runtimeSnapshotRef.current = snapshot
+      reset(nextState, { keepDirty: false })
+    }
+  }, [runtimeConfig, reset, isDirty])
 
   const statusLabel = useMemo(() => {
-    if (showRuntimeSkeleton) {
+    if (runtimeLoading) {
       return 'Loading runtime settings'
     }
-    if (!hasRuntimeProfile) {
-      return 'Runtime data unavailable'
+    if (runtimeError) {
+      return 'Runtime settings unavailable'
     }
     if (isDirty) {
       return 'Unsaved changes'
     }
     return 'All changes saved'
-  }, [hasRuntimeProfile, isDirty, showRuntimeSkeleton])
+  }, [runtimeError, runtimeLoading, isDirty])
 
   const saveDisabledReason = useMemo(() => {
-    if (showRuntimeSkeleton) {
+    if (runtimeLoading) {
       return 'Runtime settings are still loading'
     }
-    if (!hasRuntimeProfile) {
+    if (runtimeError) {
       return 'Runtime settings are unavailable'
     }
     if (!canEdit) {
@@ -114,10 +83,10 @@ export const useRuntimeSettings = ({ canEdit }: UseRuntimeSettingsOptions) => {
       return 'No changes to save'
     }
     return undefined
-  }, [canEdit, hasRuntimeProfile, isDirty, showRuntimeSkeleton])
+  }, [canEdit, runtimeError, runtimeLoading, isDirty])
 
   const handleSave = form.handleSubmit(async (values) => {
-    if (!runtimeProfileName || !canEdit) {
+    if (!canEdit) {
       return
     }
     try {
@@ -134,8 +103,8 @@ export const useRuntimeSettings = ({ canEdit }: UseRuntimeSettingsOptions) => {
       }
 
       await Promise.all([
-        mutateRuntimeProfile(),
-        mutate('profiles'),
+        mutateRuntime(),
+        mutate('runtime-status'),
       ])
       reset(values, { keepDirty: false })
 
@@ -155,16 +124,9 @@ export const useRuntimeSettings = ({ canEdit }: UseRuntimeSettingsOptions) => {
 
   return {
     form,
-    profiles,
-    profilesError,
-    profilesLoading,
-    runtimeProfileName,
-    runtimeProfile,
+    runtimeConfig,
     runtimeError,
     runtimeLoading,
-    hasProfiles,
-    hasRuntimeProfile,
-    showRuntimeSkeleton,
     statusLabel,
     saveDisabledReason,
     handleSave,

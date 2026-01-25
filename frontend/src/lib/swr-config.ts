@@ -29,7 +29,7 @@ export const swrPresets = {
   /**
    * Cached preset: For data that changes infrequently.
    * Dedupes requests and avoids unnecessary refetches.
-   * Use for: Tool lists, resource lists, profile summaries
+   * Use for: Tool lists, resource lists, server summaries
    */
   cached: {
     revalidateOnFocus: false,
@@ -39,7 +39,7 @@ export const swrPresets = {
 
   /**
    * Fast-cached preset: Similar to cached but with shorter dedup interval.
-   * Use for: Active callers, runtime status
+   * Use for: Active clients, runtime status
    */
   fastCached: {
     revalidateOnFocus: false,

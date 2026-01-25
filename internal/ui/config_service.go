@@ -59,6 +59,29 @@ func (s *ConfigService) GetConfigMode() ConfigModeResponse {
 	}
 }
 
+// GetRuntimeConfig loads runtime configuration from the config file.
+func (s *ConfigService) GetRuntimeConfig(ctx context.Context) (RuntimeConfigDetail, error) {
+	manager := s.deps.manager()
+	if manager == nil {
+		return RuntimeConfigDetail{}, NewUIError(ErrCodeInternal, "Manager not initialized")
+	}
+	path := strings.TrimSpace(manager.GetConfigPath())
+	if path == "" {
+		return RuntimeConfigDetail{}, NewUIError(ErrCodeInvalidConfig, "Configuration path is not available")
+	}
+
+	loader := catalog.NewLoader(s.logger)
+	runtime, err := loader.LoadRuntimeConfig(ctx, path)
+	if err != nil {
+		return RuntimeConfigDetail{}, NewUIErrorWithDetails(
+			ErrCodeInvalidConfig,
+			"Failed to load runtime config",
+			err.Error(),
+		)
+	}
+	return mapRuntimeConfigDetail(runtime), nil
+}
+
 // OpenConfigInEditor opens config path in system editor.
 func (s *ConfigService) OpenConfigInEditor(ctx context.Context) error {
 	manager := s.deps.manager()

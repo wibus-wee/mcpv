@@ -2,7 +2,7 @@
 // Output: Barrel export for dashboard components
 // Position: Dashboard components index
 
-export { ActiveCallersPanel } from './active-callers-panel'
+export { ActiveClientsPanel } from './active-clients-panel'
 export { ActivityInsights } from './activity-insights'
 export { BootstrapProgressInline, BootstrapProgressPanel } from './bootstrap-progress'
 export { LogsPanel } from './logs-panel'

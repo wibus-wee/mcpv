@@ -30,6 +30,10 @@ type clientChangeEvent struct {
 
 const clientReapTimeoutMultiplier = 2
 
+func isInternalClientName(client string) bool {
+	return client == domain.InternalUIClientName
+}
+
 func newClientRegistry(state *controlPlaneState) *clientRegistry {
 	return &clientRegistry{
 		state:            state,
@@ -87,6 +91,7 @@ func (r *clientRegistry) RegisterClient(ctx context.Context, client string, pid 
 	}
 	normalizedTags := normalizeTags(tags)
 	visibleSpecKeys, visibleServerCount := r.visibleSpecKeys(normalizedTags)
+	internalClient := isInternalClientName(client)
 
 	var toActivate []string
 	var toDeactivate []string
@@ -108,15 +113,19 @@ func (r *clientRegistry) RegisterClient(ctx context.Context, client string, pid 
 				VisibleServerCount: visibleServerCount,
 			}, nil
 		}
-		toActivate, toDeactivate = diffKeys(visibleSpecKeys, existing.specKeys)
+		if !internalClient {
+			toActivate, toDeactivate = diffKeys(visibleSpecKeys, existing.specKeys)
+		}
 		existing.pid = pid
 		existing.tags = normalizedTags
 		existing.specKeys = visibleSpecKeys
 		existing.lastHeartbeat = now
 		r.activeClients[client] = existing
-		applySpecDelta(r.specCounts, toActivate, toDeactivate)
+		if !internalClient {
+			applySpecDelta(r.specCounts, toActivate, toDeactivate)
+		}
 		snapshot = r.snapshotActiveClientsLocked(now)
-		shouldBroadcast = true
+		shouldBroadcast = !internalClient
 	} else {
 		r.activeClients[client] = clientState{
 			pid:           pid,
@@ -124,21 +133,25 @@ func (r *clientRegistry) RegisterClient(ctx context.Context, client string, pid 
 			specKeys:      visibleSpecKeys,
 			lastHeartbeat: now,
 		}
-		applySpecDelta(r.specCounts, visibleSpecKeys, nil)
-		toActivate = visibleSpecKeys
+		if !internalClient {
+			applySpecDelta(r.specCounts, visibleSpecKeys, nil)
+			toActivate = visibleSpecKeys
+		}
 		snapshot = r.snapshotActiveClientsLocked(now)
-		shouldBroadcast = true
+		shouldBroadcast = !internalClient
 	}
 	r.mu.Unlock()
 
 	toActivate, toDeactivate = filterOverlap(toActivate, toDeactivate)
 
-	if err := r.activateSpecs(ctx, toActivate, client); err != nil {
-		_ = r.UnregisterClient(ctx, client)
-		return domain.ClientRegistration{}, err
-	}
-	if err := r.deactivateSpecs(ctx, toDeactivate); err != nil {
-		r.state.logger.Warn("spec deactivation failed", zap.Error(err))
+	if !internalClient {
+		if err := r.activateSpecs(ctx, toActivate, client); err != nil {
+			_ = r.UnregisterClient(ctx, client)
+			return domain.ClientRegistration{}, err
+		}
+		if err := r.deactivateSpecs(ctx, toDeactivate); err != nil {
+			r.state.logger.Warn("spec deactivation failed", zap.Error(err))
+		}
 	}
 	if shouldBroadcast {
 		r.broadcastActiveClients(finalizeActiveClientSnapshot(snapshot))
@@ -159,6 +172,7 @@ func (r *clientRegistry) UnregisterClient(ctx context.Context, client string) er
 	if client == "" {
 		return errors.New("client is required")
 	}
+	internalClient := isInternalClientName(client)
 	var toDeactivate []string
 	var snapshot domain.ActiveClientSnapshot
 	var shouldBroadcast bool
@@ -167,15 +181,19 @@ func (r *clientRegistry) UnregisterClient(ctx context.Context, client string) er
 	state, ok := r.activeClients[client]
 	if ok {
 		delete(r.activeClients, client)
-		applySpecDelta(r.specCounts, nil, state.specKeys)
-		toDeactivate = state.specKeys
+		if !internalClient {
+			applySpecDelta(r.specCounts, nil, state.specKeys)
+			toDeactivate = state.specKeys
+		}
 		snapshot = r.snapshotActiveClientsLocked(time.Now())
-		shouldBroadcast = true
+		shouldBroadcast = !internalClient
 	}
 	r.mu.Unlock()
 
-	if err := r.deactivateSpecs(ctx, toDeactivate); err != nil {
-		r.state.logger.Warn("spec deactivation failed", zap.Error(err))
+	if !internalClient {
+		if err := r.deactivateSpecs(ctx, toDeactivate); err != nil {
+			r.state.logger.Warn("spec deactivation failed", zap.Error(err))
+		}
 	}
 	if shouldBroadcast {
 		r.broadcastActiveClients(finalizeActiveClientSnapshot(snapshot))
@@ -379,6 +397,9 @@ func (r *clientRegistry) reapDeadClients(ctx context.Context) {
 func (r *clientRegistry) snapshotActiveClientsLocked(now time.Time) domain.ActiveClientSnapshot {
 	clients := make([]domain.ActiveClient, 0, len(r.activeClients))
 	for client, state := range r.activeClients {
+		if isInternalClientName(client) {
+			continue
+		}
 		clients = append(clients, domain.ActiveClient{
 			Client:        client,
 			PID:           state.pid,
@@ -428,8 +449,10 @@ func (r *clientRegistry) ApplyCatalogUpdate(ctx context.Context, update domain.C
 			state.specKeys = nextSpecKeys
 			r.activeClients[client] = state
 		}
-		for _, specKey := range nextSpecKeys {
-			newSpecCounts[specKey]++
+		if !isInternalClientName(client) {
+			for _, specKey := range nextSpecKeys {
+				newSpecCounts[specKey]++
+			}
 		}
 	}
 	r.specCounts = newSpecCounts

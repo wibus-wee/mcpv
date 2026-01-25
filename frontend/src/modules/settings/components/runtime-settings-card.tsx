@@ -1,11 +1,10 @@
-// Input: runtime form state, runtime profile metadata
+// Input: runtime form state
 // Output: Runtime settings card using compound component pattern
 // Position: Settings page runtime section
 
-import type { ProfileDetail } from '@bindings/mcpd/internal/ui'
-import { AlertCircleIcon } from 'lucide-react'
 import type * as React from 'react'
 import type { UseFormReturn } from 'react-hook-form'
+import { AlertCircleIcon } from 'lucide-react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -22,28 +21,22 @@ import {
 import { SettingsCard } from './settings-card'
 
 interface RuntimeSettingsCardProps {
-  runtimeProfileName: string | null
-  runtimeProfile: ProfileDetail | null | undefined
-  runtimeError: unknown
   canEdit: boolean
   form: UseFormReturn<RuntimeFormState>
   statusLabel: string
   saveDisabledReason?: string
-  showRuntimeSkeleton: boolean
-  hasRuntimeProfile: boolean
+  runtimeLoading: boolean
+  runtimeError: unknown
   onSubmit: (event?: React.BaseSyntheticEvent) => void
 }
 
 export const RuntimeSettingsCard = ({
-  runtimeProfileName,
-  runtimeProfile,
-  runtimeError,
   canEdit,
   form,
   statusLabel,
   saveDisabledReason,
-  showRuntimeSkeleton,
-  hasRuntimeProfile,
+  runtimeLoading,
+  runtimeError,
   onSubmit,
 }: RuntimeSettingsCardProps) => {
   return (
@@ -51,29 +44,21 @@ export const RuntimeSettingsCard = ({
       <SettingsCard.Header
         title="Runtime"
         description="Adjust timeouts, retries, and global defaults for runtime behavior."
-        badge={runtimeProfileName ?? undefined}
       />
       <SettingsCard.Content>
         <SettingsCard.ReadOnlyAlert />
-        <SettingsCard.ErrorAlert
-          error={runtimeError}
-          title="Failed to load runtime settings"
-          fallbackMessage="Unable to load runtime configuration."
-        />
-
-        {!showRuntimeSkeleton && runtimeProfile === null && (
-          <Alert variant="warning">
+        {Boolean(runtimeError) && (
+          <Alert variant="error">
             <AlertCircleIcon />
-            <AlertTitle>Runtime settings unavailable</AlertTitle>
+            <AlertTitle>Failed to load runtime settings</AlertTitle>
             <AlertDescription>
-              The default profile could not be loaded.
+              {runtimeError instanceof Error ? runtimeError.message : 'Unable to load runtime configuration.'}
             </AlertDescription>
           </Alert>
         )}
+        {runtimeLoading && <RuntimeSkeleton />}
 
-        {showRuntimeSkeleton && <RuntimeSkeleton />}
-
-        {hasRuntimeProfile && !showRuntimeSkeleton && (
+        {!runtimeLoading && (
           <>
             <SettingsCard.Section title="Core">
               <SettingsCard.SelectField<RuntimeFormState>
@@ -130,15 +115,15 @@ export const RuntimeSettingsCard = ({
                 unit="workers"
               />
               <SettingsCard.NumberField<RuntimeFormState>
-                name="callerCheckSeconds"
-                label="Caller Check Interval"
-                description="How often to check for inactive callers"
+                name="clientCheckSeconds"
+                label="Client Check Interval"
+                description="How often to check for inactive clients"
                 unit="seconds"
               />
               <SettingsCard.NumberField<RuntimeFormState>
-                name="callerInactiveSeconds"
-                label="Caller Inactive Threshold"
-                description="Time before marking caller as inactive"
+                name="clientInactiveSeconds"
+                label="Client Inactive Threshold"
+                description="Time before marking client as inactive"
                 unit="seconds"
               />
               <SettingsCard.NumberField<RuntimeFormState>
@@ -162,7 +147,7 @@ export const RuntimeSettingsCard = ({
               <SettingsCard.SwitchField<RuntimeFormState>
                 name="exposeTools"
                 label="Expose Tools"
-                description="Expose tools to external callers"
+                description="Expose tools to external clients"
               />
               <SettingsCard.SelectField<RuntimeFormState>
                 name="toolNamespaceStrategy"
@@ -178,7 +163,7 @@ export const RuntimeSettingsCard = ({
       <SettingsCard.Footer
         statusLabel={statusLabel}
         saveDisabledReason={saveDisabledReason}
-        customDisabled={!hasRuntimeProfile || !canEdit || !form.formState.isDirty || form.formState.isSubmitting}
+        customDisabled={!canEdit || !form.formState.isDirty || form.formState.isSubmitting}
       />
     </SettingsCard>
   )

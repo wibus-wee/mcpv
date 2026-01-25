@@ -15,20 +15,11 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
- * GetProfileSubAgentConfig returns the per-profile SubAgent enabled state.
- */
-export function GetProfileSubAgentConfig(profileName: string): $CancellablePromise<$models.ProfileSubAgentConfigDetail> {
-    return $Call.ByID(2051781048, profileName).then(($result: any) => {
-        return $$createType0($result);
-    });
-}
-
-/**
  * GetSubAgentConfig returns the runtime-level SubAgent configuration.
  */
 export function GetSubAgentConfig(): $CancellablePromise<$models.SubAgentConfigDetail> {
     return $Call.ByID(1084533949).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType0($result);
     });
 }
 
@@ -40,13 +31,6 @@ export function IsSubAgentAvailable(): $CancellablePromise<boolean> {
 }
 
 /**
- * SetProfileSubAgentEnabled updates the per-profile SubAgent enabled state.
- */
-export function SetProfileSubAgentEnabled(req: $models.UpdateProfileSubAgentRequest): $CancellablePromise<void> {
-    return $Call.ByID(2622835255, req);
-}
-
-/**
  * UpdateSubAgentConfig updates the runtime-level SubAgent config.
  */
 export function UpdateSubAgentConfig(req: $models.UpdateSubAgentConfigRequest): $CancellablePromise<void> {
@@ -54,5 +38,4 @@ export function UpdateSubAgentConfig(req: $models.UpdateSubAgentConfigRequest): 
 }
 
 // Private type creation functions
-const $$createType0 = $models.ProfileSubAgentConfigDetail.createFrom;
-const $$createType1 = $models.SubAgentConfigDetail.createFrom;
+const $$createType0 = $models.SubAgentConfigDetail.createFrom;

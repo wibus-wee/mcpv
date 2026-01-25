@@ -1,16 +1,15 @@
-// Input: ActiveCallers hook, motion animation
-// Output: ActiveCallersPanel component showing connected callers
-// Position: Dashboard visualization for active MCP callers
+// Input: ActiveClients hook, motion animation
+// Output: ActiveClientsPanel component showing connected clients
+// Position: Dashboard visualization for active MCP clients
 
 import {
   CircleIcon,
-  MonitorIcon,
   UserIcon,
 } from 'lucide-react'
 import { m } from 'motion/react'
 import { useMemo } from 'react'
 
-import { useActiveCallers } from '@/hooks/use-active-callers'
+import { useActiveClients } from '@/hooks/use-active-clients'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -28,7 +27,7 @@ function generateColor(str: string): string {
   return `hsl(${hue}, 65%, 55%)`
 }
 
-function CallerAvatar({ name }: { name: string }) {
+function ClientAvatar({ name }: { name: string }) {
   const color = generateColor(name)
   const initial = name.charAt(0).toUpperCase()
 
@@ -42,14 +41,14 @@ function CallerAvatar({ name }: { name: string }) {
   )
 }
 
-function CallerRow({
-  caller,
-  profile,
+function ClientRow({
+  client,
+  tags,
   lastHeartbeat,
   index,
 }: {
-  caller: string
-  profile: string
+  client: string
+  tags: string[]
   lastHeartbeat: string
   index: number
 }) {
@@ -66,10 +65,10 @@ function CallerRow({
       transition={Spring.smooth(0.3, index * 0.05)}
       className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted/50"
     >
-      <CallerAvatar name={caller} />
+      <ClientAvatar name={client} />
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center gap-2">
-          <span className="truncate text-sm font-medium">{caller}</span>
+          <span className="truncate text-sm font-medium">{client}</span>
           <Tooltip>
             <TooltipTrigger>
               <CircleIcon
@@ -81,26 +80,28 @@ function CallerRow({
             </TooltipContent>
           </Tooltip>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Badge variant="outline" size="sm">{profile}</Badge>
-          {lastHeartbeat && (
-            <span>{formatRelativeTime(lastHeartbeat)}</span>
-          )}
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          {tags.map(tag => (
+            <Badge key={`${client}-${tag}`} variant="outline" size="sm">
+              {tag}
+            </Badge>
+          ))}
+          {lastHeartbeat && <span>{formatRelativeTime(lastHeartbeat)}</span>}
         </div>
       </div>
     </m.div>
   )
 }
 
-export function ActiveCallersPanel() {
-  const { data: callers, isLoading } = useActiveCallers()
+export function ActiveClientsPanel() {
+  const { data: clients, isLoading } = useActiveClients()
 
   if (isLoading) {
     return (
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm font-medium">
-            Active Callers
+            Active Clients
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -118,44 +119,44 @@ export function ActiveCallersPanel() {
     )
   }
 
-  const activeCallers = callers ?? []
+  const activeClients = clients ?? []
 
   return (
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-sm font-medium">
-            Active Callers
+            Active Clients
           </CardTitle>
-          {activeCallers.length > 0 && (
+          {activeClients.length > 0 && (
             <Badge variant="secondary" size="sm">
-              {activeCallers.length}
+              {activeClients.length}
             </Badge>
           )}
         </div>
       </CardHeader>
       <CardContent>
-        {activeCallers.length === 0 ? (
+        {activeClients.length === 0 ? (
           <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="flex flex-col items-center justify-center py-6 text-center"
           >
             <UserIcon className="mb-2 size-8 text-muted-foreground/30" />
-            <p className="text-sm text-muted-foreground">No active callers</p>
+            <p className="text-sm text-muted-foreground">No active clients</p>
             <p className="text-xs text-muted-foreground/60">
-              Callers will appear when IDEs connect
+              Clients will appear when IDEs connect
             </p>
           </m.div>
         ) : (
           <ScrollArea className="h-48">
             <div className="space-y-1">
-              {activeCallers.map((c, i) => (
-                <CallerRow
-                  key={`${c.caller}-${c.pid}`}
-                  caller={c.caller}
-                  profile={c.profile}
-                  lastHeartbeat={c.lastHeartbeat}
+              {activeClients.map((client, i) => (
+                <ClientRow
+                  key={`${client.client}-${client.pid}`}
+                  client={client.client}
+                  tags={client.tags ?? []}
+                  lastHeartbeat={client.lastHeartbeat}
                   index={i}
                 />
               ))}

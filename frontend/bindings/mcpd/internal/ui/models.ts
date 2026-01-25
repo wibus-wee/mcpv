@@ -9,22 +9,22 @@ import { Create as $Create } from "@wailsio/runtime";
 // @ts-ignore: Unused imports
 import * as json$0 from "../../../encoding/json/models.js";
 
-export class ActiveCaller {
-    "caller": string;
+export class ActiveClient {
+    "client": string;
     "pid": number;
-    "profile": string;
+    "tags": string[];
     "lastHeartbeat": string;
 
-    /** Creates a new ActiveCaller instance. */
-    constructor($$source: Partial<ActiveCaller> = {}) {
-        if (!("caller" in $$source)) {
-            this["caller"] = "";
+    /** Creates a new ActiveClient instance. */
+    constructor($$source: Partial<ActiveClient> = {}) {
+        if (!("client" in $$source)) {
+            this["client"] = "";
         }
         if (!("pid" in $$source)) {
             this["pid"] = 0;
         }
-        if (!("profile" in $$source)) {
-            this["profile"] = "";
+        if (!("tags" in $$source)) {
+            this["tags"] = [];
         }
         if (!("lastHeartbeat" in $$source)) {
             this["lastHeartbeat"] = "";
@@ -34,11 +34,15 @@ export class ActiveCaller {
     }
 
     /**
-     * Creates a new ActiveCaller instance from a string or object.
+     * Creates a new ActiveClient instance from a string or object.
      */
-    static createFrom($$source: any = {}): ActiveCaller {
+    static createFrom($$source: any = {}): ActiveClient {
+        const $$createField2_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ActiveCaller($$parsedSource as Partial<ActiveCaller>);
+        if ("tags" in $$parsedSource) {
+            $$parsedSource["tags"] = $$createField2_0($$parsedSource["tags"]);
+        }
+        return new ActiveClient($$parsedSource as Partial<ActiveClient>);
     }
 }
 
@@ -78,7 +82,7 @@ export class BootstrapProgressResponse {
      * Creates a new BootstrapProgressResponse instance from a string or object.
      */
     static createFrom($$source: any = {}): BootstrapProgressResponse {
-        const $$createField5_0 = $$createType0;
+        const $$createField5_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("errors" in $$parsedSource) {
             $$parsedSource["errors"] = $$createField5_0($$parsedSource["errors"]);
@@ -92,7 +96,7 @@ export class BootstrapProgressResponse {
  */
 export class ConfigModeResponse {
     /**
-     * "directory" or "unknown"
+     * "file" or "unknown"
      */
     "mode": string;
 
@@ -160,30 +164,6 @@ export class CoreStateResponse {
 }
 
 /**
- * CreateProfileRequest creates a new profile file.
- */
-export class CreateProfileRequest {
-    "name": string;
-
-    /** Creates a new CreateProfileRequest instance. */
-    constructor($$source: Partial<CreateProfileRequest> = {}) {
-        if (!("name" in $$source)) {
-            this["name"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new CreateProfileRequest instance from a string or object.
-     */
-    static createFrom($$source: any = {}): CreateProfileRequest {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new CreateProfileRequest($$parsedSource as Partial<CreateProfileRequest>);
-    }
-}
-
-/**
  * DebugSnapshotResponse is the metadata returned after exporting a debug snapshot.
  */
 export class DebugSnapshotResponse {
@@ -216,41 +196,13 @@ export class DebugSnapshotResponse {
 }
 
 /**
- * DeleteProfileRequest removes a profile file.
- */
-export class DeleteProfileRequest {
-    "name": string;
-
-    /** Creates a new DeleteProfileRequest instance. */
-    constructor($$source: Partial<DeleteProfileRequest> = {}) {
-        if (!("name" in $$source)) {
-            this["name"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new DeleteProfileRequest instance from a string or object.
-     */
-    static createFrom($$source: any = {}): DeleteProfileRequest {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new DeleteProfileRequest($$parsedSource as Partial<DeleteProfileRequest>);
-    }
-}
-
-/**
- * DeleteServerRequest removes a server from a profile.
+ * DeleteServerRequest removes a server.
  */
 export class DeleteServerRequest {
-    "profile": string;
     "server": string;
 
     /** Creates a new DeleteServerRequest instance. */
     constructor($$source: Partial<DeleteServerRequest> = {}) {
-        if (!("profile" in $$source)) {
-            this["profile"] = "";
-        }
         if (!("server" in $$source)) {
             this["server"] = "";
         }
@@ -268,17 +220,13 @@ export class DeleteServerRequest {
 }
 
 /**
- * ImportMcpServersRequest is the payload for importing MCP servers into profiles.
+ * ImportMcpServersRequest is the payload for importing MCP servers into the config file.
  */
 export class ImportMcpServersRequest {
-    "profiles": string[];
     "servers": ImportServerSpec[];
 
     /** Creates a new ImportMcpServersRequest instance. */
     constructor($$source: Partial<ImportMcpServersRequest> = {}) {
-        if (!("profiles" in $$source)) {
-            this["profiles"] = [];
-        }
         if (!("servers" in $$source)) {
             this["servers"] = [];
         }
@@ -290,14 +238,10 @@ export class ImportMcpServersRequest {
      * Creates a new ImportMcpServersRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): ImportMcpServersRequest {
-        const $$createField0_0 = $$createType1;
-        const $$createField1_0 = $$createType3;
+        const $$createField0_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("profiles" in $$parsedSource) {
-            $$parsedSource["profiles"] = $$createField0_0($$parsedSource["profiles"]);
-        }
         if ("servers" in $$parsedSource) {
-            $$parsedSource["servers"] = $$createField1_0($$parsedSource["servers"]);
+            $$parsedSource["servers"] = $$createField0_0($$parsedSource["servers"]);
         }
         return new ImportMcpServersRequest($$parsedSource as Partial<ImportMcpServersRequest>);
     }
@@ -312,6 +256,7 @@ export class ImportServerSpec {
     "cmd"?: string[];
     "env"?: { [_: string]: string };
     "cwd"?: string;
+    "tags"?: string[];
     "protocolVersion"?: string;
     "http"?: StreamableHTTPConfigDetail | null;
 
@@ -328,9 +273,10 @@ export class ImportServerSpec {
      * Creates a new ImportServerSpec instance from a string or object.
      */
     static createFrom($$source: any = {}): ImportServerSpec {
-        const $$createField2_0 = $$createType1;
-        const $$createField3_0 = $$createType0;
-        const $$createField6_0 = $$createType5;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType1;
+        const $$createField5_0 = $$createType0;
+        const $$createField7_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("cmd" in $$parsedSource) {
             $$parsedSource["cmd"] = $$createField2_0($$parsedSource["cmd"]);
@@ -338,8 +284,11 @@ export class ImportServerSpec {
         if ("env" in $$parsedSource) {
             $$parsedSource["env"] = $$createField3_0($$parsedSource["env"]);
         }
+        if ("tags" in $$parsedSource) {
+            $$parsedSource["tags"] = $$createField5_0($$parsedSource["tags"]);
+        }
         if ("http" in $$parsedSource) {
-            $$parsedSource["http"] = $$createField6_0($$parsedSource["http"]);
+            $$parsedSource["http"] = $$createField7_0($$parsedSource["http"]);
         }
         return new ImportServerSpec($$parsedSource as Partial<ImportServerSpec>);
     }
@@ -548,110 +497,6 @@ export class PoolStats {
 }
 
 /**
- * ProfileDetail contains full profile configuration
- */
-export class ProfileDetail {
-    "name": string;
-    "runtime": RuntimeConfigDetail;
-    "servers": ServerSpecDetail[];
-    "subAgent": ProfileSubAgentConfigDetail;
-
-    /** Creates a new ProfileDetail instance. */
-    constructor($$source: Partial<ProfileDetail> = {}) {
-        if (!("name" in $$source)) {
-            this["name"] = "";
-        }
-        if (!("runtime" in $$source)) {
-            this["runtime"] = (new RuntimeConfigDetail());
-        }
-        if (!("servers" in $$source)) {
-            this["servers"] = [];
-        }
-        if (!("subAgent" in $$source)) {
-            this["subAgent"] = (new ProfileSubAgentConfigDetail());
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ProfileDetail instance from a string or object.
-     */
-    static createFrom($$source: any = {}): ProfileDetail {
-        const $$createField1_0 = $$createType8;
-        const $$createField2_0 = $$createType10;
-        const $$createField3_0 = $$createType11;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("runtime" in $$parsedSource) {
-            $$parsedSource["runtime"] = $$createField1_0($$parsedSource["runtime"]);
-        }
-        if ("servers" in $$parsedSource) {
-            $$parsedSource["servers"] = $$createField2_0($$parsedSource["servers"]);
-        }
-        if ("subAgent" in $$parsedSource) {
-            $$parsedSource["subAgent"] = $$createField3_0($$parsedSource["subAgent"]);
-        }
-        return new ProfileDetail($$parsedSource as Partial<ProfileDetail>);
-    }
-}
-
-/**
- * ProfileSubAgentConfigDetail contains the per-profile SubAgent settings
- */
-export class ProfileSubAgentConfigDetail {
-    "enabled": boolean;
-
-    /** Creates a new ProfileSubAgentConfigDetail instance. */
-    constructor($$source: Partial<ProfileSubAgentConfigDetail> = {}) {
-        if (!("enabled" in $$source)) {
-            this["enabled"] = false;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ProfileSubAgentConfigDetail instance from a string or object.
-     */
-    static createFrom($$source: any = {}): ProfileSubAgentConfigDetail {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ProfileSubAgentConfigDetail($$parsedSource as Partial<ProfileSubAgentConfigDetail>);
-    }
-}
-
-/**
- * ProfileSummary provides a brief overview of a profile
- */
-export class ProfileSummary {
-    "name": string;
-    "serverCount": number;
-    "isDefault": boolean;
-
-    /** Creates a new ProfileSummary instance. */
-    constructor($$source: Partial<ProfileSummary> = {}) {
-        if (!("name" in $$source)) {
-            this["name"] = "";
-        }
-        if (!("serverCount" in $$source)) {
-            this["serverCount"] = 0;
-        }
-        if (!("isDefault" in $$source)) {
-            this["isDefault"] = false;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ProfileSummary instance from a string or object.
-     */
-    static createFrom($$source: any = {}): ProfileSummary {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ProfileSummary($$parsedSource as Partial<ProfileSummary>);
-    }
-}
-
-/**
  * PromptEntry represents a single prompt for the frontend
  */
 export class PromptEntry {
@@ -699,7 +544,7 @@ export class PromptPage {
      * Creates a new PromptPage instance from a string or object.
      */
     static createFrom($$source: any = {}): PromptPage {
-        const $$createField0_0 = $$createType13;
+        const $$createField0_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("prompts" in $$parsedSource) {
             $$parsedSource["prompts"] = $$createField0_0($$parsedSource["prompts"]);
@@ -734,7 +579,7 @@ export class ProxyFetchRequest {
      * Creates a new ProxyFetchRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): ProxyFetchRequest {
-        const $$createField2_0 = $$createType0;
+        const $$createField2_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("headers" in $$parsedSource) {
             $$parsedSource["headers"] = $$createField2_0($$parsedSource["headers"]);
@@ -767,7 +612,7 @@ export class ProxyFetchResponse {
      * Creates a new ProxyFetchResponse instance from a string or object.
      */
     static createFrom($$source: any = {}): ProxyFetchResponse {
-        const $$createField1_0 = $$createType0;
+        const $$createField1_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("headers" in $$parsedSource) {
             $$parsedSource["headers"] = $$createField1_0($$parsedSource["headers"]);
@@ -819,7 +664,7 @@ export class RPCConfigDetail {
      * Creates a new RPCConfigDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): RPCConfigDetail {
-        const $$createField6_0 = $$createType14;
+        const $$createField6_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tls" in $$parsedSource) {
             $$parsedSource["tls"] = $$createField6_0($$parsedSource["tls"]);
@@ -916,7 +761,7 @@ export class ResourcePage {
      * Creates a new ResourcePage instance from a string or object.
      */
     static createFrom($$source: any = {}): ResourcePage {
-        const $$createField0_0 = $$createType16;
+        const $$createField0_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("resources" in $$parsedSource) {
             $$parsedSource["resources"] = $$createField0_0($$parsedSource["resources"]);
@@ -954,8 +799,8 @@ export class RuntimeConfigDetail {
     "pingIntervalSeconds": number;
     "toolRefreshSeconds": number;
     "toolRefreshConcurrency": number;
-    "callerCheckSeconds": number;
-    "callerInactiveSeconds": number;
+    "clientCheckSeconds": number;
+    "clientInactiveSeconds": number;
     "serverInitRetryBaseSeconds": number;
     "serverInitRetryMaxSeconds": number;
     "serverInitMaxRetries": number;
@@ -982,11 +827,11 @@ export class RuntimeConfigDetail {
         if (!("toolRefreshConcurrency" in $$source)) {
             this["toolRefreshConcurrency"] = 0;
         }
-        if (!("callerCheckSeconds" in $$source)) {
-            this["callerCheckSeconds"] = 0;
+        if (!("clientCheckSeconds" in $$source)) {
+            this["clientCheckSeconds"] = 0;
         }
-        if (!("callerInactiveSeconds" in $$source)) {
-            this["callerInactiveSeconds"] = 0;
+        if (!("clientInactiveSeconds" in $$source)) {
+            this["clientInactiveSeconds"] = 0;
         }
         if (!("serverInitRetryBaseSeconds" in $$source)) {
             this["serverInitRetryBaseSeconds"] = 0;
@@ -1029,8 +874,8 @@ export class RuntimeConfigDetail {
      * Creates a new RuntimeConfigDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): RuntimeConfigDetail {
-        const $$createField15_0 = $$createType17;
-        const $$createField16_0 = $$createType18;
+        const $$createField15_0 = $$createType13;
+        const $$createField16_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("observability" in $$parsedSource) {
             $$parsedSource["observability"] = $$createField15_0($$parsedSource["observability"]);
@@ -1128,9 +973,9 @@ export class ServerRuntimeStatus {
      * Creates a new ServerRuntimeStatus instance from a string or object.
      */
     static createFrom($$source: any = {}): ServerRuntimeStatus {
-        const $$createField2_0 = $$createType20;
-        const $$createField3_0 = $$createType21;
-        const $$createField4_0 = $$createType22;
+        const $$createField2_0 = $$createType16;
+        const $$createField3_0 = $$createType17;
+        const $$createField4_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("instances" in $$parsedSource) {
             $$parsedSource["instances"] = $$createField2_0($$parsedSource["instances"]);
@@ -1155,6 +1000,7 @@ export class ServerSpecDetail {
     "cmd": string[];
     "env": { [_: string]: string };
     "cwd": string;
+    "tags"?: string[];
     "idleSeconds": number;
     "maxConcurrent": number;
     "strategy": string;
@@ -1225,10 +1071,11 @@ export class ServerSpecDetail {
      * Creates a new ServerSpecDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): ServerSpecDetail {
-        const $$createField3_0 = $$createType1;
-        const $$createField4_0 = $$createType0;
-        const $$createField15_0 = $$createType1;
-        const $$createField16_0 = $$createType5;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType1;
+        const $$createField6_0 = $$createType0;
+        const $$createField16_0 = $$createType0;
+        const $$createField17_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("cmd" in $$parsedSource) {
             $$parsedSource["cmd"] = $$createField3_0($$parsedSource["cmd"]);
@@ -1236,21 +1083,74 @@ export class ServerSpecDetail {
         if ("env" in $$parsedSource) {
             $$parsedSource["env"] = $$createField4_0($$parsedSource["env"]);
         }
+        if ("tags" in $$parsedSource) {
+            $$parsedSource["tags"] = $$createField6_0($$parsedSource["tags"]);
+        }
         if ("exposeTools" in $$parsedSource) {
-            $$parsedSource["exposeTools"] = $$createField15_0($$parsedSource["exposeTools"]);
+            $$parsedSource["exposeTools"] = $$createField16_0($$parsedSource["exposeTools"]);
         }
         if ("http" in $$parsedSource) {
-            $$parsedSource["http"] = $$createField16_0($$parsedSource["http"]);
+            $$parsedSource["http"] = $$createField17_0($$parsedSource["http"]);
         }
         return new ServerSpecDetail($$parsedSource as Partial<ServerSpecDetail>);
     }
 }
 
+/**
+ * ServerDetail contains full server specification for frontend.
+ */
+export const ServerDetail = ServerSpecDetail;
+
+/**
+ * ServerDetail contains full server specification for frontend.
+ */
+export type ServerDetail = ServerSpecDetail;
+
+/**
+ * ServerSpecDetail contains server specification for frontend
+ */
+export class ServerSummary {
+    "name": string;
+    "specKey": string;
+    "transport": string;
+    "tags"?: string[];
+    "disabled": boolean;
+
+    /** Creates a new ServerSummary instance. */
+    constructor($$source: Partial<ServerSummary> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("specKey" in $$source)) {
+            this["specKey"] = "";
+        }
+        if (!("transport" in $$source)) {
+            this["transport"] = "";
+        }
+        if (!("disabled" in $$source)) {
+            this["disabled"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ServerSummary instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ServerSummary {
+        const $$createField3_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("tags" in $$parsedSource) {
+            $$parsedSource["tags"] = $$createField3_0($$parsedSource["tags"]);
+        }
+        return new ServerSummary($$parsedSource as Partial<ServerSummary>);
+    }
+}
+
 export class StartCause {
     "reason": string;
-    "caller"?: string;
+    "client"?: string;
     "toolName"?: string;
-    "profile"?: string;
     "policy"?: StartCausePolicy | null;
     "timestamp": string;
 
@@ -1270,10 +1170,10 @@ export class StartCause {
      * Creates a new StartCause instance from a string or object.
      */
     static createFrom($$source: any = {}): StartCause {
-        const $$createField4_0 = $$createType24;
+        const $$createField3_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("policy" in $$parsedSource) {
-            $$parsedSource["policy"] = $$createField4_0($$parsedSource["policy"]);
+            $$parsedSource["policy"] = $$createField3_0($$parsedSource["policy"]);
         }
         return new StartCause($$parsedSource as Partial<StartCause>);
     }
@@ -1352,7 +1252,7 @@ export class StreamableHTTPConfigDetail {
      * Creates a new StreamableHTTPConfigDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): StreamableHTTPConfigDetail {
-        const $$createField1_0 = $$createType0;
+        const $$createField1_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("headers" in $$parsedSource) {
             $$parsedSource["headers"] = $$createField1_0($$parsedSource["headers"]);
@@ -1365,6 +1265,7 @@ export class StreamableHTTPConfigDetail {
  * SubAgentConfigDetail contains the runtime-level SubAgent LLM provider config
  */
 export class SubAgentConfigDetail {
+    "enabledTags"?: string[];
     "model": string;
     "provider": string;
     "apiKeyEnvVar": string;
@@ -1400,7 +1301,11 @@ export class SubAgentConfigDetail {
      * Creates a new SubAgentConfigDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): SubAgentConfigDetail {
+        const $$createField0_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("enabledTags" in $$parsedSource) {
+            $$parsedSource["enabledTags"] = $$createField0_0($$parsedSource["enabledTags"]);
+        }
         return new SubAgentConfigDetail($$parsedSource as Partial<SubAgentConfigDetail>);
     }
 }
@@ -1447,62 +1352,6 @@ export class ToolEntry {
 }
 
 /**
- * UpdateCallerMappingRequest updates a caller to profile mapping.
- */
-export class UpdateCallerMappingRequest {
-    "caller": string;
-    "profile": string;
-
-    /** Creates a new UpdateCallerMappingRequest instance. */
-    constructor($$source: Partial<UpdateCallerMappingRequest> = {}) {
-        if (!("caller" in $$source)) {
-            this["caller"] = "";
-        }
-        if (!("profile" in $$source)) {
-            this["profile"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new UpdateCallerMappingRequest instance from a string or object.
-     */
-    static createFrom($$source: any = {}): UpdateCallerMappingRequest {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new UpdateCallerMappingRequest($$parsedSource as Partial<UpdateCallerMappingRequest>);
-    }
-}
-
-/**
- * UpdateProfileSubAgentRequest updates the per-profile SubAgent enabled state
- */
-export class UpdateProfileSubAgentRequest {
-    "profile": string;
-    "enabled": boolean;
-
-    /** Creates a new UpdateProfileSubAgentRequest instance. */
-    constructor($$source: Partial<UpdateProfileSubAgentRequest> = {}) {
-        if (!("profile" in $$source)) {
-            this["profile"] = "";
-        }
-        if (!("enabled" in $$source)) {
-            this["enabled"] = false;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new UpdateProfileSubAgentRequest instance from a string or object.
-     */
-    static createFrom($$source: any = {}): UpdateProfileSubAgentRequest {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new UpdateProfileSubAgentRequest($$parsedSource as Partial<UpdateProfileSubAgentRequest>);
-    }
-}
-
-/**
  * UpdateRuntimeConfigRequest updates runtime.yaml configuration.
  */
 export class UpdateRuntimeConfigRequest {
@@ -1510,8 +1359,8 @@ export class UpdateRuntimeConfigRequest {
     "pingIntervalSeconds": number;
     "toolRefreshSeconds": number;
     "toolRefreshConcurrency": number;
-    "callerCheckSeconds": number;
-    "callerInactiveSeconds": number;
+    "clientCheckSeconds": number;
+    "clientInactiveSeconds": number;
     "serverInitRetryBaseSeconds": number;
     "serverInitRetryMaxSeconds": number;
     "serverInitMaxRetries": number;
@@ -1536,11 +1385,11 @@ export class UpdateRuntimeConfigRequest {
         if (!("toolRefreshConcurrency" in $$source)) {
             this["toolRefreshConcurrency"] = 0;
         }
-        if (!("callerCheckSeconds" in $$source)) {
-            this["callerCheckSeconds"] = 0;
+        if (!("clientCheckSeconds" in $$source)) {
+            this["clientCheckSeconds"] = 0;
         }
-        if (!("callerInactiveSeconds" in $$source)) {
-            this["callerInactiveSeconds"] = 0;
+        if (!("clientInactiveSeconds" in $$source)) {
+            this["clientInactiveSeconds"] = 0;
         }
         if (!("serverInitRetryBaseSeconds" in $$source)) {
             this["serverInitRetryBaseSeconds"] = 0;
@@ -1583,18 +1432,14 @@ export class UpdateRuntimeConfigRequest {
 }
 
 /**
- * UpdateServerStateRequest updates the disabled state for a server in a profile.
+ * UpdateServerStateRequest updates the disabled state for a server.
  */
 export class UpdateServerStateRequest {
-    "profile": string;
     "server": string;
     "disabled": boolean;
 
     /** Creates a new UpdateServerStateRequest instance. */
     constructor($$source: Partial<UpdateServerStateRequest> = {}) {
-        if (!("profile" in $$source)) {
-            this["profile"] = "";
-        }
         if (!("server" in $$source)) {
             this["server"] = "";
         }
@@ -1618,6 +1463,7 @@ export class UpdateServerStateRequest {
  * UpdateSubAgentConfigRequest updates the runtime-level SubAgent config
  */
 export class UpdateSubAgentConfigRequest {
+    "enabledTags"?: string[];
     "model": string;
     "provider": string;
     "apiKey"?: string | null;
@@ -1654,34 +1500,34 @@ export class UpdateSubAgentConfigRequest {
      * Creates a new UpdateSubAgentConfigRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateSubAgentConfigRequest {
+        const $$createField0_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("enabledTags" in $$parsedSource) {
+            $$parsedSource["enabledTags"] = $$createField0_0($$parsedSource["enabledTags"]);
+        }
         return new UpdateSubAgentConfigRequest($$parsedSource as Partial<UpdateSubAgentConfigRequest>);
     }
 }
 
 // Private type creation functions
-const $$createType0 = $Create.Map($Create.Any, $Create.Any);
-const $$createType1 = $Create.Array($Create.Any);
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = $Create.Map($Create.Any, $Create.Any);
 const $$createType2 = ImportServerSpec.createFrom;
 const $$createType3 = $Create.Array($$createType2);
 const $$createType4 = StreamableHTTPConfigDetail.createFrom;
 const $$createType5 = $Create.Nullable($$createType4);
 const $$createType6 = StartCause.createFrom;
 const $$createType7 = $Create.Nullable($$createType6);
-const $$createType8 = RuntimeConfigDetail.createFrom;
-const $$createType9 = ServerSpecDetail.createFrom;
-const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = ProfileSubAgentConfigDetail.createFrom;
-const $$createType12 = PromptEntry.createFrom;
-const $$createType13 = $Create.Array($$createType12);
-const $$createType14 = RPCTLSConfigDetail.createFrom;
-const $$createType15 = ResourceEntry.createFrom;
+const $$createType8 = PromptEntry.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = RPCTLSConfigDetail.createFrom;
+const $$createType11 = ResourceEntry.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = ObservabilityConfigDetail.createFrom;
+const $$createType14 = RPCConfigDetail.createFrom;
+const $$createType15 = InstanceStatus.createFrom;
 const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = ObservabilityConfigDetail.createFrom;
-const $$createType18 = RPCConfigDetail.createFrom;
-const $$createType19 = InstanceStatus.createFrom;
-const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = PoolStats.createFrom;
-const $$createType22 = PoolMetrics.createFrom;
-const $$createType23 = StartCausePolicy.createFrom;
-const $$createType24 = $Create.Nullable($$createType23);
+const $$createType17 = PoolStats.createFrom;
+const $$createType18 = PoolMetrics.createFrom;
+const $$createType19 = StartCausePolicy.createFrom;
+const $$createType20 = $Create.Nullable($$createType19);

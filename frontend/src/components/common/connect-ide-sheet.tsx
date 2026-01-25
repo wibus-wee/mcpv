@@ -7,12 +7,15 @@ import {
   MessageCircleIcon,
   MousePointerClickIcon,
   RocketIcon,
+  ServerIcon,
+  TagIcon,
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import {
   Sheet,
   SheetContent,
@@ -24,15 +27,17 @@ import {
 } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { buildCliSnippet, buildClientConfig, buildTomlConfig } from '@/lib/mcpdmcp'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { buildCliSnippet, buildClientConfig, buildTomlConfig, type SelectorMode } from '@/lib/mcpdmcp'
 import { useMcpdmcpPath } from '@/hooks/use-mcpdmcp-path'
 import { useRpcAddress } from '@/hooks/use-rpc-address'
-import { useCallers } from '@/modules/config/hooks'
+import { useServers } from '@/modules/config/hooks'
 import { useSidebar } from '../ui/sidebar'
 import { m } from 'motion/react'
 
 type ClientTab = 'cursor' | 'claude' | 'vscode' | 'codex'
+
+type PresetBlock = { title: string; value: string }
 
 const clientMeta: Record<ClientTab, { title: string; Icon: React.ComponentType<any> }> = {
   cursor: { title: 'Cursor', Icon: MousePointerClickIcon },
@@ -41,10 +46,7 @@ const clientMeta: Record<ClientTab, { title: string; Icon: React.ComponentType<a
   codex: { title: 'Codex', Icon: CogIcon },
 }
 
-type PresetBlock = { title: string; value: string }
-
 function generateCursorDeepLink(name: string, config: string): string {
-  // Parse the JSON config to extract the MCP server configuration
   const configObj = JSON.parse(config)
   const mcpServers = configObj.mcpServers || {}
   const serverConfig = mcpServers[name]
@@ -53,11 +55,9 @@ function generateCursorDeepLink(name: string, config: string): string {
     throw new Error(`Server ${name} not found in config`)
   }
 
-  // Encode the server configuration as base64
   const configJson = JSON.stringify(serverConfig)
   const base64Config = btoa(configJson)
 
-  // Generate the deep link
   return `cursor://anysphere.cursor-deeplink/mcp/install?name=${encodeURIComponent(name)}&config=${encodeURIComponent(base64Config)}`
 }
 
@@ -108,63 +108,86 @@ function InstallInCursorButton({ serverName, config }: { serverName: string; con
 
 export function ConnectIdeSheet() {
   const [open, setOpen] = useState(false)
-  const [caller, setCaller] = useState<string>('cursor')
+  const [selectorMode, setSelectorMode] = useState<SelectorMode>('server')
+  const [selectorValue, setSelectorValue] = useState('')
   const { path } = useMcpdmcpPath()
   const { rpcAddress } = useRpcAddress()
-  const { data: callers } = useCallers()
-  const sidebar = useSidebar();
-  const callerOptions = useMemo(
-    () => (callers ? Object.keys(callers) : []),
-    [callers],
+  const { data: servers } = useServers()
+  const sidebar = useSidebar()
+
+  const serverOptions = useMemo(
+    () => (servers ?? []).map(server => server.name).sort((a, b) => a.localeCompare(b)),
+    [servers],
   )
+  const tagOptions = useMemo(() => {
+    const set = new Set<string>()
+    ;(servers ?? []).forEach(server => {
+      server.tags?.forEach(tag => set.add(tag))
+    })
+    return Array.from(set).sort((a, b) => a.localeCompare(b))
+  }, [servers])
 
   useEffect(() => {
-    if (callerOptions.length === 0) {
-      setCaller('cursor')
+    if (selectorValue) {
       return
     }
-    if (!callerOptions.includes(caller)) {
-      setCaller(callerOptions[0])
+    if (selectorMode === 'server' && serverOptions.length > 0) {
+      setSelectorValue(serverOptions[0])
+      return
     }
-  }, [caller, callerOptions])
+    if (selectorMode === 'tag' && tagOptions.length > 0) {
+      setSelectorValue(tagOptions[0])
+    }
+  }, [selectorMode, selectorValue, serverOptions, tagOptions])
+
+  const selector = useMemo(() => ({
+    mode: selectorMode,
+    value: selectorValue || (selectorMode === 'server' ? serverOptions[0] ?? '' : tagOptions[0] ?? ''),
+  }), [selectorMode, selectorValue, serverOptions, tagOptions])
+
+  const configServerName = selector.mode === 'server'
+    ? selector.value
+    : `mcpd-${selector.value || 'tag'}`
 
   const configByClient = useMemo<Record<ClientTab, PresetBlock[]>>(
     () => ({
       cursor: [
         {
           title: 'Cursor config (json)',
-          value: buildClientConfig('cursor', path, caller, rpcAddress),
+          value: buildClientConfig('cursor', path, selector, rpcAddress),
         },
       ],
       vscode: [
         {
           title: 'VS Code config (json)',
-          value: buildClientConfig('vscode', path, caller, rpcAddress),
+          value: buildClientConfig('vscode', path, selector, rpcAddress),
         },
       ],
       claude: [
         {
           title: 'Claude CLI (stdio)',
-          value: buildCliSnippet(path, caller, rpcAddress, 'claude'),
+          value: buildCliSnippet(path, selector, rpcAddress, 'claude'),
         },
         {
           title: 'Claude config (json)',
-          value: buildClientConfig('claude', path, caller, rpcAddress),
+          value: buildClientConfig('claude', path, selector, rpcAddress),
         },
       ],
       codex: [
         {
           title: 'Codex CLI (stdio)',
-          value: buildCliSnippet(path, caller, rpcAddress, 'codex'),
+          value: buildCliSnippet(path, selector, rpcAddress, 'codex'),
         },
         {
           title: 'Codex config (config.toml)',
-          value: buildTomlConfig(path, caller, rpcAddress),
+          value: buildTomlConfig(path, selector, rpcAddress),
         },
       ],
     }),
-    [caller, path, rpcAddress],
+    [path, selector, rpcAddress],
   )
+
+  const suggestions = selectorMode === 'server' ? serverOptions : tagOptions
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -183,22 +206,51 @@ export function ConnectIdeSheet() {
         </SheetHeader>
         <SheetPanel className="space-y-6">
           <div className="space-y-3">
-            <p className="text-sm font-medium">Client presets</p>
-            <div className="flex flex-col gap-1">
-              <p className="text-xs text-muted-foreground">Caller</p>
-              <Select value={caller} onValueChange={(value) => value && setCaller(value)}>
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(callerOptions.length ? callerOptions : ['cursor', 'claude', 'vscode', 'codex']).map(option => (
-                    <SelectItem key={option} value={option}>
+            <p className="text-sm font-medium">Connection target</p>
+            <ToggleGroup
+              multiple={false}
+              value={[selectorMode]}
+              onValueChange={values => {
+                const next = values[0] as SelectorMode | undefined
+                setSelectorMode(next ?? 'server')
+              }}
+              className="flex flex-wrap gap-2"
+            >
+              <ToggleGroupItem value="server" size="sm" variant="outline">
+                <ServerIcon className="size-3" />
+                Server
+              </ToggleGroupItem>
+              <ToggleGroupItem value="tag" size="sm" variant="outline">
+                <TagIcon className="size-3" />
+                Tag
+              </ToggleGroupItem>
+            </ToggleGroup>
+            <div className="space-y-2">
+              <Input
+                value={selectorValue}
+                onChange={event => setSelectorValue(event.target.value)}
+                placeholder={selectorMode === 'server' ? 'Server name' : 'Tag name'}
+              />
+              {suggestions.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {suggestions.slice(0, 6).map(option => (
+                    <Button
+                      key={option}
+                      type="button"
+                      variant="secondary"
+                      size="xs"
+                      onClick={() => setSelectorValue(option)}
+                    >
                       {option}
-                    </SelectItem>
+                    </Button>
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
+              )}
             </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-sm font-medium">Client presets</p>
             <Tabs defaultValue="cursor">
               <TabsList>
                 <TabsTrigger value="cursor" className="gap-1.5">
@@ -223,12 +275,12 @@ export function ConnectIdeSheet() {
                 const Icon = clientMeta[key].Icon
                 return (
                   <TabsContent key={key} value={key} className="mt-4 space-y-3">
-                    {key === 'cursor' && (
+                    {key === 'cursor' && selector.value && (
                       <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
                         <p className="text-sm text-muted-foreground">
                           Install MCP server directly in Cursor via deep link
                         </p>
-                        <InstallInCursorButton serverName={caller} config={configByClient[key][0].value} />
+                        <InstallInCursorButton serverName={configServerName} config={configByClient[key][0].value} />
                       </div>
                     )}
                     {configByClient[key].map(block => (
@@ -253,7 +305,7 @@ export function ConnectIdeSheet() {
         </SheetPanel>
         <SheetFooter variant="bare">
           <p className="text-xs text-muted-foreground text-left">
-            Need a different caller or RPC address? Adjust the command after copying.
+            Tags let one client access multiple servers. Use server mode for a single server.
           </p>
         </SheetFooter>
       </SheetContent>

@@ -1,15 +1,13 @@
-// Input: MCP JSON payload, profile list/details, config mode
-// Output: ImportMcpServersSheet component - JSON import flow for profiles
+// Input: MCP JSON payload, server list, config mode
+// Output: ImportMcpServersSheet component - JSON import flow for servers
 // Position: Config header action entry
 
 import { AlertCircleIcon, CheckCircleIcon, FileUpIcon } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { CheckboxGroup } from '@/components/ui/checkbox-group'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -26,27 +24,20 @@ import { Textarea } from '@/components/ui/textarea'
 
 import {
   parseMcpServersJson,
-  type ImportMcpServersRequest,
   type ImportServerDraft,
 } from '../lib/mcp-import'
-import { useConfigMode, useProfileDetails, useProfiles } from '../hooks'
-import { ConfigService } from '@bindings/mcpd/internal/ui'
+import { useConfigMode, useServers } from '../hooks'
+import { ConfigService, type ImportMcpServersRequest } from '@bindings/mcpd/internal/ui'
 import { reloadConfig } from '../lib/reload-config'
 
 export const ImportMcpServersSheet = () => {
   const { data: configMode } = useConfigMode()
-  const { data: profiles, mutate: mutateProfiles } = useProfiles()
-  const {
-    data: profileDetails,
-    isLoading: profileDetailsLoading,
-    mutate: mutateProfileDetails,
-  } = useProfileDetails(profiles)
+  const { data: serversList, mutate: mutateServers } = useServers()
 
   const [open, setOpen] = useState(false)
   const [rawInput, setRawInput] = useState('')
   const [servers, setServers] = useState<ImportServerDraft[]>([])
   const [parseErrors, setParseErrors] = useState<string[]>([])
-  const [selectedProfiles, setSelectedProfiles] = useState<string[]>([])
   const [applyError, setApplyError] = useState<string | null>(null)
   const [isApplying, setIsApplying] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
@@ -58,29 +49,14 @@ export const ImportMcpServersSheet = () => {
     setRawInput('')
     setServers([])
     setParseErrors([])
-    setSelectedProfiles([])
     setApplyError(null)
     setIsApplying(false)
     setIsSaved(false)
   }, [open])
 
-  useEffect(() => {
-    if (selectedProfiles.length === 0 && profiles?.length === 1) {
-      setSelectedProfiles([profiles[0].name])
-    }
-  }, [profiles, selectedProfiles.length])
-
-  const existingServerNames = new Set<string>()
-  if (profileDetails && selectedProfiles.length > 0) {
-    profileDetails.forEach(profile => {
-      if (!selectedProfiles.includes(profile.name)) {
-        return
-      }
-      profile.servers.forEach(server => {
-        existingServerNames.add(server.name)
-      })
-    })
-  }
+  const existingServerNames = useMemo(() => {
+    return new Set((serversList ?? []).map(server => server.name))
+  }, [serversList])
 
   const normalizedNames = servers.map(server => server.name.trim())
   const missingNames = normalizedNames.filter(name => !name)
@@ -92,12 +68,6 @@ export const ImportMcpServersSheet = () => {
   )
 
   const issues: string[] = []
-  if (selectedProfiles.length === 0) {
-    issues.push('Select at least one profile.')
-  }
-  if (profileDetailsLoading && selectedProfiles.length > 0) {
-    issues.push('Loading profile details for conflict checks.')
-  }
   if (missingNames.length > 0) {
     issues.push('Server names cannot be empty.')
   }
@@ -105,7 +75,7 @@ export const ImportMcpServersSheet = () => {
     issues.push(`Duplicate server names: ${Array.from(new Set(duplicateNames)).join(', ')}`)
   }
   if (conflicts.length > 0) {
-    issues.push(`Name conflicts in selected profiles: ${Array.from(new Set(conflicts)).join(', ')}`)
+    issues.push(`Name conflicts in current config: ${Array.from(new Set(conflicts)).join(', ')}`)
   }
 
   const isWritable = configMode?.isWritable ?? false
@@ -139,7 +109,6 @@ export const ImportMcpServersSheet = () => {
     setApplyError(null)
 
     const payload: ImportMcpServersRequest = {
-      profiles: selectedProfiles,
       servers: servers.map(server => ({
         name: server.name.trim(),
         transport: server.transport,
@@ -158,8 +127,7 @@ export const ImportMcpServersSheet = () => {
         setApplyError(`Reload failed: ${reloadResult.message}`)
         return
       }
-      await mutateProfiles()
-      await mutateProfileDetails()
+      await mutateServers()
       setIsSaved(true)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Import failed.'
@@ -186,7 +154,7 @@ export const ImportMcpServersSheet = () => {
         <SheetHeader>
           <SheetTitle>Import MCP servers</SheetTitle>
           <SheetDescription>
-            Paste your mcpServers JSON, review the servers, and apply them to profiles.
+            Paste your mcpServers JSON, review the servers, and apply them to this config.
           </SheetDescription>
         </SheetHeader>
         <SheetPanel className="space-y-6">
@@ -213,7 +181,7 @@ export const ImportMcpServersSheet = () => {
           {isSaved && (
             <Alert variant="success">
               <CheckCircleIcon />
-              <AlertTitle>Saved to profiles</AlertTitle>
+              <AlertTitle>Saved to config</AlertTitle>
               <AlertDescription>Changes applied.</AlertDescription>
             </Alert>
           )}
@@ -246,26 +214,6 @@ export const ImportMcpServersSheet = () => {
                 Clear
               </Button>
             </div>
-          </section>
-
-          <Separator />
-
-          <section className="space-y-3">
-            <h3 className="text-sm font-medium">Target profiles</h3>
-            <CheckboxGroup
-              value={selectedProfiles}
-              onValueChange={setSelectedProfiles}
-            >
-              {(profiles ?? []).map(profile => (
-                <label
-                  key={profile.name}
-                  className="flex items-center gap-2 text-sm"
-                >
-                  <Checkbox value={profile.name} />
-                  <span className="font-mono">{profile.name}</span>
-                </label>
-              ))}
-            </CheckboxGroup>
           </section>
 
           <Separator />
@@ -335,7 +283,7 @@ export const ImportMcpServersSheet = () => {
             Close
           </Button>
           <Button variant="default" onClick={handleApply} disabled={!canApply}>
-            {isApplying ? 'Saving...' : 'Apply to profiles'}
+            {isApplying ? 'Saving...' : 'Apply to config'}
           </Button>
         </SheetFooter>
       </SheetContent>

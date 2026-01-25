@@ -1,12 +1,12 @@
-// Input: Profile/caller/server data from hooks, binding types
+// Input: Server/client data from hooks, binding types
 // Output: buildTopology function and layoutConfig for graph positioning
 // Position: Layout computation layer for topology visualization
 
 import type {
-  ActiveCaller,
-  ProfileDetail,
-  ProfileSummary,
+  ActiveClient,
+  ServerDetail,
   ServerRuntimeStatus,
+  ServerSummary,
 } from '@bindings/mcpd/internal/ui'
 import { MarkerType, type Edge } from '@xyflow/react'
 
@@ -14,289 +14,191 @@ import type { FlowNode, LayoutResult } from './types'
 
 export const layoutConfig = {
   columns: {
-    caller: 0,
-    profile: 280,
-    server: 560,
-    instance: 800,
+    client: 0,
+    tag: 260,
+    server: 520,
+    instance: 780,
   },
   nodeGap: 96,
-  serverGap: 84,
+  tagGap: 140,
+  serverGap: 96,
   instanceGap: 60,
-  clusterGap: 140,
-  minClusterHeight: 120,
 }
 
-type AggregatedServer = {
-  key: string
+type ServerEntry = {
+  specKey: string
   name: string
-  protocolVersions: Set<string>
-  strategies: Set<string>
-  sessionTTLSeconds: number
-  sessionTTLMixed: boolean
-  maxConcurrent: number
-  exposeToolsCount: number
-  profileNames: Set<string>
+  protocolVersion: string
+  tags: string[]
 }
 
-type ServerTagInput = {
-  strategy: string
-  strategyMixed: boolean
-  sessionTTLSeconds: number
-  sessionTTLMixed: boolean
-  maxConcurrent: number
-  exposeToolsCount: number
-  profileCount: number
-}
-
-const buildServerTags = ({
-  strategy,
-  strategyMixed,
-  sessionTTLSeconds,
-  sessionTTLMixed,
-  maxConcurrent,
-  exposeToolsCount,
-  profileCount,
-}: ServerTagInput) => {
-  const tags: string[] = []
-
-  const strategyLabel = {
-    stateless: 'Stateless',
-    stateful: 'Stateful',
-    persistent: 'Persistent',
-    singleton: 'Singleton',
-  }[strategy] ?? strategy
-
-  if (strategyMixed) {
-    tags.push('Strategy Mixed')
-  } else if (strategy !== 'stateless') {
-    tags.push(strategyLabel)
-  }
-
-  if (strategy === 'stateful') {
-    if (sessionTTLMixed) {
-      tags.push('Session TTL Mixed')
-    } else if (sessionTTLSeconds > 0) {
-      tags.push(`Session TTL ${sessionTTLSeconds}s`)
-    } else {
-      tags.push('Session TTL Off')
-    }
-  }
-
-  if (maxConcurrent > 0) {
-    tags.push(`Max ${maxConcurrent}`)
-  }
-
-  if (exposeToolsCount > 0) {
-    tags.push(`Tools ${exposeToolsCount}`)
-  }
-
-  if (profileCount > 1) {
-    tags.push(`Profiles ${profileCount}`)
-  }
-
+const normalizeTags = (tags: string[] | undefined) => {
+  if (!tags || tags.length === 0) return ['untagged']
   return tags
 }
 
 export const buildTopology = (
-  profiles: ProfileSummary[],
-  profileDetails: ProfileDetail[],
-  callers: Record<string, string>,
-  activeCallers: ActiveCaller[],
+  servers: ServerSummary[],
+  serverDetails: ServerDetail[],
+  activeClients: ActiveClient[],
   runtimeStatus: ServerRuntimeStatus[],
 ): LayoutResult => {
-  const detailsByName = new Map(
-    profileDetails.map(profile => [profile.name, profile]),
-  )
-  const profileNameSet = new Set(profiles.map(profile => profile.name))
-  const activeCallerSet = new Set(activeCallers.map(caller => caller.caller))
-  const activeCallerMap = new Map(
-    activeCallers.map(caller => [caller.caller, caller.pid]),
-  )
-  const callersByProfile = new Map<string, string[]>()
-  const serversByKey = new Map<string, AggregatedServer>()
-  const runtimeStatusBySpecKey = new Map(
-    runtimeStatus.map(status => [status.specKey, status]),
-  )
+  const serverEntries = new Map<string, ServerEntry>()
 
-  for (const [caller, profileName] of Object.entries(callers)) {
-    const bucket = callersByProfile.get(profileName) ?? []
-    bucket.push(caller)
-    callersByProfile.set(profileName, bucket)
-  }
+  servers.forEach(summary => {
+    if (!summary.specKey) return
+    serverEntries.set(summary.specKey, {
+      specKey: summary.specKey,
+      name: summary.name,
+      protocolVersion: 'default',
+      tags: normalizeTags(summary.tags),
+    })
+  })
 
-  const missingProfiles = Array.from(callersByProfile.keys()).filter(
-    profileName => !profileNameSet.has(profileName),
+  serverDetails.forEach(detail => {
+    const existing = serverEntries.get(detail.specKey)
+    serverEntries.set(detail.specKey, {
+      specKey: detail.specKey,
+      name: detail.name,
+      protocolVersion: detail.protocolVersion || existing?.protocolVersion || 'default',
+      tags: normalizeTags(detail.tags ?? existing?.tags),
+    })
+  })
+
+  runtimeStatus.forEach(status => {
+    if (!status.specKey) return
+    if (!serverEntries.has(status.specKey)) {
+      serverEntries.set(status.specKey, {
+        specKey: status.specKey,
+        name: status.serverName || status.specKey,
+        protocolVersion: 'default',
+        tags: ['untagged'],
+      })
+    }
+  })
+
+  const tagSet = new Set(
+    Array.from(serverEntries.values()).flatMap(entry => entry.tags),
   )
+  activeClients.forEach(client => {
+    client.tags?.forEach(tag => tagSet.add(tag))
+  })
 
-  const orderedProfiles = [
-    ...profiles.map(profile => ({
-      name: profile.name,
-      isDefault: profile.isDefault,
-      isMissing: false,
-    })),
-    ...missingProfiles.sort().map(profileName => ({
-      name: profileName,
-      isDefault: false,
-      isMissing: true,
-    })),
-  ]
+  const allTags = Array.from(tagSet).sort((a, b) => a.localeCompare(b))
 
   const nodes: FlowNode[] = []
   const edges: Edge[] = []
-  const profilePositions = new Map<string, number>()
-  const serverPositions = new Map<string, number>()
+  const tagPositions = new Map<string, number>()
 
-  let cursorY = 0
+  let tagCursor = 0
+  allTags.forEach(tag => {
+    const y = tagCursor
+    tagPositions.set(tag, y)
+    tagCursor += layoutConfig.tagGap
 
-  for (const profile of orderedProfiles) {
-    const profileDetail = detailsByName.get(profile.name)
-    const servers = profileDetail?.servers ?? []
-    const callerList = (callersByProfile.get(profile.name) ?? []).slice().sort()
-    const clusterSize = Math.max(callerList.length, 1)
-    const clusterHeight = (clusterSize - 1) * layoutConfig.nodeGap
-    const baseline = Math.max(clusterHeight, layoutConfig.minClusterHeight)
-    const profileY = cursorY + baseline / 2
-    profilePositions.set(profile.name, profileY)
+    const serverCount = Array.from(serverEntries.values()).filter(entry =>
+      entry.tags.includes(tag),
+    ).length
+
+    const clientCount = activeClients.filter(client => {
+      const tags = client.tags && client.tags.length > 0 ? client.tags : allTags
+      return tags.includes(tag)
+    }).length
 
     nodes.push({
-      id: `profile:${profile.name}`,
-      type: 'profile',
+      id: `tag:${tag}`,
+      type: 'tag',
       position: {
-        x: layoutConfig.columns.profile,
-        y: profileY,
+        x: layoutConfig.columns.tag,
+        y,
       },
       data: {
-        name: profile.name,
-        serverCount: servers.length,
-        isDefault: profile.isDefault,
-        isMissing: profile.isMissing,
+        name: tag,
+        serverCount,
+        clientCount,
       },
     })
+  })
 
-    for (const server of servers) {
-      const serverKey = server.specKey || server.name
-      const protocolLabel = server.protocolVersion || 'default'
-      const existing = serversByKey.get(serverKey)
-
-      if (existing) {
-        existing.strategies.add(server.strategy)
-        if (existing.sessionTTLSeconds !== server.sessionTTLSeconds) {
-          existing.sessionTTLMixed = true
-        }
-        existing.maxConcurrent = Math.max(
-          existing.maxConcurrent,
-          server.maxConcurrent,
-        )
-        existing.exposeToolsCount = Math.max(
-          existing.exposeToolsCount,
-          server.exposeTools.length,
-        )
-        existing.profileNames.add(profile.name)
-        existing.protocolVersions.add(protocolLabel)
-      } else {
-        serversByKey.set(serverKey, {
-          key: serverKey,
-          name: server.name,
-          protocolVersions: new Set([protocolLabel]),
-          strategies: new Set([server.strategy]),
-          sessionTTLSeconds: server.sessionTTLSeconds,
-          sessionTTLMixed: false,
-          maxConcurrent: server.maxConcurrent,
-          exposeToolsCount: server.exposeTools.length,
-          profileNames: new Set([profile.name]),
-        })
-      }
-
-      edges.push({
-        id: `edge:profile:${profile.name}->server:${serverKey}`,
-        source: `profile:${profile.name}`,
-        target: `server:${serverKey}`,
-        type: 'smoothstep',
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: 'var(--chart-2)',
-        },
-        style: {
-          stroke: 'var(--chart-2)',
-          strokeWidth: 1.5,
-          strokeOpacity: 0.6,
-        },
-      })
-    }
-
-    const callerStartY =
-      profileY - ((callerList.length - 1) * layoutConfig.nodeGap) / 2
-
-    callerList.forEach((caller, index) => {
-      const nodeId = `caller:${caller}`
-      const isActive = activeCallerSet.has(caller)
-      const pid = activeCallerMap.get(caller)
-
-      nodes.push({
-        id: nodeId,
-        type: 'caller',
-        position: {
-          x: layoutConfig.columns.caller,
-          y: callerStartY + index * layoutConfig.nodeGap,
-        },
-        data: {
-          name: caller,
-          profileName: profile.name,
-          pid: isActive ? pid : undefined,
-        },
-      })
-
-      edges.push({
-        id: `edge:${nodeId}->profile:${profile.name}`,
-        source: nodeId,
-        target: `profile:${profile.name}`,
-        type: 'smoothstep',
-        animated: isActive,
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: isActive ? 'var(--chart-4)' : 'var(--info)',
-        },
-        style: {
-          stroke: isActive ? 'var(--chart-4)' : 'var(--info)',
-          strokeWidth: isActive ? 2 : 1.4,
-          strokeOpacity: isActive ? 0.9 : 0.55,
-          strokeDasharray: isActive ? '6 4' : '4 4',
-        },
-      })
-    })
-
-    cursorY += baseline + layoutConfig.clusterGap
-  }
-
-  const serverEntries = Array.from(serversByKey.values()).map(entry => {
-    const profileYs = Array.from(entry.profileNames)
-      .map(name => profilePositions.get(name))
+  const clientEntries = activeClients.map(client => {
+    const tags = client.tags && client.tags.length > 0 ? client.tags : allTags
+    const tagYs = tags
+      .map(tag => tagPositions.get(tag))
       .filter((value): value is number => value !== undefined)
-    const desiredY =
-      profileYs.length > 0
-        ? profileYs.reduce((sum, value) => sum + value, 0) / profileYs.length
-        : 0
-
+    const desiredY = tagYs.length > 0
+      ? tagYs.reduce((sum, value) => sum + value, 0) / tagYs.length
+      : 0
     return {
-      entry,
+      client,
+      tags,
       desiredY,
     }
   })
 
-  serverEntries.sort((a, b) => a.desiredY - b.desiredY)
+  clientEntries.sort((a, b) => a.desiredY - b.desiredY)
 
+  let lastClientY = -Infinity
+  clientEntries.forEach(({ client, tags, desiredY }) => {
+    const resolvedY = Math.max(desiredY, lastClientY + layoutConfig.nodeGap)
+    lastClientY = resolvedY
+
+    const clientId = `client:${client.client}:${client.pid}`
+    nodes.push({
+      id: clientId,
+      type: 'client',
+      position: {
+        x: layoutConfig.columns.client,
+        y: resolvedY,
+      },
+      data: {
+        name: client.client,
+        pid: client.pid,
+        tagCount: tags.length,
+      },
+    })
+
+    tags.forEach(tag => {
+      edges.push({
+        id: `edge:${clientId}->tag:${tag}`,
+        source: clientId,
+        target: `tag:${tag}`,
+        type: 'smoothstep',
+        animated: true,
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: 'var(--chart-4)',
+        },
+        style: {
+          stroke: 'var(--chart-4)',
+          strokeWidth: 1.5,
+          strokeOpacity: 0.6,
+          strokeDasharray: '6 4',
+        },
+      })
+    })
+  })
+
+  const serverEntriesArray = Array.from(serverEntries.values()).map(entry => {
+    const tagYs = entry.tags
+      .map(tag => tagPositions.get(tag))
+      .filter((value): value is number => value !== undefined)
+    const desiredY = tagYs.length > 0
+      ? tagYs.reduce((sum, value) => sum + value, 0) / tagYs.length
+      : 0
+    return { entry, desiredY }
+  })
+
+  serverEntriesArray.sort((a, b) => a.desiredY - b.desiredY)
+
+  const serverPositions = new Map<string, number>()
   let lastServerY = -Infinity
 
-  for (const { entry, desiredY } of serverEntries) {
+  serverEntriesArray.forEach(({ entry, desiredY }) => {
     const resolvedY = Math.max(desiredY, lastServerY + layoutConfig.serverGap)
     lastServerY = resolvedY
-    const protocolVersion =
-      entry.protocolVersions.size === 1
-        ? Array.from(entry.protocolVersions)[0]
-        : 'mixed'
 
     nodes.push({
-      id: `server:${entry.key}`,
+      id: `server:${entry.specKey}`,
       type: 'server',
       position: {
         x: layoutConfig.columns.server,
@@ -304,26 +206,35 @@ export const buildTopology = (
       },
       data: {
         name: entry.name,
-        protocolVersion,
-        tags: buildServerTags({
-          strategy:
-            entry.strategies.size === 1
-              ? Array.from(entry.strategies)[0]
-              : 'mixed',
-          strategyMixed: entry.strategies.size > 1,
-          sessionTTLSeconds: entry.sessionTTLSeconds,
-          sessionTTLMixed: entry.sessionTTLMixed,
-          maxConcurrent: entry.maxConcurrent,
-          exposeToolsCount: entry.exposeToolsCount,
-          profileCount: entry.profileNames.size,
-        }),
+        protocolVersion: entry.protocolVersion || 'default',
+        tags: entry.tags.filter(tag => tag !== 'untagged'),
       },
     })
-    serverPositions.set(entry.key, resolvedY)
-  }
+    serverPositions.set(entry.specKey, resolvedY)
 
-  let lastInstanceY = -Infinity
+    entry.tags.forEach(tag => {
+      edges.push({
+        id: `edge:tag:${tag}->server:${entry.specKey}`,
+        source: `tag:${tag}`,
+        target: `server:${entry.specKey}`,
+        type: 'smoothstep',
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: 'var(--chart-2)',
+        },
+        style: {
+          stroke: 'var(--chart-2)',
+          strokeWidth: 1.4,
+          strokeOpacity: 0.6,
+        },
+      })
+    })
+  })
+
   let instanceCount = 0
+  const runtimeStatusBySpecKey = new Map(
+    runtimeStatus.map(status => [status.specKey, status]),
+  )
 
   for (const [serverKey, serverStatus] of runtimeStatusBySpecKey.entries()) {
     const serverY = serverPositions.get(serverKey)
@@ -369,21 +280,14 @@ export const buildTopology = (
         },
       })
     })
-
-    lastInstanceY = Math.max(
-      lastInstanceY,
-      instanceStartY + (instances.length - 1) * layoutConfig.instanceGap,
-    )
   }
-
-  const serverCount = serversByKey.size
 
   return {
     nodes,
     edges,
-    profileCount: orderedProfiles.length,
-    serverCount,
-    callerCount: Object.keys(callers).length,
+    tagCount: allTags.length,
+    serverCount: serverEntries.size,
+    clientCount: activeClients.length,
     instanceCount,
   }
 }

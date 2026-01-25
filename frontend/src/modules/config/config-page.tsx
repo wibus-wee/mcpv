@@ -6,8 +6,9 @@ import { useAtom, useAtomValue } from 'jotai'
 import {
   ExternalLinkIcon,
   FileSliders,
-  LayersIcon,
-  UsersIcon,
+  MonitorIcon,
+  ServerIcon,
+  TagsIcon,
 } from 'lucide-react'
 import { m } from 'motion/react'
 import { useState } from 'react'
@@ -28,29 +29,28 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toastManager } from '@/components/ui/toast'
-import { useActiveCallers, activeCallersKey } from '@/hooks/use-active-callers'
+import { useActiveClients, activeClientsKey } from '@/hooks/use-active-clients'
 import { Spring } from '@/lib/spring'
 
-import { selectedProfileNameAtom } from './atoms'
-import { CallersList } from './components/callers-list'
+import { selectedServerNameAtom } from './atoms'
+import { ClientsList } from './components/clients-list'
 import { ImportMcpServersSheet } from './components/import-mcp-servers-sheet'
-import { ProfileDetailPanel } from './components/profile-detail-panel'
-import { ProfilesList } from './components/profiles-list'
-import { useCallers, useConfigMode, useOpenConfigInEditor, useProfiles } from './hooks'
+import { ServerDetailPanel } from './components/server-detail-panel'
+import { ServersList } from './components/servers-list'
+import { useConfigMode, useOpenConfigInEditor, useServers } from './hooks'
 import { reloadConfig } from './lib/reload-config'
 
 type MutateFn = ReturnType<typeof useSWRConfig>['mutate']
 
-const refreshConfigData = async (mutate: MutateFn, selectedProfileName: string | null) => {
+const refreshConfigData = async (mutate: MutateFn, selectedServerName: string | null) => {
   const requests = [
-    mutate('profiles'),
-    mutate('callers'),
-    mutate(activeCallersKey),
+    mutate('servers'),
+    mutate(activeClientsKey),
     mutate('runtime-status'),
     mutate('server-init-status'),
   ]
-  if (selectedProfileName) {
-    requests.push(mutate(['profile', selectedProfileName]))
+  if (selectedServerName) {
+    requests.push(mutate(['server', selectedServerName]))
   }
   await Promise.all(requests)
 }
@@ -60,13 +60,13 @@ function ConfigHeader() {
   const { openInEditor, isOpening } = useOpenConfigInEditor()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const { mutate } = useSWRConfig()
-  const selectedProfileName = useAtomValue(selectedProfileNameAtom)
+  const selectedServerName = useAtomValue(selectedServerNameAtom)
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
     const result = await reloadConfig()
     if (result.ok) {
-      await refreshConfigData(mutate, selectedProfileName)
+      await refreshConfigData(mutate, selectedServerName)
       toastManager.add({
         type: 'success',
         title: 'Configuration reloaded',
@@ -108,7 +108,7 @@ function ConfigHeader() {
           <h1 className="font-semibold text-xl tracking-tight">Configuration</h1>
         </div>
         <p className="text-muted-foreground text-sm ml-9">
-          Manage profiles, callers, and server connections
+          Manage MCP servers, tags, and active clients.
         </p>
       </div>
       <div className="flex items-center gap-1">
@@ -132,103 +132,94 @@ function ConfigHeader() {
   )
 }
 
-function ProfilesTabContent() {
-  const [selectedProfileName, setSelectedProfileName] = useAtom(selectedProfileNameAtom)
+function ServersTabContent() {
+  const [selectedServerName, setSelectedServerName] = useAtom(selectedServerNameAtom)
   const {
-    data: profiles,
-    isLoading: profilesLoading,
-    mutate: mutateProfiles,
-  } = useProfiles()
-  const { data: activeCallers } = useActiveCallers()
+    data: servers,
+    isLoading: serversLoading,
+    mutate: mutateServers,
+  } = useServers()
 
-  const handleProfileSelect = (name: string) => {
-    setSelectedProfileName(name === selectedProfileName ? null : name)
+  const handleServerSelect = (name: string) => {
+    setSelectedServerName(name === selectedServerName ? null : name)
   }
 
   return (
     <div className="flex flex-1 min-h-0 gap-px h-full">
-      {/* Left: Profiles List */}
-      <div className="w-64 shrink-0 flex flex-col min-h-0 border-r">
+      <div className="w-72 shrink-0 flex flex-col min-h-0 border-r">
         <ScrollArea className="flex-1" scrollFade>
           <div className="p-3">
-            <ProfilesList
-              profiles={profiles ?? []}
-              isLoading={profilesLoading}
-              selectedProfile={selectedProfileName}
-              onSelect={handleProfileSelect}
-              activeCallers={activeCallers ?? []}
-              onRefresh={() => mutateProfiles()}
+            <ServersList
+              servers={servers ?? []}
+              isLoading={serversLoading}
+              selectedServer={selectedServerName}
+              onSelect={handleServerSelect}
+              onRefresh={() => mutateServers()}
             />
           </div>
         </ScrollArea>
       </div>
 
-      {/* Right: Profile Detail */}
       <div className="flex-1 min-w-0 min-h-0">
         <ScrollArea className="h-full" scrollFade>
-          <ProfileDetailPanel profileName={selectedProfileName} />
+          <ServerDetailPanel
+            serverName={selectedServerName}
+            onDeleted={() => setSelectedServerName(null)}
+          />
         </ScrollArea>
       </div>
     </div>
   )
 }
 
-function CallersTabContent() {
-  const {
-    data: callers,
-    isLoading: callersLoading,
-    mutate: mutateCallers,
-  } = useCallers()
+function ClientsTabContent() {
+  const { data: clients, isLoading } = useActiveClients()
 
   return (
     <ScrollArea className="flex-1" scrollFade>
       <div className="p-4">
-        <CallersList
-          callers={callers ?? {}}
-          isLoading={callersLoading}
-          onRefresh={() => mutateCallers()}
-        />
+        <ClientsList clients={clients ?? []} isLoading={isLoading} />
       </div>
     </ScrollArea>
   )
 }
 
 function ConfigTabs() {
-  const { data: profiles } = useProfiles()
-  const { data: callers } = useCallers()
+  const { data: servers } = useServers()
+  const { data: clients } = useActiveClients()
 
-  const profileCount = profiles?.length ?? 0
-  const callerCount = callers ? Object.keys(callers).length : 0
+  const serverCount = servers?.length ?? 0
+  const clientCount = clients?.length ?? 0
 
   return (
-    <Tabs defaultValue="profiles" className="flex-1 flex flex-col min-h-0">
+    <Tabs defaultValue="servers" className="flex-1 flex flex-col min-h-0">
       <TabsList variant="underline" className="w-full justify-start border-b px-4">
-        <TabsTrigger value="profiles" className="gap-1.5">
-          <LayersIcon className="size-3.5" />
-          Profiles
-          {profileCount > 0 && (
+        <TabsTrigger value="servers" className="gap-1.5">
+          <ServerIcon className="size-3.5" />
+          Servers
+          {serverCount > 0 && (
             <Badge variant="secondary" size="sm">
-              {profileCount}
+              {serverCount}
             </Badge>
           )}
         </TabsTrigger>
-        <TabsTrigger value="callers" className="gap-1.5">
-          <UsersIcon className="size-3.5" />
-          Callers
-          {callerCount > 0 && (
+        <TabsTrigger value="clients" className="gap-1.5">
+          <MonitorIcon className="size-3.5" />
+          Clients
+          {clientCount > 0 && (
             <Badge variant="secondary" size="sm">
-              {callerCount}
+              {clientCount}
             </Badge>
           )}
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="profiles" className="flex-1 min-h-0 mt-0">
-        <ProfilesTabContent />
+      <TabsContent value="servers" className="flex-1 min-h-0 mt-0">
+        <ServersTabContent />
       </TabsContent>
 
-      <TabsContent value="callers" className="flex-1 min-h-0 mt-0">
-        <CallersTabContent />
+      <TabsContent value="clients" className="flex-1 min-h-0 mt-0">
+        <ClientsTabContent />
       </TabsContent>
     </Tabs>
   )
@@ -239,11 +230,11 @@ function ConfigEmpty() {
     <Empty className="h-full">
       <EmptyHeader>
         <EmptyMedia variant="icon">
-          <FileSliders className="size-5" />
+          <TagsIcon className="size-5" />
         </EmptyMedia>
         <EmptyTitle>No configuration loaded</EmptyTitle>
         <EmptyDescription>
-          Start the server with a configuration file to see your profiles here.
+          Start the server with a configuration file to see your servers here.
         </EmptyDescription>
       </EmptyHeader>
     </Empty>
@@ -252,9 +243,9 @@ function ConfigEmpty() {
 
 export function ConfigPage() {
   const { data: configMode } = useConfigMode()
-  const { data: profiles } = useProfiles()
+  const { data: servers } = useServers()
 
-  const hasConfig = configMode && profiles
+  const hasConfig = configMode && servers
 
   return (
     <div className="flex flex-col h-full">

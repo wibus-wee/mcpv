@@ -3,27 +3,28 @@
 // Position: Global state for configuration management
 
 import type {
+  ActiveClient,
   ConfigModeResponse,
-  ProfileDetail,
-  ProfileSummary,
+  ServerDetail,
+  ServerSummary,
 } from '@bindings/mcpd/internal/ui'
 import { atom } from 'jotai'
 
 // Config mode and path
 export const configModeAtom = atom<ConfigModeResponse | null>(null)
 
-// Profile list
-export const profilesAtom = atom<ProfileSummary[]>([])
+// Server list
+export const serversAtom = atom<ServerSummary[]>([])
 
-// Selected profile name
-export const selectedProfileNameAtom = atom<string | null>(null)
+// Selected server name
+export const selectedServerNameAtom = atom<string | null>(null)
 
-// Selected profile detail
-export const selectedProfileAtom = atom<ProfileDetail | null>(null)
+// Selected server detail
+export const selectedServerAtom = atom<ServerDetail | null>(null)
 
-// Caller mappings
-export const callersAtom = atom<Record<string, string>>({})
+// Active clients
+export const activeClientsAtom = atom<ActiveClient[]>([])
 
 // Loading states
 export const configLoadingAtom = atom(false)
-export const profileLoadingAtom = atom(false)
+export const serverLoadingAtom = atom(false)

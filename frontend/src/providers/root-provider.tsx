@@ -5,7 +5,7 @@
 'use client'
 
 import type {
-  ActiveCaller,
+  ActiveClient,
   CoreStateResponse,
   ServerInitStatus,
   ServerRuntimeStatus,
@@ -19,7 +19,7 @@ import { useEffect, useRef } from 'react'
 import { useSWRConfig } from 'swr'
 
 import { logStreamTokenAtom } from '@/atoms/logs'
-import { activeCallersKey } from '@/hooks/use-active-callers'
+import { activeClientsKey } from '@/hooks/use-active-clients'
 import { coreStateKey, useCoreState } from '@/hooks/use-core-state'
 import type { LogEntry } from '@/hooks/use-logs'
 import { logsKey, maxLogEntries } from '@/hooks/use-logs'
@@ -129,12 +129,12 @@ function WailsEventsBridge() {
     return () => unbind()
   }, [mutate])
 
-  // Listen for callers:active events from backend
+  // Listen for clients:active events from backend
   useEffect(() => {
-    const unbind = Events.On('callers:active', (event) => {
-      const data = event?.data as { callers?: ActiveCaller[] } | undefined
-      if (data?.callers) {
-        mutate(activeCallersKey, data.callers, { revalidate: false })
+    const unbind = Events.On('clients:active', (event) => {
+      const data = event?.data as { clients?: ActiveClient[] } | undefined
+      if (data?.clients) {
+        mutate(activeClientsKey, data.clients, { revalidate: false })
       }
     })
     return () => unbind()

@@ -7,7 +7,7 @@
 
 ## Files
 
-- **server-detail-panel.tsx**: 服务器详情面板，展示运行状态、启动原因表、所属 profiles 与工具列表。
+- **server-detail-panel.tsx**: 服务器详情面板，展示运行状态、启动原因表、tag 与工具列表。
 - **tool-detail-panel.tsx**: 工具详情面板，展示参数与原始 schema。
 - **tools-grid.tsx**: 工具页面主容器，协调选择状态与详情渲染。
 - **tools-sidebar.tsx**: 左侧服务器/工具列表与搜索筛选。

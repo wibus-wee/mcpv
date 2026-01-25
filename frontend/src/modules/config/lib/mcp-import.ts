@@ -19,14 +19,13 @@ export type ImportServerSpec = {
 }
 
 export type ImportMcpServersRequest = {
-  profiles: string[]
   servers: ImportServerSpec[]
 }
 
 export type StreamableHTTPDraft = {
   endpoint: string
   headers: Record<string, string>
-  maxRetries?: number
+  maxRetries: number
 }
 
 type McpServerEntry = {
@@ -202,7 +201,7 @@ function parseStreamableHTTP(
   return {
     endpoint: rawEndpoint.trim(),
     headers,
-    ...(maxRetries !== undefined ? { maxRetries } : {}),
+    maxRetries,
   }
 }
 
@@ -279,9 +278,9 @@ function parseMaxRetries(
   raw: unknown,
   prefix: string,
   errors: string[],
-): number | undefined | null {
+): number | null {
   if (raw === undefined) {
-    return undefined
+    return 0
   }
   if (typeof raw !== 'number' || Number.isNaN(raw)) {
     errors.push(`${prefix}: maxRetries must be a number.`)

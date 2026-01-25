@@ -49,6 +49,8 @@ const (
 	DefaultRPCSocketMode = "0660"
 	// DefaultStreamableHTTPMaxRetries is the default max retries for streamable HTTP.
 	DefaultStreamableHTTPMaxRetries = 5
+	// InternalUIClientName is the reserved client name used by the UI runtime.
+	InternalUIClientName = "mcpd-ui-internal"
 
 	// Instance strategy defaults
 	// DefaultStrategy is the default instance strategy.

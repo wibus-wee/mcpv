@@ -24,7 +24,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Spring } from '@/lib/spring'
 import { swrPresets } from '@/lib/swr-config'
 
-import { AnimatedNumber, MiniGauge, StackedBar } from './sparkline'
+import { AnimatedNumber, StackedBar } from './sparkline'
 
 function useRuntimeStatus() {
   return useSWR<ServerRuntimeStatus[]>(
@@ -171,6 +171,7 @@ function HealthVerdict({ stats }: { stats: AggregatedStats }) {
       {showLink && (
         <Link
           to="/tools"
+          search={{ server: undefined }}
           className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
           View details

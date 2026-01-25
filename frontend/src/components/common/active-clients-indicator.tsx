@@ -1,23 +1,23 @@
-// Input: Active callers hook, icons, class utility
-// Output: Active callers indicator component for headers
-// Position: Shared header indicator for active caller registrations
+// Input: Active clients hook, icons, class utility
+// Output: Active clients indicator component for headers
+// Position: Shared header indicator for active client registrations
 
 import { MousePointer2Icon } from 'lucide-react'
 
-import { useActiveCallers } from '@/hooks/use-active-callers'
+import { useActiveClients } from '@/hooks/use-active-clients'
 import { cn } from '@/lib/utils'
 
-const maxVisibleCallers = 2
+const maxVisibleClients = 2
 
-export const ActiveCallersIndicator = ({ className }: { className?: string }) => {
-  const { data: activeCallers } = useActiveCallers()
-  const entries = activeCallers ?? []
+export const ActiveClientsIndicator = ({ className }: { className?: string }) => {
+  const { data: activeClients } = useActiveClients()
+  const entries = activeClients ?? []
   const hasActive = entries.length > 0
-  const visibleCallers = entries.slice(0, maxVisibleCallers)
-  const extraCount = Math.max(entries.length - visibleCallers.length, 0)
+  const visibleClients = entries.slice(0, maxVisibleClients)
+  const extraCount = Math.max(entries.length - visibleClients.length, 0)
   const title = hasActive
-    ? entries.map(entry => `${entry.caller} (PID: ${entry.pid})`).join(', ')
-    : 'No active callers'
+    ? entries.map(entry => `${entry.client} (PID: ${entry.pid})`).join(', ')
+    : 'No active clients'
 
   return (
     <div
@@ -33,16 +33,16 @@ export const ActiveCallersIndicator = ({ className }: { className?: string }) =>
           hasActive ? 'bg-success animate-pulse' : 'bg-muted',
         )}
       />
-      <span className="text-muted-foreground">Active Callers</span>
+      <span className="text-muted-foreground">Active Clients</span>
       {hasActive ? (
         <div className="flex items-center gap-1">
-          {visibleCallers.map(entry => (
+          {visibleClients.map(entry => (
             <span
-              key={`${entry.caller}:${entry.pid}`}
+              key={`${entry.client}:${entry.pid}`}
               className="inline-flex items-center gap-1 rounded-full bg-background/80 px-2 py-0.5 font-mono text-[0.7rem] text-foreground shadow-xs"
             >
               <MousePointer2Icon className="size-3 text-info" />
-              {entry.caller}
+              {entry.client}
               <span className="text-muted-foreground">(PID: {entry.pid})</span>
             </span>
           ))}

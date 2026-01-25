@@ -52,12 +52,8 @@ func (s *DiscoveryService) ListResources(ctx context.Context, cursor string) (*R
 	if err != nil {
 		return nil, err
 	}
-	client, err := s.deps.ensureUIClient(ctx)
-	if err != nil {
-		return nil, err
-	}
 
-	page, err := cp.ListResources(ctx, client, cursor)
+	page, err := cp.ListResourcesAll(ctx, cursor)
 	if err != nil {
 		return nil, MapDomainError(err)
 	}
@@ -75,12 +71,8 @@ func (s *DiscoveryService) ListPrompts(ctx context.Context, cursor string) (*Pro
 	if err != nil {
 		return nil, err
 	}
-	client, err := s.deps.ensureUIClient(ctx)
-	if err != nil {
-		return nil, err
-	}
 
-	page, err := cp.ListPrompts(ctx, client, cursor)
+	page, err := cp.ListPromptsAll(ctx, cursor)
 	if err != nil {
 		return nil, MapDomainError(err)
 	}
@@ -98,12 +90,8 @@ func (s *DiscoveryService) CallTool(ctx context.Context, name string, args json.
 	if err != nil {
 		return nil, err
 	}
-	client, err := s.deps.ensureUIClient(ctx)
-	if err != nil {
-		return nil, err
-	}
 
-	result, err := cp.CallTool(ctx, client, name, args, routingKey)
+	result, err := cp.CallToolAll(ctx, name, args, routingKey)
 	if err != nil {
 		return nil, MapDomainError(err)
 	}
@@ -116,12 +104,8 @@ func (s *DiscoveryService) ReadResource(ctx context.Context, uri string) (json.R
 	if err != nil {
 		return nil, err
 	}
-	client, err := s.deps.ensureUIClient(ctx)
-	if err != nil {
-		return nil, err
-	}
 
-	result, err := cp.ReadResource(ctx, client, uri)
+	result, err := cp.ReadResourceAll(ctx, uri)
 	if err != nil {
 		return nil, MapDomainError(err)
 	}
@@ -134,12 +118,8 @@ func (s *DiscoveryService) GetPrompt(ctx context.Context, name string, args json
 	if err != nil {
 		return nil, err
 	}
-	client, err := s.deps.ensureUIClient(ctx)
-	if err != nil {
-		return nil, err
-	}
 
-	result, err := cp.GetPrompt(ctx, client, name, args)
+	result, err := cp.GetPromptAll(ctx, name, args)
 	if err != nil {
 		return nil, MapDomainError(err)
 	}

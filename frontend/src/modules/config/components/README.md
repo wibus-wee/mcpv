@@ -8,9 +8,8 @@
 
 ## Files
 
-- **profiles-list.tsx**: Profiles 列表与选中态交互
-- **profile-detail-panel.tsx**: Profile 详情面板，展示 server 信息与 SubAgent 状态
-- **callers-list.tsx**: Caller 与 profile 的映射列表
-- **import-mcp-servers-sheet.tsx**: MCP JSON 导入面板（profiles 级别）
+- **servers-list.tsx**: Server 列表与选中态交互（含 tag 过滤）
+- **server-detail-panel.tsx**: Server 详情面板，展示配置与运行状态
+- **clients-list.tsx**: 活跃 client 列表（含 tag chips）
+- **import-mcp-servers-sheet.tsx**: MCP JSON 导入面板（server 级别）
 - **server-runtime-status.tsx**: Server pool 运行状态概览与实例详情展示
-- **config-flow.tsx**: Profiles/callers/servers 的拓扑视图与自定义节点

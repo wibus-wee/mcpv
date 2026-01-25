@@ -40,7 +40,7 @@ export const FlowEmpty = () => {
           </EmptyMedia>
           <EmptyTitle className="text-sm">No topology data</EmptyTitle>
           <EmptyDescription className="text-xs">
-            Add profiles, servers, or callers to render the configuration map.
+            Add servers and tags to render the configuration map.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>

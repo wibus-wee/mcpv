@@ -13,7 +13,6 @@ import { useMemo } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress, ProgressIndicator, ProgressTrack } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Spring } from '@/lib/spring'
@@ -214,6 +213,7 @@ export function ActivityInsights() {
             title="Tools Available"
             value={tools.length}
             icon={WrenchIcon}
+            sparkData={mockSparkData}
             delay={0}
           />
           <InsightCard
