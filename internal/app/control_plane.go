@@ -87,9 +87,19 @@ func (c *ControlPlane) CallTool(ctx context.Context, client, name string, args j
 	return c.discovery.CallTool(ctx, client, name, args, routingKey)
 }
 
+// CallToolAll executes a tool without client visibility checks.
+func (c *ControlPlane) CallToolAll(ctx context.Context, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
+	return c.discovery.CallToolAll(ctx, name, args, routingKey)
+}
+
 // ListResources lists resources visible to a client.
 func (c *ControlPlane) ListResources(ctx context.Context, client string, cursor string) (domain.ResourcePage, error) {
 	return c.discovery.ListResources(ctx, client, cursor)
+}
+
+// ListResourcesAll lists resources across all servers.
+func (c *ControlPlane) ListResourcesAll(ctx context.Context, cursor string) (domain.ResourcePage, error) {
+	return c.discovery.ListResourcesAll(ctx, cursor)
 }
 
 // WatchResources streams resource snapshots for a client.
@@ -102,9 +112,19 @@ func (c *ControlPlane) ReadResource(ctx context.Context, client, uri string) (js
 	return c.discovery.ReadResource(ctx, client, uri)
 }
 
+// ReadResourceAll reads a resource without client visibility checks.
+func (c *ControlPlane) ReadResourceAll(ctx context.Context, uri string) (json.RawMessage, error) {
+	return c.discovery.ReadResourceAll(ctx, uri)
+}
+
 // ListPrompts lists prompts visible to a client.
 func (c *ControlPlane) ListPrompts(ctx context.Context, client string, cursor string) (domain.PromptPage, error) {
 	return c.discovery.ListPrompts(ctx, client, cursor)
+}
+
+// ListPromptsAll lists prompts across all servers.
+func (c *ControlPlane) ListPromptsAll(ctx context.Context, cursor string) (domain.PromptPage, error) {
+	return c.discovery.ListPromptsAll(ctx, cursor)
 }
 
 // WatchPrompts streams prompt snapshots for a client.
@@ -115,6 +135,11 @@ func (c *ControlPlane) WatchPrompts(ctx context.Context, client string) (<-chan 
 // GetPrompt resolves a prompt for a client.
 func (c *ControlPlane) GetPrompt(ctx context.Context, client, name string, args json.RawMessage) (json.RawMessage, error) {
 	return c.discovery.GetPrompt(ctx, client, name, args)
+}
+
+// GetPromptAll resolves a prompt without client visibility checks.
+func (c *ControlPlane) GetPromptAll(ctx context.Context, name string, args json.RawMessage) (json.RawMessage, error) {
+	return c.discovery.GetPromptAll(ctx, name, args)
 }
 
 // StreamLogs streams logs for a client.

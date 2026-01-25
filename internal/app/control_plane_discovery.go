@@ -142,6 +142,24 @@ func (d *discoveryService) CallTool(ctx context.Context, client, name string, ar
 	return runtime.tools.CallTool(ctx, name, args, routingKey)
 }
 
+// CallToolAll executes a tool without client visibility checks.
+func (d *discoveryService) CallToolAll(ctx context.Context, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
+	runtime := d.state.RuntimeState()
+	if runtime == nil || runtime.tools == nil {
+		return nil, domain.ErrToolNotFound
+	}
+	if _, ok := runtime.tools.Resolve(name); !ok {
+		return nil, domain.ErrToolNotFound
+	}
+	ctx = domain.WithRouteContext(ctx, domain.RouteContext{Client: domain.InternalUIClientName})
+	ctx = domain.WithStartCause(ctx, domain.StartCause{
+		Reason:   domain.StartCauseToolCall,
+		Client:   domain.InternalUIClientName,
+		ToolName: name,
+	})
+	return runtime.tools.CallTool(ctx, name, args, routingKey)
+}
+
 // ListResources lists resources visible to a client.
 func (d *discoveryService) ListResources(ctx context.Context, client string, cursor string) (domain.ResourcePage, error) {
 	tags, err := d.registry.resolveClientTags(client)
@@ -155,6 +173,16 @@ func (d *discoveryService) ListResources(ctx context.Context, client string, cur
 	snapshot := runtime.resources.Snapshot()
 	filtered := d.filterResourceSnapshot(snapshot, tags)
 	return paginateResources(filtered, cursor)
+}
+
+// ListResourcesAll lists resources across all servers.
+func (d *discoveryService) ListResourcesAll(ctx context.Context, cursor string) (domain.ResourcePage, error) {
+	runtime := d.state.RuntimeState()
+	if runtime == nil || runtime.resources == nil {
+		return domain.ResourcePage{Snapshot: domain.ResourceSnapshot{}}, nil
+	}
+	snapshot := runtime.resources.Snapshot()
+	return paginateResources(snapshot, cursor)
 }
 
 // WatchResources streams resource snapshots for a client.
@@ -221,6 +249,19 @@ func (d *discoveryService) ReadResource(ctx context.Context, client, uri string)
 	return runtime.resources.ReadResource(ctx, uri)
 }
 
+// ReadResourceAll reads a resource without client visibility checks.
+func (d *discoveryService) ReadResourceAll(ctx context.Context, uri string) (json.RawMessage, error) {
+	runtime := d.state.RuntimeState()
+	if runtime == nil || runtime.resources == nil {
+		return nil, domain.ErrResourceNotFound
+	}
+	if _, ok := runtime.resources.Resolve(uri); !ok {
+		return nil, domain.ErrResourceNotFound
+	}
+	ctx = domain.WithRouteContext(ctx, domain.RouteContext{Client: domain.InternalUIClientName})
+	return runtime.resources.ReadResource(ctx, uri)
+}
+
 // ListPrompts lists prompts visible to a client.
 func (d *discoveryService) ListPrompts(ctx context.Context, client string, cursor string) (domain.PromptPage, error) {
 	tags, err := d.registry.resolveClientTags(client)
@@ -234,6 +275,16 @@ func (d *discoveryService) ListPrompts(ctx context.Context, client string, curso
 	snapshot := runtime.prompts.Snapshot()
 	filtered := d.filterPromptSnapshot(snapshot, tags)
 	return paginatePrompts(filtered, cursor)
+}
+
+// ListPromptsAll lists prompts across all servers.
+func (d *discoveryService) ListPromptsAll(ctx context.Context, cursor string) (domain.PromptPage, error) {
+	runtime := d.state.RuntimeState()
+	if runtime == nil || runtime.prompts == nil {
+		return domain.PromptPage{Snapshot: domain.PromptSnapshot{}}, nil
+	}
+	snapshot := runtime.prompts.Snapshot()
+	return paginatePrompts(snapshot, cursor)
 }
 
 // WatchPrompts streams prompt snapshots for a client.
@@ -297,6 +348,19 @@ func (d *discoveryService) GetPrompt(ctx context.Context, client, name string, a
 		return nil, domain.ErrPromptNotFound
 	}
 	ctx = domain.WithRouteContext(ctx, domain.RouteContext{Client: client})
+	return runtime.prompts.GetPrompt(ctx, name, args)
+}
+
+// GetPromptAll resolves a prompt without client visibility checks.
+func (d *discoveryService) GetPromptAll(ctx context.Context, name string, args json.RawMessage) (json.RawMessage, error) {
+	runtime := d.state.RuntimeState()
+	if runtime == nil || runtime.prompts == nil {
+		return nil, domain.ErrPromptNotFound
+	}
+	if _, ok := runtime.prompts.Resolve(name); !ok {
+		return nil, domain.ErrPromptNotFound
+	}
+	ctx = domain.WithRouteContext(ctx, domain.RouteContext{Client: domain.InternalUIClientName})
 	return runtime.prompts.GetPrompt(ctx, name, args)
 }
 

@@ -218,12 +218,17 @@ type ControlPlaneDiscovery interface {
 	ListToolCatalog(ctx context.Context) (ToolCatalogSnapshot, error)
 	WatchTools(ctx context.Context, client string) (<-chan ToolSnapshot, error)
 	CallTool(ctx context.Context, client, name string, args json.RawMessage, routingKey string) (json.RawMessage, error)
+	CallToolAll(ctx context.Context, name string, args json.RawMessage, routingKey string) (json.RawMessage, error)
 	ListResources(ctx context.Context, client string, cursor string) (ResourcePage, error)
+	ListResourcesAll(ctx context.Context, cursor string) (ResourcePage, error)
 	WatchResources(ctx context.Context, client string) (<-chan ResourceSnapshot, error)
 	ReadResource(ctx context.Context, client, uri string) (json.RawMessage, error)
+	ReadResourceAll(ctx context.Context, uri string) (json.RawMessage, error)
 	ListPrompts(ctx context.Context, client string, cursor string) (PromptPage, error)
+	ListPromptsAll(ctx context.Context, cursor string) (PromptPage, error)
 	WatchPrompts(ctx context.Context, client string) (<-chan PromptSnapshot, error)
 	GetPrompt(ctx context.Context, client, name string, args json.RawMessage) (json.RawMessage, error)
+	GetPromptAll(ctx context.Context, name string, args json.RawMessage) (json.RawMessage, error)
 }
 
 // ServerInitStatusReader provides server initialization status snapshots.

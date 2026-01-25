@@ -204,7 +204,15 @@ func (f *fakeControlPlane) CallTool(ctx context.Context, client, name string, ar
 	return json.RawMessage(`{"content":[{"type":"text","text":"ok"}]}`), nil
 }
 
+func (f *fakeControlPlane) CallToolAll(ctx context.Context, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
+	return f.CallTool(ctx, "", name, args, routingKey)
+}
+
 func (f *fakeControlPlane) ListResources(ctx context.Context, client string, cursor string) (domain.ResourcePage, error) {
+	return f.resourcePage, nil
+}
+
+func (f *fakeControlPlane) ListResourcesAll(ctx context.Context, cursor string) (domain.ResourcePage, error) {
 	return f.resourcePage, nil
 }
 
@@ -221,7 +229,15 @@ func (f *fakeControlPlane) ReadResource(ctx context.Context, client, uri string)
 	return json.RawMessage(`{"contents":[{"uri":"file:///a","text":"ok"}]}`), nil
 }
 
+func (f *fakeControlPlane) ReadResourceAll(ctx context.Context, uri string) (json.RawMessage, error) {
+	return f.ReadResource(ctx, "", uri)
+}
+
 func (f *fakeControlPlane) ListPrompts(ctx context.Context, client string, cursor string) (domain.PromptPage, error) {
+	return f.promptPage, nil
+}
+
+func (f *fakeControlPlane) ListPromptsAll(ctx context.Context, cursor string) (domain.PromptPage, error) {
 	return f.promptPage, nil
 }
 
@@ -236,6 +252,10 @@ func (f *fakeControlPlane) GetPrompt(ctx context.Context, client, name string, a
 		return nil, f.getPromptErr
 	}
 	return json.RawMessage(`{"messages":[{"role":"user","content":{"type":"text","text":"ok"}}]}`), nil
+}
+
+func (f *fakeControlPlane) GetPromptAll(ctx context.Context, name string, args json.RawMessage) (json.RawMessage, error) {
+	return f.GetPrompt(ctx, "", name, args)
 }
 
 func (f *fakeControlPlane) StreamLogs(ctx context.Context, client string, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {

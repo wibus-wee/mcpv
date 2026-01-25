@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"context"
-	"os"
 	"strings"
 	"sync"
 
@@ -13,8 +11,6 @@ import (
 	"mcpd/internal/domain"
 	"mcpd/internal/infra/catalog"
 )
-
-const defaultUIClientName = "ui"
 
 // ServiceDeps holds shared dependencies for Wails services.
 type ServiceDeps struct {
@@ -102,25 +98,6 @@ func (d *ServiceDeps) extractSpecKeyFromCache(toolName string) string {
 		}
 	}
 	return ""
-}
-
-func (d *ServiceDeps) ensureUIClient(ctx context.Context) (string, error) {
-	cp, err := d.getControlPlane()
-	if err != nil {
-		return "", err
-	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	pid := os.Getpid()
-	if pid <= 0 {
-		pid = 1
-	}
-	_, err = cp.RegisterClient(ctx, defaultUIClientName, pid, nil)
-	if err != nil {
-		return "", MapDomainError(err)
-	}
-	return defaultUIClientName, nil
 }
 
 func (d *ServiceDeps) catalogEditor() (*catalog.Editor, error) {
