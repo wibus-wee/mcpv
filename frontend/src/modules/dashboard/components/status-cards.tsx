@@ -204,12 +204,11 @@ function UptimeCard() {
 
 export function StatusCards() {
   const { data: servers, isLoading: serversLoading } = useServers()
-  const { data: clients, isLoading: clientsLoading } = useActiveClients()
   const { tools, isLoading: toolsLoading } = useTools()
   const { resources, isLoading: resourcesLoading } = useResources()
 
   return (
-    <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+    <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
       <CoreStatusCard />
       <UptimeCard />
 
@@ -220,15 +219,6 @@ export function StatusCards() {
         description="Configured MCP servers"
         delay={0.06}
         loading={serversLoading}
-      />
-
-      <StatCard
-        title="Active Clients"
-        value={clients?.length ?? 0}
-        icon={<MonitorIcon className="size-3.5" />}
-        description="Clients currently connected"
-        delay={0.09}
-        loading={clientsLoading}
       />
 
       <StatCard

@@ -15,6 +15,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { Spring } from '@/lib/spring'
+import { getToolDisplayName, getToolQualifiedName } from '@/lib/tool-names'
 
 interface ToolSchema {
   name?: string
@@ -54,6 +55,8 @@ export function ToolDetailPanel({ tool, serverName, className }: ToolDetailPanel
   const properties = schema.inputSchema?.properties || {}
   const required = schema.inputSchema?.required || []
   const hasParams = Object.keys(properties).length > 0
+  const displayName = getToolDisplayName(tool.name, serverName)
+  const qualifiedName = getToolQualifiedName(tool.name, serverName)
 
   const handleCopySchema = async () => {
     await navigator.clipboard.writeText(JSON.stringify(schema, null, 2))
@@ -74,10 +77,15 @@ export function ToolDetailPanel({ tool, serverName, className }: ToolDetailPanel
         <div>
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <h2 className="text-xl font-semibold font-mono truncate">{tool.name}</h2>
+              <h2 className="text-xl font-semibold font-mono truncate">{displayName}</h2>
               {serverName && (
                 <p className="text-xs text-muted-foreground mt-1">
                   from {serverName}
+                </p>
+              )}
+              {qualifiedName !== displayName && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Qualified name <code className="font-mono">{qualifiedName}</code>
                 </p>
               )}
             </div>

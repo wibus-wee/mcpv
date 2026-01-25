@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/table'
 import { Spring } from '@/lib/spring'
 import { cn } from '@/lib/utils'
+import { getToolDisplayName } from '@/lib/tool-names'
 import { ServerRuntimeSummary } from '@/modules/config/components/server-runtime-status'
 import { useRuntimeStatus, useServerInitStatus } from '@/modules/config/hooks'
 
@@ -187,7 +188,10 @@ export function ServerDetailPanel({
     )
   }
 
-  const toolList = [...server.tools].sort((a, b) => a.name.localeCompare(b.name))
+  const toolList = [...server.tools].sort((a, b) =>
+    getToolDisplayName(a.name, server.serverName)
+      .localeCompare(getToolDisplayName(b.name, server.serverName)),
+  )
   const specDetail = server.specDetail
   const isRuntimeLoading = runtimeStatus === undefined && initStatus === undefined
   const runtimeEntry = runtimeStatus?.find(status => status.specKey === server.specKey)
@@ -347,6 +351,7 @@ export function ServerDetailPanel({
                 const cachedLabel = tool.cachedAt
                   ? `Cached ${formatRelativeTime(tool.cachedAt)}`
                   : 'Cached metadata'
+                const displayName = getToolDisplayName(tool.name, server.serverName)
 
                 return (
                   <button
@@ -361,7 +366,7 @@ export function ServerDetailPanel({
                     <div className="flex items-center gap-2">
                       <WrenchIcon className="size-3.5 text-muted-foreground" />
                       <span className="font-mono text-xs text-foreground/90">
-                        {tool.name}
+                        {displayName}
                       </span>
                       {isCached && (
                         <Badge

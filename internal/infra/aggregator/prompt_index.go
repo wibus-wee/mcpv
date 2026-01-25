@@ -36,6 +36,8 @@ type PromptIndex struct {
 	baseMu               sync.RWMutex
 	baseCtx              context.Context
 	baseCancel           context.CancelFunc
+	serverMu             sync.RWMutex
+	serverSnapshots      map[string]serverPromptSnapshot
 
 	reqBuilder requestBuilder
 	index      *GenericIndex[domain.PromptSnapshot, domain.PromptTarget, promptCache]
@@ -45,6 +47,11 @@ type promptCache struct {
 	prompts []domain.PromptDefinition
 	targets map[string]domain.PromptTarget
 	etag    string
+}
+
+type serverPromptSnapshot struct {
+	snapshot domain.PromptSnapshot
+	targets  map[string]domain.PromptTarget
 }
 
 // NewPromptIndex builds a PromptIndex for the provided runtime configuration.
@@ -66,6 +73,7 @@ func NewPromptIndex(rt domain.Router, specs map[string]domain.ServerSpec, specKe
 		gate:          gate,
 		listChanges:   listChanges,
 		specKeySet:    specKeySet(specKeys),
+		serverSnapshots: map[string]serverPromptSnapshot{},
 	}
 	promptIndex.index = NewGenericIndex(GenericIndexOptions[domain.PromptSnapshot, domain.PromptTarget, promptCache]{
 		Name:              "prompt_index",
@@ -112,6 +120,20 @@ func (a *PromptIndex) Snapshot() domain.PromptSnapshot {
 	return a.index.Snapshot()
 }
 
+// SnapshotForServer returns the latest prompt snapshot for a server.
+func (a *PromptIndex) SnapshotForServer(serverName string) (domain.PromptSnapshot, bool) {
+	if serverName == "" {
+		return domain.PromptSnapshot{}, false
+	}
+	a.serverMu.RLock()
+	entry, ok := a.serverSnapshots[serverName]
+	a.serverMu.RUnlock()
+	if !ok {
+		return domain.PromptSnapshot{}, false
+	}
+	return domain.ClonePromptSnapshot(entry.snapshot), true
+}
+
 // Subscribe streams prompt snapshot updates.
 func (a *PromptIndex) Subscribe(ctx context.Context) <-chan domain.PromptSnapshot {
 	return a.index.Subscribe(ctx)
@@ -120,6 +142,21 @@ func (a *PromptIndex) Subscribe(ctx context.Context) <-chan domain.PromptSnapsho
 // Resolve locates a prompt target by name.
 func (a *PromptIndex) Resolve(name string) (domain.PromptTarget, bool) {
 	return a.index.Resolve(name)
+}
+
+// ResolveForServer locates a prompt target for a server by raw prompt name.
+func (a *PromptIndex) ResolveForServer(serverName, promptName string) (domain.PromptTarget, bool) {
+	if serverName == "" || promptName == "" {
+		return domain.PromptTarget{}, false
+	}
+	a.serverMu.RLock()
+	entry, ok := a.serverSnapshots[serverName]
+	a.serverMu.RUnlock()
+	if !ok {
+		return domain.PromptTarget{}, false
+	}
+	target, ok := entry.targets[promptName]
+	return target, ok
 }
 
 // SetBootstrapWaiter registers a bootstrap completion hook.
@@ -153,6 +190,41 @@ func (a *PromptIndex) GetPrompt(ctx context.Context, name string, args json.RawM
 	}
 
 	target, ok := a.Resolve(name)
+	if !ok {
+		return nil, domain.ErrPromptNotFound
+	}
+
+	var arguments map[string]string
+	if len(args) > 0 {
+		if err := json.Unmarshal(args, &arguments); err != nil {
+			return nil, err
+		}
+	}
+
+	params := &mcp.GetPromptParams{
+		Name:      target.PromptName,
+		Arguments: arguments,
+	}
+	payload, err := a.reqBuilder.Build("prompts/get", params)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := a.router.Route(ctx, target.ServerType, target.SpecKey, "", payload)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := decodePromptResult(resp)
+	if err != nil {
+		return nil, err
+	}
+	return marshalPromptResult(result)
+}
+
+// GetPromptForServer routes a prompt request to the owning server using a raw prompt name.
+func (a *PromptIndex) GetPromptForServer(ctx context.Context, serverName, promptName string, args json.RawMessage) (json.RawMessage, error) {
+	target, ok := a.ResolveForServer(serverName, promptName)
 	if !ok {
 		return nil, domain.ErrPromptNotFound
 	}
@@ -282,6 +354,7 @@ func (a *PromptIndex) clearBaseContext() {
 func (a *PromptIndex) buildSnapshot(cache map[string]promptCache) (domain.PromptSnapshot, map[string]domain.PromptTarget) {
 	merged := make([]domain.PromptDefinition, 0)
 	targets := make(map[string]domain.PromptTarget)
+	serverSnapshots := make(map[string]serverPromptSnapshot, len(cache))
 
 	serverTypes := sortedServerTypes(cache)
 	for _, serverType := range serverTypes {
@@ -289,21 +362,31 @@ func (a *PromptIndex) buildSnapshot(cache map[string]promptCache) (domain.Prompt
 		prompts := append([]domain.PromptDefinition(nil), server.prompts...)
 		sort.Slice(prompts, func(i, j int) bool { return prompts[i].Name < prompts[j].Name })
 
+		serverSnapshots[serverType] = serverPromptSnapshot{
+			snapshot: domain.PromptSnapshot{
+				ETag:    a.hashPrompts(prompts),
+				Prompts: prompts,
+			},
+			targets: copyPromptTargets(server.targets),
+		}
+
 		for _, prompt := range prompts {
 			promptDef := prompt
 			target := server.targets[prompt.Name]
+			displayName := a.namespacePrompt(serverType, prompt.Name)
+			promptDef.Name = displayName
 
-			if existing, exists := targets[prompt.Name]; exists {
+			if existing, exists := targets[displayName]; exists {
 				if a.cfg.ToolNamespaceStrategy != "flat" {
 					a.logger.Warn("prompt name conflict", zap.String("serverType", serverType), zap.String("prompt", prompt.Name))
 					continue
 				}
-				resolvedName, err := a.resolveFlatConflict(prompt.Name, serverType, targets)
+				resolvedName, err := a.resolveFlatConflict(displayName, serverType, targets)
 				if err != nil {
 					a.logger.Warn("prompt conflict resolution failed", zap.String("serverType", serverType), zap.String("prompt", prompt.Name), zap.Error(err))
 					continue
 				}
-				renamed, err := renamePromptDefinition(prompt, resolvedName)
+				renamed, err := renamePromptDefinition(promptDef, resolvedName)
 				if err != nil {
 					a.logger.Warn("prompt rename failed", zap.String("serverType", serverType), zap.String("prompt", prompt.Name), zap.Error(err))
 					continue
@@ -314,7 +397,7 @@ func (a *PromptIndex) buildSnapshot(cache map[string]promptCache) (domain.Prompt
 					SpecKey:    target.SpecKey,
 					PromptName: target.PromptName,
 				}
-				targets[prompt.Name] = existing
+				targets[displayName] = existing
 			}
 
 			targets[promptDef.Name] = target
@@ -324,10 +407,29 @@ func (a *PromptIndex) buildSnapshot(cache map[string]promptCache) (domain.Prompt
 
 	sort.Slice(merged, func(i, j int) bool { return merged[i].Name < merged[j].Name })
 
+	a.storeServerSnapshots(serverSnapshots)
+
 	return domain.PromptSnapshot{
 		ETag:    a.hashPrompts(merged),
 		Prompts: merged,
 	}, targets
+}
+
+func (a *PromptIndex) storeServerSnapshots(snapshots map[string]serverPromptSnapshot) {
+	a.serverMu.Lock()
+	a.serverSnapshots = snapshots
+	a.serverMu.Unlock()
+}
+
+func copyPromptTargets(in map[string]domain.PromptTarget) map[string]domain.PromptTarget {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]domain.PromptTarget, len(in))
+	for key, value := range in {
+		out[key] = value
+	}
+	return out
 }
 
 func (a *PromptIndex) resolveFlatConflict(name, serverType string, existing map[string]domain.PromptTarget) (string, error) {
@@ -392,13 +494,12 @@ func (a *PromptIndex) cachedServerCache(serverType string, spec domain.ServerSpe
 		if prompt.Name == "" {
 			continue
 		}
-		name := a.namespacePrompt(serverType, prompt.Name)
 		promptDef := prompt
-		promptDef.Name = name
+		promptDef.Name = prompt.Name
 		promptDef.SpecKey = specKey
 		promptDef.ServerName = spec.Name
 		result = append(result, promptDef)
-		targets[name] = domain.PromptTarget{
+		targets[prompt.Name] = domain.PromptTarget{
 			ServerType: serverType,
 			SpecKey:    specKey,
 			PromptName: prompt.Name,
@@ -429,16 +530,12 @@ func (a *PromptIndex) fetchServerPrompts(ctx context.Context, serverType string,
 		if prompt.Name == "" {
 			continue
 		}
-		name := a.namespacePrompt(serverType, prompt.Name)
-		promptCopy := *prompt
-		promptCopy.Name = name
-
-		def := mcpcodec.PromptFromMCP(&promptCopy)
-		def.Name = name
+		def := mcpcodec.PromptFromMCP(prompt)
+		def.Name = prompt.Name
 		def.SpecKey = specKey
 		def.ServerName = spec.Name
 		result = append(result, def)
-		targets[name] = domain.PromptTarget{
+		targets[prompt.Name] = domain.PromptTarget{
 			ServerType: serverType,
 			SpecKey:    specKey,
 			PromptName: prompt.Name,

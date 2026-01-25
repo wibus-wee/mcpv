@@ -16,12 +16,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Spring } from '@/lib/spring'
+import { getToolDisplayName, getToolQualifiedName } from '@/lib/tool-names'
 
 import { useTools } from '../hooks'
 import { AnimatedNumber, Sparkline } from './sparkline'
 
 interface ToolWithUsage {
   name: string
+  qualifiedName: string
+  serverName?: string
   description?: string
   callCount: number
   percentage: number
@@ -54,6 +57,12 @@ function TopToolRow({
           </TooltipTrigger>
           <TooltipContent side="right" className="max-w-64">
             <p className="font-medium">{tool.name}</p>
+            {tool.serverName && (
+              <p className="text-xs text-muted-foreground">Server: {tool.serverName}</p>
+            )}
+            {tool.qualifiedName !== tool.name && (
+              <p className="text-xs text-muted-foreground font-mono">{tool.qualifiedName}</p>
+            )}
             {tool.description && (
               <p className="text-xs text-muted-foreground">{tool.description}</p>
             )}
@@ -158,8 +167,12 @@ export function ActivityInsights() {
       } catch {
         // ignore parse errors
       }
+      const displayName = getToolDisplayName(tool.name, tool.serverName)
+      const qualifiedName = getToolQualifiedName(tool.name, tool.serverName)
       return {
-        name: tool.name,
+        name: displayName,
+        qualifiedName,
+        serverName: tool.serverName ?? undefined,
         description,
         callCount: 0,
         percentage: 0,

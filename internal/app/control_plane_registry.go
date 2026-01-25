@@ -271,6 +271,23 @@ func (r *clientRegistry) resolveClientTags(client string) ([]string, error) {
 	return append([]string(nil), state.tags...), nil
 }
 
+func (r *clientRegistry) resolveClientServer(client string) (string, error) {
+	if client == "" {
+		return "", domain.ErrClientNotRegistered
+	}
+	r.mu.Lock()
+	state, ok := r.activeClients[client]
+	if ok {
+		state.lastHeartbeat = time.Now()
+		r.activeClients[client] = state
+	}
+	r.mu.Unlock()
+	if !ok {
+		return "", domain.ErrClientNotRegistered
+	}
+	return state.server, nil
+}
+
 func (r *clientRegistry) resolveVisibleSpecKeys(client string) ([]string, error) {
 	if client == "" {
 		return nil, domain.ErrClientNotRegistered

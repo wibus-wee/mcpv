@@ -41,6 +41,8 @@ type ToolIndex struct {
 	baseMu               sync.RWMutex
 	baseCtx              context.Context
 	baseCancel           context.CancelFunc
+	serverMu             sync.RWMutex
+	serverSnapshots      map[string]serverToolSnapshot
 
 	reqBuilder requestBuilder
 	index      *GenericIndex[domain.ToolSnapshot, domain.ToolTarget, serverCache]
@@ -50,6 +52,11 @@ type serverCache struct {
 	tools   []domain.ToolDefinition
 	targets map[string]domain.ToolTarget
 	etag    string
+}
+
+type serverToolSnapshot struct {
+	snapshot domain.ToolSnapshot
+	targets  map[string]domain.ToolTarget
 }
 
 // NewToolIndex builds a ToolIndex for the provided runtime configuration.
@@ -71,6 +78,7 @@ func NewToolIndex(rt domain.Router, specs map[string]domain.ServerSpec, specKeys
 		gate:          gate,
 		listChanges:   listChanges,
 		specKeySet:    specKeySet(specKeys),
+		serverSnapshots: map[string]serverToolSnapshot{},
 	}
 	toolIndex.index = NewGenericIndex(GenericIndexOptions[domain.ToolSnapshot, domain.ToolTarget, serverCache]{
 		Name:              "tool_index",
@@ -117,6 +125,20 @@ func (a *ToolIndex) Snapshot() domain.ToolSnapshot {
 	return a.index.Snapshot()
 }
 
+// SnapshotForServer returns the latest tool snapshot for a server.
+func (a *ToolIndex) SnapshotForServer(serverName string) (domain.ToolSnapshot, bool) {
+	if serverName == "" {
+		return domain.ToolSnapshot{}, false
+	}
+	a.serverMu.RLock()
+	entry, ok := a.serverSnapshots[serverName]
+	a.serverMu.RUnlock()
+	if !ok {
+		return domain.ToolSnapshot{}, false
+	}
+	return domain.CloneToolSnapshot(entry.snapshot), true
+}
+
 // CachedSnapshot builds a snapshot from metadata cache without touching live instances.
 func (a *ToolIndex) CachedSnapshot() domain.ToolSnapshot {
 	if a.metadataCache == nil || !a.cfg.ExposeTools {
@@ -152,6 +174,21 @@ func (a *ToolIndex) Resolve(name string) (domain.ToolTarget, bool) {
 	return a.index.Resolve(name)
 }
 
+// ResolveForServer locates a tool target for a server by raw tool name.
+func (a *ToolIndex) ResolveForServer(serverName, toolName string) (domain.ToolTarget, bool) {
+	if serverName == "" || toolName == "" {
+		return domain.ToolTarget{}, false
+	}
+	a.serverMu.RLock()
+	entry, ok := a.serverSnapshots[serverName]
+	a.serverMu.RUnlock()
+	if !ok {
+		return domain.ToolTarget{}, false
+	}
+	target, ok := entry.targets[toolName]
+	return target, ok
+}
+
 // SetBootstrapWaiter registers a bootstrap completion hook.
 func (a *ToolIndex) SetBootstrapWaiter(waiter BootstrapWaiter) {
 	a.bootstrapWaiterMu.Lock()
@@ -183,6 +220,34 @@ func (a *ToolIndex) CallTool(ctx context.Context, name string, args json.RawMess
 	}
 
 	target, ok := a.Resolve(name)
+	if !ok {
+		return nil, domain.ErrToolNotFound
+	}
+
+	params := &mcp.CallToolParams{
+		Name:      target.ToolName,
+		Arguments: json.RawMessage(args),
+	}
+	payload, err := a.reqBuilder.Build("tools/call", params)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := a.router.Route(ctx, target.ServerType, target.SpecKey, routingKey, payload)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := decodeToolResult(resp)
+	if err != nil {
+		return nil, err
+	}
+	return marshalToolResult(result)
+}
+
+// CallToolForServer routes a tool call to the owning server using a raw tool name.
+func (a *ToolIndex) CallToolForServer(ctx context.Context, serverName, toolName string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
+	target, ok := a.ResolveForServer(serverName, toolName)
 	if !ok {
 		return nil, domain.ErrToolNotFound
 	}
@@ -309,6 +374,7 @@ func (a *ToolIndex) clearBaseContext() {
 func (a *ToolIndex) buildSnapshot(cache map[string]serverCache) (domain.ToolSnapshot, map[string]domain.ToolTarget) {
 	merged := make([]domain.ToolDefinition, 0)
 	targets := make(map[string]domain.ToolTarget)
+	serverSnapshots := make(map[string]serverToolSnapshot, len(cache))
 
 	serverTypes := sortedServerTypes(cache)
 	for _, serverType := range serverTypes {
@@ -316,21 +382,31 @@ func (a *ToolIndex) buildSnapshot(cache map[string]serverCache) (domain.ToolSnap
 		tools := append([]domain.ToolDefinition(nil), server.tools...)
 		sort.Slice(tools, func(i, j int) bool { return tools[i].Name < tools[j].Name })
 
+		serverSnapshots[serverType] = serverToolSnapshot{
+			snapshot: domain.ToolSnapshot{
+				ETag:  a.hashTools(tools),
+				Tools: tools,
+			},
+			targets: copyToolTargets(server.targets),
+		}
+
 		for _, tool := range tools {
 			toolDef := tool
 			target := server.targets[tool.Name]
+			displayName := a.namespaceTool(serverType, tool.Name)
+			toolDef.Name = displayName
 
-			if existing, exists := targets[tool.Name]; exists {
+			if existing, exists := targets[displayName]; exists {
 				if a.cfg.ToolNamespaceStrategy != "flat" {
 					a.logger.Warn("tool name conflict", zap.String("serverType", serverType), zap.String("tool", tool.Name))
 					continue
 				}
-				resolvedName, err := a.resolveFlatConflict(tool.Name, serverType, targets)
+				resolvedName, err := a.resolveFlatConflict(displayName, serverType, targets)
 				if err != nil {
 					a.logger.Warn("tool conflict resolution failed", zap.String("serverType", serverType), zap.String("tool", tool.Name), zap.Error(err))
 					continue
 				}
-				renamed, err := renameToolDefinition(tool, resolvedName)
+				renamed, err := renameToolDefinition(toolDef, resolvedName)
 				if err != nil {
 					a.logger.Warn("tool rename failed", zap.String("serverType", serverType), zap.String("tool", tool.Name), zap.Error(err))
 					continue
@@ -341,7 +417,7 @@ func (a *ToolIndex) buildSnapshot(cache map[string]serverCache) (domain.ToolSnap
 					SpecKey:    target.SpecKey,
 					ToolName:   target.ToolName,
 				}
-				targets[tool.Name] = existing
+				targets[displayName] = existing
 			}
 
 			toolDef.SpecKey = target.SpecKey
@@ -356,10 +432,29 @@ func (a *ToolIndex) buildSnapshot(cache map[string]serverCache) (domain.ToolSnap
 
 	sort.Slice(merged, func(i, j int) bool { return merged[i].Name < merged[j].Name })
 
+	a.storeServerSnapshots(serverSnapshots)
+
 	return domain.ToolSnapshot{
 		ETag:  a.hashTools(merged),
 		Tools: merged,
 	}, targets
+}
+
+func (a *ToolIndex) storeServerSnapshots(snapshots map[string]serverToolSnapshot) {
+	a.serverMu.Lock()
+	a.serverSnapshots = snapshots
+	a.serverMu.Unlock()
+}
+
+func copyToolTargets(in map[string]domain.ToolTarget) map[string]domain.ToolTarget {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]domain.ToolTarget, len(in))
+	for key, value := range in {
+		out[key] = value
+	}
+	return out
 }
 
 func (a *ToolIndex) resolveFlatConflict(name, serverType string, existing map[string]domain.ToolTarget) (string, error) {
@@ -434,14 +529,13 @@ func (a *ToolIndex) cachedServerCache(serverType string, spec domain.ServerSpec)
 			continue
 		}
 
-		name := a.namespaceTool(serverType, tool.Name)
 		toolDef := tool
-		toolDef.Name = name
+		toolDef.Name = tool.Name
 		toolDef.SpecKey = specKey
 		toolDef.ServerName = spec.Name
 
 		result = append(result, toolDef)
-		targets[name] = domain.ToolTarget{
+		targets[tool.Name] = domain.ToolTarget{
 			ServerType: serverType,
 			SpecKey:    specKey,
 			ToolName:   tool.Name,
@@ -485,16 +579,12 @@ func (a *ToolIndex) fetchServerTools(ctx context.Context, serverType string, spe
 			continue
 		}
 
-		name := a.namespaceTool(serverType, tool.Name)
-		toolCopy := *tool
-		toolCopy.Name = name
-
-		def := mcpcodec.ToolFromMCP(&toolCopy)
-		def.Name = name
+		def := mcpcodec.ToolFromMCP(tool)
+		def.Name = tool.Name
 		def.SpecKey = specKey
 		def.ServerName = spec.Name
 		result = append(result, def)
-		targets[name] = domain.ToolTarget{
+		targets[tool.Name] = domain.ToolTarget{
 			ServerType: serverType,
 			SpecKey:    specKey,
 			ToolName:   tool.Name,

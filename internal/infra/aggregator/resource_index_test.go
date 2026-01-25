@@ -55,6 +55,46 @@ func TestResourceIndex_SnapshotAndRead(t *testing.T) {
 	require.Equal(t, "file:///a", router.lastURI)
 }
 
+func TestResourceIndex_SnapshotForServer(t *testing.T) {
+	ctx := context.Background()
+	router := &resourceRouter{
+		resources: []*mcp.Resource{
+			{URI: "file:///a"},
+		},
+	}
+
+	specs := map[string]domain.ServerSpec{
+		"files": {Name: "files"},
+	}
+	specKeys := map[string]string{
+		"files": "spec-files",
+	}
+	cfg := domain.RuntimeConfig{
+		ToolRefreshSeconds: 0,
+	}
+
+	index := NewResourceIndex(router, specs, specKeys, cfg, nil, zap.NewNop(), nil, nil, nil)
+	index.Start(ctx)
+	defer index.Stop()
+
+	snapshot, ok := index.SnapshotForServer("files")
+	require.True(t, ok)
+	require.Len(t, snapshot.Resources, 1)
+	require.Equal(t, "file:///a", snapshot.Resources[0].URI)
+	require.Equal(t, "spec-files", snapshot.Resources[0].SpecKey)
+	require.Equal(t, "files", snapshot.Resources[0].ServerName)
+
+	resultRaw, err := index.ReadResourceForServer(ctx, "files", "file:///a")
+	require.NoError(t, err)
+
+	var result mcp.ReadResourceResult
+	require.NoError(t, json.Unmarshal(resultRaw, &result))
+	require.Len(t, result.Contents, 1)
+	require.Equal(t, "file:///a", result.Contents[0].URI)
+	require.Equal(t, "resources/read", router.lastMethod)
+	require.Equal(t, "file:///a", router.lastURI)
+}
+
 func TestResourceIndex_UsesCachedResourcesWhenNoReadyInstance(t *testing.T) {
 	ctx := context.Background()
 	cache := domain.NewMetadataCache()

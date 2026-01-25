@@ -17,6 +17,7 @@ import { ServerRuntimeIndicator } from '@/modules/config/components/server-runti
 import { cn } from '@/lib/utils'
 import { Spring } from '@/lib/spring'
 import { formatRelativeTime } from '@/lib/time'
+import { getToolDisplayName } from '@/lib/tool-names'
 
 import type { ServerGroup } from '../hooks'
 
@@ -85,7 +86,9 @@ export function ToolsSidebar({
       .map(server => {
         const matchingTools = server.tools.filter(tool => {
           const desc = toolDescriptionById.get(`${server.id}:${tool.name}`) ?? ''
+          const displayName = getToolDisplayName(tool.name, server.serverName)
           return (
+            displayName.toLowerCase().includes(query) ||
             tool.name.toLowerCase().includes(query) ||
             desc.toLowerCase().includes(query)
           )
@@ -282,6 +285,7 @@ export function ToolsSidebar({
                               const cachedLabel = tool.cachedAt
                                 ? `Cached ${formatRelativeTime(tool.cachedAt)}`
                                 : 'Cached metadata'
+                              const displayName = getToolDisplayName(tool.name, server.serverName)
 
                               return (
                                 <button
@@ -303,7 +307,7 @@ export function ToolsSidebar({
                                     )}
                                   />
                                   <span className="truncate font-mono text-xs">
-                                    {tool.name}
+                                    {displayName}
                                   </span>
                                   {isCached && (
                                     <Badge

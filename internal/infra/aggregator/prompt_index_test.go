@@ -55,6 +55,47 @@ func TestPromptIndex_NamespacedPrompt(t *testing.T) {
 	require.Equal(t, "echo", router.lastPromptName)
 }
 
+func TestPromptIndex_SnapshotForServer(t *testing.T) {
+	ctx := context.Background()
+	router := &promptRouter{
+		prompts: []*mcp.Prompt{
+			{Name: "echo"},
+		},
+	}
+
+	specs := map[string]domain.ServerSpec{
+		"echo": {Name: "echo"},
+	}
+	specKeys := map[string]string{
+		"echo": "spec-echo",
+	}
+	cfg := domain.RuntimeConfig{
+		ToolNamespaceStrategy: "prefix",
+		ToolRefreshSeconds:    0,
+	}
+
+	index := NewPromptIndex(router, specs, specKeys, cfg, nil, zap.NewNop(), nil, nil, nil)
+	index.Start(ctx)
+	defer index.Stop()
+
+	snapshot, ok := index.SnapshotForServer("echo")
+	require.True(t, ok)
+	require.Len(t, snapshot.Prompts, 1)
+	require.Equal(t, "echo", snapshot.Prompts[0].Name)
+	require.Equal(t, "spec-echo", snapshot.Prompts[0].SpecKey)
+	require.Equal(t, "echo", snapshot.Prompts[0].ServerName)
+
+	resultRaw, err := index.GetPromptForServer(ctx, "echo", "echo", json.RawMessage(`{"name":"Pat"}`))
+	require.NoError(t, err)
+
+	var result mcp.GetPromptResult
+	require.NoError(t, json.Unmarshal(resultRaw, &result))
+	require.Len(t, result.Messages, 1)
+	require.Equal(t, "ok", result.Messages[0].Content.(*mcp.TextContent).Text)
+	require.Equal(t, "prompts/get", router.lastMethod)
+	require.Equal(t, "echo", router.lastPromptName)
+}
+
 func TestPromptIndex_UsesCachedPromptsWhenNoReadyInstance(t *testing.T) {
 	ctx := context.Background()
 	cache := domain.NewMetadataCache()

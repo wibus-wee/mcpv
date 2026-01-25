@@ -48,6 +48,7 @@ import {
 
 import { useTools } from '../hooks'
 import { formatRelativeTime } from '@/lib/time'
+import { getToolDisplayName, getToolQualifiedName } from '@/lib/tool-names'
 
 interface ToolSchema {
   name: string
@@ -87,7 +88,9 @@ export function ToolsTable() {
     if (!search) return tools
     const lower = search.toLowerCase()
     return tools.filter(tool =>
-      tool.name.toLowerCase().includes(lower),
+      getToolDisplayName(tool.name, tool.serverName).toLowerCase().includes(lower) ||
+      tool.name.toLowerCase().includes(lower) ||
+      (tool.serverName ?? '').toLowerCase().includes(lower),
     )
   }, [tools, search])
 
@@ -156,6 +159,8 @@ export function ToolsTable() {
                 ) : (
                   filteredTools.map((tool) => {
                     const parsed = parsedTools.get(tool.name) ?? { name: tool.name }
+                    const displayName = getToolDisplayName(tool.name, tool.serverName)
+                    const qualifiedName = getToolQualifiedName(tool.name, tool.serverName)
                     const isCached = tool.source === 'cache'
                     const cachedLabel = tool.cachedAt
                       ? `Cached ${formatRelativeTime(tool.cachedAt)}`
@@ -164,7 +169,12 @@ export function ToolsTable() {
                       <TableRow key={tool.name}>
                         <TableCell className="py-1.5 font-mono ">
                           <div className="flex items-center gap-2">
-                            <span>{tool.name}</span>
+                            <span>{displayName}</span>
+                            {tool.serverName && (
+                              <Badge variant="outline" size="sm">
+                                {tool.serverName}
+                              </Badge>
+                            )}
                             {isCached && (
                               <Tooltip>
                                 <TooltipTrigger
@@ -187,17 +197,17 @@ export function ToolsTable() {
                             <Tooltip>
                               <TooltipTrigger
                                 render={(
-                                  <Button
-                                    variant="ghost"
-                                    size="icon-xs"
-                                    onClick={() => copyToClipboard(tool.name)}
-                                  >
-                                    <CopyIcon className="size-3" />
-                                  </Button>
-                                )}
-                              />
-                              <TooltipContent>Copy name</TooltipContent>
-                            </Tooltip>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon-xs"
+                                      onClick={() => copyToClipboard(qualifiedName)}
+                                    >
+                                      <CopyIcon className="size-3" />
+                                    </Button>
+                                  )}
+                                />
+                                <TooltipContent>Copy qualified name</TooltipContent>
+                              </Tooltip>
                             <Dialog>
                               <DialogTrigger
                                 render={(
@@ -212,12 +222,22 @@ export function ToolsTable() {
                               <DialogContent>
                                 <DialogHeader>
                                   <DialogTitle className="font-mono text-sm">
-                                    {parsed.name}
+                                    {displayName}
                                   </DialogTitle>
                                   <DialogDescription className="">
                                     {parsed.description || 'No description available'}
                                   </DialogDescription>
                                 </DialogHeader>
+                                {tool.serverName && (
+                                  <div className="text-xs text-muted-foreground">
+                                    Server <span className="font-mono">{tool.serverName}</span>
+                                  </div>
+                                )}
+                                {qualifiedName !== displayName && (
+                                  <div className="text-xs text-muted-foreground">
+                                    Qualified name <span className="font-mono">{qualifiedName}</span>
+                                  </div>
+                                )}
                                 <Separator />
                                 {parsed.inputSchema?.properties && (
                                   <div className="space-y-3 p-8">

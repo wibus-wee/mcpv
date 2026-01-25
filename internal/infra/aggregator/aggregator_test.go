@@ -67,6 +67,56 @@ func TestToolIndex_SnapshotPrefixedTool(t *testing.T) {
 	require.Equal(t, "echo", router.lastServerType)
 }
 
+func TestToolIndex_SnapshotForServer(t *testing.T) {
+	ctx := context.Background()
+	router := &fakeRouter{
+		tools: []*mcp.Tool{
+			{
+				Name:        "echo",
+				Description: "echo input",
+				InputSchema: map[string]any{"type": "object"},
+			},
+		},
+		callResult: &mcp.CallToolResult{
+			Content: []mcp.Content{&mcp.TextContent{Text: "ok"}},
+		},
+	}
+
+	specs := map[string]domain.ServerSpec{
+		"echo": {Name: "echo"},
+	}
+	specKeys := map[string]string{
+		"echo": "spec-echo",
+	}
+	cfg := domain.RuntimeConfig{
+		ExposeTools:           true,
+		ToolNamespaceStrategy: "prefix",
+		ToolRefreshSeconds:    0,
+	}
+
+	index := NewToolIndex(router, specs, specKeys, cfg, nil, zap.NewNop(), nil, nil, nil)
+	index.Start(ctx)
+	defer index.Stop()
+
+	snapshot, ok := index.SnapshotForServer("echo")
+	require.True(t, ok)
+	require.Len(t, snapshot.Tools, 1)
+	require.Equal(t, "echo", snapshot.Tools[0].Name)
+	require.Equal(t, "spec-echo", snapshot.Tools[0].SpecKey)
+	require.Equal(t, "echo", snapshot.Tools[0].ServerName)
+
+	resultRaw, err := index.CallToolForServer(ctx, "echo", "echo", json.RawMessage(`{}`), "")
+	require.NoError(t, err)
+
+	var result mcp.CallToolResult
+	require.NoError(t, json.Unmarshal(resultRaw, &result))
+	require.Len(t, result.Content, 1)
+	require.Equal(t, "ok", result.Content[0].(*mcp.TextContent).Text)
+
+	require.Equal(t, "tools/call", router.lastMethod)
+	require.Equal(t, "echo", router.lastServerType)
+}
+
 func TestToolIndex_RespectsExposeToolsAllowlist(t *testing.T) {
 	ctx := context.Background()
 	router := &fakeRouter{

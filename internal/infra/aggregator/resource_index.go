@@ -36,6 +36,8 @@ type ResourceIndex struct {
 	baseMu               sync.RWMutex
 	baseCtx              context.Context
 	baseCancel           context.CancelFunc
+	serverMu             sync.RWMutex
+	serverSnapshots      map[string]serverResourceSnapshot
 
 	reqBuilder requestBuilder
 	index      *GenericIndex[domain.ResourceSnapshot, domain.ResourceTarget, resourceCache]
@@ -45,6 +47,11 @@ type resourceCache struct {
 	resources []domain.ResourceDefinition
 	targets   map[string]domain.ResourceTarget
 	etag      string
+}
+
+type serverResourceSnapshot struct {
+	snapshot domain.ResourceSnapshot
+	targets  map[string]domain.ResourceTarget
 }
 
 // NewResourceIndex builds a ResourceIndex for the provided runtime configuration.
@@ -66,6 +73,7 @@ func NewResourceIndex(rt domain.Router, specs map[string]domain.ServerSpec, spec
 		gate:          gate,
 		listChanges:   listChanges,
 		specKeySet:    specKeySet(specKeys),
+		serverSnapshots: map[string]serverResourceSnapshot{},
 	}
 	resourceIndex.index = NewGenericIndex(GenericIndexOptions[domain.ResourceSnapshot, domain.ResourceTarget, resourceCache]{
 		Name:              "resource_index",
@@ -112,6 +120,20 @@ func (a *ResourceIndex) Snapshot() domain.ResourceSnapshot {
 	return a.index.Snapshot()
 }
 
+// SnapshotForServer returns the latest resource snapshot for a server.
+func (a *ResourceIndex) SnapshotForServer(serverName string) (domain.ResourceSnapshot, bool) {
+	if serverName == "" {
+		return domain.ResourceSnapshot{}, false
+	}
+	a.serverMu.RLock()
+	entry, ok := a.serverSnapshots[serverName]
+	a.serverMu.RUnlock()
+	if !ok {
+		return domain.ResourceSnapshot{}, false
+	}
+	return domain.CloneResourceSnapshot(entry.snapshot), true
+}
+
 // Subscribe streams resource snapshot updates.
 func (a *ResourceIndex) Subscribe(ctx context.Context) <-chan domain.ResourceSnapshot {
 	return a.index.Subscribe(ctx)
@@ -120,6 +142,21 @@ func (a *ResourceIndex) Subscribe(ctx context.Context) <-chan domain.ResourceSna
 // Resolve locates a resource target by URI.
 func (a *ResourceIndex) Resolve(uri string) (domain.ResourceTarget, bool) {
 	return a.index.Resolve(uri)
+}
+
+// ResolveForServer locates a resource target for a server by URI.
+func (a *ResourceIndex) ResolveForServer(serverName, uri string) (domain.ResourceTarget, bool) {
+	if serverName == "" || uri == "" {
+		return domain.ResourceTarget{}, false
+	}
+	a.serverMu.RLock()
+	entry, ok := a.serverSnapshots[serverName]
+	a.serverMu.RUnlock()
+	if !ok {
+		return domain.ResourceTarget{}, false
+	}
+	target, ok := entry.targets[uri]
+	return target, ok
 }
 
 // SetBootstrapWaiter registers a bootstrap completion hook.
@@ -153,6 +190,33 @@ func (a *ResourceIndex) ReadResource(ctx context.Context, uri string) (json.RawM
 	}
 
 	target, ok := a.Resolve(uri)
+	if !ok {
+		return nil, domain.ErrResourceNotFound
+	}
+
+	params := &mcp.ReadResourceParams{
+		URI: target.URI,
+	}
+	payload, err := a.reqBuilder.Build("resources/read", params)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := a.router.Route(ctx, target.ServerType, target.SpecKey, "", payload)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := decodeReadResourceResult(resp)
+	if err != nil {
+		return nil, err
+	}
+	return marshalReadResourceResult(result)
+}
+
+// ReadResourceForServer routes a resource read to the owning server using a URI.
+func (a *ResourceIndex) ReadResourceForServer(ctx context.Context, serverName, uri string) (json.RawMessage, error) {
+	target, ok := a.ResolveForServer(serverName, uri)
 	if !ok {
 		return nil, domain.ErrResourceNotFound
 	}
@@ -274,12 +338,21 @@ func (a *ResourceIndex) clearBaseContext() {
 func (a *ResourceIndex) buildSnapshot(cache map[string]resourceCache) (domain.ResourceSnapshot, map[string]domain.ResourceTarget) {
 	merged := make([]domain.ResourceDefinition, 0)
 	targets := make(map[string]domain.ResourceTarget)
+	serverSnapshots := make(map[string]serverResourceSnapshot, len(cache))
 
 	serverTypes := sortedServerTypes(cache)
 	for _, serverType := range serverTypes {
 		server := cache[serverType]
 		resources := append([]domain.ResourceDefinition(nil), server.resources...)
 		sort.Slice(resources, func(i, j int) bool { return resources[i].URI < resources[j].URI })
+
+		serverSnapshots[serverType] = serverResourceSnapshot{
+			snapshot: domain.ResourceSnapshot{
+				ETag:      a.hashResources(resources),
+				Resources: resources,
+			},
+			targets: copyResourceTargets(server.targets),
+		}
 
 		for _, resource := range resources {
 			target := server.targets[resource.URI]
@@ -294,10 +367,29 @@ func (a *ResourceIndex) buildSnapshot(cache map[string]resourceCache) (domain.Re
 
 	sort.Slice(merged, func(i, j int) bool { return merged[i].URI < merged[j].URI })
 
+	a.storeServerSnapshots(serverSnapshots)
+
 	return domain.ResourceSnapshot{
 		ETag:      a.hashResources(merged),
 		Resources: merged,
 	}, targets
+}
+
+func (a *ResourceIndex) storeServerSnapshots(snapshots map[string]serverResourceSnapshot) {
+	a.serverMu.Lock()
+	a.serverSnapshots = snapshots
+	a.serverMu.Unlock()
+}
+
+func copyResourceTargets(in map[string]domain.ResourceTarget) map[string]domain.ResourceTarget {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]domain.ResourceTarget, len(in))
+	for key, value := range in {
+		out[key] = value
+	}
+	return out
 }
 
 func (a *ResourceIndex) refreshErrorDecision(_ string, err error) refreshErrorDecision {
