@@ -54,6 +54,7 @@ export const SettingsPage = () => {
           modelFetchError={subAgent.modelFetchError}
           modelFetchLabel={subAgent.modelFetchLabel}
           onFetchModels={subAgent.fetchModels}
+          availableTags={subAgent.availableTags}
           statusLabel={subAgent.statusLabel}
           saveDisabledReason={subAgent.saveDisabledReason}
           hasSubAgentChanges={subAgent.hasSubAgentChanges}

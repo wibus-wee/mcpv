@@ -1,8 +1,12 @@
 // Input: serverName, config hooks, runtime status hooks, active clients
-// Output: Server overview panel showing health, stats, and connected clients
+// Output: Server overview panel showing health, stats
 // Position: Overview panel component for server module
 
-import type { ActiveClient, ServerRuntimeStatus } from '@bindings/mcpd/internal/ui'
+import type {
+	ActiveClient,
+	ServerRuntimeStatus,
+	StartCause,
+} from '@bindings/mcpd/internal/ui'
 import {
 	ActivityIcon,
 	ClockIcon,
@@ -25,8 +29,21 @@ import {
 } from '@/components/ui/empty'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from '@/components/ui/table'
 import { Spring } from '@/lib/spring'
-import { formatDuration, formatLatency, getElapsedMs } from '@/lib/time'
+import {
+	formatDuration,
+	formatLatency,
+	formatRelativeTime,
+	getElapsedMs,
+} from '@/lib/time'
 import { cn } from '@/lib/utils'
 import { useActiveClients } from '@/hooks/use-active-clients'
 import { ServerRuntimeSummary } from '@/modules/config/components/server-runtime-status'
@@ -152,6 +169,113 @@ function filterClientsForServer(
 	return clients.filter(client => client.server === serverName)
 }
 
+function formatStartReason(
+	cause?: StartCause | null,
+	activationMode?: string,
+	minReady?: number,
+): string {
+	if (!cause?.reason) {
+		return 'Unknown reason (no info)'
+	}
+	switch (cause.reason) {
+		case 'bootstrap': {
+			const policyLabel = resolvePolicyLabel(cause, activationMode, minReady)
+			if (policyLabel !== '—') {
+				return `Refresh tool metadata · ${policyLabel} keep-alive`
+			}
+			return 'Refresh tool metadata'
+		}
+		case 'tool_call':
+			return 'Triggered by tool call'
+		case 'client_activate':
+			return 'Triggered by client activation'
+		case 'policy_always_on':
+			return 'always-on running'
+		case 'policy_min_ready':
+			return `minReady=${cause.policy?.minReady ?? 0} minimum ready`
+		default:
+			return `Unknown reason (${cause.reason})`
+	}
+}
+
+function formatStartTriggerLines(cause?: StartCause | null): string[] {
+	if (!cause) {
+		return []
+	}
+	const lines = [] as string[]
+	if (cause.client) {
+		lines.push(`client: ${cause.client}`)
+	}
+	if (cause.toolName) {
+		lines.push(`tool: ${cause.toolName}`)
+	}
+	return lines
+}
+
+function formatPolicyLabel(cause?: StartCause | null): string {
+	if (!cause?.policy) {
+		return '—'
+	}
+	if (cause.policy.activationMode === 'always-on') {
+		return 'always-on'
+	}
+	if (cause.policy.minReady > 0) {
+		return `minReady=${cause.policy.minReady}`
+	}
+	return '—'
+}
+
+function resolvePolicyLabel(
+	cause: StartCause | null | undefined,
+	activationMode?: string,
+	minReady?: number,
+): string {
+	if (cause?.policy) {
+		return formatPolicyLabel(cause)
+	}
+	if (activationMode === 'always-on') {
+		return 'always-on'
+	}
+	if (minReady && minReady > 0) {
+		return `minReady=${minReady}`
+	}
+	return '—'
+}
+
+function resolveStartCause(
+	cause: StartCause | null | undefined,
+	activationMode?: string,
+	minReady?: number,
+): StartCause | null {
+	if (cause?.reason) {
+		return cause
+	}
+	if (!activationMode && !minReady) {
+		return null
+	}
+	if (activationMode === 'always-on') {
+		return {
+			reason: 'policy_always_on',
+			timestamp: '',
+			policy: {
+				activationMode,
+				minReady: minReady ?? 0,
+			},
+		}
+	}
+	if (minReady && minReady > 0) {
+		return {
+			reason: 'policy_min_ready',
+			timestamp: '',
+			policy: {
+				activationMode: activationMode ?? 'on-demand',
+				minReady,
+			},
+		}
+	}
+	return null
+}
+
 export function ServerOverviewPanel({
 	serverName,
 	className,
@@ -191,8 +315,13 @@ export function ServerOverviewPanel({
 	const metricsSummary = serverRuntimeStatus
 		? getMetricsSummary(serverRuntimeStatus)
 		: null
-	const connectedClients = filterClientsForServer(clients, server.name)
 	const tags = server.tags ?? []
+
+	const instanceStatuses = serverRuntimeStatus?.instances ?? []
+	const sortedInstances = [...instanceStatuses].sort((a, b) =>
+		a.id.localeCompare(b.id),
+	)
+	const specDetail = server
 
 	return (
 		<ScrollArea className={cn('h-full', className)}>
@@ -284,7 +413,7 @@ export function ServerOverviewPanel({
 							<ClockIcon className="size-4" />
 							Recent Metrics
 						</h3>
-						<div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+						<div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
 							<StatCard
 								icon={WrenchIcon}
 								label="Total Calls"
@@ -318,27 +447,87 @@ export function ServerOverviewPanel({
 					</div>
 				)}
 
-				<Card>
-					<CardHeader>
-						<CardTitle className="flex items-center gap-2 text-sm">
-							<UsersIcon className="size-4" />
-							Connected Clients
-						</CardTitle>
-					</CardHeader>
-					<CardContent>
-						{connectedClients.length > 0 ? (
-							<ClientChipGroup
-								clients={connectedClients}
-								maxVisible={5}
-								showPid
-							/>
-						) : (
-							<p className="text-xs text-muted-foreground">
-								No clients currently connected to this server.
-							</p>
-						)}
-					</CardContent>
-				</Card>
+				{sortedInstances.length > 0 && (
+					<Card>
+						<CardHeader>
+							<CardTitle className="flex items-center gap-2 text-sm">
+								<ZapIcon className="size-4" />
+								Why it&apos;s on
+							</CardTitle>
+						</CardHeader>
+						<CardContent className="p-1 -mt-2">
+							<div className="overflow-x-auto scrollbar-none">
+								<Table>
+									<TableHeader>
+										<TableRow>
+											<TableHead>Instance</TableHead>
+											<TableHead>Cause</TableHead>
+											<TableHead>Trigger</TableHead>
+											<TableHead>Policy</TableHead>
+											<TableHead>Time</TableHead>
+										</TableRow>
+									</TableHeader>
+									<TableBody>
+										{sortedInstances.map(instance => {
+											const resolvedCause = resolveStartCause(
+												instance.lastStartCause,
+												specDetail?.activationMode,
+												specDetail?.minReady,
+											)
+											const triggerLines = formatStartTriggerLines(resolvedCause)
+											const relativeTime = formatRelativeTime(
+												resolvedCause?.timestamp,
+											)
+											const policyLabel = resolvePolicyLabel(
+												resolvedCause,
+												specDetail?.activationMode,
+												specDetail?.minReady,
+											)
+											return (
+												<TableRow key={instance.id}>
+													<TableCell className="font-mono text-xs">
+														{instance.id}
+													</TableCell>
+													<TableCell className="text-xs">
+														{formatStartReason(
+															resolvedCause,
+															specDetail?.activationMode,
+															specDetail?.minReady,
+														)}
+													</TableCell>
+													<TableCell className="text-xs">
+														{triggerLines.length > 0 ? (
+															<div className="space-y-1">
+																{triggerLines.map(line => (
+																	<p
+																		key={line}
+																		className="text-xs text-muted-foreground"
+																	>
+																		{line}
+																	</p>
+																))}
+															</div>
+														) : (
+															<span className="text-xs text-muted-foreground">
+																—
+															</span>
+														)}
+													</TableCell>
+													<TableCell className="text-xs text-muted-foreground">
+														{policyLabel}
+													</TableCell>
+													<TableCell className="text-xs text-muted-foreground tabular-nums">
+														{relativeTime}
+													</TableCell>
+												</TableRow>
+											)
+										})}
+									</TableBody>
+								</Table>
+							</div>
+						</CardContent>
+					</Card>
+				)}
 
 				<div className="space-y-2">
 					<h3 className="text-sm font-semibold">Tags</h3>

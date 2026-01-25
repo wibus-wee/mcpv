@@ -2,11 +2,12 @@
 // Output: SubAgent settings card using compound component pattern
 // Position: Settings page SubAgent section
 
-import { AlertCircleIcon } from 'lucide-react'
+import { AlertCircleIcon, AlertTriangleIcon, TagIcon, XIcon } from 'lucide-react'
 import type * as React from 'react'
-import type { UseFormReturn } from 'react-hook-form'
+import { Controller, type UseFormReturn } from 'react-hook-form'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Combobox,
@@ -18,6 +19,8 @@ import {
   ComboboxPopup,
 } from '@/components/ui/combobox'
 import { InputGroup, InputGroupInput } from '@/components/ui/input-group'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 
 import { SUBAGENT_PROVIDER_OPTIONS, type SubAgentFormState } from '../lib/subagent-config'
 import type { ModelFetchState } from '../lib/subagent-models'
@@ -37,6 +40,7 @@ interface SubAgentSettingsCardProps {
   modelFetchError: string | null
   modelFetchLabel: string
   onFetchModels: () => void
+  availableTags: string[]
   statusLabel: string
   saveDisabledReason?: string
   hasSubAgentChanges: boolean
@@ -58,6 +62,7 @@ export const SubAgentSettingsCard = ({
   modelFetchError,
   modelFetchLabel,
   onFetchModels,
+  availableTags,
   statusLabel,
   saveDisabledReason,
   hasSubAgentChanges,
@@ -122,6 +127,7 @@ export const SubAgentSettingsCard = ({
         </SettingsCard.Section>
 
         <SettingsCard.Section title="Behavior">
+          <EnabledTagsField availableTags={availableTags} />
           <SettingsCard.NumberField<SubAgentFormState>
             name="maxToolsPerRequest"
             label="Max Tools Per Request"
@@ -234,6 +240,116 @@ const ModelField = ({
           {modelFetchState === 'loading' ? 'Fetching...' : 'Fetch models'}
         </Button>
       </div>
+    </SettingsCard.Field>
+  )
+}
+
+interface EnabledTagsFieldProps {
+  availableTags: string[]
+}
+
+const EnabledTagsField = ({ availableTags }: EnabledTagsFieldProps) => {
+  const { form, canEdit, isSaving } = useSettingsCardContext<SubAgentFormState>()
+  const canInteract = canEdit && !isSaving
+
+  return (
+    <SettingsCard.Field
+      label="Enabled Tags"
+      description="Leave empty to enable SubAgent for all client tags."
+      htmlFor="subagent-enabled-tags"
+    >
+      <Controller
+        control={form.control}
+        name="enabledTags"
+        render={({ field }) => {
+          const selectedTags = Array.isArray(field.value) ? field.value : []
+          const availableSet = new Set(availableTags)
+          const unavailableTags = selectedTags.filter((tag) => !availableSet.has(tag))
+
+          const handleTagChange = (values: string[]) => {
+            const next = [...new Set([...values, ...unavailableTags])]
+            field.onChange(next)
+          }
+
+          return (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <TagIcon className="size-3.5" />
+                  {availableTags.length > 0
+                    ? `${availableTags.length} tags available`
+                    : 'No tags discovered'}
+                </div>
+                {selectedTags.length > 0 && (
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => field.onChange([])}
+                    disabled={!canInteract}
+                  >
+                    Clear selection
+                  </Button>
+                )}
+              </div>
+
+              {availableTags.length === 0 ? (
+                <div
+                  id="subagent-enabled-tags"
+                  className="rounded-md border border-dashed bg-muted/20 p-3 text-xs text-muted-foreground"
+                >
+                  No tags detected yet. Add tags to servers or active clients to make them selectable.
+                </div>
+              ) : (
+                <ScrollArea className="max-h-28 pr-2">
+                  <ToggleGroup
+                    id="subagent-enabled-tags"
+                    multiple
+                    value={selectedTags}
+                    onValueChange={(values) => handleTagChange(values as string[])}
+                    className="flex flex-wrap gap-1.5"
+                  >
+                    {availableTags.map((tag) => (
+                      <ToggleGroupItem
+                        key={tag}
+                        value={tag}
+                        size="sm"
+                        variant="outline"
+                        disabled={!canInteract}
+                      >
+                        <TagIcon className="size-3" />
+                        {tag}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                </ScrollArea>
+              )}
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                {selectedTags.length === 0 && (
+                  <Badge size="sm" variant="secondary">
+                    All tags enabled
+                  </Badge>
+                )}
+                {unavailableTags.map((tag) => (
+                  <Button
+                    key={`unavailable-${tag}`}
+                    type="button"
+                    size="xs"
+                    variant="outline"
+                    onClick={() => field.onChange(selectedTags.filter((value) => value !== tag))}
+                    disabled={!canInteract}
+                  >
+                    <AlertTriangleIcon className="size-3.5" />
+                    {tag}
+                    <XIcon className="size-3.5" />
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )
+        }}
+      />
     </SettingsCard.Field>
   )
 }

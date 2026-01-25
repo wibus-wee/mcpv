@@ -8,6 +8,9 @@ const normalizeReloadError = (message: string) => {
   if (message.includes('CORE_NOT_RUNNING')) {
     return 'Core is not running. Start Core to apply changes.'
   }
+  if (message.includes('restart required') || message.includes('runtime config changed')) {
+    return 'Runtime config changed. Restart required to apply.'
+  }
   if (message.includes('INVALID_CONFIG')) {
     return 'Reload rejected. Fix configuration errors and retry.'
   }

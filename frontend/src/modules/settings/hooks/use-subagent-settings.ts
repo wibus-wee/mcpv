@@ -2,13 +2,18 @@
 // Output: subagent settings state + model fetch helpers
 // Position: Settings SubAgent hook
 
-import type { UpdateSubAgentConfigRequest } from '@bindings/mcpd/internal/ui'
+import type {
+  ActiveClient,
+  ServerSummary,
+  UpdateSubAgentConfigRequest,
+} from '@bindings/mcpd/internal/ui'
 import { ProxyService, SubAgentService } from '@bindings/mcpd/internal/ui'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import useSWR from 'swr'
 
 import { toastManager } from '@/components/ui/toast'
+import { useClients, useServers } from '@/modules/config/hooks'
 import { reloadConfig } from '@/modules/config/lib/reload-config'
 import {
   DEFAULT_SUBAGENT_FORM,
@@ -31,6 +36,20 @@ type UseSubAgentSettingsOptions = {
   canEdit: boolean
 }
 
+const buildAvailableTags = (
+  servers?: ServerSummary[],
+  clients?: ActiveClient[],
+) => {
+  const tagSet = new Set<string>()
+  servers?.forEach((server) => {
+    server.tags?.forEach((tag) => tagSet.add(tag))
+  })
+  clients?.forEach((client) => {
+    client.tags?.forEach((tag) => tagSet.add(tag))
+  })
+  return Array.from(tagSet).sort((a, b) => a.localeCompare(b))
+}
+
 export const useSubAgentSettings = ({ canEdit }: UseSubAgentSettingsOptions) => {
   const form = useForm<SubAgentFormState>({
     defaultValues: DEFAULT_SUBAGENT_FORM,
@@ -50,6 +69,9 @@ export const useSubAgentSettings = ({ canEdit }: UseSubAgentSettingsOptions) => 
       revalidateOnFocus: false,
     },
   )
+
+  const { data: servers } = useServers()
+  const { data: clients } = useClients()
 
   const [apiKeyInput, setApiKeyInput] = useState('')
   const [modelInputValue, setModelInputValue] = useState('')
@@ -92,6 +114,11 @@ export const useSubAgentSettings = ({ canEdit }: UseSubAgentSettingsOptions) => 
   const modelLabelMap = useMemo(
     () => new Map(modelOptions.map(option => [option.id, option.label])),
     [modelOptions],
+  )
+
+  const availableTags = useMemo(
+    () => buildAvailableTags(servers, clients),
+    [servers, clients],
   )
 
   const modelFetchLabel = useMemo(() => {
@@ -179,6 +206,7 @@ export const useSubAgentSettings = ({ canEdit }: UseSubAgentSettingsOptions) => 
     }
     try {
       const req: UpdateSubAgentConfigRequest = {
+        enabledTags: values.enabledTags,
         model: values.model,
         provider: values.provider,
         apiKeyEnvVar: values.apiKeyEnvVar,
@@ -262,5 +290,6 @@ export const useSubAgentSettings = ({ canEdit }: UseSubAgentSettingsOptions) => 
     subAgentError,
     handleSave,
     fetchModels,
+    availableTags,
   }
 }

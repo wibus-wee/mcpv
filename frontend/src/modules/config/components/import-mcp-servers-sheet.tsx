@@ -81,10 +81,10 @@ export const ImportMcpServersSheet = () => {
   const isWritable = configMode?.isWritable ?? false
   const canApply
     = isWritable
-      && parseErrors.length === 0
-      && servers.length > 0
-      && issues.length === 0
-      && !isApplying
+    && parseErrors.length === 0
+    && servers.length > 0
+    && issues.length === 0
+    && !isApplying
 
   const handleParse = () => {
     const result = parseMcpServersJson(rawInput)
@@ -128,7 +128,7 @@ export const ImportMcpServersSheet = () => {
         return
       }
       await mutateServers()
-      setIsSaved(true)
+      setOpen(false) // 成功后直接关闭 Sheet
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Import failed.'
       setApplyError(message)
@@ -175,14 +175,6 @@ export const ImportMcpServersSheet = () => {
               <AlertCircleIcon />
               <AlertTitle>Import failed</AlertTitle>
               <AlertDescription>{applyError}</AlertDescription>
-            </Alert>
-          )}
-
-          {isSaved && (
-            <Alert variant="success">
-              <CheckCircleIcon />
-              <AlertTitle>Saved to config</AlertTitle>
-              <AlertDescription>Changes applied.</AlertDescription>
             </Alert>
           )}
 
