@@ -15,21 +15,21 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
-            goos: linux
-            goarch: amd64
-          - os: ubuntu-latest
-            goos: linux
-            goarch: arm64
+          # - os: ubuntu-latest
+          #   goos: linux
+          #   goarch: amd64
+          # - os: ubuntu-latest
+          #   goos: linux
+          #   goarch: arm64
           - os: macos-latest
             goos: darwin
             goarch: amd64
           - os: macos-latest
             goos: darwin
             goarch: arm64
-          - os: windows-latest
-            goos: windows
-            goarch: amd64
+          # - os: windows-latest
+          #   goos: windows
+          #   goarch: amd64
     env:
       VERSION: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'dev' }}
     steps:
