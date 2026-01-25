@@ -73,13 +73,26 @@ interface ServersDataTableProps {
   onDeleted?: (serverName: string) => void
 }
 
+const activeInstanceStates = new Set([
+  'ready',
+  'busy',
+  'starting',
+  'initializing',
+  'handshaking',
+  'draining',
+])
+
+function hasActiveInstance(status?: { instances?: { state: string }[] }) {
+  return (status?.instances ?? []).some(instance => activeInstanceStates.has(instance.state))
+}
+
 function StatusCell({ specKey }: { specKey: string }) {
   const { data: statusList } = useRuntimeStatus()
   const status = statusList?.find(s => s.specKey === specKey)
 
   // Determine overall state from instances
-  const hasRunning = status?.instances?.some(i => i.state === 'running')
-  const state = hasRunning ? 'running' : (status?.instances?.length ?? 0) > 0 ? 'idle' : 'stopped'
+  const hasActive = hasActiveInstance(status)
+  const state = hasActive ? 'running' : (status?.instances?.length ?? 0) > 0 ? 'idle' : 'stopped'
 
   return (
     <div className="flex items-center gap-2">
@@ -95,7 +108,7 @@ function LoadCell({ specKey }: { specKey: string }) {
   const { data: statusList } = useRuntimeStatus()
   const status = statusList?.find(s => s.specKey === specKey)
 
-  if (!status || !status.instances?.some(i => i.state === 'running')) {
+  if (!status || !hasActiveInstance(status)) {
     return <span className="text-xs text-muted-foreground">-</span>
   }
 
@@ -131,12 +144,12 @@ function UptimeCell({ specKey }: { specKey: string }) {
   }
 
   // Find the oldest running instance
-  const runningInstances = status.instances.filter(i => i.state === 'running')
-  if (runningInstances.length === 0) {
+  const activeInstances = status.instances.filter(i => activeInstanceStates.has(i.state))
+  if (activeInstances.length === 0) {
     return <span className="text-xs text-muted-foreground">-</span>
   }
 
-  const oldestInstance = runningInstances.reduce((oldest, current) => {
+  const oldestInstance = activeInstances.reduce((oldest, current) => {
     return current.spawnedAt < oldest.spawnedAt ? current : oldest
   })
 
