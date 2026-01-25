@@ -8,7 +8,6 @@ import {
   FileTextIcon,
   LayersIcon,
   Loader2Icon,
-  MonitorIcon,
   ServerIcon,
   WrenchIcon,
   XCircleIcon,
@@ -19,7 +18,6 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { useActiveClients } from '@/hooks/use-active-clients'
 import { useCoreState } from '@/hooks/use-core-state'
 import { Spring } from '@/lib/spring'
 import { formatDuration } from '@/lib/time'
