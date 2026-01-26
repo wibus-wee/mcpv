@@ -2,11 +2,9 @@
 // Output: ServerDetailPanel component - detail view for a server
 // Position: Right panel in config page master-detail layout
 
-import type { ServerDetail } from '@bindings/mcpd/internal/ui'
 import { ServerService } from '@bindings/mcpd/internal/ui'
 import {
   AlertTriangleIcon,
-  CheckCircle2Icon,
   PowerIcon,
   ServerIcon,
   Trash2Icon,
@@ -18,16 +16,6 @@ import {
   AlertDescription,
   AlertTitle,
 } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty'
 import {
   AlertDialog,
   AlertDialogClose,
@@ -38,8 +26,18 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
+import { buildCommandSummary, DetailRow } from '@/modules/shared/server-detail'
 
 import { useConfigMode, useServer, useServers } from '../hooks'
 import { reloadConfig } from '../lib/reload-config'
@@ -50,27 +48,9 @@ interface ServerDetailPanelProps {
   onDeleted?: () => void
 }
 
-type NoticeState = {
-  variant: 'success' | 'error'
+type ErrorState = {
   title: string
   description: string
-}
-
-function DetailRow({
-  label,
-  value,
-  mono,
-}: {
-  label: string
-  value?: React.ReactNode
-  mono?: boolean
-}) {
-  return (
-    <div className="flex items-start justify-between gap-4 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <div className={cn('text-right', mono && 'font-mono text-xs')}>{value}</div>
-    </div>
-  )
 }
 
 function DetailSkeleton() {
@@ -84,22 +64,15 @@ function DetailSkeleton() {
   )
 }
 
-function buildCommandSummary(server: ServerDetail) {
-  if (server.transport === 'streamable_http') {
-    return server.http?.endpoint ?? '--'
-  }
-  return server.cmd.join(' ')
-}
-
 export function ServerDetailPanel({ serverName, onDeleted }: ServerDetailPanelProps) {
   const { data: server, isLoading, mutate: mutateServer } = useServer(serverName)
   const { mutate: mutateServers } = useServers()
   const { data: configMode } = useConfigMode()
-  const [notice, setNotice] = useState<NoticeState | null>(null)
+  const [errorNotice, setErrorNotice] = useState<ErrorState | null>(null)
   const [isWorking, setIsWorking] = useState(false)
 
   useEffect(() => {
-    setNotice(null)
+    setErrorNotice(null)
     setIsWorking(false)
   }, [serverName])
 
@@ -110,7 +83,7 @@ export function ServerDetailPanel({ serverName, onDeleted }: ServerDetailPanelPr
       return
     }
     setIsWorking(true)
-    setNotice(null)
+    setErrorNotice(null)
 
     try {
       await ServerService.SetServerDisabled({
@@ -119,27 +92,22 @@ export function ServerDetailPanel({ serverName, onDeleted }: ServerDetailPanelPr
       })
       const reloadResult = await reloadConfig()
       if (!reloadResult.ok) {
-        setNotice({
-          variant: 'error',
+        setErrorNotice({
           title: 'Reload failed',
           description: reloadResult.message,
         })
         return
       }
       await Promise.all([mutateServer(), mutateServers()])
-      setNotice({
-        variant: 'success',
-        title: 'Saved',
-        description: 'Changes applied.',
-      })
-    } catch (err) {
+    }
+    catch (err) {
       const message = err instanceof Error ? err.message : 'Update failed.'
-      setNotice({
-        variant: 'error',
+      setErrorNotice({
         title: 'Update failed',
         description: message,
       })
-    } finally {
+    }
+    finally {
       setIsWorking(false)
     }
   }, [server, isWorking, canEdit, mutateServer, mutateServers])
@@ -149,34 +117,29 @@ export function ServerDetailPanel({ serverName, onDeleted }: ServerDetailPanelPr
       return
     }
     setIsWorking(true)
-    setNotice(null)
+    setErrorNotice(null)
 
     try {
       await ServerService.DeleteServer({ server: server.name })
       const reloadResult = await reloadConfig()
       if (!reloadResult.ok) {
-        setNotice({
-          variant: 'error',
+        setErrorNotice({
           title: 'Reload failed',
           description: reloadResult.message,
         })
         return
       }
       await Promise.all([mutateServer(), mutateServers()])
-      setNotice({
-        variant: 'success',
-        title: 'Server deleted',
-        description: 'Changes applied.',
-      })
       onDeleted?.()
-    } catch (err) {
+    }
+    catch (err) {
       const message = err instanceof Error ? err.message : 'Delete failed.'
-      setNotice({
-        variant: 'error',
+      setErrorNotice({
         title: 'Delete failed',
         description: message,
       })
-    } finally {
+    }
+    finally {
       setIsWorking(false)
     }
   }, [server, isWorking, canEdit, mutateServer, mutateServers, onDeleted])
@@ -313,11 +276,11 @@ export function ServerDetailPanel({ serverName, onDeleted }: ServerDetailPanelPr
         </div>
       </div>
 
-      {notice && (
-        <Alert variant={notice.variant}>
-          {notice.variant === 'success' ? <CheckCircle2Icon /> : <AlertTriangleIcon />}
-          <AlertTitle>{notice.title}</AlertTitle>
-          <AlertDescription>{notice.description}</AlertDescription>
+      {errorNotice && (
+        <Alert variant="error">
+          <AlertTriangleIcon className="size-4" />
+          <AlertTitle>{errorNotice.title}</AlertTitle>
+          <AlertDescription>{errorNotice.description}</AlertDescription>
         </Alert>
       )}
 

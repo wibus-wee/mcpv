@@ -4,8 +4,8 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
-import { RuntimeSettingsCard } from '@/modules/settings/components/runtime-settings-card'
 import { useConfigMode } from '@/modules/config/hooks'
+import { RuntimeSettingsCard } from '@/modules/settings/components/runtime-settings-card'
 import { useRuntimeSettings } from '@/modules/settings/hooks/use-runtime-settings'
 
 export const Route = createFileRoute('/settings/runtime')({

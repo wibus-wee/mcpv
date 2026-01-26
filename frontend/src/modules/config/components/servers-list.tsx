@@ -58,7 +58,7 @@ function ServersListEmpty() {
 
 function buildTagIndex(servers: ServerSummary[]) {
   const tagSet = new Set<string>()
-  servers.forEach(server => {
+  servers.forEach((server) => {
     server.tags?.forEach(tag => tagSet.add(tag))
   })
   return Array.from(tagSet).sort((a, b) => a.localeCompare(b))
@@ -75,7 +75,7 @@ export function ServersList({
   const tags = useMemo(() => buildTagIndex(servers), [servers])
   const filteredServers = useMemo(() => {
     if (selectedTags.length === 0) return servers
-    return servers.filter(server => {
+    return servers.filter((server) => {
       const serverTags = server.tags ?? []
       return selectedTags.some(tag => serverTags.includes(tag))
     })

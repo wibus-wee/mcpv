@@ -54,7 +54,8 @@ export function parseMcpServersJson(input: string): ParseResult {
   let payload: unknown
   try {
     payload = JSON.parse(trimmed)
-  } catch {
+  }
+  catch {
     return { servers: [], errors: ['Invalid JSON format.'] }
   }
 
@@ -104,7 +105,7 @@ export function parseMcpServersJson(input: string): ParseResult {
       return
     }
 
-    const command = entry.command
+    const { command } = entry
     if (typeof command !== 'string' || command.trim() === '') {
       errors.push(`${prefix}: command is required.`)
       return

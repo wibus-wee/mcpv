@@ -2,18 +2,17 @@
 // Output: useToolsByServer hook for grouping tools by server
 // Position: Data layer for tools module
 
+import type { ServerDetail, ServerSummary, ToolEntry } from '@bindings/mcpd/internal/ui'
+import { DiscoveryService } from '@bindings/mcpd/internal/ui'
 import { useMemo } from 'react'
 import useSWR from 'swr'
 
-import type { ServerDetail, ServerSummary, ToolEntry } from '@bindings/mcpd/internal/ui'
-import { DiscoveryService } from '@bindings/mcpd/internal/ui'
-
+import { withSWRPreset } from '@/lib/swr-config'
 import {
   useRuntimeStatus,
   useServerDetails,
   useServers,
 } from '@/modules/config/hooks'
-import { withSWRPreset } from '@/lib/swr-config'
 
 export interface ServerGroup {
   id: string
@@ -59,13 +58,14 @@ export function useToolsByServer() {
     const map = new Map<string, ToolEntry[]>()
     if (!tools) return map
 
-    tools.forEach(tool => {
+    tools.forEach((tool) => {
       const specKey = tool.specKey || tool.serverName || tool.name
       if (!specKey) return
       const bucket = map.get(specKey)
       if (bucket) {
         bucket.push(tool)
-      } else {
+      }
+      else {
         map.set(specKey, [tool])
       }
     })
@@ -74,10 +74,10 @@ export function useToolsByServer() {
   }, [tools])
 
   const serversFromSummaries = useMemo(() => {
-    const map = new Map<string, { summary: ServerSummary; tags: string[] }>()
+    const map = new Map<string, { summary: ServerSummary, tags: string[] }>()
     if (!servers) return map
 
-    servers.forEach(summary => {
+    servers.forEach((summary) => {
       if (!summary.specKey) return
       map.set(summary.specKey, {
         summary,
@@ -128,11 +128,11 @@ export function useToolsByServer() {
       ensureServer(specKey, summary.name, undefined, tags)
     })
 
-    serverDetails?.forEach(detail => {
+    serverDetails?.forEach((detail) => {
       ensureServer(detail.specKey, detail.name, detail, detail.tags ?? [])
     })
 
-    runtimeStatus?.forEach(status => {
+    runtimeStatus?.forEach((status) => {
       ensureServer(status.specKey, status.serverName)
     })
 
@@ -153,8 +153,8 @@ export function useToolsByServer() {
     )
   }, [serverMap])
 
-  const isLoading =
-    toolsLoading || serversLoading || detailsLoading || runtimeLoading
+  const isLoading
+    = toolsLoading || serversLoading || detailsLoading || runtimeLoading
   const error = toolsError || serversError || detailsError || runtimeError
 
   return {

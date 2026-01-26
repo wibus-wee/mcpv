@@ -2,20 +2,19 @@
 // Output: ToolDetailPanel component showing tool details inline
 // Position: Right panel in master-detail tools layout
 
-import { useState } from 'react'
-import { m } from 'motion/react'
-import { ChevronDownIcon, CodeIcon, CopyIcon, CheckIcon, WrenchIcon } from 'lucide-react'
-
 import type { ToolEntry } from '@bindings/mcpd/internal/ui'
+import { CheckIcon, ChevronDownIcon, CodeIcon, CopyIcon, WrenchIcon } from 'lucide-react'
+import { m } from 'motion/react'
+import { useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { cn } from '@/lib/utils'
 import { Spring } from '@/lib/spring'
 import { getToolDisplayName, getToolQualifiedName } from '@/lib/tool-names'
+import { cn } from '@/lib/utils'
 
 interface ToolSchema {
   name?: string

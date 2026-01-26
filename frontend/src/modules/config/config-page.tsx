@@ -29,7 +29,7 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toastManager } from '@/components/ui/toast'
-import { useActiveClients, activeClientsKey } from '@/hooks/use-active-clients'
+import { activeClientsKey, useActiveClients } from '@/hooks/use-active-clients'
 import { Spring } from '@/lib/spring'
 
 import { selectedServerNameAtom } from './atoms'
@@ -72,7 +72,8 @@ function ConfigHeader() {
         title: 'Configuration reloaded',
         description: 'Latest changes are now active.',
       })
-    } else {
+    }
+    else {
       toastManager.add({
         type: 'error',
         title: 'Reload failed',

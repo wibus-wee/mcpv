@@ -2,26 +2,27 @@
 // Output: ConfigFlow component - topology graph of clients, tags, and servers
 // Position: Visualization panel inside config module tabs
 
+import '@xyflow/react/dist/style.css'
+
+import type { Edge } from '@xyflow/react'
 import {
   Background,
   BackgroundVariant,
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
-  type Edge,
 } from '@xyflow/react'
-import { useCallback } from 'react'
-import '@xyflow/react/dist/style.css'
 import { Share2Icon } from 'lucide-react'
+import { useCallback } from 'react'
 
 import { Skeleton } from '@/components/ui/skeleton'
 import { useActiveClients } from '@/hooks/use-active-clients'
-import { useRuntimeStatus, useServerDetails, useServers } from '../config/hooks'
 
-import type { FlowNode } from './types'
-import { nodeTypes } from './nodes'
-import { buildTopology } from './layout'
+import { useRuntimeStatus, useServerDetails, useServers } from '../config/hooks'
 import { FlowEmpty, FlowSkeleton } from './components'
+import { buildTopology } from './layout'
+import { nodeTypes } from './nodes'
+import type { FlowNode } from './types'
 
 const ConfigFlowInner = ({
   nodes,
@@ -37,7 +38,7 @@ const ConfigFlowInner = ({
       const allNodes = getNodes() as FlowNode[]
       const relatedIds = new Set<string>([node.id])
 
-      edges.forEach(edge => {
+      edges.forEach((edge) => {
         if (edge.source === node.id) {
           relatedIds.add(edge.target)
         }
@@ -89,16 +90,16 @@ const ConfigFlowInner = ({
 
 export const ConfigFlow = () => {
   const { data: servers, isLoading: serversLoading } = useServers()
-  const { data: activeClients, isLoading: activeClientsLoading } =
-    useActiveClients()
-  const { data: serverDetails, isLoading: detailsLoading } =
-    useServerDetails(servers)
+  const { data: activeClients, isLoading: activeClientsLoading }
+    = useActiveClients()
+  const { data: serverDetails, isLoading: detailsLoading }
+    = useServerDetails(servers)
   const { data: runtimeStatus, isLoading: runtimeStatusLoading } = useRuntimeStatus()
 
-  const isLoading =
-    serversLoading || detailsLoading || activeClientsLoading || runtimeStatusLoading
-  const { nodes, edges, tagCount, serverCount, clientCount, instanceCount } =
-    buildTopology(
+  const isLoading
+    = serversLoading || detailsLoading || activeClientsLoading || runtimeStatusLoading
+  const { nodes, edges, tagCount, serverCount, clientCount, instanceCount }
+    = buildTopology(
       servers ?? [],
       serverDetails ?? [],
       activeClients ?? [],

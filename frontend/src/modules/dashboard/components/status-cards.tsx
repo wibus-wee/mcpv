@@ -21,8 +21,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useCoreState } from '@/hooks/use-core-state'
 import { Spring } from '@/lib/spring'
 import { formatDuration } from '@/lib/time'
-
 import { useServers } from '@/modules/config/hooks'
+
 import { useResources, useTools } from '../hooks'
 import { AnimatedNumber } from './sparkline'
 

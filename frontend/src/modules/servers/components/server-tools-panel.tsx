@@ -2,29 +2,28 @@
 // Output: ServerToolsPanel component with master-detail layout for browsing tools
 // Position: Tab panel within servers page for Tools tab
 
-import { useState, useMemo } from 'react'
-import { m, AnimatePresence } from 'motion/react'
-import { WrenchIcon, SearchIcon } from 'lucide-react'
-
 import type { ToolEntry } from '@bindings/mcpd/internal/ui'
+import { SearchIcon, WrenchIcon } from 'lucide-react'
+import { AnimatePresence, m } from 'motion/react'
+import { useMemo, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import {
   Empty,
+  EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-  EmptyDescription,
 } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
 import { Spring } from '@/lib/spring'
-import { useToolsByServer } from '@/modules/tools/hooks'
-import { ToolDetailPanel } from '@/modules/tools/components/tool-detail-panel'
 import { getToolDisplayName } from '@/lib/tool-names'
+import { cn } from '@/lib/utils'
+import { ToolDetailPanel } from '@/modules/tools/components/tool-detail-panel'
+import { useToolsByServer } from '@/modules/tools/hooks'
 
 interface ServerToolsPanelProps {
   serverName: string | null
@@ -53,8 +52,8 @@ export function ServerToolsPanel({ serverName }: ServerToolsPanelProps) {
       const displayName = getToolDisplayName(tool.name, serverName ?? undefined)
       const description = tool.toolJson?.description ?? ''
       return (
-        displayName.toLowerCase().includes(query) ||
-        description.toLowerCase().includes(query)
+        displayName.toLowerCase().includes(query)
+        || description.toLowerCase().includes(query)
       )
     })
   }, [tools, searchQuery, serverName])
@@ -119,7 +118,7 @@ export function ServerToolsPanel({ serverName }: ServerToolsPanelProps) {
               type="search"
               placeholder="Search tools..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={e => setSearchQuery(e.target.value)}
               className="pl-8"
             />
           </div>
@@ -130,7 +129,7 @@ export function ServerToolsPanel({ serverName }: ServerToolsPanelProps) {
               {filteredTools.map((tool) => {
                 const displayName = getToolDisplayName(
                   tool.name,
-                  serverName ?? undefined
+                  serverName ?? undefined,
                 )
                 const isSelected = selectedTool?.name === tool.name
 
@@ -148,7 +147,7 @@ export function ServerToolsPanel({ serverName }: ServerToolsPanelProps) {
                         'p-2.5 cursor-pointer transition-colors shadow-none',
                         isSelected
                           ? 'bg-accent border-accent-foreground/20'
-                          : 'hover:bg-muted/50'
+                          : 'hover:bg-muted/50',
                       )}
                       onClick={() => setSelectedTool(tool)}
                     >

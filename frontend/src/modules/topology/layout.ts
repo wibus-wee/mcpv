@@ -8,7 +8,8 @@ import type {
   ServerRuntimeStatus,
   ServerSummary,
 } from '@bindings/mcpd/internal/ui'
-import { MarkerType, type Edge } from '@xyflow/react'
+import type { Edge } from '@xyflow/react'
+import { MarkerType } from '@xyflow/react'
 
 import type { FlowNode, LayoutResult } from './types'
 
@@ -46,7 +47,7 @@ export const buildTopology = (
   const serverEntries = new Map<string, ServerEntry>()
   const serverNameIndex = new Map<string, ServerEntry>()
 
-  servers.forEach(summary => {
+  servers.forEach((summary) => {
     if (!summary.specKey) return
     const entry = {
       specKey: summary.specKey,
@@ -58,7 +59,7 @@ export const buildTopology = (
     serverNameIndex.set(summary.name, entry)
   })
 
-  serverDetails.forEach(detail => {
+  serverDetails.forEach((detail) => {
     const existing = serverEntries.get(detail.specKey)
     const entry = {
       specKey: detail.specKey,
@@ -70,7 +71,7 @@ export const buildTopology = (
     serverNameIndex.set(detail.name, entry)
   })
 
-  runtimeStatus.forEach(status => {
+  runtimeStatus.forEach((status) => {
     if (!status.specKey) return
     if (!serverEntries.has(status.specKey)) {
       const entry = {
@@ -87,7 +88,7 @@ export const buildTopology = (
   const tagSet = new Set(
     Array.from(serverEntries.values()).flatMap(entry => entry.tags),
   )
-  activeClients.forEach(client => {
+  activeClients.forEach((client) => {
     client.tags?.forEach(tag => tagSet.add(tag))
   })
 
@@ -117,7 +118,7 @@ export const buildTopology = (
   const tagPositions = new Map<string, number>()
 
   let tagCursor = 0
-  allTags.forEach(tag => {
+  allTags.forEach((tag) => {
     const y = tagCursor
     tagPositions.set(tag, y)
     tagCursor += layoutConfig.tagGap
@@ -126,7 +127,7 @@ export const buildTopology = (
       entry.tags.includes(tag),
     ).length
 
-    const clientCount = activeClients.filter(client => {
+    const clientCount = activeClients.filter((client) => {
       const resolved = resolveClientTags(client)
       if (resolved.mode !== 'tag') {
         return false
@@ -149,9 +150,9 @@ export const buildTopology = (
     })
   })
 
-  const clientEntries = activeClients.map(client => {
+  const clientEntries = activeClients.map((client) => {
     const resolved = resolveClientTags(client)
-    const tags = resolved.tags
+    const { tags } = resolved
     const tagYs = tags
       .map(tag => tagPositions.get(tag))
       .filter((value): value is number => value !== undefined)
@@ -209,7 +210,7 @@ export const buildTopology = (
       return
     }
 
-    tags.forEach(tag => {
+    tags.forEach((tag) => {
       edges.push({
         id: `edge:${clientId}->tag:${tag}`,
         source: clientId,
@@ -230,7 +231,7 @@ export const buildTopology = (
     })
   })
 
-  const serverEntriesArray = Array.from(serverEntries.values()).map(entry => {
+  const serverEntriesArray = Array.from(serverEntries.values()).map((entry) => {
     const tagYs = entry.tags
       .map(tag => tagPositions.get(tag))
       .filter((value): value is number => value !== undefined)
@@ -264,7 +265,7 @@ export const buildTopology = (
     })
     serverPositions.set(entry.specKey, resolvedY)
 
-    entry.tags.forEach(tag => {
+    entry.tags.forEach((tag) => {
       edges.push({
         id: `edge:tag:${tag}->server:${entry.specKey}`,
         source: `tag:${tag}`,
@@ -292,11 +293,11 @@ export const buildTopology = (
     const serverY = serverPositions.get(serverKey)
     if (serverY === undefined) continue
 
-    const instances = serverStatus.instances
+    const { instances } = serverStatus
     if (instances.length === 0) continue
 
-    const instanceStartY =
-      serverY - ((instances.length - 1) * layoutConfig.instanceGap) / 2
+    const instanceStartY
+      = serverY - ((instances.length - 1) * layoutConfig.instanceGap) / 2
 
     instances.forEach((instance, index) => {
       instanceCount++

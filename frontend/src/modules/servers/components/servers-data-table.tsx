@@ -4,15 +4,13 @@
 
 import type { ServerSummary } from '@bindings/mcpd/internal/ui'
 import { ServerService } from '@bindings/mcpd/internal/ui'
+import type { ColumnDef, ColumnFiltersState, SortingState } from '@tanstack/react-table'
 import {
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
   useReactTable,
-  type ColumnDef,
-  type SortingState,
-  type ColumnFiltersState,
 } from '@tanstack/react-table'
 import {
   ArrowUpDownIcon,
@@ -57,13 +55,15 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { toastManager } from '@/components/ui/toast'
-import { cn } from '@/lib/utils'
+import { useActiveClients } from '@/hooks/use-active-clients'
 import { formatDuration, getElapsedMs } from '@/lib/time'
+import { cn } from '@/lib/utils'
 import { ServerRuntimeIndicator } from '@/modules/config/components/server-runtime-status'
 import { useRuntimeStatus, useServers } from '@/modules/config/hooks'
-import { useActiveClients } from '@/hooks/use-active-clients'
-import { useToolsByServer } from '@/modules/tools/hooks'
 import { reloadConfig } from '@/modules/config/lib/reload-config'
+import type { ServerRuntimeState } from '@/modules/shared/server-status'
+import { ACTIVE_INSTANCE_STATES, hasActiveInstance } from '@/modules/shared/server-status'
+import { useToolsByServer } from '@/modules/tools/hooks'
 
 interface ServersDataTableProps {
   servers: ServerSummary[]
@@ -73,25 +73,12 @@ interface ServersDataTableProps {
   onDeleted?: (serverName: string) => void
 }
 
-const activeInstanceStates = new Set([
-  'ready',
-  'busy',
-  'starting',
-  'initializing',
-  'handshaking',
-  'draining',
-])
-
-function hasActiveInstance(status?: { instances?: { state: string }[] }) {
-  return (status?.instances ?? []).some(instance => activeInstanceStates.has(instance.state))
-}
-
 function StatusCell({ specKey }: { specKey: string }) {
   const { data: statusList } = useRuntimeStatus()
   const status = statusList?.find(s => s.specKey === specKey)
 
   // Determine overall state from instances
-  const hasActive = hasActiveInstance(status)
+  const hasActive = hasActiveInstance(status?.instances)
   const state = hasActive ? 'running' : (status?.instances?.length ?? 0) > 0 ? 'idle' : 'stopped'
 
   return (
@@ -108,7 +95,7 @@ function LoadCell({ specKey }: { specKey: string }) {
   const { data: statusList } = useRuntimeStatus()
   const status = statusList?.find(s => s.specKey === specKey)
 
-  if (!status || !hasActiveInstance(status)) {
+  if (!status || !hasActiveInstance(status?.instances)) {
     return <span className="text-xs text-muted-foreground">-</span>
   }
 
@@ -144,7 +131,7 @@ function UptimeCell({ specKey }: { specKey: string }) {
   }
 
   // Find the oldest running instance
-  const activeInstances = status.instances.filter(i => activeInstanceStates.has(i.state))
+  const activeInstances = status.instances.filter(i => ACTIVE_INSTANCE_STATES.has(i.state as ServerRuntimeState))
   if (activeInstances.length === 0) {
     return <span className="text-xs text-muted-foreground">-</span>
   }
@@ -218,13 +205,15 @@ function ServerActionsCell({ server, canEdit, onDeleted }: ServerActionsCellProp
         title: server.disabled ? 'Server enabled' : 'Server disabled',
         description: 'Changes applied.',
       })
-    } catch (err) {
+    }
+    catch (err) {
       toastManager.add({
         type: 'error',
         title: 'Update failed',
         description: err instanceof Error ? err.message : 'Update failed.',
       })
-    } finally {
+    }
+    finally {
       setIsWorking(false)
     }
   }
@@ -250,13 +239,15 @@ function ServerActionsCell({ server, canEdit, onDeleted }: ServerActionsCellProp
         title: 'Server deleted',
         description: 'Changes applied.',
       })
-    } catch (err) {
+    }
+    catch (err) {
       toastManager.add({
         type: 'error',
         title: 'Delete failed',
         description: err instanceof Error ? err.message : 'Delete failed.',
       })
-    } finally {
+    }
+    finally {
       setIsWorking(false)
     }
   }
@@ -279,7 +270,7 @@ function ServerActionsCell({ server, canEdit, onDeleted }: ServerActionsCellProp
         <MenuTrigger
           className={cn(buttonVariants({ variant: 'ghost', size: 'icon-xs' }))}
           disabled={!canEdit || isWorking}
-          onClick={(event) => event.stopPropagation()}
+          onClick={event => event.stopPropagation()}
         >
           <MoreHorizontalIcon className="size-4" />
         </MenuTrigger>
@@ -311,7 +302,7 @@ function ServerActionsCell({ server, canEdit, onDeleted }: ServerActionsCellProp
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={(event) => event.stopPropagation()}
+                  onClick={event => event.stopPropagation()}
                 >
                   Cancel
                 </Button>
@@ -373,7 +364,7 @@ export function ServersDataTable({
               <span className="font-medium text-sm">{row.original.name}</span>
               {row.original.tags && row.original.tags.length > 0 && (
                 <div className="flex gap-1">
-                  {row.original.tags.slice(0, 2).map((tag) => (
+                  {row.original.tags.slice(0, 2).map(tag => (
                     <Badge key={tag} variant="secondary" size="sm">
                       {tag}
                     </Badge>
@@ -475,33 +466,33 @@ export function ServersDataTable({
     <div className="rounded-lg">
       <Table>
         <TableHeader>
-          {table.getHeaderGroups().map((headerGroup) => (
+          {table.getHeaderGroups().map(headerGroup => (
             <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
+              {headerGroup.headers.map(header => (
                 <TableHead key={header.id}>
                   {header.isPlaceholder
                     ? null
                     : flexRender(
-                      header.column.columnDef.header,
-                      header.getContext(),
-                    )}
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )}
                 </TableHead>
               ))}
             </TableRow>
           ))}
         </TableHeader>
         <TableBody>
-          {table.getRowModel().rows.map((row) => (
+          {table.getRowModel().rows.map(row => (
             <TableRow
               key={row.id}
               onClick={() => onRowClick(row.original)}
               className={cn(
                 'cursor-pointer transition-colors',
-                selectedServerName === row.original.name &&
-                'bg-accent/50 hover:bg-accent/70',
+                selectedServerName === row.original.name
+                && 'bg-accent/50 hover:bg-accent/70',
               )}
             >
-              {row.getVisibleCells().map((cell) => (
+              {row.getVisibleCells().map(cell => (
                 <TableCell key={cell.id}>
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </TableCell>

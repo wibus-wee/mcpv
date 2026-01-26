@@ -2,10 +2,10 @@
 // Output: Status badge components for core status and server runtime status
 // Position: Custom component - unified status indicator patterns
 
-import type { VariantProps } from 'class-variance-authority'
-
-import { Badge, badgeVariants } from '@/components/ui/badge'
+import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import type { ServerRuntimeState } from '@/modules/shared/server-status'
+import { serverStateLabels, serverStateVariants } from '@/modules/shared/server-status'
 
 /**
  * Core application status types
@@ -15,54 +15,7 @@ export type CoreStatus = 'stopped' | 'starting' | 'running' | 'stopping' | 'erro
 /**
  * Server runtime state types
  */
-export type ServerState =
-  | 'ready'
-  | 'busy'
-  | 'starting'
-  | 'initializing'
-  | 'handshaking'
-  | 'draining'
-  | 'stopped'
-  | 'failed'
-
-/**
- * Mapping from core status to badge variant
- */
-const coreStatusVariants: Record<CoreStatus, VariantProps<typeof badgeVariants>['variant']> = {
-  running: 'success',
-  starting: 'warning',
-  stopped: 'secondary',
-  stopping: 'warning',
-  error: 'error',
-}
-
-/**
- * Mapping from server state to badge variant
- */
-const serverStateVariants: Record<ServerState, VariantProps<typeof badgeVariants>['variant']> = {
-  ready: 'success',
-  busy: 'warning',
-  starting: 'info',
-  initializing: 'info',
-  handshaking: 'info',
-  draining: 'secondary',
-  stopped: 'secondary',
-  failed: 'error',
-}
-
-/**
- * Human-readable labels for server states
- */
-const serverStateLabels: Record<ServerState, string> = {
-  ready: 'Ready',
-  busy: 'Busy',
-  starting: 'Starting',
-  initializing: 'Initializing',
-  handshaking: 'Handshaking',
-  draining: 'Draining',
-  stopped: 'Stopped',
-  failed: 'Failed',
-}
+export type ServerState = ServerRuntimeState
 
 /**
  * Props for CoreStatusBadge

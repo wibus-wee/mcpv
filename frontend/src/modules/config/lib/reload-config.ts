@@ -1,8 +1,8 @@
 import { ConfigService } from '@bindings/mcpd/internal/ui'
 
-export type ReloadOutcome =
-  | { ok: true }
-  | { ok: false, message: string }
+export type ReloadOutcome
+  = | { ok: true }
+    | { ok: false, message: string }
 
 const normalizeReloadError = (message: string) => {
   if (message.includes('CORE_NOT_RUNNING')) {
@@ -22,7 +22,7 @@ const formatReloadError = (err: unknown) => {
     return normalizeReloadError(err.message)
   }
   if (err && typeof err === 'object') {
-    const message = (err as { message?: unknown }).message
+    const { message } = err as { message?: unknown }
     if (typeof message === 'string') {
       return normalizeReloadError(message)
     }
@@ -34,7 +34,8 @@ export const reloadConfig = async (): Promise<ReloadOutcome> => {
   try {
     await ConfigService.ReloadConfig()
     return { ok: true }
-  } catch (err) {
+  }
+  catch (err) {
     return { ok: false, message: formatReloadError(err) }
   }
 }

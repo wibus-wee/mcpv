@@ -2,22 +2,23 @@
 // Output: Node components and nodeTypes registry for React Flow
 // Position: Node rendering layer for topology visualization
 
-import { Handle, Position, type NodeProps } from '@xyflow/react'
+import type { NodeProps } from '@xyflow/react'
+import { Handle, Position } from '@xyflow/react'
 import { MonitorIcon, ServerIcon, TagIcon } from 'lucide-react'
 
+import { ServerStateBadge } from '@/components/custom/status-badge'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { ServerStateBadge } from '@/components/custom/status-badge'
 
 import type {
   ClientFlowNode,
-  TagFlowNode,
-  ServerFlowNode,
   InstanceFlowNode,
+  ServerFlowNode,
+  TagFlowNode,
 } from '../types'
 
-export const handleBaseClass =
-  'size-2.5 border border-background bg-foreground/50 shadow-sm'
+export const handleBaseClass
+  = 'size-2.5 border border-background bg-foreground/50 shadow-sm'
 
 export const ClientNode = ({ data, selected, isActive = false }: NodeProps<ClientFlowNode> & { isActive?: boolean }) => {
   return (
@@ -36,7 +37,8 @@ export const ClientNode = ({ data, selected, isActive = false }: NodeProps<Clien
       <div className={cn(
         'flex items-center gap-1.5 text-[0.65rem] font-medium uppercase tracking-wide',
         isActive ? 'text-info-foreground' : 'text-info-foreground/70',
-      )}>
+      )}
+      >
         <MonitorIcon className="size-3" />
         Client
       </div>
@@ -90,8 +92,8 @@ export const TagNode = ({ data, selected }: NodeProps<TagFlowNode>) => {
 }
 
 export const ServerNode = ({ data }: NodeProps<ServerFlowNode>) => {
-  const protocolLabel =
-    data.protocolVersion === 'default'
+  const protocolLabel
+    = data.protocolVersion === 'default'
       ? 'Protocol default'
       : data.protocolVersion === 'mixed'
         ? 'Protocol mixed'

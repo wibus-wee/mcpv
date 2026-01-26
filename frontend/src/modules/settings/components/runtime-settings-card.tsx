@@ -2,13 +2,14 @@
 // Output: Runtime settings card using compound component pattern
 // Position: Settings page runtime section
 
+import { AlertCircleIcon } from 'lucide-react'
 import type * as React from 'react'
 import type { UseFormReturn } from 'react-hook-form'
-import { AlertCircleIcon } from 'lucide-react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 
+import type { RuntimeFormState } from '../lib/runtime-config'
 import {
   ACTIVATION_MODE_LABELS,
   ACTIVATION_MODE_OPTIONS,
@@ -16,7 +17,6 @@ import {
   BOOTSTRAP_MODE_OPTIONS,
   NAMESPACE_STRATEGY_LABELS,
   NAMESPACE_STRATEGY_OPTIONS,
-  type RuntimeFormState,
 } from '../lib/runtime-config'
 import { SettingsCard } from './settings-card'
 

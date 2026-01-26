@@ -16,7 +16,7 @@ const DEFAULT_PROVIDER_BASE_URLS: Record<string, string> = {
 }
 
 const normalizeProvider = (value: string) =>
-  value.toLowerCase().replace(/[^a-z0-9]/g, '')
+  value.toLowerCase().replaceAll(/[^a-z0-9]/g, '')
 
 export const resolveProviderBaseURL = (provider: string, baseURL: string) => {
   const trimmedBaseURL = baseURL.trim().replace(/\/+$/, '')
@@ -75,14 +75,16 @@ export const parseModelsDevIndex = (payload: unknown): ModelsDevIndex => {
         const nameValue = record.name ?? record.label ?? record.displayName ?? idValue
         addModel(idValue, typeof nameValue === 'string' ? nameValue : undefined)
       }
-    } else if (modelsValue && typeof modelsValue === 'object') {
+    }
+    else if (modelsValue && typeof modelsValue === 'object') {
       for (const [modelKey, modelValue] of Object.entries(modelsValue as Record<string, unknown>)) {
         if (modelValue && typeof modelValue === 'object') {
           const record = modelValue as Record<string, unknown>
           const idValue = record.id ?? modelKey
           const nameValue = record.name ?? record.label ?? record.displayName ?? idValue
           addModel(String(idValue), typeof nameValue === 'string' ? nameValue : undefined)
-        } else {
+        }
+        else {
           addModel(modelKey)
         }
       }

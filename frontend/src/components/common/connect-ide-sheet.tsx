@@ -10,7 +10,8 @@ import {
   ServerIcon,
   TagIcon,
 } from 'lucide-react'
-import type React from 'react'
+import { m } from 'motion/react'
+import type * as React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -28,18 +29,19 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { buildCliSnippet, buildClientConfig, buildTomlConfig, type SelectorMode } from '@/lib/mcpdmcp'
 import { useMcpdmcpPath } from '@/hooks/use-mcpdmcp-path'
 import { useRpcAddress } from '@/hooks/use-rpc-address'
+import type { SelectorMode } from '@/lib/mcpdmcp'
+import { buildClientConfig, buildCliSnippet, buildTomlConfig } from '@/lib/mcpdmcp'
 import { useServers } from '@/modules/config/hooks'
+
 import { useSidebar } from '../ui/sidebar'
-import { m } from 'motion/react'
 
 type ClientTab = 'cursor' | 'claude' | 'vscode' | 'codex'
 
-type PresetBlock = { title: string; value: string }
+type PresetBlock = { title: string, value: string }
 
-const clientMeta: Record<ClientTab, { title: string; Icon: React.ComponentType<any> }> = {
+const clientMeta: Record<ClientTab, { title: string, Icon: React.ComponentType<any> }> = {
   cursor: { title: 'Cursor', Icon: MousePointerClickIcon },
   claude: { title: 'Claude Desktop', Icon: MessageCircleIcon },
   vscode: { title: 'VS Code', Icon: Code2Icon },
@@ -83,12 +85,13 @@ function CopyButton({ text }: { text: string }) {
   )
 }
 
-function InstallInCursorButton({ serverName, config }: { serverName: string; config: string }) {
+function InstallInCursorButton({ serverName, config }: { serverName: string, config: string }) {
   const handleInstall = () => {
     try {
       const deepLink = generateCursorDeepLink(serverName, config)
       window.location.href = deepLink
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Failed to generate Cursor deep link:', error)
     }
   }
@@ -121,7 +124,7 @@ export function ConnectIdeSheet() {
   )
   const tagOptions = useMemo(() => {
     const set = new Set<string>()
-    ;(servers ?? []).forEach(server => {
+    ;(servers ?? []).forEach((server) => {
       server.tags?.forEach(tag => set.add(tag))
     })
     return Array.from(set).sort((a, b) => a.localeCompare(b))
@@ -197,7 +200,9 @@ export function ConnectIdeSheet() {
           initial={{ opacity: 0, width: 0 }}
           animate={{ opacity: sidebar.open ? 1 : 0, width: sidebar.open ? 'auto' : 0 }}
           transition={{ duration: 0.2 }}
-        > Connect IDE</m.span>
+        >
+          Connect IDE
+        </m.span>
       </Button>
       <SheetContent side="right" showCloseButton>
         <SheetHeader>
@@ -210,7 +215,7 @@ export function ConnectIdeSheet() {
             <ToggleGroup
               multiple={false}
               value={[selectorMode]}
-              onValueChange={values => {
+              onValueChange={(values) => {
                 const next = values[0] as SelectorMode | undefined
                 setSelectorMode(next ?? 'server')
               }}
@@ -271,8 +276,8 @@ export function ConnectIdeSheet() {
                 </TabsTrigger>
               </TabsList>
 
-              {(Object.keys(clientMeta) as ClientTab[]).map(key => {
-                const Icon = clientMeta[key].Icon
+              {(Object.keys(clientMeta) as ClientTab[]).map((key) => {
+                const { Icon } = clientMeta[key]
                 return (
                   <TabsContent key={key} value={key} className="mt-4 space-y-3">
                     {key === 'cursor' && selector.value && (

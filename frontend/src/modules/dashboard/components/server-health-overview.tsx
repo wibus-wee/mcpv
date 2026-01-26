@@ -2,6 +2,8 @@
 // Output: ServerHealthOverview component displaying pool health and metrics
 // Position: Primary dashboard visualization for server pool status
 
+import type { ServerInitStatus, ServerRuntimeStatus } from '@bindings/mcpd/internal/ui'
+import { RuntimeService } from '@bindings/mcpd/internal/ui'
 import { Link } from '@tanstack/react-router'
 import {
   ActivityIcon,
@@ -14,8 +16,6 @@ import {
 import { m } from 'motion/react'
 import { useMemo } from 'react'
 import useSWR from 'swr'
-
-import { RuntimeService, ServerInitStatus, ServerRuntimeStatus } from '@bindings/mcpd/internal/ui'
 
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -83,7 +83,7 @@ function aggregateStats(
   }
 
   for (const status of statuses) {
-    const stats = status.stats
+    const { stats } = status
     result.totalInstances += stats.total
     result.readyInstances += stats.ready
     result.busyInstances += stats.busy
@@ -91,7 +91,7 @@ function aggregateStats(
     result.failedInstances += stats.failed
     result.drainingInstances += stats.draining
 
-    const metrics = status.metrics
+    const { metrics } = status
     result.totalCalls += metrics.totalCalls
     result.totalErrors += metrics.totalErrors
     result.avgDurationMs += metrics.totalDurationMs
@@ -170,8 +170,11 @@ function HealthVerdict({ stats }: { stats: AggregatedStats }) {
       </div>
       {showLink && (
         <Link
-          to="/tools"
-          search={{ server: undefined }}
+          to="/servers"
+          search={{
+            tab: 'overview',
+            server: undefined,
+          }}
           className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
           View details
@@ -272,7 +275,7 @@ export function ServerHealthOverview() {
 
   return (
     <Card>
-      <CardHeader className='pb-3'>
+      <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-sm font-medium">
             Server Health
@@ -290,7 +293,7 @@ export function ServerHealthOverview() {
           </div>
           <StackedBar segments={poolSegments} height={10} />
           <div className="flex flex-wrap gap-3 text-xs">
-            {poolSegments.filter(s => s.value > 0).map((segment) => (
+            {poolSegments.filter(s => s.value > 0).map(segment => (
               <Tooltip key={segment.label}>
                 <TooltipTrigger>
                   <div className="flex items-center gap-1.5">

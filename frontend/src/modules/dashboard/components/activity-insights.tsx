@@ -164,7 +164,8 @@ export function ActivityInsights() {
           ? JSON.parse(tool.toolJson)
           : tool.toolJson
         description = parsed?.description
-      } catch {
+      }
+      catch {
         // ignore parse errors
       }
       const displayName = getToolDisplayName(tool.name, tool.serverName)
@@ -187,7 +188,8 @@ export function ActivityInsights() {
       const list = map.get(serverName)
       if (list) {
         list.push(tool)
-      } else {
+      }
+      else {
         map.set(serverName, [tool])
       }
     })
@@ -202,8 +204,7 @@ export function ActivityInsights() {
   }, [toolsWithUsage])
 
   const mockSparkData = useMemo(() =>
-    Array.from({ length: 12 }, () => Math.random() * 100),
-    [])
+    Array.from({ length: 12 }, () => Math.random() * 100), [])
 
   if (toolsLoading) {
     return (
@@ -281,7 +282,7 @@ export function ActivityInsights() {
             <div className="space-y-3">
               {(() => {
                 let rowIndex = 0
-                return groupedTools.map((group) => (
+                return groupedTools.map(group => (
                   <div key={group.serverName} className="space-y-1">
                     <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                       <span className="uppercase tracking-wide">

@@ -2,7 +2,9 @@
 // Output: ImportMcpServersSheet component - JSON import flow for servers
 // Position: Config header action entry
 
-import { AlertCircleIcon, CheckCircleIcon, FileUpIcon } from 'lucide-react'
+import type { ImportMcpServersRequest } from '@bindings/mcpd/internal/ui'
+import { ConfigService } from '@bindings/mcpd/internal/ui'
+import { AlertCircleIcon, FileUpIcon } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -22,12 +24,11 @@ import {
 } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 
+import { useConfigMode, useServers } from '../hooks'
+import type { ImportServerDraft } from '../lib/mcp-import'
 import {
   parseMcpServersJson,
-  type ImportServerDraft,
 } from '../lib/mcp-import'
-import { useConfigMode, useServers } from '../hooks'
-import { ConfigService, type ImportMcpServersRequest } from '@bindings/mcpd/internal/ui'
 import { reloadConfig } from '../lib/reload-config'
 
 export const ImportMcpServersSheet = () => {
@@ -40,7 +41,6 @@ export const ImportMcpServersSheet = () => {
   const [parseErrors, setParseErrors] = useState<string[]>([])
   const [applyError, setApplyError] = useState<string | null>(null)
   const [isApplying, setIsApplying] = useState(false)
-  const [isSaved, setIsSaved] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -51,7 +51,6 @@ export const ImportMcpServersSheet = () => {
     setParseErrors([])
     setApplyError(null)
     setIsApplying(false)
-    setIsSaved(false)
   }, [open])
 
   const existingServerNames = useMemo(() => {
@@ -81,17 +80,16 @@ export const ImportMcpServersSheet = () => {
   const isWritable = configMode?.isWritable ?? false
   const canApply
     = isWritable
-    && parseErrors.length === 0
-    && servers.length > 0
-    && issues.length === 0
-    && !isApplying
+      && parseErrors.length === 0
+      && servers.length > 0
+      && issues.length === 0
+      && !isApplying
 
   const handleParse = () => {
     const result = parseMcpServersJson(rawInput)
     setServers(result.servers)
     setParseErrors(result.errors)
     setApplyError(null)
-    setIsSaved(false)
   }
 
   const handleNameChange = (id: string, value: string) => {
@@ -123,16 +121,17 @@ export const ImportMcpServersSheet = () => {
       await ConfigService.ImportMcpServers(payload)
       const reloadResult = await reloadConfig()
       if (!reloadResult.ok) {
-        setIsSaved(false)
         setApplyError(`Reload failed: ${reloadResult.message}`)
         return
       }
       await mutateServers()
       setOpen(false) // 成功后直接关闭 Sheet
-    } catch (err) {
+    }
+    catch (err) {
       const message = err instanceof Error ? err.message : 'Import failed.'
       setApplyError(message)
-    } finally {
+    }
+    finally {
       setIsApplying(false)
     }
   }

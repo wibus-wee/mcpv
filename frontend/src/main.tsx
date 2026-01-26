@@ -1,11 +1,11 @@
 import './styles.css'
 
-import { start } from "react-scan"
 import { createRouter, RouterProvider } from '@tanstack/react-router'
-
-import { RouterErrorComponent } from '@/components/common/router-error-component'
 import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
+import { start } from 'react-scan'
+
+import { RouterErrorComponent } from '@/components/common/router-error-component'
 
 import reportWebVitals from './reportWebVitals.ts'
 // Import the generated route tree

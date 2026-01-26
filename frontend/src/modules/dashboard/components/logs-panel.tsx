@@ -2,10 +2,10 @@
 // Output: LogsPanel component displaying real-time logs
 // Position: Dashboard logs section with filtering
 
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { useSetAtom } from 'jotai'
 import { RefreshCwIcon, ScrollTextIcon, TrashIcon } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useVirtualizer } from '@tanstack/react-virtual'
 
 import { logStreamTokenAtom } from '@/atoms/logs'
 import { Badge } from '@/components/ui/badge'
@@ -77,7 +77,7 @@ const formatInlineFields = (fields: Record<string, unknown>) => {
     .join(' ')
 }
 
-const formatInlineMessage = (message: string) => message.replace(/\n/g, '\\n')
+const formatInlineMessage = (message: string) => message.replaceAll('\n', '\\n')
 
 const getLogSegments = (log: LogEntry): LogSegment[] => {
   const segments: LogSegment[] = [
@@ -114,12 +114,13 @@ const getSegmentsLength = (segments: LogSegment[]) => {
 
 function LogRow({ segments, level }: { segments: LogSegment[], level?: LogEntry['level'] }) {
   const bgClass = level ? levelBgClassName[level] : ''
-  
+
   return (
     <div className={cn(
       'w-full border-b border-border/30 px-3 py-1 text-xs font-mono whitespace-pre leading-6 transition-colors hover:bg-muted/30',
-      bgClass
-    )}>
+      bgClass,
+    )}
+    >
       {segments.map((segment, index) => (
         <span key={`${segment.text}-${index}`} className={cn(segment.className, index === 1 && 'uppercase font-medium')}>
           {index === 0 ? segment.text : ` ${segment.text}`}
@@ -205,7 +206,6 @@ export function LogsPanel() {
   const clearLogs = () => {
     mutate([], { revalidate: false })
   }
-
 
   const forceRefresh = () => {
     bumpLogStreamToken(value => value + 1)
@@ -312,7 +312,7 @@ export function LogsPanel() {
                   Auto-scroll
                 </Label>
               </div>
-              <Select value={levelFilter} onValueChange={value => setLevelFilter(value || "all")}>
+              <Select value={levelFilter} onValueChange={value => setLevelFilter(value || 'all')}>
                 <SelectTrigger size="sm" className="w-32">
                   <SelectValue>
                     {value =>
@@ -350,7 +350,7 @@ export function LogsPanel() {
                 </SelectContent>
               </Select>
               {showServerFilter && (
-                <Select value={serverFilter} onValueChange={(value) => value && setServerFilter(value)}>
+                <Select value={serverFilter} onValueChange={value => value && setServerFilter(value)}>
                   <SelectTrigger size="sm" className="w-40">
                     <SelectValue>
                       {value => (value ? String(value) : 'Filter server')}

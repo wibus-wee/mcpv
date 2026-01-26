@@ -2,8 +2,8 @@
 // Output: Layout components (Header, Section, Footer, ReadOnlyAlert, ErrorAlert)
 // Position: Layout components for SettingsCard
 
-import type { ReactNode } from 'react'
 import { AlertCircleIcon, SaveIcon, ShieldAlertIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'

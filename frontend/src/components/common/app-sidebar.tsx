@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { m } from 'motion/react'
 
+import { ConnectIdeSheet } from '@/components/common/connect-ide-sheet'
 import {
   Sidebar,
   SidebarContent,
@@ -23,7 +24,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
-import { ConnectIdeSheet } from '@/components/common/connect-ide-sheet'
 import { Spring } from '@/lib/spring'
 import { cn } from '@/lib/utils'
 
@@ -62,7 +62,7 @@ const navItems: NavItem[] = [
 ]
 
 export function AppSidebar() {
-  "use no memo";
+  'use no memo'
   const matchRoute = useMatchRoute()
 
   return (

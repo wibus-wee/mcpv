@@ -20,7 +20,8 @@ export const subAgentConfigAtom = atomWithRefresh(async () => {
   try {
     const config = await SubAgentService.GetSubAgentConfig()
     return config as SubAgentConfig
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Failed to fetch SubAgent config:', error)
     return null
   }
@@ -30,7 +31,8 @@ export const subAgentConfigAtom = atomWithRefresh(async () => {
 export const isSubAgentAvailableAtom = atomWithRefresh(async () => {
   try {
     return await SubAgentService.IsSubAgentAvailable()
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Failed to check SubAgent availability:', error)
     return false
   }

@@ -2,6 +2,7 @@
 // Output: DashboardPage component - main dashboard view with insights
 // Position: Main dashboard page in dashboard module
 
+import { DebugService } from '@bindings/mcpd/internal/ui'
 import {
   AlertCircleIcon,
   FileDownIcon,
@@ -13,8 +14,6 @@ import {
 } from 'lucide-react'
 import { m } from 'motion/react'
 import { useState } from 'react'
-
-import { DebugService } from '@bindings/mcpd/internal/ui'
 
 import { ConnectIdeSheet } from '@/components/common/connect-ide-sheet'
 import { UniversalEmptyState } from '@/components/common/universal-empty-state'
@@ -46,7 +45,7 @@ function DashboardHeader() {
   } = useCoreActions()
   const [isExporting, setIsExporting] = useState(false)
   const appLabel = appInfo?.name
-    ? `${appInfo.name} · ${appInfo.version === "dev" ? "dev" : `v${appInfo.version}`} (${appInfo.build})`
+    ? `${appInfo.name} · ${appInfo.version === 'dev' ? 'dev' : `v${appInfo.version}`} (${appInfo.build})`
     : 'mcpd'
 
   const handleExportDebug = async () => {
@@ -61,13 +60,15 @@ function DashboardHeader() {
         title: 'Debug snapshot exported',
         description: result.path,
       })
-    } catch (err) {
+    }
+    catch (err) {
       toastManager.add({
         type: 'error',
         title: 'Export failed',
         description: err instanceof Error ? err.message : 'Export failed',
       })
-    } finally {
+    }
+    finally {
       setIsExporting(false)
     }
   }
@@ -91,44 +92,44 @@ function DashboardHeader() {
           </Button>
         ) : coreStatus === 'starting'
           ? (
-            <Button onClick={stopCore} variant="outline" size="sm">
-              <SquareIcon className="size-4" />
-              Cancel
-            </Button>
-          )
-          : coreStatus === 'stopping'
-            ? (
-              <Button variant="outline" size="sm" disabled>
-                <Loader2Icon className="size-4 animate-spin" />
-                Stopping...
+              <Button onClick={stopCore} variant="outline" size="sm">
+                <SquareIcon className="size-4" />
+                Cancel
               </Button>
             )
+          : coreStatus === 'stopping'
+            ? (
+                <Button variant="outline" size="sm" disabled>
+                  <Loader2Icon className="size-4 animate-spin" />
+                  Stopping...
+                </Button>
+              )
             : coreStatus === 'running'
               ? (
-                <>
-                  <Button onClick={stopCore} variant="outline" size="sm">
-                    <SquareIcon className="size-4" />
-                    Stop
-                  </Button>
-                  <Button onClick={restartCore} variant="outline" size="sm">
-                    <RefreshCwIcon className="size-4" />
-                    Restart
-                  </Button>
-                </>
-              )
-              : coreStatus === 'error'
-                ? (
                   <>
-                    <Button onClick={restartCore} size="sm">
-                      <RefreshCwIcon className="size-4" />
-                      Retry
-                    </Button>
                     <Button onClick={stopCore} variant="outline" size="sm">
                       <SquareIcon className="size-4" />
                       Stop
                     </Button>
+                    <Button onClick={restartCore} variant="outline" size="sm">
+                      <RefreshCwIcon className="size-4" />
+                      Restart
+                    </Button>
                   </>
                 )
+              : coreStatus === 'error'
+                ? (
+                    <>
+                      <Button onClick={restartCore} size="sm">
+                        <RefreshCwIcon className="size-4" />
+                        Retry
+                      </Button>
+                      <Button onClick={stopCore} variant="outline" size="sm">
+                        <SquareIcon className="size-4" />
+                        Stop
+                      </Button>
+                    </>
+                  )
                 : null}
         <Button
           variant="outline"
@@ -166,7 +167,7 @@ function DashboardInsights() {
       <div className="space-y-4">
         <ActiveClientsPanel />
       </div>
-      <div className='lg:col-span-3'>
+      <div className="lg:col-span-3">
         <ActivityInsights />
       </div>
     </m.div>

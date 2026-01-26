@@ -2,9 +2,8 @@
 // Output: client chip group for contextual client display
 // Position: shared UI component for client lists
 
-import { MousePointer2Icon } from 'lucide-react'
-
 import type { ActiveClient } from '@bindings/mcpd/internal/ui'
+import { MousePointer2Icon } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 

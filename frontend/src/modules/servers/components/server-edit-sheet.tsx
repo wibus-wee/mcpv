@@ -108,8 +108,8 @@ export function ServerEditSheet({
     if (server) {
       const envString = server.env
         ? Object.entries(server.env)
-          .map(([k, v]) => `${k}=${v}`)
-          .join('\n')
+            .map(([k, v]) => `${k}=${v}`)
+            .join('\n')
         : ''
       const argsString = server.cmd.length > 1 ? server.cmd.slice(1).join(', ') : ''
 
@@ -126,7 +126,8 @@ export function ServerEditSheet({
         idleSeconds: server.idleSeconds ?? 300,
         maxConcurrent: server.maxConcurrent ?? 5,
       })
-    } else {
+    }
+    else {
       setFormData(INITIAL_FORM_DATA)
     }
   }, [server, open])
@@ -154,7 +155,7 @@ export function ServerEditSheet({
         .split('\n')
         .map(line => line.trim())
         .filter(Boolean)
-        .map(line => {
+        .map((line) => {
           const [key, ...rest] = line.split('=')
           return [key?.trim(), rest.join('=').trim()] as const
         })
@@ -208,7 +209,8 @@ export function ServerEditSheet({
 
       if (isEdit) {
         await ServerService.UpdateServer({ spec: nextSpec })
-      } else {
+      }
+      else {
         await ServerService.CreateServer({ spec: nextSpec })
       }
 
@@ -229,14 +231,16 @@ export function ServerEditSheet({
       })
       onSaved?.()
       onOpenChange(false)
-    } catch (err) {
+    }
+    catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save server'
       toastManager.add({
         type: 'error',
         title: 'Failed to save',
         description: message,
       })
-    } finally {
+    }
+    finally {
       setIsSubmitting(false)
     }
   }, [formData, isEdit, onSaved, onOpenChange, server])
@@ -278,8 +282,7 @@ export function ServerEditSheet({
               <Select
                 value={formData.transport}
                 onValueChange={v =>
-                  handleFieldChange('transport', v as 'stdio' | 'streamable_http')
-                }
+                  handleFieldChange('transport', v as 'stdio' | 'streamable_http')}
               >
                 <SelectTrigger>
                   <SelectValue>
@@ -384,8 +387,7 @@ export function ServerEditSheet({
               <Select
                 value={formData.activationMode}
                 onValueChange={v =>
-                  handleFieldChange('activationMode', v as 'on-demand' | 'always-on')
-                }
+                  handleFieldChange('activationMode', v as 'on-demand' | 'always-on')}
               >
                 <SelectTrigger>
                   <SelectValue>
@@ -394,8 +396,7 @@ export function ServerEditSheet({
                         ? 'On Demand'
                         : value === 'always-on'
                           ? 'Always On'
-                          : 'Select mode'
-                    }
+                          : 'Select mode'}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectPopup>
@@ -414,8 +415,7 @@ export function ServerEditSheet({
                   type="number"
                   value={formData.idleSeconds}
                   onChange={e =>
-                    handleFieldChange('idleSeconds', Number.parseInt(e.target.value, 10) || 0)
-                  }
+                    handleFieldChange('idleSeconds', Number.parseInt(e.target.value, 10) || 0)}
                   min={0}
                 />
               </FormField>
@@ -428,8 +428,7 @@ export function ServerEditSheet({
                   type="number"
                   value={formData.maxConcurrent}
                   onChange={e =>
-                    handleFieldChange('maxConcurrent', Number.parseInt(e.target.value, 10) || 1)
-                  }
+                    handleFieldChange('maxConcurrent', Number.parseInt(e.target.value, 10) || 1)}
                   min={1}
                 />
               </FormField>
@@ -444,17 +443,19 @@ export function ServerEditSheet({
           <Button onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? (
               'Saving...'
-            ) : isEdit ? (
-              <>
-                <SaveIcon className="mr-2 size-4" />
-                Save Changes
-              </>
-            ) : (
-              <>
-                <PlusIcon className="mr-2 size-4" />
-                Add Server
-              </>
-            )}
+            ) : isEdit
+              ? (
+                  <>
+                    <SaveIcon className="mr-2 size-4" />
+                    Save Changes
+                  </>
+                )
+              : (
+                  <>
+                    <PlusIcon className="mr-2 size-4" />
+                    Add Server
+                  </>
+                )}
           </Button>
         </SheetFooter>
       </SheetContent>

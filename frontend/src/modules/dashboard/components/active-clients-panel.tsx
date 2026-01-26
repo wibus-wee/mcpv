@@ -9,19 +9,19 @@ import {
 import { m } from 'motion/react'
 import { useMemo } from 'react'
 
-import { useActiveClients } from '@/hooks/use-active-clients'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { useActiveClients } from '@/hooks/use-active-clients'
 import { Spring } from '@/lib/spring'
 import { formatRelativeTime } from '@/lib/time'
 
 function generateColor(str: string): string {
   let hash = 0
   for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash)
+    hash = (str.codePointAt(i) ?? 0) + ((hash << 5) - hash)
   }
   const hue = Math.abs(hash % 360)
   return `hsl(${hue}, 65%, 55%)`

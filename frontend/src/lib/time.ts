@@ -35,7 +35,6 @@ export const getElapsedMs = (timestamp?: string | null): number | null => {
   return Math.max(0, Date.now() - parsed)
 }
 
-
 export function formatRelativeTime(timestamp?: string): string {
   if (!timestamp) {
     return '—'

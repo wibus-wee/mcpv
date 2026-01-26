@@ -8,7 +8,7 @@ import {
   Loader2Icon,
   ServerIcon,
 } from 'lucide-react'
-import { m, AnimatePresence } from 'motion/react'
+import { AnimatePresence, m } from 'motion/react'
 
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -172,13 +172,15 @@ export function BootstrapProgressPanel({ className }: BootstrapProgressPanelProp
                   <div className={cn(
                     'rounded-md px-2 py-1.5 cursor-default',
                     failed > 0 ? 'bg-error/10' : 'bg-muted/30',
-                  )} />
+                  )}
+                  />
                 )}
               >
                 <div className={cn(
                   'text-lg font-semibold',
                   failed > 0 ? 'text-error' : 'text-muted-foreground',
-                )}>
+                )}
+                >
                   {failed}
                 </div>
                 <div className="text-xs text-muted-foreground">Failed</div>

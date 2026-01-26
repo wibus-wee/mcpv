@@ -2,6 +2,7 @@
 // Output: ResourcesList component displaying available MCP resources
 // Position: Dashboard resources section with collapsible details
 
+import type { ResourceEntry } from '@bindings/mcpd/internal/ui'
 import {
   ChevronDownIcon,
   ExternalLinkIcon,
@@ -10,7 +11,6 @@ import {
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import type { ResourceEntry } from '@bindings/mcpd/internal/ui'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -58,7 +58,7 @@ export function ResourcesList() {
 
   const parsedResources = useMemo(() => {
     const map = new Map<string, ResourceSchema>()
-    resources.forEach(resource => {
+    resources.forEach((resource) => {
       map.set(resource.uri, parseResourceJson(resource))
     })
     return map

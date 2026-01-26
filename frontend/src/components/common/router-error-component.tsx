@@ -223,7 +223,7 @@ export function RouterErrorComponent({ error, reset }: ErrorComponentProps) {
 
         <EmptyContent className="w-full gap-3">
           {isDev && stack && (
-            <Collapsible onOpenChange={setStackOpen} open={stackOpen} className={"w-90"}>
+            <Collapsible onOpenChange={setStackOpen} open={stackOpen} className="w-90">
               <CollapsibleTrigger
                 className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-muted-foreground text-xs hover:bg-muted/50"
               >
@@ -255,7 +255,7 @@ export function RouterErrorComponent({ error, reset }: ErrorComponentProps) {
             <div className="flex gap-2">
               <Tooltip>
                 <TooltipTrigger
-                  render={
+                  render={(
                     <Button
                       className="flex-1"
                       onClick={reset}
@@ -265,14 +265,14 @@ export function RouterErrorComponent({ error, reset }: ErrorComponentProps) {
                       <RefreshCwIcon />
                       Try again
                     </Button>
-                  }
+                  )}
                 />
                 <TooltipContent>Retry the failed operation</TooltipContent>
               </Tooltip>
 
               <Tooltip>
                 <TooltipTrigger
-                  render={
+                  render={(
                     <Button
                       onClick={handleGoHome}
                       size="sm"
@@ -281,7 +281,7 @@ export function RouterErrorComponent({ error, reset }: ErrorComponentProps) {
                       <HomeIcon />
                       Home
                     </Button>
-                  }
+                  )}
                 />
                 <TooltipContent>Return to dashboard</TooltipContent>
               </Tooltip>
@@ -289,7 +289,7 @@ export function RouterErrorComponent({ error, reset }: ErrorComponentProps) {
               {isDev && (
                 <Tooltip>
                   <TooltipTrigger
-                    render={
+                    render={(
                       <Button
                         onClick={handleCopyError}
                         size="icon-sm"
@@ -297,7 +297,7 @@ export function RouterErrorComponent({ error, reset }: ErrorComponentProps) {
                       >
                         <ClipboardCopyIcon />
                       </Button>
-                    }
+                    )}
                   />
                   <TooltipContent>{copied ? 'Copied!' : 'Copy error details'}</TooltipContent>
                 </Tooltip>

@@ -6,11 +6,11 @@
     "build": "vite build && tsc",
     "build:dev": "vite build --mode development",
     "dev": "vite --port 9245",
+    "inspector": "npx @modelcontextprotocol/inspector",
     "lint": "eslint",
     "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
-    "inspector": "npx @modelcontextprotocol/inspector"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@base-ui/react": "^1.0.0",

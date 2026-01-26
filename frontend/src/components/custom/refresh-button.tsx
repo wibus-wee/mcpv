@@ -31,7 +31,7 @@ export function RefreshButton({
   return (
     <Tooltip>
       <TooltipTrigger
-        render={
+        render={(
           <Button
             variant="ghost"
             size={size}
@@ -50,7 +50,7 @@ export function RefreshButton({
               <RefreshCwIcon className="size-3.5" />
             </m.div>
           </Button>
-        }
+        )}
       />
       <TooltipContent>{tooltip}</TooltipContent>
     </Tooltip>

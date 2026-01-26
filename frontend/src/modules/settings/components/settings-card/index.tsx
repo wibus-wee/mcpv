@@ -14,8 +14,8 @@ import {
   NumberField,
   SelectField,
   SwitchField,
-  TextField,
   TextareaField,
+  TextField,
 } from './fields'
 import {
   Content,

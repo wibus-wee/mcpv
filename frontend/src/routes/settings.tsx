@@ -8,8 +8,8 @@ import { m } from 'motion/react'
 
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
-import { cn } from '@/lib/utils'
 import { Spring } from '@/lib/spring'
+import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/settings')({
   component: SettingsLayout,
@@ -50,7 +50,6 @@ const navItems: NavItem[] = [
 ]
 
 function SettingsLayout() {
-
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
@@ -92,7 +91,7 @@ function SettingsLayout() {
   )
 }
 
-const NavItemComponent = ({ item, index }: { item: NavItem; index: number }) => {
+const NavItemComponent = ({ item, index }: { item: NavItem, index: number }) => {
   const matchRoute = useMatchRoute()
   const Icon = item.icon
   const isActive = !!matchRoute({ to: item.path, fuzzy: false })

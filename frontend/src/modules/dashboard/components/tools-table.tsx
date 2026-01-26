@@ -2,6 +2,7 @@
 // Output: ToolsTable component displaying available MCP tools
 // Position: Dashboard tools section with search and detail view
 
+import type { ToolEntry } from '@bindings/mcpd/internal/ui'
 import {
   ChevronRightIcon,
   CopyIcon,
@@ -10,7 +11,6 @@ import {
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import type { ToolEntry } from '@bindings/mcpd/internal/ui'
 import {
   Accordion,
   AccordionContent,
@@ -45,10 +45,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-
-import { useTools } from '../hooks'
 import { formatRelativeTime } from '@/lib/time'
 import { getToolDisplayName, getToolQualifiedName } from '@/lib/tool-names'
+
+import { useTools } from '../hooks'
 
 interface ToolSchema {
   name: string
@@ -78,7 +78,7 @@ export function ToolsTable() {
 
   const parsedTools = useMemo(() => {
     const map = new Map<string, ToolSchema>()
-    tools.forEach(tool => {
+    tools.forEach((tool) => {
       map.set(tool.name, parseToolJson(tool))
     })
     return map
@@ -88,9 +88,9 @@ export function ToolsTable() {
     if (!search) return tools
     const lower = search.toLowerCase()
     return tools.filter(tool =>
-      getToolDisplayName(tool.name, tool.serverName).toLowerCase().includes(lower) ||
-      tool.name.toLowerCase().includes(lower) ||
-      (tool.serverName ?? '').toLowerCase().includes(lower),
+      getToolDisplayName(tool.name, tool.serverName).toLowerCase().includes(lower)
+      || tool.name.toLowerCase().includes(lower)
+      || (tool.serverName ?? '').toLowerCase().includes(lower),
     )
   }, [tools, search])
 
@@ -197,17 +197,17 @@ export function ToolsTable() {
                             <Tooltip>
                               <TooltipTrigger
                                 render={(
-                                    <Button
-                                      variant="ghost"
-                                      size="icon-xs"
-                                      onClick={() => copyToClipboard(qualifiedName)}
-                                    >
-                                      <CopyIcon className="size-3" />
-                                    </Button>
-                                  )}
-                                />
-                                <TooltipContent>Copy qualified name</TooltipContent>
-                              </Tooltip>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-xs"
+                                    onClick={() => copyToClipboard(qualifiedName)}
+                                  >
+                                    <CopyIcon className="size-3" />
+                                  </Button>
+                                )}
+                              />
+                              <TooltipContent>Copy qualified name</TooltipContent>
+                            </Tooltip>
                             <Dialog>
                               <DialogTrigger
                                 render={(

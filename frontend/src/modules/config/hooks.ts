@@ -128,9 +128,11 @@ export function useOpenConfigInEditor() {
     setError(null)
     try {
       await ConfigService.OpenConfigInEditor()
-    } catch (err) {
+    }
+    catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)))
-    } finally {
+    }
+    finally {
       setIsOpening(false)
     }
   }, [])

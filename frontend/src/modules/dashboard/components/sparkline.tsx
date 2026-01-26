@@ -28,48 +28,48 @@ export function Sparkline({
 }: SparklineProps) {
   const pathData = useMemo(() => {
     if (data.length < 2) return ''
-    
+
     const min = Math.min(...data)
     const max = Math.max(...data)
     const range = max - min || 1
     const padding = 2
     const effectiveHeight = height - padding * 2
     const effectiveWidth = width - padding * 2
-    
+
     const points = data.map((value, i) => {
       const x = padding + (i / (data.length - 1)) * effectiveWidth
       const y = padding + effectiveHeight - ((value - min) / range) * effectiveHeight
       return { x, y }
     })
-    
-    const linePath = points.map((p, i) => 
-      i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`
+
+    const linePath = points.map((p, i) =>
+      i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`,
     ).join(' ')
-    
+
     return linePath
   }, [data, width, height])
 
   const areaPath = useMemo(() => {
     if (data.length < 2 || !fillColor) return ''
-    
+
     const min = Math.min(...data)
     const max = Math.max(...data)
     const range = max - min || 1
     const padding = 2
     const effectiveHeight = height - padding * 2
     const effectiveWidth = width - padding * 2
-    
+
     const points = data.map((value, i) => {
       const x = padding + (i / (data.length - 1)) * effectiveWidth
       const y = padding + effectiveHeight - ((value - min) / range) * effectiveHeight
       return { x, y }
     })
-    
-    const linePath = points.map((p, i) => 
-      i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`
+
+    const linePath = points.map((p, i) =>
+      i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`,
     ).join(' ')
-    
-    return `${linePath} L ${points[points.length - 1].x} ${height - padding} L ${padding} ${height - padding} Z`
+
+    return `${linePath} L ${points.at(-1).x} ${height - padding} L ${padding} ${height - padding} Z`
   }, [data, width, height, fillColor])
 
   if (data.length < 2) {
@@ -111,7 +111,7 @@ export function Sparkline({
             const range = max - min || 1
             const padding = 2
             const effectiveHeight = height - padding * 2
-            return padding + effectiveHeight - ((data[data.length - 1] - min) / range) * effectiveHeight
+            return padding + effectiveHeight - ((data.at(-1) - min) / range) * effectiveHeight
           })()}
           r={2}
           fill={strokeColor}
@@ -131,7 +131,7 @@ interface MiniGaugeProps {
   strokeWidth?: number
   className?: string
   showValue?: boolean
-  thresholds?: { warning: number; critical: number }
+  thresholds?: { warning: number, critical: number }
 }
 
 export function MiniGauge({
@@ -146,12 +146,12 @@ export function MiniGauge({
   const percentage = Math.min(100, Math.max(0, (value / max) * 100))
   const radius = (size - strokeWidth) / 2
   const circumference = 2 * Math.PI * radius
-  
+
   const animatedProgress = useSpring(0, { duration: 800 })
   const strokeDashoffset = useTransform(
     animatedProgress,
     [0, 100],
-    [circumference, 0]
+    [circumference, 0],
   )
 
   useEffect(() => {
@@ -210,10 +210,10 @@ interface StackedBarProps {
 
 export function StackedBar({ segments, height = 8, className }: StackedBarProps) {
   const total = segments.reduce((sum, s) => sum + s.value, 0)
-  
+
   if (total === 0) {
     return (
-      <div 
+      <div
         className={cn('w-full rounded-full bg-muted/30', className)}
         style={{ height }}
       />
@@ -221,7 +221,7 @@ export function StackedBar({ segments, height = 8, className }: StackedBarProps)
   }
 
   return (
-    <div 
+    <div
       className={cn('flex w-full overflow-hidden rounded-full', className)}
       style={{ height }}
     >
@@ -249,13 +249,13 @@ interface AnimatedNumberProps {
   format?: (n: number) => string
 }
 
-export function AnimatedNumber({ 
-  value, 
+export function AnimatedNumber({
+  value,
   className,
-  format = (n) => n.toLocaleString(),
+  format = n => n.toLocaleString(),
 }: AnimatedNumberProps) {
   const spring = useSpring(value, { duration: 500 })
-  const display = useTransform(spring, (v) => format(Math.round(v)))
+  const display = useTransform(spring, v => format(Math.round(v)))
   const ref = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
@@ -279,17 +279,17 @@ interface TrendIndicatorProps {
   showPercentage?: boolean
 }
 
-export function TrendIndicator({ 
-  current, 
-  previous, 
+export function TrendIndicator({
+  current,
+  previous,
   className,
   showPercentage = true,
 }: TrendIndicatorProps) {
   if (previous === 0 && current === 0) return null
-  
+
   const diff = current - previous
   const percentage = previous !== 0 ? ((diff / previous) * 100) : (current > 0 ? 100 : 0)
-  
+
   if (Math.abs(diff) < 0.01) return null
 
   const isPositive = diff > 0
@@ -303,8 +303,9 @@ export function TrendIndicator({
         'text-red-500': isNegative,
         'text-muted-foreground': !isPositive && !isNegative,
       },
-      className
-    )}>
+      className,
+    )}
+    >
       {isPositive && '↑'}
       {isNegative && '↓'}
       {showPercentage && (

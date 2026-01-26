@@ -15,18 +15,18 @@ import useSWR from 'swr'
 import { toastManager } from '@/components/ui/toast'
 import { useClients, useServers } from '@/modules/config/hooks'
 import { reloadConfig } from '@/modules/config/lib/reload-config'
+
+import type { SubAgentFormState } from '../lib/subagent-config'
 import {
   DEFAULT_SUBAGENT_FORM,
-  type SubAgentFormState,
   toSubAgentFormState,
 } from '../lib/subagent-config'
+import type { ModelCatalogEntry, ModelFetchState } from '../lib/subagent-models'
 import {
-  MODELS_DEV_API_URL,
-  MODEL_FETCH_TIMEOUT_MS,
-  type ModelCatalogEntry,
-  type ModelFetchState,
   buildModelsURL,
   mergeProviderModels,
+  MODEL_FETCH_TIMEOUT_MS,
+  MODELS_DEV_API_URL,
   parseModelsDevIndex,
   parseProviderModelIDs,
   resolveProviderBaseURL,
@@ -42,10 +42,10 @@ const buildAvailableTags = (
 ) => {
   const tagSet = new Set<string>()
   servers?.forEach((server) => {
-    server.tags?.forEach((tag) => tagSet.add(tag))
+    server.tags?.forEach(tag => tagSet.add(tag))
   })
   clients?.forEach((client) => {
-    client.tags?.forEach((tag) => tagSet.add(tag))
+    client.tags?.forEach(tag => tagSet.add(tag))
   })
   return Array.from(tagSet).sort((a, b) => a.localeCompare(b))
 }
@@ -55,7 +55,7 @@ export const useSubAgentSettings = ({ canEdit }: UseSubAgentSettingsOptions) => 
     defaultValues: DEFAULT_SUBAGENT_FORM,
   })
   const { reset, formState, getValues, setValue, watch } = form
-  const isDirty = formState.isDirty
+  const { isDirty } = formState
 
   const {
     data: subAgentConfig,
@@ -181,7 +181,8 @@ export const useSubAgentSettings = ({ canEdit }: UseSubAgentSettingsOptions) => 
       if (modelsDevResponse.status >= 200 && modelsDevResponse.status < 300) {
         const modelsDevPayload = JSON.parse(modelsDevResponse.body) as unknown
         modelsDevIndex = parseModelsDevIndex(modelsDevPayload)
-      } else {
+      }
+      else {
         setModelFetchError(`models.dev returned ${modelsDevResponse.status}`)
       }
 
@@ -194,7 +195,8 @@ export const useSubAgentSettings = ({ canEdit }: UseSubAgentSettingsOptions) => 
 
       setModelOptions(mergedModels)
       setModelFetchState('ready')
-    } catch (err) {
+    }
+    catch (err) {
       setModelFetchError(err instanceof Error ? err.message : 'Failed to fetch models.')
       setModelFetchState('error')
     }
@@ -241,7 +243,8 @@ export const useSubAgentSettings = ({ canEdit }: UseSubAgentSettingsOptions) => 
         title: 'SubAgent updated',
         description: 'SubAgent configuration updated successfully.',
       })
-    } catch (err) {
+    }
+    catch (err) {
       toastManager.add({
         type: 'error',
         title: 'Update failed',
@@ -270,7 +273,7 @@ export const useSubAgentSettings = ({ canEdit }: UseSubAgentSettingsOptions) => 
     if (!hasSubAgentChanges) {
       return 'No changes to save'
     }
-    return undefined
+    return
   }, [canEdit, hasSubAgentChanges, subAgentLoading])
 
   return {

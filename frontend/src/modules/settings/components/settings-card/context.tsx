@@ -2,7 +2,8 @@
 // Output: SettingsCard context and provider
 // Position: Context for compound settings card components
 
-import { createContext, useContext, useMemo, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
+import { createContext, useMemo } from 'react'
 import type { FieldValues, UseFormReturn } from 'react-hook-form'
 
 interface SettingsCardContextValue<T extends FieldValues = FieldValues> {
@@ -14,7 +15,7 @@ interface SettingsCardContextValue<T extends FieldValues = FieldValues> {
 const SettingsCardContext = createContext<SettingsCardContextValue | null>(null)
 
 export function useSettingsCardContext<T extends FieldValues = FieldValues>(): SettingsCardContextValue<T> {
-  const context = useContext(SettingsCardContext)
+  const context = use(SettingsCardContext)
   if (!context) {
     throw new Error('SettingsCard compound components must be used within a SettingsCard')
   }

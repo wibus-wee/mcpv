@@ -19,13 +19,13 @@ import { useEffect, useRef } from 'react'
 import { useSWRConfig } from 'swr'
 
 import { logStreamTokenAtom } from '@/atoms/logs'
+import { ToastProvider } from '@/components/ui/toast'
 import { activeClientsKey } from '@/hooks/use-active-clients'
 import { coreStateKey, useCoreState } from '@/hooks/use-core-state'
 import type { LogEntry } from '@/hooks/use-logs'
 import { logsKey, maxLogEntries } from '@/hooks/use-logs'
 import { jotaiStore } from '@/lib/jotai'
 import { Spring } from '@/lib/spring'
-import { ToastProvider } from '@/components/ui/toast'
 
 const logSourceValues = new Set<LogEntry['source']>(['core', 'downstream', 'ui'])
 

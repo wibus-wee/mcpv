@@ -7,7 +7,7 @@ export default defineConfig(
     preferESM: false,
     react: true,
     tailwindCSS: false,
-    ignores: ['**/api-gen/**', 'components/ui/**', '**/bindings/**'],
+    ignores: ['**/api-gen/**', '**/components/ui/**', '**/bindings/**', '**/routeTree.gen.ts'],
   },
   {
     settings: {
@@ -20,6 +20,7 @@ export default defineConfig(
       '@eslint-react/no-clone-element': 0,
       '@eslint-react/hooks-extra/no-direct-set-state-in-use-effect': 0,
       'no-restricted-syntax': 0,
+      'react-google-translate/no-conditional-text-nodes-with-siblings': 0,
     },
   },
   {

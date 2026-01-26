@@ -2,10 +2,7 @@
 // Output: TopologyPage component - standalone topology visualization
 // Position: Main page in topology module
 
-
-
 import { ConfigFlow } from '@/modules/topology/config-flow'
-
 
 export function TopologyPage() {
   return (

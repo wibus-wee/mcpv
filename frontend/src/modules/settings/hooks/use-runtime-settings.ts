@@ -10,9 +10,10 @@ import useSWR, { useSWRConfig } from 'swr'
 
 import { toastManager } from '@/components/ui/toast'
 import { reloadConfig } from '@/modules/config/lib/reload-config'
+
+import type { RuntimeFormState } from '../lib/runtime-config'
 import {
   DEFAULT_RUNTIME_FORM,
-  type RuntimeFormState,
   toRuntimeFormState,
 } from '../lib/runtime-config'
 
@@ -26,7 +27,7 @@ export const useRuntimeSettings = ({ canEdit }: UseRuntimeSettingsOptions) => {
     defaultValues: DEFAULT_RUNTIME_FORM,
   })
   const { reset, formState } = form
-  const isDirty = formState.isDirty
+  const { isDirty } = formState
 
   const {
     data: runtimeConfig,
@@ -82,7 +83,7 @@ export const useRuntimeSettings = ({ canEdit }: UseRuntimeSettingsOptions) => {
     if (!isDirty) {
       return 'No changes to save'
     }
-    return undefined
+    return
   }, [canEdit, runtimeError, runtimeLoading, isDirty])
 
   const handleSave = form.handleSubmit(async (values) => {
@@ -113,7 +114,8 @@ export const useRuntimeSettings = ({ canEdit }: UseRuntimeSettingsOptions) => {
         title: 'Runtime updated',
         description: 'Changes applied successfully.',
       })
-    } catch (err) {
+    }
+    catch (err) {
       toastManager.add({
         type: 'error',
         title: 'Update failed',

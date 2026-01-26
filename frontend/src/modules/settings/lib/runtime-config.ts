@@ -1,3 +1,5 @@
+import type { RuntimeConfigDetail } from '@bindings/mcpd/internal/ui'
+
 export const BOOTSTRAP_MODE_OPTIONS = [
   { value: 'metadata', label: 'Metadata' },
   { value: 'disabled', label: 'Disabled' },
@@ -81,4 +83,3 @@ export const toRuntimeFormState = (runtime: RuntimeConfigDetail): RuntimeFormSta
   exposeTools: runtime.exposeTools,
   toolNamespaceStrategy: runtime.toolNamespaceStrategy || 'prefix',
 })
-import type { RuntimeConfigDetail } from '@bindings/mcpd/internal/ui'

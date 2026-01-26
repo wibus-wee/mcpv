@@ -3,8 +3,8 @@
 // Position: Clients tab content
 
 import type { ActiveClient } from '@bindings/mcpd/internal/ui'
-import { m } from 'motion/react'
 import { MonitorIcon, TagIcon } from 'lucide-react'
+import { m } from 'motion/react'
 
 import { Badge } from '@/components/ui/badge'
 import {
@@ -15,8 +15,8 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
 import { formatRelativeTime } from '@/lib/time'
+import { cn } from '@/lib/utils'
 
 interface ClientsListProps {
   clients: ActiveClient[]

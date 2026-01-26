@@ -4,7 +4,8 @@
 
 import { AlertCircleIcon, AlertTriangleIcon, TagIcon, XIcon } from 'lucide-react'
 import type * as React from 'react'
-import { Controller, type UseFormReturn } from 'react-hook-form'
+import type { UseFormReturn } from 'react-hook-form'
+import { Controller } from 'react-hook-form'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -22,7 +23,8 @@ import { InputGroup, InputGroupInput } from '@/components/ui/input-group'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 
-import { SUBAGENT_PROVIDER_OPTIONS, type SubAgentFormState } from '../lib/subagent-config'
+import type { SubAgentFormState } from '../lib/subagent-config'
+import { SUBAGENT_PROVIDER_OPTIONS } from '../lib/subagent-config'
 import type { ModelFetchState } from '../lib/subagent-models'
 import { SettingsCard, useSettingsCardContext } from './settings-card'
 
@@ -264,7 +266,7 @@ const EnabledTagsField = ({ availableTags }: EnabledTagsFieldProps) => {
         render={({ field }) => {
           const selectedTags = Array.isArray(field.value) ? field.value : []
           const availableSet = new Set(availableTags)
-          const unavailableTags = selectedTags.filter((tag) => !availableSet.has(tag))
+          const unavailableTags = selectedTags.filter(tag => !availableSet.has(tag))
 
           const handleTagChange = (values: string[]) => {
             const next = [...new Set([...values, ...unavailableTags])]
@@ -306,10 +308,10 @@ const EnabledTagsField = ({ availableTags }: EnabledTagsFieldProps) => {
                     id="subagent-enabled-tags"
                     multiple
                     value={selectedTags}
-                    onValueChange={(values) => handleTagChange(values as string[])}
+                    onValueChange={values => handleTagChange(values as string[])}
                     className="flex flex-wrap gap-1.5"
                   >
-                    {availableTags.map((tag) => (
+                    {availableTags.map(tag => (
                       <ToggleGroupItem
                         key={tag}
                         value={tag}
@@ -331,13 +333,13 @@ const EnabledTagsField = ({ availableTags }: EnabledTagsFieldProps) => {
                     All tags enabled
                   </Badge>
                 )}
-                {unavailableTags.map((tag) => (
+                {unavailableTags.map(tag => (
                   <Button
                     key={`unavailable-${tag}`}
                     type="button"
                     size="xs"
                     variant="outline"
-                    onClick={() => field.onChange(selectedTags.filter((value) => value !== tag))}
+                    onClick={() => field.onChange(selectedTags.filter(value => value !== tag))}
                     disabled={!canInteract}
                   >
                     <AlertTriangleIcon className="size-3.5" />
@@ -374,7 +376,7 @@ const ApiKeyField = ({ apiKeyInput, onApiKeyChange }: ApiKeyFieldProps) => {
           type="password"
           autoComplete="off"
           value={apiKeyInput}
-          onChange={(event) => onApiKeyChange(event.target.value)}
+          onChange={event => onApiKeyChange(event.target.value)}
           placeholder="Paste API key"
           disabled={!canEdit || isSaving}
         />

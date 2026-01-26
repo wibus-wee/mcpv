@@ -72,7 +72,7 @@ export function ServerDetailSheet({
                 </h2>
                 {server.tags && server.tags.length > 0 && (
                   <div className="flex gap-1 flex-wrap">
-                    {server.tags.map((tag) => (
+                    {server.tags.map(tag => (
                       <Badge key={tag} variant="secondary" size="sm">
                         {tag}
                       </Badge>

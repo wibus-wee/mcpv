@@ -3,8 +3,10 @@
 // Position: Field components for SettingsCard
 
 import type { ReactNode } from 'react'
-import { Controller, type FieldPath, type FieldValues } from 'react-hook-form'
+import type { FieldPath, FieldValues } from 'react-hook-form'
+import { Controller } from 'react-hook-form'
 
+import { Badge } from '@/components/ui/badge'
 import { InputGroup, InputGroupInput, InputGroupText, InputGroupTextarea } from '@/components/ui/input-group'
 import { Label } from '@/components/ui/label'
 import {
@@ -15,7 +17,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
 import { useSettingsCardContext } from './context'
@@ -120,7 +121,7 @@ interface SelectFieldProps<T extends FieldValues> {
   name: FieldPath<T>
   label: string
   description?: string
-  options: readonly { value: string; label: string }[]
+  options: readonly { value: string, label: string }[]
   labels?: Record<string, string>
 }
 
@@ -154,7 +155,7 @@ export function SelectField<T extends FieldValues>({
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              {options.map((option) => (
+              {options.map(option => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>
@@ -195,7 +196,7 @@ export function SwitchField<T extends FieldValues>({
             <Switch
               id={id}
               checked={field.value as boolean}
-              onCheckedChange={(checked) => field.onChange(checked === true)}
+              onCheckedChange={checked => field.onChange(checked === true)}
               disabled={!canEdit || isSaving}
             />
             <Badge

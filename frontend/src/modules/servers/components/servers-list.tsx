@@ -3,9 +3,9 @@
 // Position: Left panel in servers page layout
 
 import type { ServerSummary } from '@bindings/mcpd/internal/ui'
+import { FilterIcon, SearchIcon, ServerIcon, TagIcon } from 'lucide-react'
 import { AnimatePresence, m } from 'motion/react'
 import { useEffect, useMemo, useState } from 'react'
-import { FilterIcon, SearchIcon, ServerIcon, TagIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import {
@@ -58,7 +58,7 @@ function ServersListEmpty() {
 
 function buildTagIndex(servers: ServerSummary[]) {
   const tagSet = new Set<string>()
-  servers.forEach(server => {
+  servers.forEach((server) => {
     server.tags?.forEach(tag => tagSet.add(tag))
   })
   return Array.from(tagSet).sort((a, b) => a.localeCompare(b))
@@ -79,7 +79,7 @@ export function ServersList({
     let result = servers
 
     if (selectedTags.length > 0) {
-      result = result.filter(server => {
+      result = result.filter((server) => {
         const serverTags = server.tags ?? []
         return selectedTags.some(tag => serverTags.includes(tag))
       })

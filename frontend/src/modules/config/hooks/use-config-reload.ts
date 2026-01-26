@@ -4,13 +4,14 @@
 
 import { useCallback, useState } from 'react'
 
+import { toastManager } from '@/components/ui/toast'
 import { reloadConfig } from '@/modules/config/lib/reload-config'
 
 /**
  * Notice state for displaying operation feedback
  */
 export interface NoticeState {
-  variant: 'success' | 'error' | 'warning' | 'info'
+  variant: 'error' | 'warning' | 'info'
   title: string
   description?: string
 }
@@ -135,14 +136,15 @@ export function useConfigReload(): UseConfigReloadReturn {
 
       await onSuccess?.()
 
-      setNotice({
-        variant: 'success',
+      toastManager.add({
+        type: 'success',
         title: successTitle,
         description: successDescription,
       })
 
       return true
-    } finally {
+    }
+    finally {
       setIsPending(false)
     }
   }, [])
@@ -183,14 +185,15 @@ export function useConfigReload(): UseConfigReloadReturn {
       await onSuccess?.()
 
       // Show success notice
-      setNotice({
-        variant: 'success',
+      toastManager.add({
+        type: 'success',
         title: successTitle,
         description: successDescription,
       })
 
       return { ok: true, data }
-    } catch (err) {
+    }
+    catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
       setNotice({
         variant: 'error',
@@ -198,7 +201,8 @@ export function useConfigReload(): UseConfigReloadReturn {
         description: message,
       })
       return { ok: false, error: message }
-    } finally {
+    }
+    finally {
       setIsPending(false)
     }
   }, [])

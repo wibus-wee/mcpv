@@ -3,10 +3,9 @@
 // Output: ServerDetailPanel component showing server overview, runtime, and tools
 // Position: Right panel in tools master-detail layout for server context
 
-import { m } from 'motion/react'
+import type { ToolEntry } from '@bindings/mcpd/internal/ui'
 import { ServerIcon, WrenchIcon } from 'lucide-react'
-
-import type { StartCause, ToolEntry } from '@bindings/mcpd/internal/ui'
+import { m } from 'motion/react'
 
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -20,13 +19,19 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Spring } from '@/lib/spring'
-import { cn } from '@/lib/utils'
+import { formatRelativeTime } from '@/lib/time'
 import { getToolDisplayName } from '@/lib/tool-names'
+import { cn } from '@/lib/utils'
 import { ServerRuntimeSummary } from '@/modules/config/components/server-runtime-status'
 import { useRuntimeStatus, useServerInitStatus } from '@/modules/config/hooks'
+import {
+  formatStartReason,
+  formatStartTriggerLines,
+  resolvePolicyLabel,
+  resolveStartCause,
+} from '@/modules/shared/server-start'
 
 import type { ServerGroup } from '../hooks'
-import { formatRelativeTime } from '@/lib/time'
 
 interface ServerDetailPanelProps {
   server: ServerGroup | null
@@ -44,124 +49,17 @@ function parseToolDescription(tool: ToolEntry): string {
     return ''
   }
   try {
-    const payload =
-      typeof tool.toolJson === 'string' ? JSON.parse(tool.toolJson) : tool.toolJson
+    const payload
+      = typeof tool.toolJson === 'string' ? JSON.parse(tool.toolJson) : tool.toolJson
     if (!payload || typeof payload !== 'object') {
       return ''
     }
     const schema = payload as ToolSchema
     return typeof schema.description === 'string' ? schema.description : ''
-  } catch {
+  }
+  catch {
     return ''
   }
-}
-
-function formatStartReason(
-  cause?: StartCause | null,
-  activationMode?: string,
-  minReady?: number,
-): string {
-  if (!cause?.reason) {
-    return 'Unknown reason (no info)'
-  }
-  switch (cause.reason) {
-    case 'bootstrap': {
-      const policyLabel = resolvePolicyLabel(cause, activationMode, minReady)
-      if (policyLabel !== '—') {
-        return `Refresh tool metadata · ${policyLabel} keep-alive`
-      }
-      return 'Refresh tool metadata'
-    }
-    case 'tool_call':
-      return 'Triggered by tool call'
-    case 'client_activate':
-      return 'Triggered by client activation'
-    case 'policy_always_on':
-      return 'always-on running'
-    case 'policy_min_ready':
-      return `minReady=${cause.policy?.minReady ?? 0} minimum ready`
-    default:
-      return `Unknown reason (${cause.reason})`
-  }
-}
-
-function formatStartTriggerLines(cause?: StartCause | null): string[] {
-  if (!cause) {
-    return []
-  }
-  const lines = [] as string[]
-  if (cause.client) {
-    lines.push(`client: ${cause.client}`)
-  }
-  if (cause.toolName) {
-    lines.push(`tool: ${cause.toolName}`)
-  }
-  return lines
-}
-
-function formatPolicyLabel(cause?: StartCause | null): string {
-  if (!cause?.policy) {
-    return '—'
-  }
-  if (cause.policy.activationMode === 'always-on') {
-    return 'always-on'
-  }
-  if (cause.policy.minReady > 0) {
-    return `minReady=${cause.policy.minReady}`
-  }
-  return '—'
-}
-
-function resolvePolicyLabel(
-  cause: StartCause | null | undefined,
-  activationMode?: string,
-  minReady?: number,
-): string {
-  if (cause?.policy) {
-    return formatPolicyLabel(cause)
-  }
-  if (activationMode === 'always-on') {
-    return 'always-on'
-  }
-  if (minReady && minReady > 0) {
-    return `minReady=${minReady}`
-  }
-  return '—'
-}
-
-
-function resolveStartCause(
-  cause: StartCause | null | undefined,
-  activationMode?: string,
-  minReady?: number,
-): StartCause | null {
-  if (cause?.reason) {
-    return cause
-  }
-  if (!activationMode && !minReady) {
-    return null
-  }
-  if (activationMode === 'always-on') {
-    return {
-      reason: 'policy_always_on',
-      timestamp: '',
-      policy: {
-        activationMode,
-        minReady: minReady ?? 0,
-      },
-    }
-  }
-  if (minReady && minReady > 0) {
-    return {
-      reason: 'policy_min_ready',
-      timestamp: '',
-      policy: {
-        activationMode: activationMode ?? 'on-demand',
-        minReady,
-      },
-    }
-  }
-  return null
 }
 
 export function ServerDetailPanel({
@@ -192,16 +90,16 @@ export function ServerDetailPanel({
     getToolDisplayName(a.name, server.serverName)
       .localeCompare(getToolDisplayName(b.name, server.serverName)),
   )
-  const specDetail = server.specDetail
+  const { specDetail } = server
   const isRuntimeLoading = runtimeStatus === undefined && initStatus === undefined
   const runtimeEntry = runtimeStatus?.find(status => status.specKey === server.specKey)
   const instanceStatuses = runtimeEntry?.instances ?? []
   const sortedInstances = [...instanceStatuses].sort((a, b) =>
     a.id.localeCompare(b.id),
   )
-  const hasRuntimeData =
-    runtimeStatus?.some(status => status.specKey === server.specKey) ||
-    initStatus?.some(status => status.specKey === server.specKey)
+  const hasRuntimeData
+    = runtimeStatus?.some(status => status.specKey === server.specKey)
+      || initStatus?.some(status => status.specKey === server.specKey)
 
   return (
     <ScrollArea className={cn('h-full w-full', className)}>
@@ -232,15 +130,17 @@ export function ServerDetailPanel({
                 Loading runtime status...
               </p>
             </Card>
-          ) : hasRuntimeData ? (
-            <ServerRuntimeSummary specKey={server.specKey} />
-          ) : (
-            <Card className="p-4">
-              <p className="text-xs text-muted-foreground text-center">
-                Runtime data has not been reported yet.
-              </p>
-            </Card>
-          )}
+          ) : hasRuntimeData
+            ? (
+                <ServerRuntimeSummary specKey={server.specKey} />
+              )
+            : (
+                <Card className="p-4">
+                  <p className="text-xs text-muted-foreground text-center">
+                    Runtime data has not been reported yet.
+                  </p>
+                </Card>
+              )}
         </div>
 
         <div className="space-y-2 w-full">
@@ -258,7 +158,7 @@ export function ServerDetailPanel({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedInstances.map(instance => {
+                  {sortedInstances.map((instance) => {
                     const resolvedCause = resolveStartCause(
                       instance.lastStartCause,
                       specDetail?.activationMode,
@@ -309,7 +209,6 @@ export function ServerDetailPanel({
                     )
                   })}
 
-
                 </TableBody>
               </Table>
             </Card>
@@ -345,7 +244,7 @@ export function ServerDetailPanel({
           <h3 className="text-sm font-semibold">Tools</h3>
           {toolList.length > 0 ? (
             <div className="space-y-2">
-              {toolList.map(tool => {
+              {toolList.map((tool) => {
                 const description = parseToolDescription(tool)
                 const isCached = tool.source === 'cache'
                 const cachedLabel = tool.cachedAt
@@ -360,7 +259,7 @@ export function ServerDetailPanel({
                     onClick={() => onSelectTool(tool, server)}
                     className={cn(
                       'w-full text-left rounded-md border border-border/60 bg-card/40',
-                      'px-3 py-2 transition-colors hover:bg-muted/60'
+                      'px-3 py-2 transition-colors hover:bg-muted/60',
                     )}
                   >
                     <div className="flex items-center gap-2">

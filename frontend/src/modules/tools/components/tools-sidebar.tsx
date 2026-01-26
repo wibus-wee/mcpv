@@ -2,22 +2,21 @@
 // Output: ToolsSidebar component with collapsible server sections and selection
 // Position: Left panel in master-detail tools layout
 
-import { useEffect, useMemo, useState } from 'react'
-import { AnimatePresence, m } from 'motion/react'
-import { ChevronRightIcon, SearchIcon, ServerIcon, TagIcon, WrenchIcon } from 'lucide-react'
-
 import type { ActiveClient, ToolEntry } from '@bindings/mcpd/internal/ui'
+import { ChevronRightIcon, SearchIcon, ServerIcon, TagIcon, WrenchIcon } from 'lucide-react'
+import { AnimatePresence, m } from 'motion/react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { ClientChipGroup } from '@/components/common/client-chip-group'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useActiveClients } from '@/hooks/use-active-clients'
-import { ServerRuntimeIndicator } from '@/modules/config/components/server-runtime-status'
-import { cn } from '@/lib/utils'
 import { Spring } from '@/lib/spring'
 import { formatRelativeTime } from '@/lib/time'
 import { getToolDisplayName } from '@/lib/tool-names'
+import { cn } from '@/lib/utils'
+import { ServerRuntimeIndicator } from '@/modules/config/components/server-runtime-status'
 
 import type { ServerGroup } from '../hooks'
 
@@ -35,14 +34,15 @@ function parseToolDescription(tool: ToolEntry): string {
     return ''
   }
   try {
-    const payload =
-      typeof tool.toolJson === 'string' ? JSON.parse(tool.toolJson) : tool.toolJson
+    const payload
+      = typeof tool.toolJson === 'string' ? JSON.parse(tool.toolJson) : tool.toolJson
     if (!payload || typeof payload !== 'object') {
       return ''
     }
     const schema = payload as { description?: string }
     return schema.description || ''
-  } catch {
+  }
+  catch {
     return ''
   }
 }
@@ -70,8 +70,8 @@ export function ToolsSidebar({
 
   const toolDescriptionById = useMemo(() => {
     const map = new Map<string, string>()
-    servers.forEach(server => {
-      server.tools.forEach(tool => {
+    servers.forEach((server) => {
+      server.tools.forEach((tool) => {
         map.set(`${server.id}:${tool.name}`, parseToolDescription(tool))
       })
     })
@@ -83,14 +83,14 @@ export function ToolsSidebar({
 
     const query = searchQuery.toLowerCase()
     return servers
-      .map(server => {
-        const matchingTools = server.tools.filter(tool => {
+      .map((server) => {
+        const matchingTools = server.tools.filter((tool) => {
           const desc = toolDescriptionById.get(`${server.id}:${tool.name}`) ?? ''
           const displayName = getToolDisplayName(tool.name, server.serverName)
           return (
-            displayName.toLowerCase().includes(query) ||
-            tool.name.toLowerCase().includes(query) ||
-            desc.toLowerCase().includes(query)
+            displayName.toLowerCase().includes(query)
+            || tool.name.toLowerCase().includes(query)
+            || desc.toLowerCase().includes(query)
           )
         })
 
@@ -113,12 +113,12 @@ export function ToolsSidebar({
     const byServer = new Map<string, ActiveClient[]>()
     const activeClientList = activeClients ?? []
 
-    servers.forEach(server => {
+    servers.forEach((server) => {
       const collected: ActiveClient[] = []
       const seen = new Set<string>()
       const serverTags = server.tags ?? []
 
-      activeClientList.forEach(client => {
+      activeClientList.forEach((client) => {
         const key = `${client.client}:${client.pid}`
         if (seen.has(key)) {
           return
@@ -138,11 +138,12 @@ export function ToolsSidebar({
   }, [activeClients, servers])
 
   const toggleServer = (serverId: string) => {
-    setExpandedServers(prev => {
+    setExpandedServers((prev) => {
       const next = new Set(prev)
       if (next.has(serverId)) {
         next.delete(serverId)
-      } else {
+      }
+      else {
         next.add(serverId)
       }
       return next
@@ -153,7 +154,7 @@ export function ToolsSidebar({
     if (servers.length === 0) {
       return
     }
-    setExpandedServers(prev => {
+    setExpandedServers((prev) => {
       const serverIds = new Set(servers.map(server => server.id))
       if (prev.size === 0) {
         return new Set(serverIds)
@@ -162,15 +163,16 @@ export function ToolsSidebar({
       let changed = false
       const next = new Set<string>()
 
-      prev.forEach(id => {
+      prev.forEach((id) => {
         if (serverIds.has(id)) {
           next.add(id)
-        } else {
+        }
+        else {
           changed = true
         }
       })
 
-      servers.forEach(server => {
+      servers.forEach((server) => {
         if (!next.has(server.id)) {
           next.add(server.id)
           changed = true
@@ -185,7 +187,7 @@ export function ToolsSidebar({
     if (!selectedServerId) {
       return
     }
-    setExpandedServers(prev => {
+    setExpandedServers((prev) => {
       if (prev.has(selectedServerId)) {
         return prev
       }
@@ -224,7 +226,7 @@ export function ToolsSidebar({
             </div>
           ) : (
             <div className="space-y-1">
-              {filteredServers.map(server => {
+              {filteredServers.map((server) => {
                 const isExpanded = expandedServers.has(server.id)
                 const isSelected = selectedServerId === server.id
                 const activeForServer = activeClientsByServer.get(server.id) ?? []
@@ -279,7 +281,7 @@ export function ToolsSidebar({
                           className="overflow-hidden"
                         >
                           <div className="ml-4 pl-2 border-l border-border/50 space-y-0.5 py-1">
-                            {server.tools.map(tool => {
+                            {server.tools.map((tool) => {
                               const isSelected = selectedToolId === `${server.id}:${tool.name}`
                               const isCached = tool.source === 'cache'
                               const cachedLabel = tool.cachedAt

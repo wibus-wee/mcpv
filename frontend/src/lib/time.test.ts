@@ -64,7 +64,7 @@ describe('formatLatency', () => {
 
 describe('getElapsedMs', () => {
   it('returns null for undefined or null input', () => {
-    expect(getElapsedMs(undefined)).toBe(null)
+    expect(getElapsedMs()).toBe(null)
     expect(getElapsedMs(null)).toBe(null)
   })
 

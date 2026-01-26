@@ -2,20 +2,20 @@
 // Output: ToolsGrid component with master-detail layout and server detail support
 // Position: Main container for tools page with Linear/Vercel-style UX
 
-import { useEffect, useState } from 'react'
-import { m } from 'motion/react'
-import { ServerOffIcon } from 'lucide-react'
-
 import type { ToolEntry } from '@bindings/mcpd/internal/ui'
+import { ServerOffIcon } from 'lucide-react'
+import { m } from 'motion/react'
+import { useEffect, useState } from 'react'
 
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spring } from '@/lib/spring'
 import { cn } from '@/lib/utils'
 
-import { useToolsByServer, type ServerGroup } from '../hooks'
+import type { ServerGroup } from '../hooks'
+import { useToolsByServer } from '../hooks'
 import { ServerDetailPanel } from './server-detail-panel'
-import { ToolsSidebar } from './tools-sidebar'
 import { ToolDetailPanel } from './tool-detail-panel'
+import { ToolsSidebar } from './tools-sidebar'
 
 interface SelectedTool {
   tool: ToolEntry
@@ -108,7 +108,7 @@ export function ToolsGrid({
       transition={Spring.smooth(0.3)}
       className={cn(
         'flex flex-1 overflow-hidden bg-background border-t w-full',
-        className
+        className,
       )}
     >
       <ToolsSidebar
