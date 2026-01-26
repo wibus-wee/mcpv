@@ -50,14 +50,7 @@ export function ServerDetailSheet({
 
   if (!selectedServer) return null
 
-  // Find tool count for this server
-  let toolCount = 0
-  for (const serverGroup of serverMap.values()) {
-    if (serverGroup.specKey === selectedServer.specKey) {
-      toolCount = serverGroup.tools?.length ?? 0
-      break
-    }
-  }
+  const toolCount = serverMap.get(selectedServer.specKey)?.tools?.length ?? 0
 
   const handleDelete = () => {
     onDeleted?.()

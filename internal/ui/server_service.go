@@ -75,6 +75,118 @@ func (s *ServerService) GetServer(ctx context.Context, name string) (*ServerDeta
 	return &detail, nil
 }
 
+// ListServerGroups returns aggregated server groups with tool metadata.
+func (s *ServerService) ListServerGroups(ctx context.Context) ([]ServerGroup, error) {
+	cp, err := s.deps.getControlPlane()
+	if err != nil {
+		return nil, err
+	}
+
+	toolCatalog, err := cp.ListToolCatalog(ctx)
+	if err != nil {
+		return nil, MapDomainError(err)
+	}
+
+	tools, err := mapToolCatalogEntries(toolCatalog)
+	if err != nil {
+		return nil, NewUIErrorWithDetails(ErrCodeInternal, "Failed to map tools", err.Error())
+	}
+
+	toolsBySpecKey := make(map[string][]ToolEntry, len(tools))
+	for _, tool := range tools {
+		specKey := strings.TrimSpace(tool.SpecKey)
+		if specKey == "" {
+			specKey = strings.TrimSpace(tool.ServerName)
+		}
+		if specKey == "" {
+			specKey = strings.TrimSpace(tool.Name)
+		}
+		if specKey == "" {
+			continue
+		}
+		toolsBySpecKey[specKey] = append(toolsBySpecKey[specKey], tool)
+	}
+
+	catalog := cp.GetCatalog()
+	names := make([]string, 0, len(catalog.Specs))
+	for name := range catalog.Specs {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	serverGroups := make([]ServerGroup, 0, len(names)+len(toolsBySpecKey))
+	serverMap := make(map[string]*ServerGroup, len(names))
+
+	ensureServer := func(specKey string, serverName string, detail *ServerDetail, tags []string) *ServerGroup {
+		if specKey == "" {
+			return nil
+		}
+		if existing := serverMap[specKey]; existing != nil {
+			if existing.ServerName == "" && serverName != "" {
+				existing.ServerName = serverName
+			}
+			if existing.SpecDetail == nil && detail != nil {
+				existing.SpecDetail = detail
+			}
+			if len(existing.Tags) == 0 && len(tags) > 0 {
+				existing.Tags = append([]string(nil), tags...)
+			}
+			if existing.Tools == nil {
+				existing.Tools = toolsBySpecKey[specKey]
+			}
+			existing.HasToolData = len(existing.Tools) > 0
+			return existing
+		}
+
+		toolsForServer := toolsBySpecKey[specKey]
+		group := ServerGroup{
+			ID:          specKey,
+			SpecKey:     specKey,
+			ServerName:  serverName,
+			Tools:       toolsForServer,
+			Tags:        append([]string(nil), tags...),
+			HasToolData: len(toolsForServer) > 0,
+			SpecDetail:  detail,
+		}
+		if group.ServerName == "" {
+			group.ServerName = specKey
+		}
+		serverGroups = append(serverGroups, group)
+		serverMap[specKey] = &serverGroups[len(serverGroups)-1]
+		return serverMap[specKey]
+	}
+
+	for _, name := range names {
+		spec := catalog.Specs[name]
+		specKey, err := domain.SpecFingerprint(spec)
+		if err != nil {
+			return nil, NewUIError(ErrCodeInternal, fmt.Sprintf("spec fingerprint for %q: %v", spec.Name, err))
+		}
+		detail := mapServerSpecDetail(spec, specKey)
+		ensureServer(specKey, spec.Name, &detail, spec.Tags)
+	}
+
+	toolSpecKeys := make([]string, 0, len(toolsBySpecKey))
+	for specKey := range toolsBySpecKey {
+		if _, exists := serverMap[specKey]; !exists {
+			toolSpecKeys = append(toolSpecKeys, specKey)
+		}
+	}
+	sort.Strings(toolSpecKeys)
+	for _, specKey := range toolSpecKeys {
+		serverName := ""
+		for _, tool := range toolsBySpecKey[specKey] {
+			if strings.TrimSpace(tool.ServerName) != "" {
+				serverName = tool.ServerName
+				break
+			}
+		}
+		ensureServer(specKey, serverName, nil, nil)
+	}
+
+	return serverGroups, nil
+}
+
 // CreateServer adds a server to the config file.
 func (s *ServerService) CreateServer(ctx context.Context, req CreateServerRequest) error {
 	editor, err := s.deps.catalogEditor()

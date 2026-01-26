@@ -54,6 +54,13 @@ interface FormData {
   activationMode: 'on-demand' | 'always-on'
   idleSeconds: number
   maxConcurrent: number
+  minReady: number
+  strategy: string
+  sessionTTLSeconds: number
+  drainTimeoutSeconds: number
+  exposeTools: string
+  httpMaxRetries: number
+  httpHeaders: string
 }
 
 const INITIAL_FORM_DATA: FormData = {
@@ -68,6 +75,13 @@ const INITIAL_FORM_DATA: FormData = {
   activationMode: 'on-demand',
   idleSeconds: 300,
   maxConcurrent: 5,
+  minReady: 0,
+  strategy: 'stateless',
+  sessionTTLSeconds: 3600,
+  drainTimeoutSeconds: 30,
+  exposeTools: '',
+  httpMaxRetries: 3,
+  httpHeaders: '',
 }
 
 function FormField({
@@ -124,6 +138,8 @@ export function ServerEditSheet({
     if (server) {
       const envString = formatEnvironmentVariables(server.env ?? {})
       const argsString = server.cmd.length > 1 ? formatCommaSeparated(server.cmd.slice(1)) : ''
+      const exposeToolsString = formatCommaSeparated(server.exposeTools ?? [])
+      const httpHeadersString = formatEnvironmentVariables(server.http?.headers ?? {})
 
       reset({
         name: server.name,
@@ -137,6 +153,13 @@ export function ServerEditSheet({
         activationMode: (server.activationMode as 'on-demand' | 'always-on') ?? 'on-demand',
         idleSeconds: server.idleSeconds ?? 300,
         maxConcurrent: server.maxConcurrent ?? 5,
+        minReady: server.minReady ?? 0,
+        strategy: server.strategy ?? 'stateless',
+        sessionTTLSeconds: server.sessionTTLSeconds ?? 3600,
+        drainTimeoutSeconds: server.drainTimeoutSeconds ?? 30,
+        exposeTools: exposeToolsString,
+        httpMaxRetries: server.http?.maxRetries ?? 3,
+        httpHeaders: httpHeadersString,
       })
     } else {
       reset(INITIAL_FORM_DATA)
@@ -150,8 +173,10 @@ export function ServerEditSheet({
       const filteredArgs = parseCommaSeparated(data.args)
       const env = parseEnvironmentVariables(data.env)
       const cmd = data.cmd.trim()
+      const exposeTools = parseCommaSeparated(data.exposeTools)
+      const httpHeaders = parseEnvironmentVariables(data.httpHeaders)
 
-      const baseSpec: ServerDetail = server ?? {
+      const baseSpec: ServerDetail = server ?? ({
         name: data.name.trim(),
         specKey: '',
         transport: data.transport,
@@ -170,7 +195,7 @@ export function ServerEditSheet({
         protocolVersion: '',
         exposeTools: [],
         http: null,
-      }
+      })
 
       const nextSpec: ServerDetail = {
         ...baseSpec,
@@ -182,12 +207,17 @@ export function ServerEditSheet({
         tags: filteredTags,
         idleSeconds: data.idleSeconds,
         maxConcurrent: data.maxConcurrent,
+        minReady: data.minReady,
+        strategy: data.strategy,
+        sessionTTLSeconds: data.sessionTTLSeconds,
+        drainTimeoutSeconds: data.drainTimeoutSeconds,
         activationMode: data.activationMode,
+        exposeTools: exposeTools,
         http: data.transport === 'streamable_http'
           ? {
             endpoint: data.endpoint.trim(),
-            headers: baseSpec.http?.headers ?? {},
-            maxRetries: baseSpec.http?.maxRetries ?? 0,
+            headers: httpHeaders,
+            maxRetries: data.httpMaxRetries,
           }
           : null,
       }
@@ -348,6 +378,28 @@ export function ServerEditSheet({
                     placeholder="http://localhost:3000/mcp"
                   />
                 </FormField>
+
+                <FormField
+                  label="Max Retries"
+                  description="Maximum number of retries for HTTP requests"
+                >
+                  <Input
+                    type="number"
+                    {...register('httpMaxRetries', { valueAsNumber: true })}
+                    min={0}
+                  />
+                </FormField>
+
+                <FormField
+                  label="HTTP Headers"
+                  description="One per line: Header-Name=value"
+                >
+                  <Textarea
+                    {...register('httpHeaders')}
+                    placeholder="Authorization=Bearer token&#10;Content-Type=application/json"
+                    className="min-h-24"
+                  />
+                </FormField>
               </>
             )}
 
@@ -382,6 +434,38 @@ export function ServerEditSheet({
               </Select>
             </FormField>
 
+            <FormField label="Strategy">
+              <Select
+                value={watch('strategy')}
+                onValueChange={v => setValue('strategy', v as string)}
+              >
+                <SelectTrigger>
+                  <SelectValue>
+                    {value => value || 'Select strategy'}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectPopup>
+                  <SelectItem value="stateless">Stateless</SelectItem>
+                  <SelectItem value="stateful">Stateful</SelectItem>
+                </SelectPopup>
+              </Select>
+            </FormField>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                label="Drain Timeout"
+                description="Drain timeout in seconds"
+              >
+                <Input
+                  type="number"
+                  {...register('drainTimeoutSeconds', { valueAsNumber: true })}
+                  min={0}
+                />
+              </FormField>
+
+              <div></div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 label="Idle Timeout"
@@ -402,6 +486,30 @@ export function ServerEditSheet({
                   type="number"
                   {...register('maxConcurrent', { valueAsNumber: true })}
                   min={1}
+                />
+              </FormField>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                label="Min Ready"
+                description="Minimum ready instances"
+              >
+                <Input
+                  type="number"
+                  {...register('minReady', { valueAsNumber: true })}
+                  min={0}
+                />
+              </FormField>
+
+              <FormField
+                label="Session TTL"
+                description="Session time-to-live in seconds"
+              >
+                <Input
+                  type="number"
+                  {...register('sessionTTLSeconds', { valueAsNumber: true })}
+                  min={0}
                 />
               </FormField>
             </div>

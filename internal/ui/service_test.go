@@ -175,6 +175,15 @@ func TestDiscoveryService_GetPrompt_NoManager(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestServerService_ListServerGroups_NoManager(t *testing.T) {
+	svc := NewServerService(NewServiceDeps(&app.App{}, testLogger()))
+
+	groups, err := svc.ListServerGroups(context.Background())
+
+	assert.Nil(t, groups)
+	require.Error(t, err)
+}
+
 func TestCoreService_GetInfo_NoManager(t *testing.T) {
 	svc := NewCoreService(NewServiceDeps(&app.App{}, testLogger()))
 

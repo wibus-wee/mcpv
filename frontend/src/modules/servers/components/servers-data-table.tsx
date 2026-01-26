@@ -136,14 +136,7 @@ const UptimeCell = memo(function UptimeCell({ status }: { status: ServerRuntimeS
 function ToolsCell({ specKey }: { specKey: string }) {
   const { serverMap } = useToolsByServer()
 
-  // Try to find by specKey in the serverMap
-  let toolCount = 0
-  for (const server of serverMap.values()) {
-    if (server.specKey === specKey) {
-      toolCount = server.tools?.length ?? 0
-      break
-    }
-  }
+  const toolCount = serverMap.get(specKey)?.tools?.length ?? 0
 
   return (
     <div className="flex items-center gap-2">

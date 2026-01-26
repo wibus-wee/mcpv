@@ -5,19 +5,8 @@
 import type {
   ConfigModeResponse,
   ServerDetail,
-  ToolEntry,
 } from '@bindings/mcpd/internal/ui'
 import { atom } from 'jotai'
-
-export interface ServerGroup {
-  id: string
-  specKey: string
-  serverName: string
-  tools: ToolEntry[]
-  tags: string[]
-  hasToolData: boolean
-  specDetail?: ServerDetail
-}
 
 // Config mode and path
 export const configModeAtom = atom<ConfigModeResponse | null>(null)

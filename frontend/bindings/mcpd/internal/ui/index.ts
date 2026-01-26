@@ -50,6 +50,7 @@ export {
     RetryServerInitRequest,
     RuntimeConfigDetail,
     ServerDetail,
+    ServerGroup,
     ServerInitStatus,
     ServerRuntimeStatus,
     ServerSpecDetail,

@@ -124,16 +124,6 @@ function UptimeCard() {
 
   const uptimeFormatted = coreState?.uptime ? formatDuration(coreState.uptime) : '--'
 
-  const getUptimeHint = () => {
-    if (!coreState?.uptime) return null
-    const hours = coreState.uptime / 3600
-    if (hours >= 24) return 'Stable'
-    if (hours >= 1) return 'Running well'
-    return null
-  }
-
-  const hint = getUptimeHint()
-
   return (
     <m.div
       initial={{ opacity: 0, y: 10 }}
@@ -155,9 +145,6 @@ function UptimeCard() {
               <span className="text-xl font-semibold tabular-nums">
                 {uptimeFormatted}
               </span>
-              {hint && (
-                <span className="text-xs text-emerald-500">{hint}</span>
-              )}
             </div>
           )}
         </CardContent>

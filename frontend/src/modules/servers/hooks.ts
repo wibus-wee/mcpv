@@ -9,6 +9,7 @@ import type {
   ServerInitStatus,
   ServerRuntimeStatus,
   ServerSummary,
+  ServerGroup,
   ToolEntry,
 } from '@bindings/mcpd/internal/ui'
 import { ConfigService, DiscoveryService, RuntimeService, ServerService } from '@bindings/mcpd/internal/ui'
@@ -117,114 +118,33 @@ export function useServerInitStatus() {
   )
 }
 
-export interface ServerGroup {
-  id: string
-  specKey: string
-  serverName: string
-  tools: ToolEntry[]
-  tags: string[]
-  hasToolData: boolean
-  specDetail?: ServerDetail
-}
-
 export function useToolsByServer() {
-  const { data: tools, isLoading: toolsLoading, error: toolsError } = useTools()
+  const { data: serverGroups, isLoading: groupsLoading, error: groupsError }
+    = useSWR<ServerGroup[]>(
+      swrKeys.serverGroups,
+      () => ServerService.ListServerGroups(),
+      {
+        refreshInterval: 10000,
+        dedupingInterval: 10000,
+      },
+    )
   const { data: runtimeStatus, isLoading: runtimeLoading, error: runtimeError } = useRuntimeStatus()
-  const { data: servers, isLoading: serversLoading, error: serversError } = useServers()
-  const { data: serverDetails, isLoading: detailsLoading, error: detailsError } = useServerDetails(servers)
 
-  const isLoading = toolsLoading || serversLoading || detailsLoading || runtimeLoading
-  const error = toolsError || serversError || detailsError || runtimeError
+  const isLoading = groupsLoading || runtimeLoading
+  const error = groupsError || runtimeError
 
-  // Compute derived data directly from SWR data
-  const { servers: serverGroups, serverMap } = useMemo(() => {
-    const toolsBySpecKey = new Map<string, ToolEntry[]>()
-    if (tools) {
-      tools.forEach((tool: ToolEntry) => {
-        const specKey = tool.specKey || tool.serverName || tool.name
-        if (!specKey) return
-        const bucket = toolsBySpecKey.get(specKey)
-        if (bucket) {
-          bucket.push(tool)
-        } else {
-          toolsBySpecKey.set(specKey, [tool])
-        }
+  const serverMap = useMemo(() => {
+    const map = new Map<string, ServerGroup>()
+    if (serverGroups) {
+      serverGroups.forEach((group) => {
+        map.set(group.specKey, group)
       })
     }
-
-    const serversFromSummaries = new Map<string, { summary: ServerSummary, tags: string[] }>()
-    if (servers) {
-      servers.forEach((summary: ServerSummary) => {
-        if (!summary.specKey) return
-        serversFromSummaries.set(summary.specKey, {
-          summary,
-          tags: summary.tags ?? [],
-        })
-      })
-    }
-
-    const serverMap = new Map<string, ServerGroup>()
-    const serverGroups: ServerGroup[] = []
-
-    const ensureServer = (
-      specKey: string,
-      serverName?: string,
-      specDetail?: ServerDetail,
-      tags?: string[],
-    ) => {
-      if (!specKey) return null
-      const existing = serverMap.get(specKey)
-      if (existing) {
-        if (!existing.serverName && serverName) {
-          existing.serverName = serverName
-        }
-        if (!existing.specDetail && specDetail) {
-          existing.specDetail = specDetail
-        }
-        if (tags && tags.length > 0 && existing.tags.length === 0) {
-          existing.tags = tags
-        }
-        return existing
-      }
-
-      const newServer: ServerGroup = {
-        id: specKey,
-        specKey,
-        serverName: serverName || specKey,
-        tools: toolsBySpecKey.get(specKey) || [],
-        tags: tags || [],
-        hasToolData: (toolsBySpecKey.get(specKey) || []).length > 0,
-        specDetail,
-      }
-      serverMap.set(specKey, newServer)
-      serverGroups.push(newServer)
-      return newServer
-    }
-
-    // Add servers from server details
-    if (serverDetails) {
-      serverDetails.forEach((detail) => {
-        ensureServer(detail.specKey, detail.name, detail, detail.tags)
-      })
-    }
-
-    // Add servers from summaries
-    if (serversFromSummaries) {
-      serversFromSummaries.forEach(({ summary, tags }) => {
-        ensureServer(summary.specKey, summary.name, undefined, tags)
-      })
-    }
-
-    // Add servers from tools
-    toolsBySpecKey.forEach((_toolList, specKey) => {
-      ensureServer(specKey)
-    })
-
-    return { servers, serverMap }
-  }, [tools, servers, serverDetails])
+    return map
+  }, [serverGroups])
 
   return {
-    servers: serverGroups,
+    servers: serverGroups ?? [],
     serverMap,
     isLoading,
     error,

@@ -16,6 +16,7 @@
 export const swrKeys = {
   // Server-related keys
   servers: 'servers',
+  serverGroups: 'server-groups',
   server: 'server',
   serverDetails: 'server-details',
   runtimeStatus: 'runtime-status',

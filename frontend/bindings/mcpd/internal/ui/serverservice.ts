@@ -38,11 +38,20 @@ export function GetServer(name: string): $CancellablePromise<$models.ServerDetai
 }
 
 /**
+ * ListServerGroups returns aggregated server groups with tool metadata.
+ */
+export function ListServerGroups(): $CancellablePromise<$models.ServerGroup[]> {
+    return $Call.ByID(564916667).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
  * ListServers returns all configured servers.
  */
 export function ListServers(): $CancellablePromise<$models.ServerSummary[]> {
     return $Call.ByID(1496030688).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType5($result);
     });
 }
 
@@ -63,5 +72,7 @@ export function UpdateServer(req: $models.UpdateServerRequest): $CancellableProm
 // Private type creation functions
 const $$createType0 = $models.ServerSpecDetail.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = $models.ServerSummary.createFrom;
+const $$createType2 = $models.ServerGroup.createFrom;
 const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $models.ServerSummary.createFrom;
+const $$createType5 = $Create.Array($$createType4);

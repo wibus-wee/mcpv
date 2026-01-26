@@ -113,7 +113,7 @@ describe('parseMcpServersJson', () => {
         },
       }))
       expect(result.servers).toEqual([])
-      expect(result.errors[0]).toContain('only stdio transport is supported')
+      expect(result.errors[0]).toContain('transport must be stdio or streamable_http')
     })
 
     it('accepts stdio transport explicitly', () => {
@@ -226,6 +226,7 @@ describe('parseMcpServersJson', () => {
       expect(result.servers[0]).toEqual({
         id: '0-simple',
         name: 'simple',
+        transport: 'stdio',
         cmd: ['node'],
         env: {},
         cwd: '',
@@ -249,6 +250,7 @@ describe('parseMcpServersJson', () => {
       expect(result.servers[0]).toEqual({
         id: '0-fullServer',
         name: 'fullServer',
+        transport: 'stdio',
         cmd: ['npx', '-y', '@mcp/server'],
         env: { API_KEY: 'secret' },
         cwd: '/home/user/project',

@@ -916,6 +916,63 @@ export class RuntimeConfigDetail {
     }
 }
 
+/**
+ * ServerGroup aggregates server configuration and tool metadata for the frontend.
+ */
+export class ServerGroup {
+    "id": string;
+    "specKey": string;
+    "serverName": string;
+    "tools": ToolEntry[];
+    "tags": string[];
+    "hasToolData": boolean;
+    "specDetail"?: ServerDetail | null;
+
+    /** Creates a new ServerGroup instance. */
+    constructor($$source: Partial<ServerGroup> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("specKey" in $$source)) {
+            this["specKey"] = "";
+        }
+        if (!("serverName" in $$source)) {
+            this["serverName"] = "";
+        }
+        if (!("tools" in $$source)) {
+            this["tools"] = [];
+        }
+        if (!("tags" in $$source)) {
+            this["tags"] = [];
+        }
+        if (!("hasToolData" in $$source)) {
+            this["hasToolData"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ServerGroup instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ServerGroup {
+        const $$createField3_0 = $$createType17;
+        const $$createField4_0 = $$createType0;
+        const $$createField6_0 = $$createType18;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("tools" in $$parsedSource) {
+            $$parsedSource["tools"] = $$createField3_0($$parsedSource["tools"]);
+        }
+        if ("tags" in $$parsedSource) {
+            $$parsedSource["tags"] = $$createField4_0($$parsedSource["tags"]);
+        }
+        if ("specDetail" in $$parsedSource) {
+            $$parsedSource["specDetail"] = $$createField6_0($$parsedSource["specDetail"]);
+        }
+        return new ServerGroup($$parsedSource as Partial<ServerGroup>);
+    }
+}
+
 export class ServerInitStatus {
     "specKey": string;
     "serverName": string;
@@ -1002,9 +1059,9 @@ export class ServerRuntimeStatus {
      * Creates a new ServerRuntimeStatus instance from a string or object.
      */
     static createFrom($$source: any = {}): ServerRuntimeStatus {
-        const $$createField2_0 = $$createType17;
-        const $$createField3_0 = $$createType18;
-        const $$createField4_0 = $$createType19;
+        const $$createField2_0 = $$createType20;
+        const $$createField3_0 = $$createType21;
+        const $$createField4_0 = $$createType22;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("instances" in $$parsedSource) {
             $$parsedSource["instances"] = $$createField2_0($$parsedSource["instances"]);
@@ -1199,7 +1256,7 @@ export class StartCause {
      * Creates a new StartCause instance from a string or object.
      */
     static createFrom($$source: any = {}): StartCause {
-        const $$createField3_0 = $$createType21;
+        const $$createField3_0 = $$createType24;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("policy" in $$parsedSource) {
             $$parsedSource["policy"] = $$createField3_0($$parsedSource["policy"]);
@@ -1587,9 +1644,12 @@ const $$createType12 = ResourceEntry.createFrom;
 const $$createType13 = $Create.Array($$createType12);
 const $$createType14 = ObservabilityConfigDetail.createFrom;
 const $$createType15 = RPCConfigDetail.createFrom;
-const $$createType16 = InstanceStatus.createFrom;
+const $$createType16 = ToolEntry.createFrom;
 const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = PoolStats.createFrom;
-const $$createType19 = PoolMetrics.createFrom;
-const $$createType20 = StartCausePolicy.createFrom;
-const $$createType21 = $Create.Nullable($$createType20);
+const $$createType18 = $Create.Nullable($$createType2);
+const $$createType19 = InstanceStatus.createFrom;
+const $$createType20 = $Create.Array($$createType19);
+const $$createType21 = PoolStats.createFrom;
+const $$createType22 = PoolMetrics.createFrom;
+const $$createType23 = StartCausePolicy.createFrom;
+const $$createType24 = $Create.Nullable($$createType23);
