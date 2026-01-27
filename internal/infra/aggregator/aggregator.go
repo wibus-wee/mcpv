@@ -396,7 +396,7 @@ func (a *ToolIndex) buildSnapshot(cache map[string]serverCache) (domain.ToolSnap
 			toolDef.Name = displayName
 
 			if existing, exists := targets[displayName]; exists {
-				if a.cfg.ToolNamespaceStrategy != "flat" {
+				if a.cfg.ToolNamespaceStrategy != domain.ToolNamespaceStrategyFlat {
 					a.logger.Warn("tool name conflict", zap.String("serverType", serverType), zap.String("tool", tool.Name))
 					continue
 				}
@@ -625,7 +625,7 @@ func (a *ToolIndex) fetchTools(ctx context.Context, serverType, specKey string) 
 }
 
 func (a *ToolIndex) namespaceTool(serverType, toolName string) string {
-	if a.cfg.ToolNamespaceStrategy == "flat" {
+	if a.cfg.ToolNamespaceStrategy == domain.ToolNamespaceStrategyFlat {
 		return toolName
 	}
 	return fmt.Sprintf("%s.%s", serverType, toolName)
@@ -641,11 +641,7 @@ func sortedServerTypes[T any](specs map[string]T) []string {
 }
 
 func refreshTimeout(cfg domain.RuntimeConfig) time.Duration {
-	timeout := time.Duration(cfg.RouteTimeoutSeconds) * time.Second
-	if timeout <= 0 {
-		timeout = time.Duration(domain.DefaultRouteTimeoutSeconds) * time.Second
-	}
-	return timeout
+	return cfg.RouteTimeout()
 }
 
 func allowedTools(spec domain.ServerSpec) func(string) bool {

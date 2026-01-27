@@ -56,5 +56,6 @@ var ReloadableAppSet = wire.NewSet(
 var AppSet = wire.NewSet(
 	CoreInfraSet,
 	ReloadableAppSet,
+	wire.Struct(new(ApplicationOptions), "*"),
 	NewApplication,
 )

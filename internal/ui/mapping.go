@@ -316,7 +316,7 @@ func mapRuntimeConfigDetail(cfg domain.RuntimeConfig) RuntimeConfigDetail {
 		BootstrapTimeoutSeconds:    cfg.BootstrapTimeoutSeconds,
 		DefaultActivationMode:      string(cfg.DefaultActivationMode),
 		ExposeTools:                cfg.ExposeTools,
-		ToolNamespaceStrategy:      cfg.ToolNamespaceStrategy,
+		ToolNamespaceStrategy:      string(cfg.ToolNamespaceStrategy),
 		Observability: ObservabilityConfigDetail{
 			ListenAddress: cfg.Observability.ListenAddress,
 		},

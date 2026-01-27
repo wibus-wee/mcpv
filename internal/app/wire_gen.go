@@ -52,6 +52,21 @@ func InitializeApplication(ctx context.Context, cfg ServeConfig, logging Logging
 	controlPlane := NewControlPlane(appControlPlaneState, appClientRegistry, appDiscoveryService, appObservabilityService, appAutomationService)
 	server := NewRPCServer(controlPlane, catalogState, logger)
 	reloadManager := NewReloadManager(dynamicCatalogProvider, appControlPlaneState, appClientRegistry, scheduler, serverInitializationManager, metrics, healthTracker, metadataCache, listChangeHub, logger)
-	application := NewApplication(ctx, cfg, logger, registry, metrics, healthTracker, catalogState, appControlPlaneState, scheduler, serverInitializationManager, bootstrapManager, controlPlane, server, reloadManager)
+	application := NewApplication(ApplicationOptions{
+		Context:           ctx,
+		ServeConfig:       cfg,
+		Logger:            logger,
+		Registry:          registry,
+		Metrics:           metrics,
+		Health:            healthTracker,
+		CatalogState:      catalogState,
+		ControlPlaneState: appControlPlaneState,
+		Scheduler:         scheduler,
+		InitManager:       serverInitializationManager,
+		BootstrapManager:  bootstrapManager,
+		ControlPlane:      controlPlane,
+		RPCServer:         server,
+		ReloadManager:     reloadManager,
+	})
 	return application, nil
 }

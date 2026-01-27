@@ -68,7 +68,7 @@ func TestStartMetricsServer_PortInUse(t *testing.T) {
 	defer cancel()
 
 	// Try to start metrics server on the same port (should fail quickly)
-	err := StartMetricsServer(ctx, port, zap.NewNop())
+	err = StartMetricsServer(ctx, port, zap.NewNop())
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, context.DeadlineExceeded) || strings.Contains(err.Error(), "address already in use"))
 }

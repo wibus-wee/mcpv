@@ -142,7 +142,7 @@ func (g *GenericIndex[Snapshot, Target, Cache]) Start(ctx context.Context) {
 	}
 	g.mu.Unlock()
 
-	interval := time.Duration(g.cfg.ToolRefreshSeconds) * time.Second
+	interval := g.cfg.ToolRefreshInterval()
 	if interval > 0 && g.health != nil && g.refreshBeat == nil {
 		g.refreshBeat = g.health.Register(g.heartbeatName, interval*3)
 	}

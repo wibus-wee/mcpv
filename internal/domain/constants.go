@@ -32,7 +32,7 @@ const (
 	// DefaultExposeTools is the default flag for exposing tools.
 	DefaultExposeTools = true
 	// DefaultToolNamespaceStrategy is the default tool namespace strategy.
-	DefaultToolNamespaceStrategy = "prefix"
+	DefaultToolNamespaceStrategy = ToolNamespaceStrategyPrefix
 	// DefaultObservabilityListenAddress is the default observability listen address.
 	DefaultObservabilityListenAddress = "0.0.0.0:9090"
 	// DefaultRPCListenAddress is the default RPC listen address.

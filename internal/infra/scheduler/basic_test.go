@@ -28,17 +28,17 @@ func TestBasicScheduler_StartsAndReusesInstance(t *testing.T) {
 
 	inst1, err := s.Acquire(context.Background(), "svc", "")
 	require.NoError(t, err)
-	require.Equal(t, 1, inst1.BusyCount)
+	require.Equal(t, 1, inst1.BusyCount())
 
 	inst2, err := s.Acquire(context.Background(), "svc", "")
 	require.NoError(t, err)
 	require.Same(t, inst1, inst2)
-	require.Equal(t, 2, inst1.BusyCount)
+	require.Equal(t, 2, inst1.BusyCount())
 
 	require.NoError(t, s.Release(context.Background(), inst1))
-	require.Equal(t, domain.InstanceStateBusy, inst1.State)
+	require.Equal(t, domain.InstanceStateBusy, inst1.State())
 	require.NoError(t, s.Release(context.Background(), inst1))
-	require.Equal(t, domain.InstanceStateReady, inst1.State)
+	require.Equal(t, domain.InstanceStateReady, inst1.State())
 }
 
 func TestBasicScheduler_StickyBinding(t *testing.T) {
@@ -112,7 +112,7 @@ func TestBasicScheduler_IdleReapRespectsMinReady(t *testing.T) {
 	require.NoError(t, s.Release(context.Background(), inst))
 
 	s.reapIdle()
-	require.Equal(t, domain.InstanceStateReady, inst.State)
+	require.Equal(t, domain.InstanceStateReady, inst.State())
 }
 
 func TestBasicScheduler_IdleReapStopsWhenBelowMinReady(t *testing.T) {
@@ -134,7 +134,7 @@ func TestBasicScheduler_IdleReapStopsWhenBelowMinReady(t *testing.T) {
 	require.NoError(t, s.Release(context.Background(), inst))
 
 	s.reapIdle()
-	require.Equal(t, domain.InstanceStateStopped, inst.State)
+	require.Equal(t, domain.InstanceStateStopped, inst.State())
 }
 
 func TestBasicScheduler_StatefulWithBindingSkipsIdle(t *testing.T) {
@@ -157,7 +157,7 @@ func TestBasicScheduler_StatefulWithBindingSkipsIdle(t *testing.T) {
 
 	// Instance should not be reaped because it has an active binding
 	s.reapIdle()
-	require.Equal(t, domain.InstanceStateReady, inst.State)
+	require.Equal(t, domain.InstanceStateReady, inst.State())
 }
 
 func TestBasicScheduler_IdleReapIgnoresIdleSecondsWhenMinReadyZero(t *testing.T) {
@@ -182,7 +182,7 @@ func TestBasicScheduler_IdleReapIgnoresIdleSecondsWhenMinReadyZero(t *testing.T)
 
 	// Even with IdleSeconds=3600, instance should be reaped because minReady=0
 	s.reapIdle()
-	require.Equal(t, domain.InstanceStateStopped, inst.State)
+	require.Equal(t, domain.InstanceStateStopped, inst.State())
 }
 
 func TestBasicScheduler_StatefulSessionTTLLimitsBindings(t *testing.T) {
@@ -203,7 +203,7 @@ func TestBasicScheduler_StatefulSessionTTLLimitsBindings(t *testing.T) {
 
 	inst, err := s.Acquire(context.Background(), "svc", "rk")
 	require.NoError(t, err)
-	require.Equal(t, "rk", inst.StickyKey)
+	require.Equal(t, "rk", inst.StickyKey())
 	require.NoError(t, s.Release(context.Background(), inst))
 
 	state := s.getPool("svc", spec)
@@ -219,7 +219,7 @@ func TestBasicScheduler_StatefulSessionTTLLimitsBindings(t *testing.T) {
 	_, exists := state.sticky["rk"]
 	state.mu.Unlock()
 	require.False(t, exists)
-	require.Equal(t, "", inst.StickyKey)
+	require.Equal(t, "", inst.StickyKey())
 }
 
 func TestBasicScheduler_StatefulSessionTTLZeroKeepsBindings(t *testing.T) {
@@ -253,7 +253,7 @@ func TestBasicScheduler_StatefulSessionTTLZeroKeepsBindings(t *testing.T) {
 	_, exists := state.sticky["rk"]
 	state.mu.Unlock()
 	require.True(t, exists)
-	require.Equal(t, "rk", inst.StickyKey)
+	require.Equal(t, "rk", inst.StickyKey())
 }
 
 func TestBasicScheduler_IdleReapSkipsPersistentAndSingleton(t *testing.T) {
@@ -284,7 +284,7 @@ func TestBasicScheduler_IdleReapSkipsPersistentAndSingleton(t *testing.T) {
 			require.NoError(t, s.Release(context.Background(), inst))
 
 			s.reapIdle()
-			require.Equal(t, domain.InstanceStateReady, inst.State)
+			require.Equal(t, domain.InstanceStateReady, inst.State())
 
 			state := s.getPool("svc", spec)
 			state.mu.Lock()
@@ -315,9 +315,8 @@ func TestBasicScheduler_PingFailureStopsInstance(t *testing.T) {
 
 	s.probeInstances()
 
-	require.Equal(t, domain.InstanceStateStopped, inst.State)
-	specKey, err := domain.SpecFingerprint(spec)
-	require.NoError(t, err)
+	require.Equal(t, domain.InstanceStateStopped, inst.State())
+	specKey := domain.SpecFingerprint(spec)
 	state := s.getPool(specKey, spec)
 	state.mu.Lock()
 	defer state.mu.Unlock()
@@ -336,10 +335,8 @@ func TestBasicScheduler_SharedPool(t *testing.T) {
 	specB := specA
 	specB.Name = "svc-b"
 
-	specKeyA, err := domain.SpecFingerprint(specA)
-	require.NoError(t, err)
-	specKeyB, err := domain.SpecFingerprint(specB)
-	require.NoError(t, err)
+	specKeyA := domain.SpecFingerprint(specA)
+	specKeyB := domain.SpecFingerprint(specB)
 	require.Equal(t, specKeyA, specKeyB)
 
 	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{
@@ -391,7 +388,7 @@ func TestBasicScheduler_StopSpecStopsInstances(t *testing.T) {
 	require.NoError(t, s.Release(context.Background(), inst))
 
 	require.NoError(t, s.StopSpec(context.Background(), "svc", "caller inactive"))
-	require.Equal(t, domain.InstanceStateStopped, inst.State)
+	require.Equal(t, domain.InstanceStateStopped, inst.State())
 
 	state := s.getPool("svc", spec)
 	state.mu.Lock()
@@ -415,11 +412,11 @@ func TestBasicScheduler_StopSpecDrainsBusyInstances(t *testing.T) {
 
 	inst, err := s.Acquire(context.Background(), "svc", "")
 	require.NoError(t, err)
-	require.Equal(t, 1, inst.BusyCount)
+	require.Equal(t, 1, inst.BusyCount())
 
 	// StopSpec should mark busy instance as draining, not stopped
 	require.NoError(t, s.StopSpec(context.Background(), "svc", "caller inactive"))
-	require.Equal(t, domain.InstanceStateDraining, inst.State)
+	require.Equal(t, domain.InstanceStateDraining, inst.State())
 
 	state := s.getPool("svc", spec)
 	state.mu.Lock()
@@ -432,7 +429,7 @@ func TestBasicScheduler_StopSpecDrainsBusyInstances(t *testing.T) {
 	require.Eventually(t, func() bool {
 		state.mu.Lock()
 		defer state.mu.Unlock()
-		return inst.State == domain.InstanceStateStopped && len(state.draining) == 0
+		return inst.State() == domain.InstanceStateStopped && len(state.draining) == 0
 	}, 2*time.Second, 10*time.Millisecond)
 }
 
@@ -494,7 +491,7 @@ func TestBasicScheduler_StartDrainCompletesImmediatelyWhenIdle(t *testing.T) {
 	state.mu.Lock()
 	require.Len(t, state.instances, 1)
 	tracked := state.instances[0]
-	inst.State = domain.InstanceStateDraining
+	inst.SetState(domain.InstanceStateDraining)
 	state.instances = nil
 	state.draining = append(state.draining, tracked)
 	state.mu.Unlock()
@@ -510,7 +507,7 @@ func TestBasicScheduler_StartDrainCompletesImmediatelyWhenIdle(t *testing.T) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	require.Len(t, state.draining, 0)
-	require.Equal(t, domain.InstanceStateStopped, inst.State)
+	require.Equal(t, domain.InstanceStateStopped, inst.State())
 }
 
 func TestBasicScheduler_StartGateSingleflight(t *testing.T) {
@@ -558,17 +555,18 @@ type fakeLifecycle struct {
 
 func (f *fakeLifecycle) StartInstance(ctx context.Context, specKey string, spec domain.ServerSpec) (*domain.Instance, error) {
 	f.counter++
-	return &domain.Instance{
+	return domain.NewInstance(domain.InstanceOptions{
 		ID:         spec.Name + "-inst",
 		Spec:       spec,
+		SpecKey:    specKey,
 		State:      domain.InstanceStateReady,
 		LastActive: time.Now(),
-	}, nil
+	}), nil
 }
 
 func (f *fakeLifecycle) StopInstance(ctx context.Context, instance *domain.Instance, reason string) error {
 	if instance != nil {
-		instance.State = domain.InstanceStateStopped
+		instance.SetState(domain.InstanceStateStopped)
 	}
 	return nil
 }
@@ -600,17 +598,18 @@ func (b *blockingLifecycle) StartInstance(ctx context.Context, specKey string, s
 	if b.release != nil {
 		<-b.release
 	}
-	return &domain.Instance{
+	return domain.NewInstance(domain.InstanceOptions{
 		ID:         spec.Name + "-inst",
 		Spec:       spec,
+		SpecKey:    specKey,
 		State:      domain.InstanceStateReady,
 		LastActive: time.Now(),
-	}, nil
+	}), nil
 }
 
 func (b *blockingLifecycle) StopInstance(ctx context.Context, instance *domain.Instance, reason string) error {
 	if instance != nil {
-		instance.State = domain.InstanceStateStopped
+		instance.SetState(domain.InstanceStateStopped)
 	}
 	b.stopMu.Lock()
 	b.stopped++
@@ -636,17 +635,18 @@ type trackingLifecycle struct {
 }
 
 func (t *trackingLifecycle) StartInstance(ctx context.Context, specKey string, spec domain.ServerSpec) (*domain.Instance, error) {
-	return &domain.Instance{
+	return domain.NewInstance(domain.InstanceOptions{
 		ID:         spec.Name + "-inst",
 		Spec:       spec,
+		SpecKey:    specKey,
 		State:      domain.InstanceStateReady,
 		LastActive: time.Now(),
-	}, nil
+	}), nil
 }
 
 func (t *trackingLifecycle) StopInstance(ctx context.Context, instance *domain.Instance, reason string) error {
 	if instance != nil {
-		instance.State = domain.InstanceStateStopped
+		instance.SetState(domain.InstanceStateStopped)
 	}
 	t.stopOnce.Do(func() {
 		close(t.stopCh)

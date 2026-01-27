@@ -180,7 +180,7 @@ func emitLogEntry(app *application.App, entry domain.LogEntry) {
 	event := LogEntryEvent{
 		Logger:    entry.Logger,
 		Level:     string(entry.Level),
-		Timestamp: entry.Timestamp.Format("2006-01-02T15:04:05.000Z07:00"),
+		Timestamp: formatTimestamp(entry.Timestamp),
 		Data:      data,
 	}
 	app.Event.Emit(EventLogEntry, event)
@@ -231,10 +231,10 @@ func emitRuntimeStatusUpdated(app *application.App, snapshot domain.RuntimeStatu
 				ID:              inst.ID,
 				State:           string(inst.State),
 				BusyCount:       inst.BusyCount,
-				LastActive:      inst.LastActive.Format("2006-01-02T15:04:05.000Z07:00"),
-				SpawnedAt:       inst.SpawnedAt.Format("2006-01-02T15:04:05.000Z07:00"),
-				HandshakedAt:    inst.HandshakedAt.Format("2006-01-02T15:04:05.000Z07:00"),
-				LastHeartbeatAt: inst.LastHeartbeatAt.Format("2006-01-02T15:04:05.000Z07:00"),
+				LastActive:      formatTimestamp(inst.LastActive),
+				SpawnedAt:       formatTimestamp(inst.SpawnedAt),
+				HandshakedAt:    formatTimestamp(inst.HandshakedAt),
+				LastHeartbeatAt: formatTimestamp(inst.LastHeartbeatAt),
 				LastStartCause:  mapStartCause(inst.LastStartCause),
 			})
 		}
@@ -276,7 +276,7 @@ func emitServerInitUpdated(app *application.App, snapshot domain.ServerInitStatu
 			Failed:     s.Failed,
 			State:      string(s.State),
 			LastError:  s.LastError,
-			UpdatedAt:  s.UpdatedAt.Format("2006-01-02T15:04:05.000Z07:00"),
+			UpdatedAt:  formatTimestamp(s.UpdatedAt),
 		})
 	}
 	event := ServerInitUpdatedEvent{
@@ -296,11 +296,15 @@ func emitActiveClientsUpdated(app *application.App, snapshot domain.ActiveClient
 			PID:           client.PID,
 			Tags:          append([]string(nil), client.Tags...),
 			Server:        client.Server,
-			LastHeartbeat: client.LastHeartbeat.Format("2006-01-02T15:04:05.000Z07:00"),
+			LastHeartbeat: formatTimestamp(client.LastHeartbeat),
 		})
 	}
 	event := ActiveClientsUpdatedEvent{
 		Clients: clients,
 	}
 	app.Event.Emit(EventActiveClientsUpdated, event)
+}
+
+func formatTimestamp(t time.Time) string {
+	return t.UTC().Format(time.RFC3339Nano)
 }

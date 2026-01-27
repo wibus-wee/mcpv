@@ -138,7 +138,10 @@ func (s *minimalSchedulerStub) GetPoolStatus(ctx context.Context) ([]domain.Pool
 type minimalLifecycleStub struct{}
 
 func (l *minimalLifecycleStub) StartInstance(ctx context.Context, specKey string, spec domain.ServerSpec) (*domain.Instance, error) {
-	return &domain.Instance{SpecKey: specKey}, nil
+	return domain.NewInstance(domain.InstanceOptions{
+		SpecKey: specKey,
+		Spec:    spec,
+	}), nil
 }
 
 func (l *minimalLifecycleStub) StopInstance(ctx context.Context, instance *domain.Instance, reason string) error {

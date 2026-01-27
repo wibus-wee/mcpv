@@ -117,10 +117,7 @@ func (l *ProfileStoreLoader) loadFromDir(ctx context.Context, path string, opts 
 		return domain.ProfileStore{}, err
 	}
 
-	return domain.ProfileStore{
-		Profiles: profiles,
-		Callers:  callers,
-	}, nil
+	return domain.NewProfileStore(profiles, callers), nil
 }
 
 func (l *ProfileStoreLoader) loadRuntimeConfig(ctx context.Context, path string) (*domain.RuntimeConfig, error) {

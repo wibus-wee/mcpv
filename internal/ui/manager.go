@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -41,11 +42,12 @@ type Manager struct {
 	state *SharedState
 
 	// Lifecycle tracking
-	coreState   CoreState
-	coreCtx     context.Context
-	coreCancel  context.CancelFunc
-	coreStarted time.Time
-	coreError   error
+	coreState      CoreState
+	coreCtx        context.Context
+	coreCancel     context.CancelFunc
+	coreStarted    time.Time
+	coreError      error
+	watchersCancel context.CancelFunc
 
 	// Service references (will be set in Phase 3)
 	// toolService     *ToolService
@@ -89,9 +91,8 @@ func (m *Manager) StartWithOptions(ctx context.Context, opts StartCoreOptions) e
 
 func (m *Manager) startWithConfig(ctx context.Context, configPath string, observability *app.ObservabilityOptions) error {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	if m.coreState == CoreStateRunning || m.coreState == CoreStateStarting {
+		m.mu.Unlock()
 		return NewUIError(ErrCodeCoreAlreadyRunning, "Core is already running or starting")
 	}
 
@@ -101,7 +102,7 @@ func (m *Manager) startWithConfig(ctx context.Context, configPath string, observ
 	// Transition to starting state
 	m.coreState = CoreStateStarting
 	m.coreError = nil
-	emitCoreState(m.wails, string(CoreStateStarting), nil)
+	wails := m.wails
 
 	// Create context for Core lifecycle. Detach from request-scoped context to avoid early cancellation.
 	parent := context.Background()
@@ -115,6 +116,10 @@ func (m *Manager) startWithConfig(ctx context.Context, configPath string, observ
 		OnReady:       m.handleControlPlaneReady,
 		Observability: observability,
 	}
+
+	m.mu.Unlock()
+
+	emitCoreState(wails, string(CoreStateStarting), nil)
 
 	// Start Core in background
 	go m.runCore(cfg)
@@ -169,44 +174,61 @@ func boolPtr(value bool) *bool {
 
 // runCore executes the Core's Serve method
 func (m *Manager) runCore(cfg app.ServeConfig) {
+	m.mu.Lock()
 	m.coreStarted = time.Now()
+	m.mu.Unlock()
 	defer func() {
 		if recovered := recover(); recovered != nil {
+			err := fmt.Errorf("core panic: %v", recovered)
+			var wails *application.App
 			m.mu.Lock()
 			m.coreState = CoreStateError
-			m.coreError = fmt.Errorf("core panic: %v", recovered)
-			emitCoreState(m.wails, string(CoreStateError), m.coreError)
-			emitError(m.wails, ErrCodeCoreFailed, "Core panic", m.coreError.Error())
+			m.coreError = err
+			wails = m.wails
 			m.coreCancel = nil
 			m.coreCtx = nil
 			m.controlPlane = nil
 			m.mu.Unlock()
+
+			emitCoreState(wails, string(CoreStateError), err)
+			emitError(wails, ErrCodeCoreFailed, "Core panic", err.Error())
 		}
 	}()
 
 	err := m.coreApp.Serve(m.coreCtx, cfg)
 
+	var (
+		wails     *application.App
+		emitState CoreState
+		emitErr   error
+	)
 	m.mu.Lock()
-	defer m.mu.Unlock()
+	wails = m.wails
 
-	// Check if this was a clean shutdown or an error
-	if err != nil && m.coreCtx.Err() == nil {
-		// Unexpected error
+	// Check if this was a clean shutdown or an error.
+	if err != nil && m.coreCtx != nil && m.coreCtx.Err() == nil {
 		m.coreState = CoreStateError
 		m.coreError = err
-		emitCoreState(m.wails, string(CoreStateError), err)
-		emitError(m.wails, ErrCodeCoreFailed, "Core failed", err.Error())
+		emitState = CoreStateError
+		emitErr = err
 	} else {
-		// Clean shutdown
 		m.coreState = CoreStateStopped
 		m.coreError = nil
-		emitCoreState(m.wails, string(CoreStateStopped), nil)
+		emitState = CoreStateStopped
 	}
 
 	// Cleanup
 	m.coreCancel = nil
 	m.coreCtx = nil
 	m.controlPlane = nil
+	m.mu.Unlock()
+
+	if emitState == CoreStateError {
+		emitCoreState(wails, string(CoreStateError), emitErr)
+		emitError(wails, ErrCodeCoreFailed, "Core failed", emitErr.Error())
+	} else {
+		emitCoreState(wails, string(CoreStateStopped), nil)
+	}
 }
 
 func (m *Manager) handleControlPlaneReady(cp domain.ControlPlane) {
@@ -241,45 +263,54 @@ func (m *Manager) onCoreReady() {
 
 // startWatchers automatically starts all Watch subscriptions
 func (m *Manager) startWatchers() {
-	if m.controlPlane == nil {
+	m.mu.Lock()
+	if m.watchersCancel != nil {
+		m.mu.Unlock()
 		return
 	}
-
-	ctx := context.Background()
+	cp := m.controlPlane
+	wails := m.wails
+	if cp == nil {
+		m.mu.Unlock()
+		return
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	m.watchersCancel = cancel
+	m.mu.Unlock()
 
 	// Watch runtime status
 	go func() {
-		updates, err := m.controlPlane.WatchRuntimeStatusAllServers(ctx)
+		updates, err := cp.WatchRuntimeStatusAllServers(ctx)
 		if err != nil {
-			emitError(m.wails, ErrCodeInternal, "Failed to start runtime status watcher", err.Error())
+			emitError(wails, ErrCodeInternal, "Failed to start runtime status watcher", err.Error())
 			return
 		}
 		for snapshot := range updates {
-			emitRuntimeStatusUpdated(m.wails, snapshot)
+			emitRuntimeStatusUpdated(wails, snapshot)
 		}
 	}()
 
 	// Watch server init status
 	go func() {
-		updates, err := m.controlPlane.WatchServerInitStatusAllServers(ctx)
+		updates, err := cp.WatchServerInitStatusAllServers(ctx)
 		if err != nil {
-			emitError(m.wails, ErrCodeInternal, "Failed to start server init status watcher", err.Error())
+			emitError(wails, ErrCodeInternal, "Failed to start server init status watcher", err.Error())
 			return
 		}
 		for snapshot := range updates {
-			emitServerInitUpdated(m.wails, snapshot)
+			emitServerInitUpdated(wails, snapshot)
 		}
 	}()
 
 	// Watch active clients
 	go func() {
-		updates, err := m.controlPlane.WatchActiveClients(ctx)
+		updates, err := cp.WatchActiveClients(ctx)
 		if err != nil {
-			emitError(m.wails, ErrCodeInternal, "Failed to start active clients watcher", err.Error())
+			emitError(wails, ErrCodeInternal, "Failed to start active clients watcher", err.Error())
 			return
 		}
 		for snapshot := range updates {
-			emitActiveClientsUpdated(m.wails, snapshot)
+			emitActiveClientsUpdated(wails, snapshot)
 		}
 	}()
 
@@ -326,21 +357,29 @@ func (m *Manager) startWatchers() {
 // Stop stops the Core gracefully
 func (m *Manager) Stop() error {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	if m.coreState != CoreStateRunning {
+		m.mu.Unlock()
 		return NewUIError(ErrCodeCoreNotRunning, "Core is not running")
 	}
 
 	m.coreState = CoreStateStopping
-	emitCoreState(m.wails, string(CoreStateStopping), nil)
+	wails := m.wails
+	watchersCancel := m.watchersCancel
+	coreCancel := m.coreCancel
+	m.watchersCancel = nil
+	m.mu.Unlock()
+
+	emitCoreState(wails, string(CoreStateStopping), nil)
 
 	// Cancel all active watchers
 	m.state.CancelAllWatches()
+	if watchersCancel != nil {
+		watchersCancel()
+	}
 
 	// Cancel Core context to trigger graceful shutdown
-	if m.coreCancel != nil {
-		m.coreCancel()
+	if coreCancel != nil {
+		coreCancel()
 	}
 
 	return nil
@@ -349,8 +388,11 @@ func (m *Manager) Stop() error {
 // Restart restarts the Core
 func (m *Manager) Restart(ctx context.Context) error {
 	// Stop if running
-	if err := m.Stop(); err != nil && err.(*UIError).Code != ErrCodeCoreNotRunning {
-		return err
+	if err := m.Stop(); err != nil {
+		var uiErr *UIError
+		if !errors.As(err, &uiErr) || uiErr.Code != ErrCodeCoreNotRunning {
+			return err
+		}
 	}
 
 	// Wait for Core to actually stop (with timeout)
@@ -382,6 +424,10 @@ func (m *Manager) Shutdown() {
 
 	// Cancel all watchers
 	m.state.CancelAllWatches()
+	if m.watchersCancel != nil {
+		m.watchersCancel()
+		m.watchersCancel = nil
+	}
 
 	// Stop Core if running
 	if m.coreState == CoreStateRunning && m.coreCancel != nil {

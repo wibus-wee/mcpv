@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"sort"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
@@ -25,8 +26,10 @@ type observabilityService struct {
 	registry *clientRegistry
 	logs     *telemetry.LogBroadcaster
 
-	runtimeStatusIdx *aggregator.RuntimeStatusIndex
-	serverInitIdx    *aggregator.ServerInitIndex
+	runtimeStatusIdx           *aggregator.RuntimeStatusIndex
+	serverInitIdx              *aggregator.ServerInitIndex
+	runtimeStatusWorkerStarted atomic.Bool
+	serverInitWorkerStarted    atomic.Bool
 }
 
 func newObservabilityService(state *controlPlaneState, registry *clientRegistry, logs *telemetry.LogBroadcaster) *observabilityService {
@@ -204,17 +207,25 @@ func (o *observabilityService) WatchServerInitStatusAllServers(ctx context.Conte
 // SetRuntimeStatusIndex updates the runtime status index.
 func (o *observabilityService) SetRuntimeStatusIndex(idx *aggregator.RuntimeStatusIndex) {
 	o.runtimeStatusIdx = idx
-	if idx != nil {
-		go o.runRuntimeStatusWorker()
+	if idx == nil {
+		return
 	}
+	if !o.runtimeStatusWorkerStarted.CompareAndSwap(false, true) {
+		return
+	}
+	go o.runRuntimeStatusWorker()
 }
 
 // SetServerInitIndex updates the server init status index.
 func (o *observabilityService) SetServerInitIndex(idx *aggregator.ServerInitIndex) {
 	o.serverInitIdx = idx
-	if idx != nil {
-		go o.runServerInitWorker()
+	if idx == nil {
+		return
 	}
+	if !o.serverInitWorkerStarted.CompareAndSwap(false, true) {
+		return
+	}
+	go o.runServerInitWorker()
 }
 
 func (o *observabilityService) runRuntimeStatusWorker() {

@@ -36,14 +36,14 @@ func TestManager_StartInstance_Success(t *testing.T) {
 
 	inst, err := mgr.StartInstance(context.Background(), "spec-key", spec)
 	require.NoError(t, err)
-	require.Equal(t, domain.InstanceStateReady, inst.State)
-	require.Equal(t, 0, inst.BusyCount)
-	require.WithinDuration(t, time.Now(), inst.LastActive, time.Second)
+	require.Equal(t, domain.InstanceStateReady, inst.State())
+	require.Equal(t, 0, inst.BusyCount())
+	require.WithinDuration(t, time.Now(), inst.LastActive(), time.Second)
 
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
-	require.NotNil(t, mgr.conns[inst.ID])
-	require.NotNil(t, mgr.stops[inst.ID])
+	require.NotNil(t, mgr.conns[inst.ID()])
+	require.NotNil(t, mgr.stops[inst.ID()])
 }
 
 func TestManager_StartInstance_DetachesFromCallerContext(t *testing.T) {
@@ -191,7 +191,7 @@ func TestManager_StopInstance_Success(t *testing.T) {
 
 	err = mgr.StopInstance(context.Background(), inst, "test")
 	require.NoError(t, err)
-	require.Equal(t, domain.InstanceStateStopped, inst.State)
+	require.Equal(t, domain.InstanceStateStopped, inst.State())
 	require.True(t, stopped.Load())
 }
 
@@ -199,7 +199,10 @@ func TestManager_StopInstance_Unknown(t *testing.T) {
 	streams, stop := newTestStreams()
 	launcher := &fakeLauncher{streams: streams, stop: stop}
 	mgr := NewManager(context.Background(), launcher, &fakeTransport{}, zap.NewNop())
-	inst := &domain.Instance{ID: "missing", Spec: domain.ServerSpec{Name: "svc"}}
+	inst := domain.NewInstance(domain.InstanceOptions{
+		ID:   "missing",
+		Spec: domain.ServerSpec{Name: "svc"},
+	})
 
 	err := mgr.StopInstance(context.Background(), inst, "test")
 	require.Error(t, err)

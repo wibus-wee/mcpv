@@ -209,7 +209,9 @@ func (c *MetadataCache) GetAllTools() []ToolDefinition {
 
 	var all []ToolDefinition
 	for _, tools := range c.tools {
-		all = append(all, tools...)
+		for _, tool := range tools {
+			all = append(all, CloneToolDefinition(tool))
+		}
 	}
 	return all
 }
@@ -221,7 +223,9 @@ func (c *MetadataCache) GetAllResources() []ResourceDefinition {
 
 	var all []ResourceDefinition
 	for _, resources := range c.resources {
-		all = append(all, resources...)
+		for _, resource := range resources {
+			all = append(all, CloneResourceDefinition(resource))
+		}
 	}
 	return all
 }
@@ -233,7 +237,9 @@ func (c *MetadataCache) GetAllPrompts() []PromptDefinition {
 
 	var all []PromptDefinition
 	for _, prompts := range c.prompts {
-		all = append(all, prompts...)
+		for _, prompt := range prompts {
+			all = append(all, ClonePromptDefinition(prompt))
+		}
 	}
 	return all
 }

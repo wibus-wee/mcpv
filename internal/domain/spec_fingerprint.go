@@ -9,7 +9,7 @@ import (
 )
 
 // SpecFingerprint returns a stable hash for a server spec.
-func SpecFingerprint(spec ServerSpec) (string, error) {
+func SpecFingerprint(spec ServerSpec) string {
 	hasher := sha256.New()
 	transport := NormalizeTransport(spec.Transport)
 	writeString(hasher, string(transport))
@@ -20,7 +20,7 @@ func SpecFingerprint(spec ServerSpec) (string, error) {
 	if transport == TransportStreamableHTTP {
 		writeStreamableHTTPConfig(hasher, spec.HTTP)
 	}
-	return hex.EncodeToString(hasher.Sum(nil)), nil
+	return hex.EncodeToString(hasher.Sum(nil))
 }
 
 func writeStreamableHTTPConfig(h hash.Hash, cfg *StreamableHTTPConfig) {

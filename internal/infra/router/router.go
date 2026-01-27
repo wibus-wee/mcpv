@@ -76,14 +76,14 @@ func (r *BasicRouter) RouteWithOptions(ctx context.Context, serverType, specKey,
 	}
 	defer func() { _ = r.scheduler.Release(ctx, inst) }()
 
-	if inst.Conn == nil {
-		err := fmt.Errorf("%w: instance has no connection: %s", domain.ErrConnectionClosed, inst.ID)
+	if inst.Conn() == nil {
+		err := fmt.Errorf("%w: instance has no connection: %s", domain.ErrConnectionClosed, inst.ID())
 		routeErr := domain.NewRouteError(domain.RouteStageCall, err)
 		r.logRouteError(serverType, method, inst, start, routeErr)
 		return nil, routeErr
 	}
 
-	if !domain.MethodAllowed(inst.Capabilities, method) {
+	if !domain.MethodAllowed(inst.Capabilities(), method) {
 		routeErr := domain.NewRouteError(domain.RouteStageValidate, domain.ErrMethodNotAllowed)
 		r.logRouteError(serverType, method, inst, start, routeErr)
 		return nil, routeErr
@@ -93,7 +93,7 @@ func (r *BasicRouter) RouteWithOptions(ctx context.Context, serverType, specKey,
 	defer cancel()
 
 	callStarted := time.Now()
-	resp, err := inst.Conn.Call(callCtx, payload)
+	resp, err := inst.Conn().Call(callCtx, payload)
 	inst.RecordCall(time.Since(callStarted), err)
 	if err != nil {
 		callErr := fmt.Errorf("call request: %w", err)
@@ -117,8 +117,8 @@ func (r *BasicRouter) logRouteError(serverType, method string, inst *domain.Inst
 	}
 	if inst != nil {
 		fields = append(fields,
-			telemetry.InstanceIDField(inst.ID),
-			telemetry.StateField(string(inst.State)),
+			telemetry.InstanceIDField(inst.ID()),
+			telemetry.StateField(string(inst.State())),
 		)
 	}
 	r.logger.Warn("route failed", fields...)

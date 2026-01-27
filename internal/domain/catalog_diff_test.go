@@ -33,12 +33,9 @@ func TestDiffCatalogStates_SpecChanges(t *testing.T) {
 
 	diff := DiffCatalogStates(prevState, nextState)
 
-	oldKeyA, err := SpecFingerprint(specA)
-	require.NoError(t, err)
-	newKeyA, err := SpecFingerprint(specAReplaced)
-	require.NoError(t, err)
-	keyB, err := SpecFingerprint(specB)
-	require.NoError(t, err)
+	oldKeyA := SpecFingerprint(specA)
+	newKeyA := SpecFingerprint(specAReplaced)
+	keyB := SpecFingerprint(specB)
 
 	require.Contains(t, diff.RemovedSpecKeys, oldKeyA)
 	require.Contains(t, diff.AddedSpecKeys, newKeyA)

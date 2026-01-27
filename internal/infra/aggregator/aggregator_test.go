@@ -41,7 +41,7 @@ func TestToolIndex_SnapshotPrefixedTool(t *testing.T) {
 	}
 	cfg := domain.RuntimeConfig{
 		ExposeTools:           true,
-		ToolNamespaceStrategy: "prefix",
+		ToolNamespaceStrategy: domain.ToolNamespaceStrategyPrefix,
 		ToolRefreshSeconds:    0,
 	}
 
@@ -93,7 +93,7 @@ func TestToolIndex_SnapshotForServer(t *testing.T) {
 	}
 	cfg := domain.RuntimeConfig{
 		ExposeTools:           true,
-		ToolNamespaceStrategy: "prefix",
+		ToolNamespaceStrategy: domain.ToolNamespaceStrategyPrefix,
 		ToolRefreshSeconds:    0,
 	}
 
@@ -140,7 +140,7 @@ func TestToolIndex_RespectsExposeToolsAllowlist(t *testing.T) {
 	specKeys := map[string]string{
 		"echo": "spec-echo",
 	}
-	cfg := domain.RuntimeConfig{ExposeTools: true, ToolNamespaceStrategy: "prefix"}
+	cfg := domain.RuntimeConfig{ExposeTools: true, ToolNamespaceStrategy: domain.ToolNamespaceStrategyPrefix}
 
 	index := NewToolIndex(router, specs, specKeys, cfg, nil, zap.NewNop(), nil, nil, nil)
 	index.Start(ctx)
@@ -167,7 +167,7 @@ func TestToolIndex_UsesCachedToolsWhenNoReadyInstance(t *testing.T) {
 	}
 	cfg := domain.RuntimeConfig{
 		ExposeTools:           true,
-		ToolNamespaceStrategy: "prefix",
+		ToolNamespaceStrategy: domain.ToolNamespaceStrategyPrefix,
 		ToolRefreshSeconds:    0,
 	}
 
@@ -201,7 +201,7 @@ func TestToolIndex_CachedSnapshot(t *testing.T) {
 	}
 	cfg := domain.RuntimeConfig{
 		ExposeTools:           true,
-		ToolNamespaceStrategy: "prefix",
+		ToolNamespaceStrategy: domain.ToolNamespaceStrategyPrefix,
 	}
 
 	index := NewToolIndex(router, specs, specKeys, cfg, cache, zap.NewNop(), nil, nil, nil)
@@ -244,7 +244,7 @@ func TestToolIndex_RefreshConcurrentFetches(t *testing.T) {
 		"fast": "spec-fast",
 		"slow": "spec-slow",
 	}
-	cfg := domain.RuntimeConfig{ExposeTools: true, ToolNamespaceStrategy: "prefix"}
+	cfg := domain.RuntimeConfig{ExposeTools: true, ToolNamespaceStrategy: domain.ToolNamespaceStrategyPrefix}
 
 	index := NewToolIndex(router, specs, specKeys, cfg, nil, zap.NewNop(), nil, nil, nil)
 
@@ -322,7 +322,7 @@ func TestToolIndex_FlatNamespaceConflictsRename(t *testing.T) {
 		"a": "spec-a",
 		"b": "spec-b",
 	}
-	cfg := domain.RuntimeConfig{ExposeTools: true, ToolNamespaceStrategy: "flat"}
+	cfg := domain.RuntimeConfig{ExposeTools: true, ToolNamespaceStrategy: domain.ToolNamespaceStrategyFlat}
 
 	index := NewToolIndex(router, specs, specKeys, cfg, nil, zap.NewNop(), nil, nil, nil)
 
@@ -337,7 +337,7 @@ func TestToolIndex_FlatNamespaceConflictsRename(t *testing.T) {
 func TestToolIndex_CallToolPropagatesRouteError(t *testing.T) {
 	ctx := context.Background()
 	index := NewToolIndex(&failingRouter{err: context.DeadlineExceeded}, nil, map[string]string{}, domain.RuntimeConfig{
-		ToolNamespaceStrategy: "prefix",
+		ToolNamespaceStrategy: domain.ToolNamespaceStrategyPrefix,
 	}, nil, zap.NewNop(), nil, nil, nil)
 	index.index.state.Store(genericIndexState[domain.ToolSnapshot, domain.ToolTarget]{
 		snapshot: domain.ToolSnapshot{},
@@ -361,7 +361,7 @@ func TestToolIndex_RefreshFailureOpensCircuitBreaker(t *testing.T) {
 	specKeys := map[string]string{
 		"echo": "spec-echo",
 	}
-	cfg := domain.RuntimeConfig{ExposeTools: true, ToolNamespaceStrategy: "prefix"}
+	cfg := domain.RuntimeConfig{ExposeTools: true, ToolNamespaceStrategy: domain.ToolNamespaceStrategyPrefix}
 
 	index := NewToolIndex(router, specs, specKeys, cfg, nil, zap.NewNop(), nil, nil, nil)
 	require.NoError(t, index.refresh(ctx))

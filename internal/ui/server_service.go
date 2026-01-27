@@ -44,10 +44,7 @@ func (s *ServerService) ListServers(ctx context.Context) ([]ServerSummary, error
 	servers := make([]ServerSummary, 0, len(names))
 	for _, name := range names {
 		spec := catalog.Specs[name]
-		specKey, err := domain.SpecFingerprint(spec)
-		if err != nil {
-			return nil, NewUIError(ErrCodeInternal, fmt.Sprintf("spec fingerprint for %q: %v", spec.Name, err))
-		}
+		specKey := domain.SpecFingerprint(spec)
 		servers = append(servers, mapServerSummary(spec, specKey))
 	}
 	return servers, nil
@@ -67,10 +64,7 @@ func (s *ServerService) GetServer(ctx context.Context, name string) (*ServerDeta
 	if !ok {
 		return nil, NewUIError(ErrCodeNotFound, fmt.Sprintf("Server %q not found", name))
 	}
-	specKey, err := domain.SpecFingerprint(spec)
-	if err != nil {
-		return nil, NewUIError(ErrCodeInternal, fmt.Sprintf("spec fingerprint for %q: %v", spec.Name, err))
-	}
+	specKey := domain.SpecFingerprint(spec)
 	detail := mapServerSpecDetail(spec, specKey)
 	return &detail, nil
 }
@@ -158,10 +152,7 @@ func (s *ServerService) ListServerGroups(ctx context.Context) ([]ServerGroup, er
 
 	for _, name := range names {
 		spec := catalog.Specs[name]
-		specKey, err := domain.SpecFingerprint(spec)
-		if err != nil {
-			return nil, NewUIError(ErrCodeInternal, fmt.Sprintf("spec fingerprint for %q: %v", spec.Name, err))
-		}
+		specKey := domain.SpecFingerprint(spec)
 		detail := mapServerSpecDetail(spec, specKey)
 		ensureServer(specKey, spec.Name, &detail, spec.Tags)
 	}

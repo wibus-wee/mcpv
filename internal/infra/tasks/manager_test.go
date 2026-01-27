@@ -16,8 +16,8 @@ func TestManagerCreateAndResult(t *testing.T) {
 	ctx := context.Background()
 
 	payload := json.RawMessage(`{"ok":true}`)
-	task, err := manager.Create(ctx, "client-a", domain.TaskCreateOptions{}, func(ctx context.Context) (json.RawMessage, *domain.ProtocolError, error) {
-		return payload, nil, nil
+	task, err := manager.Create(ctx, "client-a", domain.TaskCreateOptions{}, func(ctx context.Context) (domain.TaskRunResult, error) {
+		return domain.TaskRunResult{Result: payload}, nil
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, task.TaskID)
@@ -32,9 +32,9 @@ func TestManagerCancel(t *testing.T) {
 	manager := NewManager()
 	ctx := context.Background()
 
-	task, err := manager.Create(ctx, "client-a", domain.TaskCreateOptions{}, func(ctx context.Context) (json.RawMessage, *domain.ProtocolError, error) {
+	task, err := manager.Create(ctx, "client-a", domain.TaskCreateOptions{}, func(ctx context.Context) (domain.TaskRunResult, error) {
 		<-ctx.Done()
-		return nil, nil, ctx.Err()
+		return domain.TaskRunResult{}, ctx.Err()
 	})
 	require.NoError(t, err)
 
@@ -51,8 +51,8 @@ func TestManagerList(t *testing.T) {
 	ctx := context.Background()
 
 	for i := 0; i < 3; i++ {
-		_, err := manager.Create(ctx, "client-a", domain.TaskCreateOptions{}, func(ctx context.Context) (json.RawMessage, *domain.ProtocolError, error) {
-			return json.RawMessage(`{}`), nil, nil
+		_, err := manager.Create(ctx, "client-a", domain.TaskCreateOptions{}, func(ctx context.Context) (domain.TaskRunResult, error) {
+			return domain.TaskRunResult{Result: json.RawMessage(`{}`)}, nil
 		})
 		require.NoError(t, err)
 	}
@@ -73,12 +73,12 @@ func TestManagerTTLExpiry(t *testing.T) {
 	ctx := context.Background()
 
 	ttl := int64(10)
-	task, err := manager.Create(ctx, "client-a", domain.TaskCreateOptions{TTL: &ttl}, func(ctx context.Context) (json.RawMessage, *domain.ProtocolError, error) {
-		return json.RawMessage(`{}`), nil, nil
+	task, err := manager.Create(ctx, "client-a", domain.TaskCreateOptions{TTL: &ttl}, func(ctx context.Context) (domain.TaskRunResult, error) {
+		return domain.TaskRunResult{Result: json.RawMessage(`{}`)}, nil
 	})
 	require.NoError(t, err)
 
 	manager.now = func() time.Time { return time.Unix(0, 0).Add(20 * time.Millisecond) }
-	_, ok := manager.Get(ctx, "client-a", task.TaskID)
-	require.False(t, ok)
+	_, err = manager.Get(ctx, "client-a", task.TaskID)
+	require.ErrorIs(t, err, domain.ErrTaskNotFound)
 }

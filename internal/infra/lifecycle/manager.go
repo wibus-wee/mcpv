@@ -185,18 +185,17 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 		return nil, err
 	}
 
-	instance := &domain.Instance{
+	instance := domain.NewInstance(domain.InstanceOptions{
 		ID:         m.generateInstanceID(spec),
 		Spec:       spec,
 		SpecKey:    specKey,
 		State:      domain.InstanceStateInitializing,
-		BusyCount:  0,
-		LastActive: time.Now(),
-		SpawnedAt:  spawnedAt,
 		Conn:       conn,
-	}
+		SpawnedAt:  spawnedAt,
+		LastActive: time.Now(),
+	})
 
-	instance.State = domain.InstanceStateHandshaking
+	instance.SetState(domain.InstanceStateHandshaking)
 	caps, err := m.initializeWithRetry(ctx, conn, spec)
 	if err != nil {
 		cancelStart()
@@ -228,21 +227,21 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 		setter.SetCapabilities(caps)
 	}
 	m.notifyInitialized(ctx, conn, spec)
-	instance.State = domain.InstanceStateReady
-	instance.HandshakedAt = time.Now()
-	instance.LastHeartbeatAt = instance.HandshakedAt
-	instance.Capabilities = caps
+	instance.SetState(domain.InstanceStateReady)
+	instance.SetHandshakedAt(time.Now())
+	instance.SetLastHeartbeatAt(instance.HandshakedAt())
+	instance.SetCapabilities(caps)
 
 	m.mu.Lock()
-	m.conns[instance.ID] = conn
-	m.stops[instance.ID] = stop
+	m.conns[instance.ID()] = conn
+	m.stops[instance.ID()] = stop
 	m.mu.Unlock()
 
 	m.logger.Info("instance started",
 		telemetry.EventField(telemetry.EventStartSuccess),
 		telemetry.ServerTypeField(spec.Name),
-		telemetry.InstanceIDField(instance.ID),
-		telemetry.StateField(string(instance.State)),
+		telemetry.InstanceIDField(instance.ID()),
+		telemetry.StateField(string(instance.State())),
 		telemetry.DurationField(time.Since(started)),
 	)
 	detached.Store(true)
@@ -347,16 +346,18 @@ func (m *Manager) StopInstance(ctx context.Context, instance *domain.Instance, r
 	}
 
 	started := time.Now()
+	instanceID := instance.ID()
+	spec := instance.Spec()
 
 	m.mu.Lock()
-	conn := m.conns[instance.ID]
-	stop := m.stops[instance.ID]
-	delete(m.conns, instance.ID)
-	delete(m.stops, instance.ID)
+	conn := m.conns[instanceID]
+	stop := m.stops[instanceID]
+	delete(m.conns, instanceID)
+	delete(m.stops, instanceID)
 	m.mu.Unlock()
 
 	if conn == nil && stop == nil {
-		return fmt.Errorf("unknown instance: %s", instance.ID)
+		return fmt.Errorf("unknown instance: %s", instanceID)
 	}
 
 	var closeErr error
@@ -364,8 +365,8 @@ func (m *Manager) StopInstance(ctx context.Context, instance *domain.Instance, r
 		if err := conn.Close(); err != nil {
 			closeErr = err
 			m.logger.Warn("instance close failed",
-				telemetry.ServerTypeField(instance.Spec.Name),
-				telemetry.InstanceIDField(instance.ID),
+				telemetry.ServerTypeField(spec.Name),
+				telemetry.InstanceIDField(instanceID),
 				zap.Error(err),
 			)
 		}
@@ -376,26 +377,26 @@ func (m *Manager) StopInstance(ctx context.Context, instance *domain.Instance, r
 			stopErr = err
 			m.logger.Error("instance stop failed",
 				telemetry.EventField(telemetry.EventStopFailure),
-				telemetry.ServerTypeField(instance.Spec.Name),
-				telemetry.InstanceIDField(instance.ID),
+				telemetry.ServerTypeField(spec.Name),
+				telemetry.InstanceIDField(instanceID),
 				telemetry.DurationField(time.Since(started)),
 				zap.Error(err),
 			)
 		}
 	}
 	if stopErr != nil {
-		return fmt.Errorf("stop instance %s: %w", instance.ID, errors.Join(stopErr, closeErr))
+		return fmt.Errorf("stop instance %s: %w", instanceID, errors.Join(stopErr, closeErr))
 	}
 	if closeErr != nil {
-		return fmt.Errorf("close instance %s: %w", instance.ID, closeErr)
+		return fmt.Errorf("close instance %s: %w", instanceID, closeErr)
 	}
 
-	instance.State = domain.InstanceStateStopped
+	instance.SetState(domain.InstanceStateStopped)
 	m.logger.Info("instance stopped",
 		telemetry.EventField(telemetry.EventStopSuccess),
-		telemetry.ServerTypeField(instance.Spec.Name),
-		telemetry.InstanceIDField(instance.ID),
-		telemetry.StateField(string(instance.State)),
+		telemetry.ServerTypeField(spec.Name),
+		telemetry.InstanceIDField(instanceID),
+		telemetry.StateField(string(instance.State())),
 		telemetry.DurationField(time.Since(started)),
 		zap.String("reason", reason),
 	)

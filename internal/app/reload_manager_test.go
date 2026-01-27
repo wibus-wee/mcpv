@@ -32,10 +32,8 @@ func TestReloadManager_ApplyUpdate_UpdatesRuntimeAndRegistry(t *testing.T) {
 	prevState := newCatalogState(t, prevCatalog)
 	nextState := newCatalogState(t, nextCatalog)
 
-	prevSpecKey, err := domain.SpecFingerprint(prevSpec)
-	require.NoError(t, err)
-	nextSpecKey, err := domain.SpecFingerprint(nextSpec)
-	require.NoError(t, err)
+	prevSpecKey := domain.SpecFingerprint(prevSpec)
+	nextSpecKey := domain.SpecFingerprint(nextSpec)
 	require.NotEqual(t, prevSpecKey, nextSpecKey)
 
 	scheduler := &schedulerStub{}
@@ -46,7 +44,7 @@ func TestReloadManager_ApplyUpdate_UpdatesRuntimeAndRegistry(t *testing.T) {
 	state := newControlPlaneState(context.Background(), runtimeState, scheduler, initManager, nil, &prevState, zap.NewNop())
 	registry := newClientRegistry(state)
 
-	_, err = registry.RegisterClient(context.Background(), "client-1", 1, nil, "")
+	_, err := registry.RegisterClient(context.Background(), "client-1", 1, nil, "")
 	require.NoError(t, err)
 	scheduler.minReadyCalls = nil
 
@@ -88,8 +86,7 @@ func TestReloadManager_ApplyUpdate_RemovesServer(t *testing.T) {
 	prevState := newCatalogState(t, prevCatalog)
 	nextState := newCatalogState(t, nextCatalog)
 
-	removedSpecKey, err := domain.SpecFingerprint(removedSpec)
-	require.NoError(t, err)
+	removedSpecKey := domain.SpecFingerprint(removedSpec)
 
 	scheduler := &schedulerStub{}
 	runtimeState := &runtimeState{
@@ -98,7 +95,7 @@ func TestReloadManager_ApplyUpdate_RemovesServer(t *testing.T) {
 	state := newControlPlaneState(context.Background(), runtimeState, scheduler, nil, nil, &prevState, zap.NewNop())
 	registry := newClientRegistry(state)
 
-	_, err = registry.RegisterClient(context.Background(), "client-1", 1, nil, "")
+	_, err := registry.RegisterClient(context.Background(), "client-1", 1, nil, "")
 	require.NoError(t, err)
 	scheduler.stopCalls = nil
 

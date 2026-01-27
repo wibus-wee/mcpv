@@ -33,44 +33,51 @@ type Application struct {
 	reloadManager    *ReloadManager
 }
 
+// ApplicationOptions captures dependencies and settings for Application.
+type ApplicationOptions struct {
+	Context           context.Context
+	ServeConfig       ServeConfig
+	Logger            *zap.Logger
+	Registry          *prometheus.Registry
+	Metrics           domain.Metrics
+	Health            *telemetry.HealthTracker
+	CatalogState      *domain.CatalogState
+	ControlPlaneState *controlPlaneState
+	Scheduler         domain.Scheduler
+	InitManager       *ServerInitializationManager
+	BootstrapManager  *BootstrapManager
+	ControlPlane      *ControlPlane
+	RPCServer         *rpc.Server
+	ReloadManager     *ReloadManager
+}
+
 // NewApplication constructs the core application runtime.
-func NewApplication(
-	ctx context.Context,
-	cfg ServeConfig,
-	logger *zap.Logger,
-	registry *prometheus.Registry,
-	metrics domain.Metrics,
-	health *telemetry.HealthTracker,
-	state *domain.CatalogState,
-	controlState *controlPlaneState,
-	scheduler domain.Scheduler,
-	initManager *ServerInitializationManager,
-	bootstrapManager *BootstrapManager,
-	controlPlane *ControlPlane,
-	rpcServer *rpc.Server,
-	reloadManager *ReloadManager,
-) *Application {
+func NewApplication(opts ApplicationOptions) *Application {
+	ctx := opts.Context
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	summary := state.Summary
+	var summary domain.CatalogSummary
+	if opts.CatalogState != nil {
+		summary = opts.CatalogState.Summary
+	}
 	return &Application{
 		ctx:              ctx,
-		configPath:       cfg.ConfigPath,
-		onReady:          cfg.OnReady,
-		observability:    cfg.Observability,
-		logger:           logger,
-		registry:         registry,
-		metrics:          metrics,
-		health:           health,
+		configPath:       opts.ServeConfig.ConfigPath,
+		onReady:          opts.ServeConfig.OnReady,
+		observability:    opts.ServeConfig.Observability,
+		logger:           opts.Logger,
+		registry:         opts.Registry,
+		metrics:          opts.Metrics,
+		health:           opts.Health,
 		summary:          summary,
-		state:            controlState,
-		scheduler:        scheduler,
-		initManager:      initManager,
-		bootstrapManager: bootstrapManager,
-		controlPlane:     controlPlane,
-		rpcServer:        rpcServer,
-		reloadManager:    reloadManager,
+		state:            opts.ControlPlaneState,
+		scheduler:        opts.Scheduler,
+		initManager:      opts.InitManager,
+		bootstrapManager: opts.BootstrapManager,
+		controlPlane:     opts.ControlPlane,
+		rpcServer:        opts.RPCServer,
+		reloadManager:    opts.ReloadManager,
 	}
 }
 
@@ -146,8 +153,8 @@ func (a *Application) Run() error {
 	}
 
 	a.scheduler.StartIdleManager(defaultIdleManagerInterval)
-	if a.summary.Runtime.PingIntervalSeconds > 0 {
-		a.scheduler.StartPingManager(time.Duration(a.summary.Runtime.PingIntervalSeconds) * time.Second)
+	if interval := a.summary.Runtime.PingInterval(); interval > 0 {
+		a.scheduler.StartPingManager(interval)
 	}
 	defer func() {
 		if a.state != nil {

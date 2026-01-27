@@ -93,18 +93,18 @@ func (m *Manager) Create(ctx context.Context, owner string, opts domain.TaskCrea
 }
 
 // Get returns task metadata without blocking.
-func (m *Manager) Get(ctx context.Context, owner, taskID string) (domain.Task, bool) {
+func (m *Manager) Get(ctx context.Context, owner, taskID string) (domain.Task, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.purgeExpiredLocked()
 	state, ok := m.tasks[taskID]
 	if !ok {
-		return domain.Task{}, false
+		return domain.Task{}, domain.ErrTaskNotFound
 	}
 	if owner != "" && state.owner != owner {
-		return domain.Task{}, false
+		return domain.Task{}, domain.ErrTaskNotFound
 	}
-	return state.task, true
+	return state.task, nil
 }
 
 // List returns a paginated list of tasks.
@@ -200,7 +200,7 @@ func (m *Manager) Cancel(ctx context.Context, owner, taskID string) error {
 }
 
 func (m *Manager) runTask(taskID string, ctx context.Context, run domain.TaskRunner) {
-	result, protoErr, err := run(ctx)
+	runResult, err := run(ctx)
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -223,14 +223,14 @@ func (m *Manager) runTask(taskID string, ctx context.Context, run domain.TaskRun
 		state.task.Status = domain.TaskStatusFailed
 		state.task.StatusMessage = err.Error()
 		state.result = domain.TaskResult{Status: domain.TaskStatusFailed}
-	case protoErr != nil:
+	case runResult.ProtocolError != nil:
 		state.task.Status = domain.TaskStatusFailed
-		state.task.StatusMessage = protoErr.Message
-		state.result = domain.TaskResult{Status: domain.TaskStatusFailed, Error: protoErr}
+		state.task.StatusMessage = runResult.ProtocolError.Message
+		state.result = domain.TaskResult{Status: domain.TaskStatusFailed, Error: runResult.ProtocolError}
 	default:
 		state.task.Status = domain.TaskStatusCompleted
 		state.task.StatusMessage = "The task completed successfully."
-		state.result = domain.TaskResult{Status: domain.TaskStatusCompleted, Result: result}
+		state.result = domain.TaskResult{Status: domain.TaskStatusCompleted, Result: runResult.Result}
 	}
 	close(state.done)
 }

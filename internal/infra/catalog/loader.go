@@ -600,9 +600,9 @@ func normalizeRuntimeConfig(cfg rawRuntimeConfig) (domain.RuntimeConfig, []strin
 
 	strategy := strings.ToLower(strings.TrimSpace(cfg.ToolNamespaceStrategy))
 	if strategy == "" {
-		strategy = domain.DefaultToolNamespaceStrategy
+		strategy = string(domain.DefaultToolNamespaceStrategy)
 	}
-	if strategy != "prefix" && strategy != "flat" {
+	if strategy != string(domain.ToolNamespaceStrategyPrefix) && strategy != string(domain.ToolNamespaceStrategyFlat) {
 		errs = append(errs, "toolNamespaceStrategy must be prefix or flat")
 	}
 
@@ -628,7 +628,7 @@ func normalizeRuntimeConfig(cfg rawRuntimeConfig) (domain.RuntimeConfig, []strin
 		BootstrapTimeoutSeconds:    bootstrapTimeoutSeconds,
 		DefaultActivationMode:      domain.ActivationMode(defaultActivationMode),
 		ExposeTools:                cfg.ExposeTools,
-		ToolNamespaceStrategy:      strategy,
+		ToolNamespaceStrategy:      domain.ToolNamespaceStrategy(strategy),
 		Observability:              observabilityCfg,
 		RPC:                        rpcCfg,
 		SubAgent: domain.SubAgentConfig{

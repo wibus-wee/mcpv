@@ -91,10 +91,11 @@ func (s *Server) Run(ctx context.Context) error {
 		grpc.MaxSendMsgSize(s.cfg.MaxSendMsgSize),
 	}
 
-	if s.cfg.KeepaliveTimeSeconds > 0 {
+	if duration := s.cfg.KeepaliveServerDuration(); duration > 0 {
+		timeout := s.cfg.KeepaliveServerTimeout()
 		serverOpts = append(serverOpts, grpc.KeepaliveParams(keepalive.ServerParameters{
-			Time:    time.Duration(s.cfg.KeepaliveTimeSeconds) * time.Second,
-			Timeout: time.Duration(s.cfg.KeepaliveTimeoutSeconds) * time.Second,
+			Time:    duration,
+			Timeout: timeout,
 		}))
 	}
 

@@ -2,6 +2,7 @@ package domain
 
 import (
 	"errors"
+	"sync"
 	"time"
 )
 
@@ -28,6 +29,16 @@ const (
 	// Never reclaimed. All requests go to the single instance.
 	// Use for: config servers, task queues.
 	StrategySingleton InstanceStrategy = "singleton"
+)
+
+// ToolNamespaceStrategy controls how tool names are scoped.
+type ToolNamespaceStrategy string
+
+const (
+	// ToolNamespaceStrategyPrefix prefixes tool names with the server name.
+	ToolNamespaceStrategyPrefix ToolNamespaceStrategy = "prefix"
+	// ToolNamespaceStrategyFlat exposes tool names without a server prefix.
+	ToolNamespaceStrategyFlat ToolNamespaceStrategy = "flat"
 )
 
 // TransportKind identifies the transport used by a server.
@@ -70,20 +81,20 @@ type ServerSpec struct {
 
 // RuntimeConfig defines runtime-level settings for orchestration.
 type RuntimeConfig struct {
-	RouteTimeoutSeconds        int                 `json:"routeTimeoutSeconds"`
-	PingIntervalSeconds        int                 `json:"pingIntervalSeconds"`
-	ToolRefreshSeconds         int                 `json:"toolRefreshSeconds"`
-	ToolRefreshConcurrency     int                 `json:"toolRefreshConcurrency"`
-	ClientCheckSeconds         int                 `json:"clientCheckSeconds"`
-	ClientInactiveSeconds      int                 `json:"clientInactiveSeconds"`
-	ServerInitRetryBaseSeconds int                 `json:"serverInitRetryBaseSeconds"`
-	ServerInitRetryMaxSeconds  int                 `json:"serverInitRetryMaxSeconds"`
-	ServerInitMaxRetries       int                 `json:"serverInitMaxRetries"`
-	ExposeTools                bool                `json:"exposeTools"`
-	ToolNamespaceStrategy      string              `json:"toolNamespaceStrategy"`
-	Observability              ObservabilityConfig `json:"observability"`
-	RPC                        RPCConfig           `json:"rpc"`
-	SubAgent                   SubAgentConfig      `json:"subAgent"`
+	RouteTimeoutSeconds        int                   `json:"routeTimeoutSeconds"`
+	PingIntervalSeconds        int                   `json:"pingIntervalSeconds"`
+	ToolRefreshSeconds         int                   `json:"toolRefreshSeconds"`
+	ToolRefreshConcurrency     int                   `json:"toolRefreshConcurrency"`
+	ClientCheckSeconds         int                   `json:"clientCheckSeconds"`
+	ClientInactiveSeconds      int                   `json:"clientInactiveSeconds"`
+	ServerInitRetryBaseSeconds int                   `json:"serverInitRetryBaseSeconds"`
+	ServerInitRetryMaxSeconds  int                   `json:"serverInitRetryMaxSeconds"`
+	ServerInitMaxRetries       int                   `json:"serverInitMaxRetries"`
+	ExposeTools                bool                  `json:"exposeTools"`
+	ToolNamespaceStrategy      ToolNamespaceStrategy `json:"toolNamespaceStrategy"`
+	Observability              ObservabilityConfig   `json:"observability"`
+	RPC                        RPCConfig             `json:"rpc"`
+	SubAgent                   SubAgentConfig        `json:"subAgent"`
 
 	// Bootstrap configuration
 	BootstrapMode           BootstrapMode  `json:"bootstrapMode"`           // "metadata" or "disabled", default "metadata"
@@ -179,19 +190,20 @@ const (
 
 // Instance represents a running server instance.
 type Instance struct {
-	ID               string
-	Spec             ServerSpec
-	SpecKey          string
-	State            InstanceState
-	BusyCount        int
-	LastActive       time.Time
-	SpawnedAt        time.Time
-	HandshakedAt     time.Time
-	LastHeartbeatAt  time.Time
-	StickyKey        string
-	Conn             Conn
-	Capabilities     ServerCapabilities
-	LastStartCause   *StartCause
+	mu               sync.RWMutex
+	id               string
+	spec             ServerSpec
+	specKey          string
+	state            InstanceState
+	busyCount        int
+	lastActive       time.Time
+	spawnedAt        time.Time
+	handshakedAt     time.Time
+	lastHeartbeatAt  time.Time
+	stickyKey        string
+	conn             Conn
+	capabilities     ServerCapabilities
+	lastStartCause   *StartCause
 	callCount        int64
 	errorCount       int64
 	totalDurationNs  int64

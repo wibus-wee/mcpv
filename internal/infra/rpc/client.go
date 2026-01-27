@@ -2,12 +2,11 @@ package rpc
 
 import (
 	"context"
-	"time"
-
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
+	"time"
 
 	"mcpd/internal/domain"
 	controlv1 "mcpd/pkg/api/control/v1"
@@ -20,6 +19,22 @@ type ClientConfig struct {
 	KeepaliveTimeSeconds    int
 	KeepaliveTimeoutSeconds int
 	TLS                     domain.RPCTLSConfig
+}
+
+func (c ClientConfig) keepaliveDuration() time.Duration {
+	seconds := c.KeepaliveTimeSeconds
+	if seconds <= 0 {
+		return 0
+	}
+	return time.Duration(seconds) * time.Second
+}
+
+func (c ClientConfig) keepaliveTimeout() time.Duration {
+	seconds := c.KeepaliveTimeoutSeconds
+	if seconds <= 0 {
+		return 0
+	}
+	return time.Duration(seconds) * time.Second
 }
 
 type Client struct {
@@ -47,10 +62,11 @@ func Dial(ctx context.Context, cfg ClientConfig) (*Client, error) {
 		))
 	}
 
-	if cfg.KeepaliveTimeSeconds > 0 {
+	if duration := cfg.keepaliveDuration(); duration > 0 {
+		timeout := cfg.keepaliveTimeout()
 		opts = append(opts, grpc.WithKeepaliveParams(keepalive.ClientParameters{
-			Time:                time.Duration(cfg.KeepaliveTimeSeconds) * time.Second,
-			Timeout:             time.Duration(cfg.KeepaliveTimeoutSeconds) * time.Second,
+			Time:                duration,
+			Timeout:             timeout,
 			PermitWithoutStream: true,
 		}))
 	}

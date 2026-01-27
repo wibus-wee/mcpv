@@ -38,18 +38,20 @@ func TestProfileStoreLoader_LoadFromDir(t *testing.T) {
 
 	writeProfile(t, filepath.Join(profilesDir, "default.yaml"), "default-server")
 	writeProfile(t, filepath.Join(profilesDir, "vscode.yml"), "vscode-server")
-	callers := []byte("callers:\n  vscode: vscode\n  default-client: default\n")
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "callers.yaml"), callers, fsutil.DefaultFileMode))
+	callersData := []byte("callers:\n  vscode: vscode\n  default-client: default\n")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "callers.yaml"), callersData, fsutil.DefaultFileMode))
 
 	loader := NewProfileStoreLoader(zap.NewNop())
 	store, err := loader.Load(context.Background(), dir, ProfileStoreOptions{})
 	require.NoError(t, err)
 
-	require.Len(t, store.Profiles, 2)
-	require.Contains(t, store.Profiles, domain.DefaultProfileName)
-	require.Contains(t, store.Profiles, "vscode")
-	require.Equal(t, "vscode", store.Callers["vscode"])
-	require.Equal(t, "default", store.Callers["default-client"])
+	profiles := store.Profiles()
+	callers := store.Callers()
+	require.Len(t, profiles, 2)
+	require.Contains(t, profiles, domain.DefaultProfileName)
+	require.Contains(t, profiles, "vscode")
+	require.Equal(t, "vscode", callers["vscode"])
+	require.Equal(t, "default", callers["default-client"])
 }
 
 func TestProfileStoreLoader_MissingDefaultProfile(t *testing.T) {
@@ -85,7 +87,7 @@ func TestProfileStoreLoader_AllowCreate(t *testing.T) {
 	loader := NewProfileStoreLoader(zap.NewNop())
 	store, err := loader.Load(context.Background(), dir, ProfileStoreOptions{AllowCreate: true})
 	require.NoError(t, err)
-	profile, ok := store.Profiles[domain.DefaultProfileName]
+	profile, ok := store.Profiles()[domain.DefaultProfileName]
 	require.True(t, ok)
 	require.Empty(t, profile.Catalog.Specs)
 
@@ -131,9 +133,9 @@ rpc:
 	loader := NewProfileStoreLoader(zap.NewNop())
 	store, err := loader.Load(context.Background(), dir, ProfileStoreOptions{})
 	require.NoError(t, err)
-	require.Len(t, store.Profiles, 2)
+	require.Len(t, store.Profiles(), 2)
 
-	for name, profile := range store.Profiles {
+	for name, profile := range store.Profiles() {
 		require.Equal(t, 15, profile.Catalog.Runtime.RouteTimeoutSeconds, "profile %s", name)
 		require.Equal(t, 20, profile.Catalog.Runtime.PingIntervalSeconds, "profile %s", name)
 		require.Equal(t, 45, profile.Catalog.Runtime.ToolRefreshSeconds, "profile %s", name)
@@ -147,7 +149,7 @@ rpc:
 		require.Equal(t, 12, profile.Catalog.Runtime.BootstrapTimeoutSeconds, "profile %s", name)
 		require.Equal(t, domain.ActivationAlwaysOn, profile.Catalog.Runtime.DefaultActivationMode, "profile %s", name)
 		require.False(t, profile.Catalog.Runtime.ExposeTools, "profile %s", name)
-		require.Equal(t, "flat", profile.Catalog.Runtime.ToolNamespaceStrategy, "profile %s", name)
+		require.Equal(t, domain.ToolNamespaceStrategyFlat, profile.Catalog.Runtime.ToolNamespaceStrategy, "profile %s", name)
 		require.Equal(t, "unix:///tmp/test.sock", profile.Catalog.Runtime.RPC.ListenAddress, "profile %s", name)
 		require.Equal(t, "0.0.0.0:1111", profile.Catalog.Runtime.Observability.ListenAddress, "profile %s", name)
 	}

@@ -187,9 +187,7 @@ func newTestState(specs map[string]domain.ServerSpec, runtime domain.RuntimeConf
 
 func specKeyFor(t *testing.T, spec domain.ServerSpec) string {
 	t.Helper()
-	key, err := domain.SpecFingerprint(spec)
-	require.NoError(t, err)
-	return key
+	return domain.SpecFingerprint(spec)
 }
 
 type setResult struct {

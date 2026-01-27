@@ -162,10 +162,7 @@ func mapServerSummaries(catalog domain.Catalog) []ServerSpecDetail {
 	}
 	result := make([]ServerSpecDetail, 0, len(catalog.Specs))
 	for _, spec := range catalog.Specs {
-		specKey, err := domain.SpecFingerprint(spec)
-		if err != nil {
-			continue
-		}
+		specKey := domain.SpecFingerprint(spec)
 		result = append(result, mapServerSpecDetail(spec, specKey))
 	}
 	return result

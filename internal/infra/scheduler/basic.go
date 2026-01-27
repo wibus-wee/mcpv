@@ -186,7 +186,6 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 		if startCancel != nil {
 			startCancel()
 		}
-		newInst.SpecKey = specKey
 		tracked := &trackedInstance{instance: newInst}
 		if state.generation != startGen {
 			state.mu.Unlock()
@@ -259,24 +258,25 @@ func (s *BasicScheduler) Release(ctx context.Context, instance *domain.Instance)
 		return errors.New("instance is nil")
 	}
 
-	specKey := instance.SpecKey
+	specKey := instance.SpecKey()
 	if specKey == "" {
 		return errors.New("instance spec key is empty")
 	}
-	state := s.getPool(specKey, instance.Spec)
+	state := s.getPool(specKey, instance.Spec())
 	state.mu.Lock()
 
-	if instance.BusyCount > 0 {
-		instance.BusyCount--
+	if instance.BusyCount() > 0 {
+		instance.DecBusyCount()
 	}
-	instance.LastActive = time.Now()
+	instance.SetLastActive(time.Now())
 
 	var triggerDrain *trackedInstance
-	if instance.BusyCount == 0 {
-		if instance.State == domain.InstanceStateBusy {
-			instance.State = domain.InstanceStateReady
-		} else if instance.State == domain.InstanceStateDraining {
-			triggerDrain = state.findDrainingByIDLocked(instance.ID)
+	if instance.BusyCount() == 0 {
+		switch instance.State() {
+		case domain.InstanceStateBusy:
+			instance.SetState(domain.InstanceStateReady)
+		case domain.InstanceStateDraining:
+			triggerDrain = state.findDrainingByIDLocked(instance.ID())
 		}
 	}
 	state.mu.Unlock()
@@ -336,7 +336,6 @@ func (s *BasicScheduler) SetDesiredMinReady(ctx context.Context, specKey string,
 			state.startCount++
 		}
 		if err == nil {
-			inst.SpecKey = specKey
 			if state.generation != startGen {
 				state.mu.Unlock()
 				stopErr := s.stopInstance(context.Background(), state.spec, inst, "start superseded")
@@ -387,11 +386,11 @@ func (s *BasicScheduler) StopSpec(ctx context.Context, specKey, reason string) e
 	var deferred []*trackedInstance
 
 	for _, inst := range state.instances {
-		if inst.instance.BusyCount > 0 {
-			inst.instance.State = domain.InstanceStateDraining
+		if inst.instance.BusyCount() > 0 {
+			inst.instance.SetState(domain.InstanceStateDraining)
 			deferred = append(deferred, inst)
 		} else {
-			inst.instance.State = domain.InstanceStateDraining
+			inst.instance.SetState(domain.InstanceStateDraining)
 			immediate = append(immediate, inst)
 		}
 	}
@@ -410,10 +409,7 @@ func (s *BasicScheduler) StopSpec(ctx context.Context, specKey, reason string) e
 		s.recordInstanceStop(state)
 	}
 
-	drainTimeout := time.Duration(spec.DrainTimeoutSeconds) * time.Second
-	if drainTimeout <= 0 {
-		drainTimeout = time.Duration(domain.DefaultDrainTimeoutSeconds) * time.Second
-	}
+	drainTimeout := spec.DrainTimeout()
 
 	for _, inst := range deferred {
 		s.startDrain(specKey, inst, drainTimeout, reason)
@@ -548,10 +544,10 @@ func (s *poolState) acquireReadyLocked(routingKey string) (*domain.Instance, err
 		// Singleton: return the single instance if available
 		if len(s.instances) > 0 {
 			inst := s.instances[0]
-			if !isRoutable(inst.instance.State) {
+			if !isRoutable(inst.instance.State()) {
 				return nil, domain.ErrNoReadyInstance
 			}
-			if inst.instance.BusyCount >= s.spec.MaxConcurrent {
+			if inst.instance.BusyCount() >= s.spec.MaxConcurrent {
 				return nil, ErrNoCapacity
 			}
 			return s.markBusyLocked(inst), nil
@@ -562,10 +558,10 @@ func (s *poolState) acquireReadyLocked(routingKey string) (*domain.Instance, err
 		// Stateful: check sticky binding first
 		if routingKey != "" {
 			if binding := s.lookupStickyLocked(routingKey); binding != nil {
-				if !isRoutable(binding.inst.instance.State) {
+				if !isRoutable(binding.inst.instance.State()) {
 					s.unbindStickyLocked(routingKey)
 				} else {
-					if binding.inst.instance.BusyCount >= s.spec.MaxConcurrent {
+					if binding.inst.instance.BusyCount() >= s.spec.MaxConcurrent {
 						return nil, ErrStickyBusy
 					}
 					binding.lastAccess = time.Now()
@@ -610,7 +606,7 @@ func (s *poolState) bindStickyLocked(routingKey string, inst *trackedInstance) {
 		inst:       inst,
 		lastAccess: time.Now(),
 	}
-	inst.instance.StickyKey = routingKey
+	inst.instance.SetStickyKey(routingKey)
 }
 
 func (s *poolState) unbindStickyLocked(routingKey string) {
@@ -625,10 +621,10 @@ func (s *poolState) unbindStickyLocked(routingKey string) {
 
 func (s *poolState) findReadyInstanceLocked() *trackedInstance {
 	for _, inst := range s.instances {
-		if inst.instance.BusyCount >= s.spec.MaxConcurrent {
+		if inst.instance.BusyCount() >= s.spec.MaxConcurrent {
 			continue
 		}
-		if !isRoutable(inst.instance.State) {
+		if !isRoutable(inst.instance.State()) {
 			continue
 		}
 		return inst
@@ -637,9 +633,9 @@ func (s *poolState) findReadyInstanceLocked() *trackedInstance {
 }
 
 func (s *poolState) markBusyLocked(inst *trackedInstance) *domain.Instance {
-	inst.instance.BusyCount++
-	inst.instance.State = domain.InstanceStateBusy
-	inst.instance.LastActive = time.Now()
+	inst.instance.IncBusyCount()
+	inst.instance.SetState(domain.InstanceStateBusy)
+	inst.instance.SetLastActive(time.Now())
 	return inst.instance
 }
 
@@ -758,7 +754,7 @@ func (s *BasicScheduler) reapIdle() {
 		minReady := entry.state.minReady
 
 		for _, inst := range entry.state.instances {
-			if inst.instance.State != domain.InstanceStateReady {
+			if inst.instance.State() != domain.InstanceStateReady {
 				continue
 			}
 
@@ -780,16 +776,16 @@ func (s *BasicScheduler) reapIdle() {
 			if readyCount <= minReady {
 				continue
 			}
-			idleFor := now.Sub(inst.instance.LastActive)
+			idleFor := now.Sub(inst.instance.LastActive())
 			// When minReady=0 (on-demand servers with no activation), reap immediately
 			// regardless of IdleSeconds to clean up after bootstrap/temporary usage.
-			if minReady == 0 || idleFor >= time.Duration(spec.IdleSeconds)*time.Second {
-				inst.instance.State = domain.InstanceStateDraining
+			if minReady == 0 || idleFor >= spec.IdleDuration() {
+				inst.instance.SetState(domain.InstanceStateDraining)
 				s.logger.Info("idle reap",
 					telemetry.EventField(telemetry.EventIdleReap),
 					telemetry.ServerTypeField(entry.specKey),
-					telemetry.InstanceIDField(inst.instance.ID),
-					telemetry.StateField(string(inst.instance.State)),
+					telemetry.InstanceIDField(inst.instance.ID()),
+					telemetry.StateField(string(inst.instance.State())),
 					telemetry.DurationField(idleFor),
 				)
 				candidates = append(candidates, stopCandidate{
@@ -841,7 +837,7 @@ func (s *BasicScheduler) reapStaleBindings() {
 					telemetry.DurationField(now.Sub(binding.lastAccess)),
 				)
 				if binding.inst != nil && binding.inst.instance != nil {
-					binding.inst.instance.StickyKey = ""
+					binding.inst.instance.SetStickyKey("")
 				}
 				delete(entry.state.sticky, key)
 			}
@@ -877,7 +873,7 @@ func (s *BasicScheduler) probeInstances() {
 	for _, entry := range s.snapshotPools() {
 		entry.state.mu.Lock()
 		for _, inst := range entry.state.instances {
-			if !isRoutable(inst.instance.State) {
+			if !isRoutable(inst.instance.State()) {
 				continue
 			}
 			checks = append(checks, stopCandidate{
@@ -891,12 +887,12 @@ func (s *BasicScheduler) probeInstances() {
 	}
 
 	for _, candidate := range checks {
-		if err := s.probe.Ping(context.Background(), candidate.inst.instance.Conn); err != nil {
+		if err := s.probe.Ping(context.Background(), candidate.inst.instance.Conn()); err != nil {
 			s.logger.Warn("ping failed",
 				telemetry.EventField(telemetry.EventPingFailure),
 				telemetry.ServerTypeField(candidate.specKey),
-				telemetry.InstanceIDField(candidate.inst.instance.ID),
-				telemetry.StateField(string(candidate.inst.instance.State)),
+				telemetry.InstanceIDField(candidate.inst.instance.ID()),
+				telemetry.StateField(string(candidate.inst.instance.State())),
 				zap.Error(err),
 			)
 			candidates = append(candidates, candidate)
@@ -904,13 +900,13 @@ func (s *BasicScheduler) probeInstances() {
 		}
 
 		candidate.state.mu.Lock()
-		candidate.inst.instance.LastHeartbeatAt = time.Now()
+		candidate.inst.instance.SetLastHeartbeatAt(time.Now())
 		candidate.state.mu.Unlock()
 	}
 
 	for _, candidate := range candidates {
 		candidate.state.mu.Lock()
-		candidate.inst.instance.State = domain.InstanceStateFailed
+		candidate.inst.instance.SetState(domain.InstanceStateFailed)
 		candidate.state.mu.Unlock()
 
 		err := s.stopInstance(context.Background(), candidate.state.spec, candidate.inst.instance, candidate.reason)
@@ -980,16 +976,7 @@ func (s *BasicScheduler) GetPoolStatus(ctx context.Context) ([]domain.PoolInfo, 
 
 		// Include active instances
 		for _, inst := range entry.state.instances {
-			instances = append(instances, domain.InstanceInfo{
-				ID:              inst.instance.ID,
-				State:           inst.instance.State,
-				BusyCount:       inst.instance.BusyCount,
-				LastActive:      inst.instance.LastActive,
-				SpawnedAt:       inst.instance.SpawnedAt,
-				HandshakedAt:    inst.instance.HandshakedAt,
-				LastHeartbeatAt: inst.instance.LastHeartbeatAt,
-				LastStartCause:  domain.CloneStartCause(inst.instance.LastStartCause),
-			})
+			instances = append(instances, inst.instance.Info())
 			stats := inst.instance.CallStats()
 			metrics.TotalCalls += stats.TotalCalls
 			metrics.TotalErrors += stats.TotalErrors
@@ -1001,16 +988,7 @@ func (s *BasicScheduler) GetPoolStatus(ctx context.Context) ([]domain.PoolInfo, 
 
 		// Include draining instances
 		for _, inst := range entry.state.draining {
-			instances = append(instances, domain.InstanceInfo{
-				ID:              inst.instance.ID,
-				State:           inst.instance.State,
-				BusyCount:       inst.instance.BusyCount,
-				LastActive:      inst.instance.LastActive,
-				SpawnedAt:       inst.instance.SpawnedAt,
-				HandshakedAt:    inst.instance.HandshakedAt,
-				LastHeartbeatAt: inst.instance.LastHeartbeatAt,
-				LastStartCause:  domain.CloneStartCause(inst.instance.LastStartCause),
-			})
+			instances = append(instances, inst.instance.Info())
 			stats := inst.instance.CallStats()
 			metrics.TotalCalls += stats.TotalCalls
 			metrics.TotalErrors += stats.TotalErrors
@@ -1073,7 +1051,7 @@ func (s *poolState) removeInstanceLocked(inst *trackedInstance) int {
 func (s *poolState) countReadyLocked() int {
 	count := 0
 	for _, inst := range s.instances {
-		if inst.instance.State == domain.InstanceStateReady {
+		if inst.instance.State() == domain.InstanceStateReady {
 			count++
 		}
 	}
@@ -1082,7 +1060,7 @@ func (s *poolState) countReadyLocked() int {
 
 func (s *poolState) findDrainingByIDLocked(id string) *trackedInstance {
 	for _, inst := range s.draining {
-		if inst.instance.ID == id {
+		if inst.instance.ID() == id {
 			return inst
 		}
 	}
@@ -1114,8 +1092,8 @@ func (s *BasicScheduler) startDrain(specKey string, inst *trackedInstance, timeo
 		s.logger.Info("drain started",
 			telemetry.EventField("drain_start"),
 			telemetry.ServerTypeField(specKey),
-			telemetry.InstanceIDField(inst.instance.ID),
-			zap.Int("busyCount", inst.instance.BusyCount),
+			telemetry.InstanceIDField(inst.instance.ID()),
+			zap.Int("busyCount", inst.instance.BusyCount()),
 			zap.Duration("timeout", timeout),
 		)
 
@@ -1130,7 +1108,7 @@ func (s *BasicScheduler) startDrain(specKey string, inst *trackedInstance, timeo
 				timedOut = true
 			}
 
-			state := s.getPool(specKey, inst.instance.Spec)
+			state := s.getPool(specKey, inst.instance.Spec())
 			state.mu.Lock()
 			state.removeDrainingLocked(inst)
 			state.mu.Unlock()
@@ -1141,24 +1119,24 @@ func (s *BasicScheduler) startDrain(specKey string, inst *trackedInstance, timeo
 				s.logger.Warn("drain timeout, forcing stop",
 					telemetry.EventField("drain_timeout"),
 					telemetry.ServerTypeField(specKey),
-					telemetry.InstanceIDField(inst.instance.ID),
+					telemetry.InstanceIDField(inst.instance.ID()),
 				)
 			} else {
 				s.logger.Info("drain completed",
 					telemetry.EventField("drain_complete"),
 					telemetry.ServerTypeField(specKey),
-					telemetry.InstanceIDField(inst.instance.ID),
+					telemetry.InstanceIDField(inst.instance.ID()),
 				)
 			}
 
 			err := s.stopInstance(context.Background(), state.spec, inst.instance, finalReason)
-			s.observeInstanceStop(inst.instance.Spec.Name, err)
+			s.observeInstanceStop(inst.instance.Spec().Name, err)
 			s.recordInstanceStop(state)
 		}()
 
-		state := s.getPool(specKey, inst.instance.Spec)
+		state := s.getPool(specKey, inst.instance.Spec())
 		state.mu.Lock()
-		busy := inst.instance.BusyCount
+		busy := inst.instance.BusyCount()
 		state.mu.Unlock()
 		if busy == 0 {
 			select {
@@ -1181,10 +1159,10 @@ func (s *BasicScheduler) applyStartCause(ctx context.Context, inst *domain.Insta
 	if cause.Timestamp.IsZero() {
 		cause.Timestamp = started
 	}
-	if !shouldOverrideCause(inst.LastStartCause, cause) {
+	if !shouldOverrideCause(inst.LastStartCause(), cause) {
 		return
 	}
-	inst.LastStartCause = domain.CloneStartCause(&cause)
+	inst.SetLastStartCause(&cause)
 }
 
 func (s *BasicScheduler) applyStartCauseLocked(state *poolState, cause domain.StartCause, started time.Time) {
@@ -1203,10 +1181,10 @@ func (s *BasicScheduler) updateInstanceCauseLocked(inst *domain.Instance, cause 
 	if inst == nil {
 		return
 	}
-	if !shouldOverrideCause(inst.LastStartCause, cause) {
+	if !shouldOverrideCause(inst.LastStartCause(), cause) {
 		return
 	}
-	inst.LastStartCause = domain.CloneStartCause(&cause)
+	inst.SetLastStartCause(&cause)
 }
 
 func shouldOverrideCause(existing *domain.StartCause, next domain.StartCause) bool {
@@ -1249,7 +1227,7 @@ func (s *BasicScheduler) observePoolStats(state *poolState) {
 	maxConcurrent := state.spec.MaxConcurrent
 	serverType := state.spec.Name
 	for _, inst := range state.instances {
-		busyCount += inst.instance.BusyCount
+		busyCount += inst.instance.BusyCount()
 	}
 	state.mu.Unlock()
 

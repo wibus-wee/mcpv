@@ -377,7 +377,7 @@ func (a *PromptIndex) buildSnapshot(cache map[string]promptCache) (domain.Prompt
 			promptDef.Name = displayName
 
 			if existing, exists := targets[displayName]; exists {
-				if a.cfg.ToolNamespaceStrategy != "flat" {
+				if a.cfg.ToolNamespaceStrategy != domain.ToolNamespaceStrategyFlat {
 					a.logger.Warn("prompt name conflict", zap.String("serverType", serverType), zap.String("prompt", prompt.Name))
 					continue
 				}
@@ -572,7 +572,7 @@ func (a *PromptIndex) fetchPrompts(ctx context.Context, serverType, specKey stri
 }
 
 func (a *PromptIndex) namespacePrompt(serverType, promptName string) string {
-	if a.cfg.ToolNamespaceStrategy == "flat" {
+	if a.cfg.ToolNamespaceStrategy == domain.ToolNamespaceStrategyFlat {
 		return promptName
 	}
 	return fmt.Sprintf("%s.%s", serverType, promptName)

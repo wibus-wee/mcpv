@@ -143,22 +143,16 @@ func (m *ServerInitializationManager) ApplyCatalogState(state *domain.CatalogSta
 }
 
 func resolveServerInitRetry(runtime domain.RuntimeConfig) (time.Duration, time.Duration, int) {
-	retryBaseSeconds := runtime.ServerInitRetryBaseSeconds
-	if retryBaseSeconds <= 0 {
-		retryBaseSeconds = domain.DefaultServerInitRetryBaseSeconds
-	}
-	retryMaxSeconds := runtime.ServerInitRetryMaxSeconds
-	if retryMaxSeconds <= 0 {
-		retryMaxSeconds = domain.DefaultServerInitRetryMaxSeconds
-	}
-	if retryMaxSeconds < retryBaseSeconds {
-		retryMaxSeconds = retryBaseSeconds
+	retryBase := runtime.ServerInitRetryBaseDuration()
+	retryMax := runtime.ServerInitRetryMaxDuration()
+	if retryMax < retryBase {
+		retryMax = retryBase
 	}
 	maxRetries := runtime.ServerInitMaxRetries
 	if maxRetries < 0 {
 		maxRetries = domain.DefaultServerInitMaxRetries
 	}
-	return time.Duration(retryBaseSeconds) * time.Second, time.Duration(retryMaxSeconds) * time.Second, maxRetries
+	return retryBase, retryMax, maxRetries
 }
 
 // Start begins background initialization work.
@@ -410,7 +404,16 @@ func (m *ServerInitializationManager) runSpec(ctx context.Context, specKey strin
 			causeCtx = domain.WithStartCause(ctx, cause)
 		}
 		err := m.scheduler.SetDesiredMinReady(causeCtx, specKey, target)
-		ready, failed := m.snapshot(ctx, specKey)
+		ready, failed, snapshotErr := m.snapshot(ctx, specKey)
+		if snapshotErr != nil {
+			m.logger.Warn("server init snapshot failed",
+				zap.String("specKey", specKey),
+				zap.Error(snapshotErr),
+			)
+			if err == nil {
+				err = snapshotErr
+			}
+		}
 		m.applyResult(specKey, target, ready, failed, err)
 
 		if ready >= target {
@@ -536,13 +539,13 @@ func deriveInitState(status domain.ServerInitStatus, ready, failed int) domain.S
 	}
 }
 
-func (m *ServerInitializationManager) snapshot(ctx context.Context, specKey string) (int, int) {
+func (m *ServerInitializationManager) snapshot(ctx context.Context, specKey string) (int, int, error) {
 	m.mu.Lock()
 	scheduler := m.scheduler
 	m.mu.Unlock()
 
 	if scheduler == nil {
-		return 0, 0
+		return 0, 0, errors.New("scheduler unavailable")
 	}
 
 	if ctx == nil {
@@ -551,7 +554,7 @@ func (m *ServerInitializationManager) snapshot(ctx context.Context, specKey stri
 
 	pools, err := scheduler.GetPoolStatus(ctx)
 	if err != nil {
-		return 0, 0
+		return 0, 0, err
 	}
 
 	for _, pool := range pools {
@@ -568,9 +571,9 @@ func (m *ServerInitializationManager) snapshot(ctx context.Context, specKey stri
 				failed++
 			}
 		}
-		return ready, failed
+		return ready, failed, nil
 	}
-	return 0, 0
+	return 0, 0, nil
 }
 
 func (m *ServerInitializationManager) updateStatus(specKey string, mutate func(*domain.ServerInitStatus)) {

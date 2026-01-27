@@ -47,7 +47,7 @@ func newClientRegistry(state *controlPlaneState) *clientRegistry {
 // StartMonitor begins monitoring client heartbeats.
 func (r *clientRegistry) StartMonitor(ctx context.Context) {
 	runtime := r.state.Runtime()
-	interval := time.Duration(runtime.ClientCheckSeconds) * time.Second
+	interval := runtime.ClientCheckInterval()
 	if interval <= 0 {
 		return
 	}
@@ -402,8 +402,8 @@ func (r *clientRegistry) deactivateSpecs(ctx context.Context, specKeys []string)
 func (r *clientRegistry) reapDeadClients(ctx context.Context) {
 	now := time.Now()
 	runtime := r.state.Runtime()
-	timeout := time.Duration(runtime.ClientCheckSeconds*clientReapTimeoutMultiplier) * time.Second
-	inactiveTimeout := time.Duration(runtime.ClientInactiveSeconds) * time.Second
+	timeout := runtime.ClientCheckInterval() * clientReapTimeoutMultiplier
+	inactiveTimeout := runtime.ClientInactiveInterval()
 	r.mu.Lock()
 	clients := make([]string, 0, len(r.activeClients))
 	for client, state := range r.activeClients {

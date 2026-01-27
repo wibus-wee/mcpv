@@ -2,9 +2,9 @@ package app
 
 import (
 	"context"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"go.uber.org/zap"
 
 	"mcpd/internal/domain"
@@ -24,8 +24,8 @@ import (
 // NewMetricsRegistry creates a Prometheus registry.
 func NewMetricsRegistry() *prometheus.Registry {
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
-	registry.MustRegister(prometheus.NewGoCollector())
+	registry.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+	registry.MustRegister(collectors.NewGoCollector())
 	return registry
 }
 
@@ -148,10 +148,7 @@ func NewBootstrapManagerProvider(
 		concurrency = domain.DefaultBootstrapConcurrency
 	}
 
-	timeout := time.Duration(runtime.BootstrapTimeoutSeconds) * time.Second
-	if timeout <= 0 {
-		timeout = time.Duration(domain.DefaultBootstrapTimeoutSeconds) * time.Second
-	}
+	timeout := runtime.BootstrapTimeout()
 
 	return NewBootstrapManager(BootstrapManagerOptions{
 		Scheduler:   scheduler,
@@ -229,7 +226,7 @@ func buildRuntimeState(
 	}
 	refreshGate := aggregator.NewRefreshGate()
 	baseRouter := router.NewBasicRouter(scheduler, router.RouterOptions{
-		Timeout: time.Duration(state.Summary.Runtime.RouteTimeoutSeconds) * time.Second,
+		Timeout: state.Summary.Runtime.RouteTimeout(),
 		Logger:  logger,
 	})
 	rt := router.NewMetricRouter(baseRouter, metrics)

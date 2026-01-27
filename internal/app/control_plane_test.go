@@ -29,8 +29,7 @@ func TestControlPlane_RegisterUnregister(t *testing.T) {
 		MaxConcurrent:   1,
 		ProtocolVersion: domain.DefaultProtocolVersion,
 	}
-	specKey, err := domain.SpecFingerprint(spec)
-	require.NoError(t, err)
+	specKey := domain.SpecFingerprint(spec)
 
 	sched := &fakeScheduler{}
 	cp := newTestControlPlane(context.Background(), domain.Catalog{

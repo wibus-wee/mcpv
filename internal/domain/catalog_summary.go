@@ -1,7 +1,5 @@
 package domain
 
-import "fmt"
-
 // CatalogSummary aggregates catalog metadata.
 type CatalogSummary struct {
 	SpecRegistry   map[string]ServerSpec
@@ -23,10 +21,7 @@ func BuildCatalogSummary(catalog Catalog) (CatalogSummary, error) {
 		if spec.Disabled {
 			continue
 		}
-		specKey, err := SpecFingerprint(spec)
-		if err != nil {
-			return CatalogSummary{}, fmt.Errorf("spec fingerprint for %q: %w", name, err)
-		}
+		specKey := SpecFingerprint(spec)
 		summary.ServerSpecKeys[name] = specKey
 		if _, ok := summary.SpecRegistry[specKey]; !ok {
 			summary.SpecRegistry[specKey] = spec

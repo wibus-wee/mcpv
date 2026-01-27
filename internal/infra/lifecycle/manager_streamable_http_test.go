@@ -43,6 +43,6 @@ func TestManager_StartInstance_StreamableHTTP(t *testing.T) {
 
 	inst, err := manager.StartInstance(context.Background(), "spec-remote", spec)
 	require.NoError(t, err)
-	require.Equal(t, domain.InstanceStateReady, inst.State)
+	require.Equal(t, domain.InstanceStateReady, inst.State())
 	require.Nil(t, launcher.startCtx)
 }

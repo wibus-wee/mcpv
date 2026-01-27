@@ -34,11 +34,12 @@ type BootstrapManager struct {
 	timeout     time.Duration
 	mode        domain.BootstrapMode
 
-	mu        sync.RWMutex
-	state     domain.BootstrapState
-	progress  domain.BootstrapProgress
-	completed chan struct{}
-	started   bool
+	mu            sync.RWMutex
+	state         domain.BootstrapState
+	progress      domain.BootstrapProgress
+	completed     chan struct{}
+	completedOnce sync.Once
+	started       bool
 }
 
 type bootstrapTarget struct {
@@ -239,7 +240,7 @@ func (m *BootstrapManager) run(ctx context.Context, targets []bootstrapTarget) {
 		zap.Duration("elapsed", time.Since(startTime)),
 	)
 
-	m.completeBootstrap(true)
+	m.completeBootstrap(failed == 0)
 }
 
 func (m *BootstrapManager) bootstrapOne(ctx context.Context, specKey string, spec domain.ServerSpec) error {
@@ -342,7 +343,7 @@ func (m *BootstrapManager) fetchAndCacheMetadata(ctx context.Context, specKey st
 	if instance == nil {
 		return errors.New("instance is nil")
 	}
-	if instance.Conn == nil {
+	if instance.Conn() == nil {
 		return errors.New("instance has no connection")
 	}
 
@@ -384,7 +385,7 @@ func (m *BootstrapManager) fetchAndCacheMetadata(ctx context.Context, specKey st
 }
 
 func (m *BootstrapManager) fetchTools(ctx context.Context, instance *domain.Instance) ([]*mcp.Tool, error) {
-	if instance.Conn == nil {
+	if instance.Conn() == nil {
 		return nil, errors.New("instance has no connection")
 	}
 
@@ -394,7 +395,7 @@ func (m *BootstrapManager) fetchTools(ctx context.Context, instance *domain.Inst
 		return nil, err
 	}
 
-	resp, err := instance.Conn.Call(ctx, payload)
+	resp, err := instance.Conn().Call(ctx, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -408,7 +409,7 @@ func (m *BootstrapManager) fetchTools(ctx context.Context, instance *domain.Inst
 }
 
 func (m *BootstrapManager) fetchResources(ctx context.Context, instance *domain.Instance) ([]*mcp.Resource, error) {
-	if instance.Conn == nil {
+	if instance.Conn() == nil {
 		return nil, errors.New("instance has no connection")
 	}
 
@@ -418,7 +419,7 @@ func (m *BootstrapManager) fetchResources(ctx context.Context, instance *domain.
 		return nil, err
 	}
 
-	resp, err := instance.Conn.Call(ctx, payload)
+	resp, err := instance.Conn().Call(ctx, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -432,7 +433,7 @@ func (m *BootstrapManager) fetchResources(ctx context.Context, instance *domain.
 }
 
 func (m *BootstrapManager) fetchPrompts(ctx context.Context, instance *domain.Instance) ([]*mcp.Prompt, error) {
-	if instance.Conn == nil {
+	if instance.Conn() == nil {
 		return nil, errors.New("instance has no connection")
 	}
 
@@ -442,7 +443,7 @@ func (m *BootstrapManager) fetchPrompts(ctx context.Context, instance *domain.In
 		return nil, err
 	}
 
-	resp, err := instance.Conn.Call(ctx, payload)
+	resp, err := instance.Conn().Call(ctx, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -536,6 +537,10 @@ func (m *BootstrapManager) recordFailure(specKey string, err error) {
 
 func (m *BootstrapManager) completeBootstrap(success bool) {
 	m.mu.Lock()
+	if m.state == domain.BootstrapCompleted || m.state == domain.BootstrapFailed {
+		m.mu.Unlock()
+		return
+	}
 	if success {
 		m.state = domain.BootstrapCompleted
 		m.progress.State = domain.BootstrapCompleted
@@ -545,7 +550,9 @@ func (m *BootstrapManager) completeBootstrap(success bool) {
 	}
 	m.mu.Unlock()
 
-	close(m.completed)
+	m.completedOnce.Do(func() {
+		close(m.completed)
+	})
 }
 
 // WaitForCompletion blocks until bootstrap completes or context cancels.

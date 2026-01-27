@@ -22,10 +22,8 @@ func TestSpecFingerprint_StableAcrossName(t *testing.T) {
 	other := base
 	other.Name = "svc-b"
 
-	baseKey, err := SpecFingerprint(base)
-	require.NoError(t, err)
-	otherKey, err := SpecFingerprint(other)
-	require.NoError(t, err)
+	baseKey := SpecFingerprint(base)
+	otherKey := SpecFingerprint(other)
 	require.Equal(t, baseKey, otherKey)
 }
 
@@ -40,10 +38,8 @@ func TestSpecFingerprint_DifferentSpec(t *testing.T) {
 	changed := base
 	changed.Cmd = []string{"./svc", "--flag"}
 
-	baseKey, err := SpecFingerprint(base)
-	require.NoError(t, err)
-	changedKey, err := SpecFingerprint(changed)
-	require.NoError(t, err)
+	baseKey := SpecFingerprint(base)
+	changedKey := SpecFingerprint(changed)
 	require.NotEqual(t, baseKey, changedKey)
 }
 
@@ -57,10 +53,8 @@ func TestSpecFingerprint_CwdAffectsFingerprint(t *testing.T) {
 	changed := base
 	changed.Cwd = "/tmp/b"
 
-	baseKey, err := SpecFingerprint(base)
-	require.NoError(t, err)
-	changedKey, err := SpecFingerprint(changed)
-	require.NoError(t, err)
+	baseKey := SpecFingerprint(base)
+	changedKey := SpecFingerprint(changed)
 	require.NotEqual(t, baseKey, changedKey)
 }
 
@@ -78,10 +72,8 @@ func TestSpecFingerprint_EnvOrderIndependent(t *testing.T) {
 		ProtocolVersion: DefaultProtocolVersion,
 	}
 
-	keyA, err := SpecFingerprint(specA)
-	require.NoError(t, err)
-	keyB, err := SpecFingerprint(specB)
-	require.NoError(t, err)
+	keyA := SpecFingerprint(specA)
+	keyB := SpecFingerprint(specB)
 	require.Equal(t, keyA, keyB)
 }
 
@@ -99,10 +91,8 @@ func TestSpecFingerprint_EnvChangeAffectsFingerprint(t *testing.T) {
 		ProtocolVersion: DefaultProtocolVersion,
 	}
 
-	keyA, err := SpecFingerprint(specA)
-	require.NoError(t, err)
-	keyB, err := SpecFingerprint(specB)
-	require.NoError(t, err)
+	keyA := SpecFingerprint(specA)
+	keyB := SpecFingerprint(specB)
 	require.NotEqual(t, keyA, keyB)
 }
 
@@ -125,10 +115,8 @@ func TestSpecFingerprint_IgnoresSchedulerFields(t *testing.T) {
 	changed.ExposeTools = []string{"tool-b"}
 	changed.DrainTimeoutSeconds = 15
 
-	baseKey, err := SpecFingerprint(base)
-	require.NoError(t, err)
-	changedKey, err := SpecFingerprint(changed)
-	require.NoError(t, err)
+	baseKey := SpecFingerprint(base)
+	changedKey := SpecFingerprint(changed)
 	require.Equal(t, baseKey, changedKey)
 }
 
@@ -146,10 +134,8 @@ func TestSpecFingerprint_EmptyEnvStable(t *testing.T) {
 		ProtocolVersion: DefaultProtocolVersion,
 	}
 
-	keyA, err := SpecFingerprint(specA)
-	require.NoError(t, err)
-	keyB, err := SpecFingerprint(specB)
-	require.NoError(t, err)
+	keyA := SpecFingerprint(specA)
+	keyB := SpecFingerprint(specB)
 	require.Equal(t, keyA, keyB)
 }
 
@@ -169,10 +155,8 @@ func TestSpecFingerprint_StreamableHTTPDiffEndpoint(t *testing.T) {
 		MaxRetries: 5,
 	}
 
-	keyA, err := SpecFingerprint(specA)
-	require.NoError(t, err)
-	keyB, err := SpecFingerprint(specB)
-	require.NoError(t, err)
+	keyA := SpecFingerprint(specA)
+	keyB := SpecFingerprint(specB)
 	require.NotEqual(t, keyA, keyB)
 }
 
@@ -200,9 +184,7 @@ func TestSpecFingerprint_StreamableHTTPHeaderOrder(t *testing.T) {
 		MaxRetries: 5,
 	}
 
-	keyA, err := SpecFingerprint(specA)
-	require.NoError(t, err)
-	keyB, err := SpecFingerprint(specB)
-	require.NoError(t, err)
+	keyA := SpecFingerprint(specA)
+	keyB := SpecFingerprint(specB)
 	require.Equal(t, keyA, keyB)
 }

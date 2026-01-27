@@ -30,7 +30,7 @@ func TestPromptIndex_NamespacedPrompt(t *testing.T) {
 		"echo": "spec-echo",
 	}
 	cfg := domain.RuntimeConfig{
-		ToolNamespaceStrategy: "prefix",
+		ToolNamespaceStrategy: domain.ToolNamespaceStrategyPrefix,
 		ToolRefreshSeconds:    0,
 	}
 
@@ -70,7 +70,7 @@ func TestPromptIndex_SnapshotForServer(t *testing.T) {
 		"echo": "spec-echo",
 	}
 	cfg := domain.RuntimeConfig{
-		ToolNamespaceStrategy: "prefix",
+		ToolNamespaceStrategy: domain.ToolNamespaceStrategyPrefix,
 		ToolRefreshSeconds:    0,
 	}
 
@@ -111,7 +111,7 @@ func TestPromptIndex_UsesCachedPromptsWhenNoReadyInstance(t *testing.T) {
 		"echo": "spec-echo",
 	}
 	cfg := domain.RuntimeConfig{
-		ToolNamespaceStrategy: "prefix",
+		ToolNamespaceStrategy: domain.ToolNamespaceStrategyPrefix,
 		ToolRefreshSeconds:    0,
 	}
 

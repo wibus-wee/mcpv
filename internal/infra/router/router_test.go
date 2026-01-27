@@ -15,10 +15,10 @@ import (
 func TestBasicRouter_RouteSuccess(t *testing.T) {
 	respPayload := json.RawMessage(`{"ok":true}`)
 	sched := &fakeScheduler{
-		instance: &domain.Instance{
+		instance: domain.NewInstance(domain.InstanceOptions{
 			ID:   "inst1",
 			Conn: &fakeConn{resp: respPayload},
-		},
+		}),
 	}
 	r := NewBasicRouter(sched, RouterOptions{})
 
@@ -39,7 +39,7 @@ func TestBasicRouter_AcquireError(t *testing.T) {
 
 func TestBasicRouter_NoConn(t *testing.T) {
 	sched := &fakeScheduler{
-		instance: &domain.Instance{ID: "x"},
+		instance: domain.NewInstance(domain.InstanceOptions{ID: "x"}),
 	}
 	r := NewBasicRouter(sched, RouterOptions{})
 
@@ -49,10 +49,10 @@ func TestBasicRouter_NoConn(t *testing.T) {
 
 func TestBasicRouter_MethodNotAllowed(t *testing.T) {
 	sched := &fakeScheduler{
-		instance: &domain.Instance{
+		instance: domain.NewInstance(domain.InstanceOptions{
 			ID:   "inst1",
 			Conn: &fakeConn{resp: json.RawMessage(`{}`)},
-		},
+		}),
 	}
 	r := NewBasicRouter(sched, RouterOptions{})
 
@@ -63,10 +63,10 @@ func TestBasicRouter_MethodNotAllowed(t *testing.T) {
 func TestBasicRouter_RouteWithOptions_NoStart(t *testing.T) {
 	respPayload := json.RawMessage(`{"ok":true}`)
 	sched := &fakeScheduler{
-		readyInstance: &domain.Instance{
+		readyInstance: domain.NewInstance(domain.InstanceOptions{
 			ID:   "inst-ready",
 			Conn: &fakeConn{resp: respPayload},
-		},
+		}),
 	}
 	r := NewBasicRouter(sched, RouterOptions{})
 
