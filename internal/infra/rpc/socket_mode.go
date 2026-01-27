@@ -3,8 +3,9 @@ package rpc
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
+
+	"mcpd/internal/domain"
 )
 
 func resolveSocketMode(value string) (os.FileMode, error) {
@@ -12,12 +13,9 @@ func resolveSocketMode(value string) (os.FileMode, error) {
 	if value == "" {
 		return 0, nil
 	}
-	parsed, err := strconv.ParseUint(value, 0, 32)
+	parsed, err := domain.ParseSocketMode(value)
 	if err != nil {
-		return 0, fmt.Errorf("invalid rpc socketMode %q: expected 0660 or 0o660", value)
-	}
-	if parsed > 0o777 {
-		return 0, fmt.Errorf("rpc socketMode must be <= 0777")
+		return 0, fmt.Errorf("invalid rpc socketMode %q: %w", value, err)
 	}
 	return os.FileMode(parsed), nil
 }

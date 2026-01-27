@@ -84,7 +84,7 @@ func (b *logBridge) Run(ctx context.Context) {
 				backoff.Sleep(ctx)
 				break
 			}
-			b.publish(entry)
+			b.publish(ctx, entry)
 		}
 	}
 }
@@ -109,7 +109,7 @@ func (b *logBridge) registerCaller(ctx context.Context) error {
 	return nil
 }
 
-func (b *logBridge) publish(entry *controlv1.LogEntry) {
+func (b *logBridge) publish(ctx context.Context, entry *controlv1.LogEntry) {
 	if entry == nil {
 		return
 	}
@@ -120,7 +120,6 @@ func (b *logBridge) publish(entry *controlv1.LogEntry) {
 		Data:   json.RawMessage(entry.DataJson),
 	}
 
-	ctx := context.Background()
 	for session := range b.server.Sessions() {
 		_ = session.Log(ctx, params)
 	}

@@ -56,13 +56,11 @@ func NewServerInitIndex(cp domain.ServerInitStatusReader, logger *zap.Logger) *S
 func (idx *ServerInitIndex) Subscribe(ctx context.Context) <-chan domain.ServerInitStatusSnapshot {
 	ch := make(chan domain.ServerInitStatusSnapshot, 1)
 
+	state := idx.state.Load().(serverInitStatusIndexState)
 	idx.mu.Lock()
 	idx.subs[ch] = struct{}{}
-	idx.mu.Unlock()
-
-	// Send current snapshot immediately
-	state := idx.state.Load().(serverInitStatusIndexState)
 	sendServerInitStatusSnapshot(ch, state.snapshot)
+	idx.mu.Unlock()
 
 	// Auto-cleanup on context cancel
 	go func() {

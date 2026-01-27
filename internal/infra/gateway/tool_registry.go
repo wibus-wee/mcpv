@@ -15,6 +15,7 @@ type toolRegistry struct {
 	server     *mcp.Server
 	handler    func(name string) mcp.ToolHandler
 	logger     *zap.Logger
+	applyMu    sync.Mutex
 	mu         sync.Mutex
 	etag       string
 	registered map[string]struct{}
@@ -37,14 +38,22 @@ func (r *toolRegistry) ApplySnapshot(snapshot *controlv1.ToolsSnapshot) {
 		return
 	}
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.applyMu.Lock()
+	defer r.applyMu.Unlock()
 
+	r.mu.Lock()
 	if snapshot.Etag != "" && snapshot.Etag == r.etag {
+		r.mu.Unlock()
 		return
 	}
+	prev := make(map[string]struct{}, len(r.registered))
+	for name := range r.registered {
+		prev[name] = struct{}{}
+	}
+	r.mu.Unlock()
 
 	next := make(map[string]struct{})
+	toAdd := make([]mcp.Tool, 0, len(snapshot.Tools))
 	for _, def := range snapshot.Tools {
 		if def == nil || len(def.ToolJson) == 0 {
 			continue
@@ -73,20 +82,26 @@ func (r *toolRegistry) ApplySnapshot(snapshot *controlv1.ToolsSnapshot) {
 			continue
 		}
 
-		r.server.AddTool(&tool, r.handler(tool.Name))
+		toAdd = append(toAdd, tool)
 		next[tool.Name] = struct{}{}
 	}
 
 	var remove []string
-	for name := range r.registered {
+	for name := range prev {
 		if _, ok := next[name]; !ok {
 			remove = append(remove, name)
 		}
+	}
+	for i := range toAdd {
+		tool := toAdd[i]
+		r.server.AddTool(&tool, r.handler(tool.Name))
 	}
 	if len(remove) > 0 {
 		r.server.RemoveTools(remove...)
 	}
 
+	r.mu.Lock()
 	r.registered = next
 	r.etag = snapshot.Etag
+	r.mu.Unlock()
 }

@@ -13,6 +13,7 @@ import (
 
 	"mcpd/internal/domain"
 	"mcpd/internal/infra/mcpcodec"
+	"mcpd/internal/infra/telemetry"
 )
 
 const (
@@ -44,6 +45,13 @@ func NewEinoSubAgent(
 	metrics domain.Metrics,
 	logger *zap.Logger,
 ) (*EinoSubAgent, error) {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+	if metrics == nil {
+		metrics = telemetry.NewNoopMetrics()
+	}
+
 	// Initialize LLM model based on config
 	chatModel, err := initializeModel(ctx, config)
 	if err != nil {

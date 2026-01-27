@@ -14,6 +14,7 @@ import (
 	"mcpd/internal/infra/fsutil"
 )
 
+// EditorErrorKind classifies catalog editor errors.
 type EditorErrorKind string
 
 const (
@@ -21,6 +22,7 @@ const (
 	EditorErrorInvalidConfig  EditorErrorKind = "invalid_config"
 )
 
+// EditorError wraps catalog editor failures with a kind and message.
 type EditorError struct {
 	Kind    EditorErrorKind
 	Message string
@@ -38,20 +40,24 @@ func (e *EditorError) Unwrap() error {
 	return e.Err
 }
 
+// ConfigInfo reports the resolved catalog path and write capability.
 type ConfigInfo struct {
 	Path       string
 	IsWritable bool
 }
 
+// ImportRequest describes a bulk server import.
 type ImportRequest struct {
 	Servers []domain.ServerSpec
 }
 
+// Editor manages catalog and runtime configuration updates.
 type Editor struct {
 	path   string
 	logger *zap.Logger
 }
 
+// NewEditor constructs a catalog editor scoped to a profile store path.
 func NewEditor(path string, logger *zap.Logger) *Editor {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -63,6 +69,7 @@ func NewEditor(path string, logger *zap.Logger) *Editor {
 }
 
 func (e *Editor) Inspect(ctx context.Context) (ConfigInfo, error) {
+	_ = ctx
 	path, err := e.configPath(false)
 	if err != nil {
 		return ConfigInfo{}, err
@@ -74,6 +81,7 @@ func (e *Editor) Inspect(ctx context.Context) (ConfigInfo, error) {
 }
 
 func (e *Editor) ImportServers(ctx context.Context, req ImportRequest) error {
+	_ = ctx
 	normalized, err := NormalizeImportRequest(req)
 	if err != nil {
 		return err
@@ -95,6 +103,7 @@ func (e *Editor) ImportServers(ctx context.Context, req ImportRequest) error {
 
 // UpdateRuntimeConfig updates runtime.yaml in the profile store.
 func (e *Editor) UpdateRuntimeConfig(ctx context.Context, update RuntimeConfigUpdate) error {
+	_ = ctx
 	configPath, err := e.configPath(false)
 	if err != nil {
 		return err
@@ -111,6 +120,7 @@ func (e *Editor) UpdateRuntimeConfig(ctx context.Context, update RuntimeConfigUp
 }
 
 func (e *Editor) UpdateSubAgentConfig(ctx context.Context, update SubAgentConfigUpdate) error {
+	_ = ctx
 	configPath, err := e.configPath(false)
 	if err != nil {
 		return err
@@ -127,6 +137,7 @@ func (e *Editor) UpdateSubAgentConfig(ctx context.Context, update SubAgentConfig
 }
 
 func (e *Editor) CreateServer(ctx context.Context, spec domain.ServerSpec) error {
+	_ = ctx
 	normalized, err := normalizeEditorServerSpec(spec)
 	if err != nil {
 		return &EditorError{Kind: EditorErrorInvalidRequest, Message: err.Error()}
@@ -153,6 +164,7 @@ func (e *Editor) CreateServer(ctx context.Context, spec domain.ServerSpec) error
 }
 
 func (e *Editor) UpdateServer(ctx context.Context, spec domain.ServerSpec) error {
+	_ = ctx
 	normalized, err := normalizeEditorServerSpec(spec)
 	if err != nil {
 		return &EditorError{Kind: EditorErrorInvalidRequest, Message: err.Error()}
@@ -179,6 +191,7 @@ func (e *Editor) UpdateServer(ctx context.Context, spec domain.ServerSpec) error
 }
 
 func (e *Editor) SetServerDisabled(ctx context.Context, serverName string, disabled bool) error {
+	_ = ctx
 	serverName = strings.TrimSpace(serverName)
 	if serverName == "" {
 		return &EditorError{Kind: EditorErrorInvalidRequest, Message: "Server name is required"}
@@ -199,6 +212,7 @@ func (e *Editor) SetServerDisabled(ctx context.Context, serverName string, disab
 }
 
 func (e *Editor) DeleteServer(ctx context.Context, serverName string) error {
+	_ = ctx
 	serverName = strings.TrimSpace(serverName)
 	if serverName == "" {
 		return &EditorError{Kind: EditorErrorInvalidRequest, Message: "Server name is required"}
@@ -438,11 +452,13 @@ func isWritableFile(path string) bool {
 		return false
 	}
 	dir := filepath.Dir(path)
-	testFile := filepath.Join(dir, ".write_test")
-	file, err := os.Create(testFile)
+	file, err := os.CreateTemp(dir, ".write_test_*")
 	if err != nil {
 		return false
 	}
-	file.Close()
-	return os.Remove(testFile) == nil
+	name := file.Name()
+	if err := file.Close(); err != nil {
+		return false
+	}
+	return os.Remove(name) == nil
 }

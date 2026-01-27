@@ -63,16 +63,16 @@ func NewPromptIndex(rt domain.Router, specs map[string]domain.ServerSpec, specKe
 		specKeys = map[string]string{}
 	}
 	promptIndex := &PromptIndex{
-		router:        rt,
-		specs:         specs,
-		specKeys:      specKeys,
-		cfg:           cfg,
-		metadataCache: metadataCache,
-		logger:        logger.Named("prompt_index"),
-		health:        health,
-		gate:          gate,
-		listChanges:   listChanges,
-		specKeySet:    specKeySet(specKeys),
+		router:          rt,
+		specs:           specs,
+		specKeys:        specKeys,
+		cfg:             cfg,
+		metadataCache:   metadataCache,
+		logger:          logger.Named("prompt_index"),
+		health:          health,
+		gate:            gate,
+		listChanges:     listChanges,
+		specKeySet:      specKeySet(specKeys),
 		serverSnapshots: map[string]serverPromptSnapshot{},
 	}
 	promptIndex.index = NewGenericIndex(GenericIndexOptions[domain.PromptSnapshot, domain.PromptTarget, promptCache]{
@@ -386,12 +386,7 @@ func (a *PromptIndex) buildSnapshot(cache map[string]promptCache) (domain.Prompt
 					a.logger.Warn("prompt conflict resolution failed", zap.String("serverType", serverType), zap.String("prompt", prompt.Name), zap.Error(err))
 					continue
 				}
-				renamed, err := renamePromptDefinition(promptDef, resolvedName)
-				if err != nil {
-					a.logger.Warn("prompt rename failed", zap.String("serverType", serverType), zap.String("prompt", prompt.Name), zap.Error(err))
-					continue
-				}
-				promptDef = renamed
+				promptDef = renamePromptDefinition(promptDef, resolvedName)
 				target = domain.PromptTarget{
 					ServerType: target.ServerType,
 					SpecKey:    target.SpecKey,
@@ -446,9 +441,9 @@ func (a *PromptIndex) resolveFlatConflict(name, serverType string, existing map[
 	return "", fmt.Errorf("could not resolve conflict for %s", name)
 }
 
-func renamePromptDefinition(def domain.PromptDefinition, newName string) (domain.PromptDefinition, error) {
+func renamePromptDefinition(def domain.PromptDefinition, newName string) domain.PromptDefinition {
 	def.Name = newName
-	return def, nil
+	return def
 }
 
 func (a *PromptIndex) refreshErrorDecision(_ string, err error) refreshErrorDecision {

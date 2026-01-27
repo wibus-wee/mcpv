@@ -202,7 +202,7 @@ func TestConnectionUnsupportedMethod(t *testing.T) {
 		resp, ok := msg.(*jsonrpc.Response)
 		require.True(t, ok)
 		require.Error(t, resp.Error)
-		require.Contains(t, resp.Error.Error(), "method not supported")
+		require.Contains(t, resp.Error.Error(), "method not found")
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for unsupported method response")
 	}

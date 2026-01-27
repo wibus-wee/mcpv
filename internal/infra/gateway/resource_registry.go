@@ -15,6 +15,7 @@ type resourceRegistry struct {
 	server     *mcp.Server
 	handler    func(uri string) mcp.ResourceHandler
 	logger     *zap.Logger
+	applyMu    sync.Mutex
 	mu         sync.Mutex
 	etag       string
 	registered map[string]struct{}
@@ -37,14 +38,22 @@ func (r *resourceRegistry) ApplySnapshot(snapshot *controlv1.ResourcesSnapshot) 
 		return
 	}
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.applyMu.Lock()
+	defer r.applyMu.Unlock()
 
+	r.mu.Lock()
 	if snapshot.Etag != "" && snapshot.Etag == r.etag {
+		r.mu.Unlock()
 		return
 	}
+	prev := make(map[string]struct{}, len(r.registered))
+	for uri := range r.registered {
+		prev[uri] = struct{}{}
+	}
+	r.mu.Unlock()
 
 	next := make(map[string]struct{})
+	toAdd := make([]mcp.Resource, 0, len(snapshot.Resources))
 	for _, def := range snapshot.Resources {
 		if def == nil || len(def.ResourceJson) == 0 {
 			continue
@@ -69,22 +78,28 @@ func (r *resourceRegistry) ApplySnapshot(snapshot *controlv1.ResourcesSnapshot) 
 			continue
 		}
 
-		r.server.AddResource(&resource, r.handler(resource.URI))
+		toAdd = append(toAdd, resource)
 		next[resource.URI] = struct{}{}
 	}
 
 	var remove []string
-	for uri := range r.registered {
+	for uri := range prev {
 		if _, ok := next[uri]; !ok {
 			remove = append(remove, uri)
 		}
+	}
+	for i := range toAdd {
+		resource := toAdd[i]
+		r.server.AddResource(&resource, r.handler(resource.URI))
 	}
 	if len(remove) > 0 {
 		r.server.RemoveResources(remove...)
 	}
 
+	r.mu.Lock()
 	r.registered = next
 	r.etag = snapshot.Etag
+	r.mu.Unlock()
 }
 
 func validResourceURI(raw string) bool {

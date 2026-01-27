@@ -12,7 +12,7 @@ This ExecPlan is a living document governed by `.agent/PLANS.md`; every section 
 - [x] (2026-01-27 06:10Z) Implement concurrency fixes, subscription lifecycle changes, schema validation reuse, and JSON-RPC error compliance.
 - [x] (2026-01-27 06:10Z) Update observability metrics and deterministic env formatting, plus documentation comments.
 - [x] (2026-01-27 06:10Z) Run gofmt on touched Go files.
-- [ ] (2026-01-27 06:10Z) Run `make test` and record outcomes (blocked: sandbox cache permissions; see Surprises & Discoveries).
+- [x] (2026-01-27 07:49Z) Run `make test` and record outcomes.
 
 ## Surprises & Discoveries
 
@@ -20,6 +20,8 @@ This ExecPlan is a living document governed by `.agent/PLANS.md`; every section 
   Evidence: `open /Users/wibus/Library/Caches/go-build/...: operation not permitted` during `go test ./...`.
 - Observation: `NormalizeTransport` was missing in `internal/domain`, causing compile failure.
   Evidence: `internal/domain/spec_fingerprint.go:14:15: undefined: NormalizeTransport` resolved by adding `internal/domain/transport_kind.go`.
+- Observation: `make test` succeeds with macOS linker warnings in `internal/ui` about object files built for newer macOS.
+  Evidence: `ld: warning: object file ... was built for newer 'macOS' version (26.0) than being linked (11.0)` during `go test ./...`.
 
 ## Decision Log
 
@@ -38,7 +40,7 @@ This ExecPlan is a living document governed by `.agent/PLANS.md`; every section 
 
 ## Outcomes & Retrospective
 
-Implementation is complete; formatting is applied. Test execution is still pending due to sandbox cache permissions and was retried after fixing `NormalizeTransport`.
+Implementation is complete; formatting is applied. Tests pass, with macOS linker warnings for `internal/ui`.
 
 ## Context and Orientation
 
@@ -100,4 +102,4 @@ In `internal/infra/transport/connection.go`, define a helper that builds a `*jso
 
 ---
 
-Change note: Logged sandbox test failure and missing NormalizeTransport discovery; added normalization helper and kept tests pending.
+Change note: Recorded successful test run and macOS linker warnings.

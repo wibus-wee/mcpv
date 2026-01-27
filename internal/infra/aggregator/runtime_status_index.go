@@ -57,13 +57,11 @@ func NewRuntimeStatusIndex(scheduler domain.Scheduler, logger *zap.Logger) *Runt
 func (idx *RuntimeStatusIndex) Subscribe(ctx context.Context) <-chan domain.RuntimeStatusSnapshot {
 	ch := make(chan domain.RuntimeStatusSnapshot, 1)
 
+	state := idx.state.Load().(runtimeStatusIndexState)
 	idx.mu.Lock()
 	idx.subs[ch] = struct{}{}
-	idx.mu.Unlock()
-
-	// Send current snapshot immediately
-	state := idx.state.Load().(runtimeStatusIndexState)
 	sendRuntimeStatusSnapshot(ch, state.snapshot)
+	idx.mu.Unlock()
 
 	// Auto-cleanup on context cancel
 	go func() {

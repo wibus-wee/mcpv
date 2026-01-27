@@ -29,6 +29,7 @@ type ResourceIndex struct {
 	health               *telemetry.HealthTracker
 	gate                 *RefreshGate
 	listChanges          listChangeSubscriber
+	specsMu              sync.RWMutex
 	specKeySet           map[string]struct{}
 	bootstrapWaiter      BootstrapWaiter
 	bootstrapWaiterMu    sync.RWMutex
@@ -63,16 +64,16 @@ func NewResourceIndex(rt domain.Router, specs map[string]domain.ServerSpec, spec
 		specKeys = map[string]string{}
 	}
 	resourceIndex := &ResourceIndex{
-		router:        rt,
-		specs:         specs,
-		specKeys:      specKeys,
-		cfg:           cfg,
-		metadataCache: metadataCache,
-		logger:        logger.Named("resource_index"),
-		health:        health,
-		gate:          gate,
-		listChanges:   listChanges,
-		specKeySet:    specKeySet(specKeys),
+		router:          rt,
+		specs:           specs,
+		specKeys:        specKeys,
+		cfg:             cfg,
+		metadataCache:   metadataCache,
+		logger:          logger.Named("resource_index"),
+		health:          health,
+		gate:            gate,
+		listChanges:     listChanges,
+		specKeySet:      specKeySet(specKeys),
 		serverSnapshots: map[string]serverResourceSnapshot{},
 	}
 	resourceIndex.index = NewGenericIndex(GenericIndexOptions[domain.ResourceSnapshot, domain.ResourceTarget, resourceCache]{
@@ -246,11 +247,26 @@ func (a *ResourceIndex) UpdateSpecs(specs map[string]domain.ServerSpec, specKeys
 	if specKeys == nil {
 		specKeys = map[string]string{}
 	}
-	a.specs = specs
-	a.specKeys = specKeys
-	a.specKeySet = specKeySet(specKeys)
+	if specs == nil {
+		specs = map[string]domain.ServerSpec{}
+	}
+	specsCopy := make(map[string]domain.ServerSpec, len(specs))
+	for key, value := range specs {
+		specsCopy[key] = value
+	}
+	specKeysCopy := make(map[string]string, len(specKeys))
+	for key, value := range specKeys {
+		specKeysCopy[key] = value
+	}
+	specKeySetCopy := specKeySet(specKeysCopy)
+
+	a.specsMu.Lock()
+	a.specs = specsCopy
+	a.specKeys = specKeysCopy
+	a.specKeySet = specKeySetCopy
 	a.cfg = cfg
-	a.index.UpdateSpecs(specs, cfg)
+	a.specsMu.Unlock()
+	a.index.UpdateSpecs(specsCopy, cfg)
 }
 
 func (a *ResourceIndex) startListChangeListener(ctx context.Context) {
@@ -267,7 +283,11 @@ func (a *ResourceIndex) startListChangeListener(ctx context.Context) {
 				if !ok {
 					return
 				}
-				if !listChangeApplies(a.specs, a.specKeySet, event) {
+				a.specsMu.RLock()
+				specs := a.specs
+				specKeySet := a.specKeySet
+				a.specsMu.RUnlock()
+				if !listChangeApplies(specs, specKeySet, event) {
 					continue
 				}
 				if err := a.index.Refresh(ctx); err != nil {
@@ -295,7 +315,10 @@ func (a *ResourceIndex) startBootstrapRefresh(ctx context.Context) {
 				return
 			}
 
-			refreshCtx, cancel := withRefreshTimeout(ctx, a.cfg)
+			a.specsMu.RLock()
+			cfg := a.cfg
+			a.specsMu.RUnlock()
+			refreshCtx, cancel := withRefreshTimeout(ctx, cfg)
 			defer cancel()
 			if err := a.index.Refresh(refreshCtx); err != nil {
 				a.logger.Warn("resource refresh after bootstrap failed", zap.Error(err))
@@ -419,7 +442,9 @@ func (a *ResourceIndex) cachedServerCache(serverType string, spec domain.ServerS
 	if a.metadataCache == nil {
 		return resourceCache{}, false
 	}
+	a.specsMu.RLock()
 	specKey := a.specKeys[serverType]
+	a.specsMu.RUnlock()
 	if specKey == "" {
 		return resourceCache{}, false
 	}
@@ -451,7 +476,9 @@ func (a *ResourceIndex) cachedServerCache(serverType string, spec domain.ServerS
 }
 
 func (a *ResourceIndex) fetchServerResources(ctx context.Context, serverType string, spec domain.ServerSpec) ([]domain.ResourceDefinition, map[string]domain.ResourceTarget, error) {
+	a.specsMu.RLock()
 	specKey := a.specKeys[serverType]
+	a.specsMu.RUnlock()
 	if specKey == "" {
 		return nil, nil, fmt.Errorf("missing spec key for server type %q", serverType)
 	}

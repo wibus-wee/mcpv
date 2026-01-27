@@ -217,7 +217,7 @@ func SetServerDisabled(path string, serverName string, disabled bool) (ProfileUp
 		}
 	}
 	if !found {
-		return ProfileUpdate{}, fmt.Errorf("server %q not found in profile", serverName)
+		return ProfileUpdate{}, fmt.Errorf("%w: %s", ErrServerNotFound, serverName)
 	}
 
 	doc["servers"] = servers
@@ -258,7 +258,7 @@ func DeleteServer(path string, serverName string) (ProfileUpdate, error) {
 		updated = append(updated, server)
 	}
 	if !found {
-		return ProfileUpdate{}, fmt.Errorf("server %q not found in profile", serverName)
+		return ProfileUpdate{}, fmt.Errorf("%w: %s", ErrServerNotFound, serverName)
 	}
 
 	doc["servers"] = updated
@@ -343,7 +343,7 @@ func toServerSpecYAML(spec domain.ServerSpec) serverSpecYAML {
 	return serverSpecYAML{
 		Name:                spec.Name,
 		Transport:           string(domain.NormalizeTransport(spec.Transport)),
-		Cmd:                 spec.Cmd,
+		Cmd:                 append([]string(nil), spec.Cmd...),
 		Env:                 env,
 		Cwd:                 spec.Cwd,
 		Tags:                append([]string(nil), spec.Tags...),

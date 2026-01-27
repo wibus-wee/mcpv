@@ -12,11 +12,13 @@ import (
 	"mcpd/internal/infra/fsutil"
 )
 
+// RuntimeUpdate describes a serialized runtime config change.
 type RuntimeUpdate struct {
 	Path string
 	Data []byte
 }
 
+// RuntimeConfigUpdate holds full runtime settings for updates.
 type RuntimeConfigUpdate struct {
 	RouteTimeoutSeconds        int
 	PingIntervalSeconds        int
@@ -35,6 +37,7 @@ type RuntimeConfigUpdate struct {
 	ToolNamespaceStrategy      string
 }
 
+// SubAgentConfigUpdate holds partial SubAgent configuration updates.
 type SubAgentConfigUpdate struct {
 	EnabledTags        *[]string
 	Model              *string
@@ -46,6 +49,7 @@ type SubAgentConfigUpdate struct {
 	FilterPrompt       *string
 }
 
+// ResolveRuntimePath returns the runtime config path inside a profile store.
 func ResolveRuntimePath(storePath string, allowCreate bool) (string, error) {
 	if storePath == "" {
 		return "", errors.New("profile store path is required")
@@ -78,6 +82,7 @@ func ResolveRuntimePath(storePath string, allowCreate bool) (string, error) {
 	return "", fmt.Errorf("runtime config not found in %s", storePath)
 }
 
+// UpdateRuntimeConfig overwrites all runtime settings; zero values are treated as explicit values.
 func UpdateRuntimeConfig(path string, update RuntimeConfigUpdate) (RuntimeUpdate, error) {
 	if path == "" {
 		return RuntimeUpdate{}, errors.New("runtime config path is required")
@@ -112,6 +117,7 @@ func UpdateRuntimeConfig(path string, update RuntimeConfigUpdate) (RuntimeUpdate
 	return RuntimeUpdate{Path: path, Data: merged}, nil
 }
 
+// UpdateSubAgentConfig applies SubAgent-specific updates to the runtime config.
 func UpdateSubAgentConfig(path string, update SubAgentConfigUpdate) (RuntimeUpdate, error) {
 	if path == "" {
 		return RuntimeUpdate{}, errors.New("runtime config path is required")
