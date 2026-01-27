@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"mcpd/internal/app"
 	"mcpd/internal/infra/rpc"
 	"mcpd/internal/infra/subagent"
 	controlv1 "mcpd/pkg/api/control/v1"
@@ -66,8 +67,8 @@ func (g *Gateway) Run(ctx context.Context) error {
 	defer cancel()
 
 	g.server = mcp.NewServer(&mcp.Implementation{
-		Name:    "mcpd-gateway",
-		Version: "0.1.0",
+		Name:    "mcpd-mcp",
+		Version: app.Version,
 	}, &mcp.ServerOptions{
 		HasTools:     true,
 		HasResources: true,

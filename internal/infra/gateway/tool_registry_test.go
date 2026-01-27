@@ -9,12 +9,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
+	"mcpd/internal/app"
 	controlv1 "mcpd/pkg/api/control/v1"
 )
 
 func TestToolRegistry_ApplySnapshotRegistersAndRemovesTools(t *testing.T) {
 	ctx := context.Background()
-	server := mcp.NewServer(&mcp.Implementation{Name: "gateway", Version: "0.1.0"}, &mcp.ServerOptions{HasTools: true})
+	server := mcp.NewServer(&mcp.Implementation{Name: "gateway", Version: app.Version}, &mcp.ServerOptions{HasTools: true})
 
 	registry := newToolRegistry(server, func(name string) mcp.ToolHandler {
 		return func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
