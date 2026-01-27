@@ -31,7 +31,11 @@ func TestCommandLauncher_StartAndRoundTrip(t *testing.T) {
 
 	streams, stop, err := launcher.Start(ctx, "spec-echo", spec)
 	require.NoError(t, err)
-	defer stop(context.Background())
+	defer func() {
+		stopCtx, stopCancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer stopCancel()
+		require.NoError(t, stop(stopCtx))
+	}()
 
 	conn, err := transport.Connect(ctx, "spec-echo", spec, streams)
 	require.NoError(t, err)
@@ -113,7 +117,11 @@ func TestCommandLauncher_MirrorsStderr(t *testing.T) {
 
 	streams, stop, err := launcher.Start(ctx, "spec-stderr", spec)
 	require.NoError(t, err)
-	defer stop(context.Background())
+	defer func() {
+		stopCtx, stopCancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer stopCancel()
+		require.NoError(t, stop(stopCtx))
+	}()
 	_ = streams.Reader.Close()
 	_ = streams.Writer.Close()
 
@@ -134,7 +142,10 @@ func waitForDownstreamLog(t *testing.T, logCh <-chan domain.LogEntry) domain.Log
 	deadline := time.After(2 * time.Second)
 	for {
 		select {
-		case entry := <-logCh:
+		case entry, ok := <-logCh:
+			if !ok {
+				t.Fatal("log channel closed before downstream log")
+			}
 			if len(entry.Data) == 0 {
 				continue
 			}

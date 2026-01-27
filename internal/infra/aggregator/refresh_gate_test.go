@@ -25,7 +25,7 @@ func TestRefreshGate_SerializesAcquire(t *testing.T) {
 	select {
 	case err := <-done:
 		t.Fatalf("unexpected acquire: %v", err)
-	case <-time.After(20 * time.Millisecond):
+	case <-time.After(200 * time.Millisecond):
 	}
 
 	gate.Release()

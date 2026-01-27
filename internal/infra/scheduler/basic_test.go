@@ -429,14 +429,11 @@ func TestBasicScheduler_StopSpecDrainsBusyInstances(t *testing.T) {
 
 	// Release triggers drain completion
 	require.NoError(t, s.Release(context.Background(), inst))
-
-	// Wait for drain goroutine to complete
-	time.Sleep(50 * time.Millisecond)
-	require.Equal(t, domain.InstanceStateStopped, inst.State)
-
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	require.Len(t, state.draining, 0)
+	require.Eventually(t, func() bool {
+		state.mu.Lock()
+		defer state.mu.Unlock()
+		return inst.State == domain.InstanceStateStopped && len(state.draining) == 0
+	}, 2*time.Second, 10*time.Millisecond)
 }
 
 func TestBasicScheduler_StopSpecCancelsInFlightStart(t *testing.T) {

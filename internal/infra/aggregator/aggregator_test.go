@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -64,8 +65,9 @@ func TestToolIndex_SnapshotPrefixedTool(t *testing.T) {
 	require.Len(t, result.Content, 1)
 	require.Equal(t, "ok", result.Content[0].(*mcp.TextContent).Text)
 
-	require.Equal(t, "tools/call", router.lastMethod)
-	require.Equal(t, "echo", router.lastServerType)
+	lastMethod, lastServerType := router.last()
+	require.Equal(t, "tools/call", lastMethod)
+	require.Equal(t, "echo", lastServerType)
 }
 
 func TestToolIndex_SnapshotForServer(t *testing.T) {
@@ -114,8 +116,9 @@ func TestToolIndex_SnapshotForServer(t *testing.T) {
 	require.Len(t, result.Content, 1)
 	require.Equal(t, "ok", result.Content[0].(*mcp.TextContent).Text)
 
-	require.Equal(t, "tools/call", router.lastMethod)
-	require.Equal(t, "echo", router.lastServerType)
+	lastMethod, lastServerType := router.last()
+	require.Equal(t, "tools/call", lastMethod)
+	require.Equal(t, "echo", lastServerType)
 }
 
 func TestToolIndex_RespectsExposeToolsAllowlist(t *testing.T) {
@@ -254,7 +257,7 @@ func TestToolIndex_RefreshConcurrentFetches(t *testing.T) {
 	case err := <-done:
 		require.NoError(t, err)
 		t.Fatalf("refresh completed before slow server released")
-	case <-time.After(50 * time.Millisecond):
+	case <-time.After(200 * time.Millisecond):
 	}
 
 	snapshot := index.Snapshot()
@@ -299,7 +302,7 @@ func TestIsObjectSchema(t *testing.T) {
 	require.False(t, mcpcodec.IsObjectSchema("not json"))
 }
 
-func TestToolIndex_FlatNamespaceConflictsFailRefresh(t *testing.T) {
+func TestToolIndex_FlatNamespaceConflictsRename(t *testing.T) {
 	ctx := context.Background()
 	router := &blockingRouter{
 		responses: map[string]toolListResponse{
@@ -377,6 +380,7 @@ func TestToolIndex_RefreshFailureOpensCircuitBreaker(t *testing.T) {
 type fakeRouter struct {
 	tools          []*mcp.Tool
 	callResult     *mcp.CallToolResult
+	mu             sync.Mutex
 	lastMethod     string
 	lastServerType string
 }
@@ -390,8 +394,10 @@ func (f *fakeRouter) Route(ctx context.Context, serverType, specKey, routingKey 
 	if !ok {
 		return nil, errors.New("invalid jsonrpc request")
 	}
+	f.mu.Lock()
 	f.lastMethod = req.Method
 	f.lastServerType = serverType
+	f.mu.Unlock()
 
 	switch req.Method {
 	case "tools/list":
@@ -404,6 +410,12 @@ func (f *fakeRouter) Route(ctx context.Context, serverType, specKey, routingKey 
 	default:
 		return nil, nil
 	}
+}
+
+func (f *fakeRouter) last() (string, string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.lastMethod, f.lastServerType
 }
 
 func (f *fakeRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, opts domain.RouteOptions) (json.RawMessage, error) {

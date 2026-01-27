@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -163,9 +164,9 @@ func TestManager_StartInstance_InitializeRetry(t *testing.T) {
 }
 
 func TestManager_StopInstance_Success(t *testing.T) {
-	stopped := false
+	var stopped atomic.Bool
 	streams, stop := newTestStreamsWithStop(func(ctx context.Context) error {
-		stopped = true
+		stopped.Store(true)
 		return nil
 	})
 	launcher := &fakeLauncher{streams: streams, stop: stop}
@@ -191,7 +192,7 @@ func TestManager_StopInstance_Success(t *testing.T) {
 	err = mgr.StopInstance(context.Background(), inst, "test")
 	require.NoError(t, err)
 	require.Equal(t, domain.InstanceStateStopped, inst.State)
-	require.True(t, stopped)
+	require.True(t, stopped.Load())
 }
 
 func TestManager_StopInstance_Unknown(t *testing.T) {

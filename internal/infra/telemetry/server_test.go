@@ -3,10 +3,12 @@ package telemetry
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -55,8 +57,10 @@ func TestStartMetricsServer_Success(t *testing.T) {
 }
 
 func TestStartMetricsServer_PortInUse(t *testing.T) {
-	// Start a server on a random port
-	listener := mustListen(t)
+	listener, err := net.Listen("tcp", "0.0.0.0:0")
+	if err != nil {
+		t.Skipf("skip test due to listen error: %v", err)
+	}
 	defer listener.Close()
 	port := listener.Addr().(*net.TCPAddr).Port
 
@@ -65,12 +69,8 @@ func TestStartMetricsServer_PortInUse(t *testing.T) {
 
 	// Try to start metrics server on the same port (should fail quickly)
 	err := StartMetricsServer(ctx, port, zap.NewNop())
-	// The error could be either from port conflict or context timeout
-	// Both are acceptable for this test
-	if err != nil {
-		assert.True(t, err.Error() == "context deadline exceeded" ||
-			err.Error() != "", "expected an error")
-	}
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, context.DeadlineExceeded) || strings.Contains(err.Error(), "address already in use"))
 }
 
 func TestStartMetricsServer_GracefulShutdown(t *testing.T) {
@@ -87,8 +87,7 @@ func TestStartMetricsServer_GracefulShutdown(t *testing.T) {
 		close(done)
 	}()
 
-	// Wait for server to start
-	time.Sleep(100 * time.Millisecond)
+	waitForHTTPStatus(t, fmt.Sprintf("http://127.0.0.1:%d/metrics", port), http.StatusOK, false)
 
 	// Cancel context to trigger shutdown
 	cancel()
@@ -122,23 +121,9 @@ func TestStartHTTPServer_Healthz(t *testing.T) {
 		}, zap.NewNop())
 	}()
 
-	time.Sleep(100 * time.Millisecond)
-
 	beat.Beat()
-	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/healthz", port))
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	var report HealthReport
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&report))
-	assert.Equal(t, "ok", report.Status)
-
-	time.Sleep(250 * time.Millisecond)
-	resp, err = http.Get(fmt.Sprintf("http://127.0.0.1:%d/healthz", port))
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
+	waitForHTTPStatus(t, fmt.Sprintf("http://127.0.0.1:%d/healthz", port), http.StatusOK, true)
+	waitForHTTPStatus(t, fmt.Sprintf("http://127.0.0.1:%d/healthz", port), http.StatusServiceUnavailable, true)
 
 	cancel()
 
@@ -157,4 +142,28 @@ func mustListen(t *testing.T) net.Listener {
 		t.Skipf("skip test due to listen error: %v", err)
 	}
 	return listener
+}
+
+func waitForHTTPStatus(t *testing.T, url string, status int, expectJSON bool) {
+	t.Helper()
+	require.Eventually(t, func() bool {
+		resp, err := http.Get(url)
+		if err != nil {
+			return false
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != status {
+			return false
+		}
+		if expectJSON {
+			var report HealthReport
+			if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
+				return false
+			}
+			if status == http.StatusOK && report.Status != "ok" {
+				return false
+			}
+		}
+		return true
+	}, 2*time.Second, 25*time.Millisecond)
 }
