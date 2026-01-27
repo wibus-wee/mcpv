@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
@@ -156,6 +157,79 @@ func (s *ControlService) CallTool(ctx context.Context, req *controlv1.CallToolRe
 	}, nil
 }
 
+func (s *ControlService) CallToolTask(ctx context.Context, req *controlv1.CallToolTaskRequest) (*controlv1.CallToolTaskResponse, error) {
+	if req.GetName() == "" {
+		return nil, status.Error(codes.InvalidArgument, "name is required")
+	}
+	opts := domain.TaskCreateOptions{}
+	if req.GetTtlMs() > 0 {
+		ttl := req.GetTtlMs()
+		opts.TTL = &ttl
+	}
+	if req.GetPollIntervalMs() > 0 {
+		poll := req.GetPollIntervalMs()
+		opts.PollInterval = &poll
+	}
+	client := req.GetCaller()
+	task, err := s.control.CallToolTask(ctx, client, req.GetName(), req.GetArgumentsJson(), req.GetRoutingKey(), opts)
+	if err != nil {
+		return nil, mapCallToolError(req.GetName(), err)
+	}
+	return &controlv1.CallToolTaskResponse{
+		Task: toProtoTask(task),
+	}, nil
+}
+
+func (s *ControlService) TasksGet(ctx context.Context, req *controlv1.TasksGetRequest) (*controlv1.TasksGetResponse, error) {
+	if req.GetTaskId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "task_id is required")
+	}
+	task, err := s.control.GetTask(ctx, req.GetCaller(), req.GetTaskId())
+	if err != nil {
+		return nil, mapTaskError("get task", err)
+	}
+	return &controlv1.TasksGetResponse{Task: toProtoTask(task)}, nil
+}
+
+func (s *ControlService) TasksList(ctx context.Context, req *controlv1.TasksListRequest) (*controlv1.TasksListResponse, error) {
+	page, err := s.control.ListTasks(ctx, req.GetCaller(), req.GetCursor(), int(req.GetLimit()))
+	if err != nil {
+		return nil, mapTaskError("list tasks", err)
+	}
+	tasks := make([]*controlv1.Task, 0, len(page.Tasks))
+	for _, task := range page.Tasks {
+		tasks = append(tasks, toProtoTask(task))
+	}
+	return &controlv1.TasksListResponse{
+		Tasks:      tasks,
+		NextCursor: page.NextCursor,
+	}, nil
+}
+
+func (s *ControlService) TasksResult(ctx context.Context, req *controlv1.TasksResultRequest) (*controlv1.TasksResultResponse, error) {
+	if req.GetTaskId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "task_id is required")
+	}
+	result, err := s.control.GetTaskResult(ctx, req.GetCaller(), req.GetTaskId())
+	if err != nil {
+		return nil, mapTaskError("get task result", err)
+	}
+	return &controlv1.TasksResultResponse{
+		Result: toProtoTaskResult(result),
+	}, nil
+}
+
+func (s *ControlService) TasksCancel(ctx context.Context, req *controlv1.TasksCancelRequest) (*controlv1.TasksCancelResponse, error) {
+	if req.GetTaskId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "task_id is required")
+	}
+	task, err := s.control.CancelTask(ctx, req.GetCaller(), req.GetTaskId())
+	if err != nil {
+		return nil, mapTaskError("cancel task", err)
+	}
+	return &controlv1.TasksCancelResponse{Task: toProtoTask(task)}, nil
+}
+
 func (s *ControlService) ListResources(ctx context.Context, req *controlv1.ListResourcesRequest) (*controlv1.ListResourcesResponse, error) {
 	client := req.GetCaller()
 	page, err := s.control.ListResources(ctx, client, req.GetCursor())
@@ -289,6 +363,10 @@ func (s *ControlService) GetPrompt(ctx context.Context, req *controlv1.GetPrompt
 }
 
 func mapCallToolError(name string, err error) error {
+	var protoErr *domain.ProtocolError
+	if errors.As(err, &protoErr) {
+		return status.Errorf(codes.FailedPrecondition, "call tool requires elicitation: %s", protoErr.Message)
+	}
 	switch {
 	case errors.Is(err, domain.ErrToolNotFound):
 		return status.Errorf(codes.NotFound, "tool not found: %s", name)
@@ -359,6 +437,66 @@ func mapListError(op string, err error) error {
 		return status.Errorf(codes.InvalidArgument, "%s: invalid cursor", op)
 	}
 	return status.Errorf(codes.Internal, "%s: %v", op, err)
+}
+
+func mapTaskError(op string, err error) error {
+	if errors.Is(err, domain.ErrTaskNotFound) {
+		return status.Errorf(codes.NotFound, "%s: task not found", op)
+	}
+	if errors.Is(err, domain.ErrTasksNotImplemented) {
+		return status.Errorf(codes.Unimplemented, "%s: tasks not implemented", op)
+	}
+	if errors.Is(err, domain.ErrInvalidCursor) {
+		return status.Errorf(codes.InvalidArgument, "%s: invalid cursor", op)
+	}
+	if errors.Is(err, domain.ErrClientNotRegistered) {
+		return status.Errorf(codes.FailedPrecondition, "%s: client not registered", op)
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return status.Errorf(codes.DeadlineExceeded, "%s: deadline exceeded", op)
+	}
+	if errors.Is(err, context.Canceled) {
+		return status.Errorf(codes.Canceled, "%s: canceled", op)
+	}
+	return status.Errorf(codes.Internal, "%s: %v", op, err)
+}
+
+func toProtoTask(task domain.Task) *controlv1.Task {
+	if task.TaskID == "" {
+		return &controlv1.Task{}
+	}
+	ttl := int64(0)
+	if task.TTL != nil {
+		ttl = *task.TTL
+	}
+	poll := int64(0)
+	if task.PollInterval != nil {
+		poll = *task.PollInterval
+	}
+	return &controlv1.Task{
+		TaskId:         task.TaskID,
+		Status:         string(task.Status),
+		StatusMessage:  task.StatusMessage,
+		CreatedAt:      task.CreatedAt.UTC().Format(time.RFC3339Nano),
+		LastUpdatedAt:  task.LastUpdatedAt.UTC().Format(time.RFC3339Nano),
+		TtlMs:          ttl,
+		PollIntervalMs: poll,
+	}
+}
+
+func toProtoTaskResult(result domain.TaskResult) *controlv1.TaskResult {
+	resp := &controlv1.TaskResult{
+		Status: string(result.Status),
+	}
+	if len(result.Result) > 0 {
+		resp.ResultJson = result.Result
+	}
+	if result.Error != nil {
+		resp.ErrorCode = result.Error.Code
+		resp.ErrorMessage = result.Error.Message
+		resp.ErrorDataJson = result.Error.Data
+	}
+	return resp
 }
 
 func (s *ControlService) StreamLogs(req *controlv1.StreamLogsRequest, stream controlv1.ControlPlaneService_StreamLogsServer) error {

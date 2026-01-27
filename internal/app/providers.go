@@ -9,11 +9,13 @@ import (
 
 	"mcpd/internal/domain"
 	"mcpd/internal/infra/aggregator"
+	"mcpd/internal/infra/elicitation"
 	"mcpd/internal/infra/lifecycle"
 	"mcpd/internal/infra/notifications"
 	"mcpd/internal/infra/probe"
 	"mcpd/internal/infra/router"
 	"mcpd/internal/infra/rpc"
+	"mcpd/internal/infra/sampling"
 	"mcpd/internal/infra/scheduler"
 	"mcpd/internal/infra/telemetry"
 	"mcpd/internal/infra/transport"
@@ -48,14 +50,18 @@ func NewCommandLauncher(logger *zap.Logger) domain.Launcher {
 }
 
 // NewMCPTransport constructs an MCP transport for stdio servers.
-func NewMCPTransport(logger *zap.Logger, listChanges *notifications.ListChangeHub) domain.Transport {
+func NewMCPTransport(logger *zap.Logger, listChanges *notifications.ListChangeHub, samplingHandler domain.SamplingHandler, elicitationHandler domain.ElicitationHandler) domain.Transport {
 	stdioTransport := transport.NewMCPTransport(transport.MCPTransportOptions{
-		Logger:            logger,
-		ListChangeEmitter: listChanges,
+		Logger:             logger,
+		ListChangeEmitter:  listChanges,
+		SamplingHandler:    samplingHandler,
+		ElicitationHandler: elicitationHandler,
 	})
 	httpTransport := transport.NewStreamableHTTPTransport(transport.StreamableHTTPTransportOptions{
-		Logger:            logger,
-		ListChangeEmitter: listChanges,
+		Logger:             logger,
+		ListChangeEmitter:  listChanges,
+		SamplingHandler:    samplingHandler,
+		ElicitationHandler: elicitationHandler,
 	})
 	return transport.NewCompositeTransport(transport.CompositeTransportOptions{
 		Stdio:          stdioTransport,
@@ -64,8 +70,35 @@ func NewMCPTransport(logger *zap.Logger, listChanges *notifications.ListChangeHu
 }
 
 // NewLifecycleManager constructs the lifecycle manager.
-func NewLifecycleManager(ctx context.Context, launcher domain.Launcher, transport domain.Transport, logger *zap.Logger) domain.Lifecycle {
-	return lifecycle.NewManager(ctx, launcher, transport, logger)
+func NewLifecycleManager(ctx context.Context, launcher domain.Launcher, transport domain.Transport, samplingHandler domain.SamplingHandler, elicitationHandler domain.ElicitationHandler, logger *zap.Logger) domain.Lifecycle {
+	manager := lifecycle.NewManager(ctx, launcher, transport, logger)
+	manager.SetSamplingHandler(samplingHandler)
+	manager.SetElicitationHandler(elicitationHandler)
+	return manager
+}
+
+// NewSamplingHandler builds a sampling handler using the SubAgent config.
+func NewSamplingHandler(ctx context.Context, state *domain.CatalogState, logger *zap.Logger) domain.SamplingHandler {
+	if state == nil {
+		return nil
+	}
+	cfg := state.Summary.Runtime.SubAgent
+	if cfg.Model == "" || cfg.Provider == "" {
+		return nil
+	}
+	handler, err := sampling.NewHandler(ctx, cfg, logger)
+	if err != nil {
+		if logger != nil {
+			logger.Warn("sampling handler disabled", zap.Error(err))
+		}
+		return nil
+	}
+	return handler
+}
+
+// NewElicitationHandler builds a default elicitation handler.
+func NewElicitationHandler(logger *zap.Logger) domain.ElicitationHandler {
+	return elicitation.NewDefaultHandler(logger)
 }
 
 // NewPingProbe constructs a ping-based health probe.

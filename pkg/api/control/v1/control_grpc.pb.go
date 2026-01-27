@@ -25,6 +25,11 @@ const (
 	ControlPlaneService_ListTools_FullMethodName             = "/mcpd.control.v1.ControlPlaneService/ListTools"
 	ControlPlaneService_WatchTools_FullMethodName            = "/mcpd.control.v1.ControlPlaneService/WatchTools"
 	ControlPlaneService_CallTool_FullMethodName              = "/mcpd.control.v1.ControlPlaneService/CallTool"
+	ControlPlaneService_CallToolTask_FullMethodName          = "/mcpd.control.v1.ControlPlaneService/CallToolTask"
+	ControlPlaneService_TasksGet_FullMethodName              = "/mcpd.control.v1.ControlPlaneService/TasksGet"
+	ControlPlaneService_TasksList_FullMethodName             = "/mcpd.control.v1.ControlPlaneService/TasksList"
+	ControlPlaneService_TasksResult_FullMethodName           = "/mcpd.control.v1.ControlPlaneService/TasksResult"
+	ControlPlaneService_TasksCancel_FullMethodName           = "/mcpd.control.v1.ControlPlaneService/TasksCancel"
 	ControlPlaneService_ListResources_FullMethodName         = "/mcpd.control.v1.ControlPlaneService/ListResources"
 	ControlPlaneService_WatchResources_FullMethodName        = "/mcpd.control.v1.ControlPlaneService/WatchResources"
 	ControlPlaneService_ReadResource_FullMethodName          = "/mcpd.control.v1.ControlPlaneService/ReadResource"
@@ -49,6 +54,11 @@ type ControlPlaneServiceClient interface {
 	ListTools(ctx context.Context, in *ListToolsRequest, opts ...grpc.CallOption) (*ListToolsResponse, error)
 	WatchTools(ctx context.Context, in *WatchToolsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ToolsSnapshot], error)
 	CallTool(ctx context.Context, in *CallToolRequest, opts ...grpc.CallOption) (*CallToolResponse, error)
+	CallToolTask(ctx context.Context, in *CallToolTaskRequest, opts ...grpc.CallOption) (*CallToolTaskResponse, error)
+	TasksGet(ctx context.Context, in *TasksGetRequest, opts ...grpc.CallOption) (*TasksGetResponse, error)
+	TasksList(ctx context.Context, in *TasksListRequest, opts ...grpc.CallOption) (*TasksListResponse, error)
+	TasksResult(ctx context.Context, in *TasksResultRequest, opts ...grpc.CallOption) (*TasksResultResponse, error)
+	TasksCancel(ctx context.Context, in *TasksCancelRequest, opts ...grpc.CallOption) (*TasksCancelResponse, error)
 	ListResources(ctx context.Context, in *ListResourcesRequest, opts ...grpc.CallOption) (*ListResourcesResponse, error)
 	WatchResources(ctx context.Context, in *WatchResourcesRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ResourcesSnapshot], error)
 	ReadResource(ctx context.Context, in *ReadResourceRequest, opts ...grpc.CallOption) (*ReadResourceResponse, error)
@@ -135,6 +145,56 @@ func (c *controlPlaneServiceClient) CallTool(ctx context.Context, in *CallToolRe
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CallToolResponse)
 	err := c.cc.Invoke(ctx, ControlPlaneService_CallTool_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) CallToolTask(ctx context.Context, in *CallToolTaskRequest, opts ...grpc.CallOption) (*CallToolTaskResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CallToolTaskResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_CallToolTask_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) TasksGet(ctx context.Context, in *TasksGetRequest, opts ...grpc.CallOption) (*TasksGetResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TasksGetResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_TasksGet_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) TasksList(ctx context.Context, in *TasksListRequest, opts ...grpc.CallOption) (*TasksListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TasksListResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_TasksList_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) TasksResult(ctx context.Context, in *TasksResultRequest, opts ...grpc.CallOption) (*TasksResultResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TasksResultResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_TasksResult_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) TasksCancel(ctx context.Context, in *TasksCancelRequest, opts ...grpc.CallOption) (*TasksCancelResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TasksCancelResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_TasksCancel_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -316,6 +376,11 @@ type ControlPlaneServiceServer interface {
 	ListTools(context.Context, *ListToolsRequest) (*ListToolsResponse, error)
 	WatchTools(*WatchToolsRequest, grpc.ServerStreamingServer[ToolsSnapshot]) error
 	CallTool(context.Context, *CallToolRequest) (*CallToolResponse, error)
+	CallToolTask(context.Context, *CallToolTaskRequest) (*CallToolTaskResponse, error)
+	TasksGet(context.Context, *TasksGetRequest) (*TasksGetResponse, error)
+	TasksList(context.Context, *TasksListRequest) (*TasksListResponse, error)
+	TasksResult(context.Context, *TasksResultRequest) (*TasksResultResponse, error)
+	TasksCancel(context.Context, *TasksCancelRequest) (*TasksCancelResponse, error)
 	ListResources(context.Context, *ListResourcesRequest) (*ListResourcesResponse, error)
 	WatchResources(*WatchResourcesRequest, grpc.ServerStreamingServer[ResourcesSnapshot]) error
 	ReadResource(context.Context, *ReadResourceRequest) (*ReadResourceResponse, error)
@@ -356,6 +421,21 @@ func (UnimplementedControlPlaneServiceServer) WatchTools(*WatchToolsRequest, grp
 }
 func (UnimplementedControlPlaneServiceServer) CallTool(context.Context, *CallToolRequest) (*CallToolResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CallTool not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) CallToolTask(context.Context, *CallToolTaskRequest) (*CallToolTaskResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CallToolTask not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) TasksGet(context.Context, *TasksGetRequest) (*TasksGetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TasksGet not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) TasksList(context.Context, *TasksListRequest) (*TasksListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TasksList not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) TasksResult(context.Context, *TasksResultRequest) (*TasksResultResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TasksResult not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) TasksCancel(context.Context, *TasksCancelRequest) (*TasksCancelResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TasksCancel not implemented")
 }
 func (UnimplementedControlPlaneServiceServer) ListResources(context.Context, *ListResourcesRequest) (*ListResourcesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListResources not implemented")
@@ -511,6 +591,96 @@ func _ControlPlaneService_CallTool_Handler(srv interface{}, ctx context.Context,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControlPlaneServiceServer).CallTool(ctx, req.(*CallToolRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_CallToolTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CallToolTaskRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).CallToolTask(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_CallToolTask_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).CallToolTask(ctx, req.(*CallToolTaskRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_TasksGet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TasksGetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).TasksGet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_TasksGet_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).TasksGet(ctx, req.(*TasksGetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_TasksList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TasksListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).TasksList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_TasksList_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).TasksList(ctx, req.(*TasksListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_TasksResult_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TasksResultRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).TasksResult(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_TasksResult_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).TasksResult(ctx, req.(*TasksResultRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_TasksCancel_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TasksCancelRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).TasksCancel(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_TasksCancel_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).TasksCancel(ctx, req.(*TasksCancelRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -722,6 +892,26 @@ var ControlPlaneService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CallTool",
 			Handler:    _ControlPlaneService_CallTool_Handler,
+		},
+		{
+			MethodName: "CallToolTask",
+			Handler:    _ControlPlaneService_CallToolTask_Handler,
+		},
+		{
+			MethodName: "TasksGet",
+			Handler:    _ControlPlaneService_TasksGet_Handler,
+		},
+		{
+			MethodName: "TasksList",
+			Handler:    _ControlPlaneService_TasksList_Handler,
+		},
+		{
+			MethodName: "TasksResult",
+			Handler:    _ControlPlaneService_TasksResult_Handler,
+		},
+		{
+			MethodName: "TasksCancel",
+			Handler:    _ControlPlaneService_TasksCancel_Handler,
 		},
 		{
 			MethodName: "ListResources",

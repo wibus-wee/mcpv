@@ -9,7 +9,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/jsonschema-go v0.3.0
 	github.com/google/wire v0.7.0
-	github.com/modelcontextprotocol/go-sdk v1.1.0
+	github.com/modelcontextprotocol/go-sdk v1.2.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.10

@@ -30,8 +30,10 @@ func InitializeApplication(ctx context.Context, cfg ServeConfig, logging Logging
 	}
 	launcher := NewCommandLauncher(logger)
 	listChangeHub := NewListChangeHub()
-	transport := NewMCPTransport(logger, listChangeHub)
-	lifecycle := NewLifecycleManager(ctx, launcher, transport, logger)
+	samplingHandler := NewSamplingHandler(ctx, catalogState, logger)
+	elicitationHandler := NewElicitationHandler(logger)
+	transport := NewMCPTransport(logger, listChangeHub, samplingHandler, elicitationHandler)
+	lifecycle := NewLifecycleManager(ctx, launcher, transport, samplingHandler, elicitationHandler, logger)
 	pingProbe := NewPingProbe()
 	scheduler, err := NewScheduler(lifecycle, catalogState, pingProbe, metrics, healthTracker, logger)
 	if err != nil {

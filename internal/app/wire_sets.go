@@ -25,6 +25,8 @@ var CoreInfraSet = wire.NewSet(
 	NewHealthTracker,
 	NewListChangeHub,
 	NewCommandLauncher,
+	NewSamplingHandler,
+	NewElicitationHandler,
 	NewMCPTransport,
 	NewLifecycleManager,
 	NewPingProbe,

@@ -157,6 +157,31 @@ func (c *ControlPlane) GetCatalog() domain.Catalog {
 	return c.state.Catalog()
 }
 
+// CallToolTask executes a tool as an asynchronous task.
+func (c *ControlPlane) CallToolTask(ctx context.Context, client, name string, args json.RawMessage, routingKey string, opts domain.TaskCreateOptions) (domain.Task, error) {
+	return domain.Task{}, domain.ErrTasksNotImplemented
+}
+
+// GetTask returns task metadata.
+func (c *ControlPlane) GetTask(ctx context.Context, client, taskID string) (domain.Task, error) {
+	return domain.Task{}, domain.ErrTasksNotImplemented
+}
+
+// ListTasks returns a paginated task list.
+func (c *ControlPlane) ListTasks(ctx context.Context, client, cursor string, limit int) (domain.TaskPage, error) {
+	return domain.TaskPage{}, domain.ErrTasksNotImplemented
+}
+
+// GetTaskResult blocks until a task completes and returns the result.
+func (c *ControlPlane) GetTaskResult(ctx context.Context, client, taskID string) (domain.TaskResult, error) {
+	return domain.TaskResult{}, domain.ErrTasksNotImplemented
+}
+
+// CancelTask cancels a task and returns the updated task info.
+func (c *ControlPlane) CancelTask(ctx context.Context, client, taskID string) (domain.Task, error) {
+	return domain.Task{}, domain.ErrTasksNotImplemented
+}
+
 // GetPoolStatus returns the current pool status snapshot.
 func (c *ControlPlane) GetPoolStatus(ctx context.Context) ([]domain.PoolInfo, error) {
 	return c.observability.GetPoolStatus(ctx)

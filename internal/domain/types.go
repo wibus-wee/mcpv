@@ -279,6 +279,12 @@ var ErrPromptNotFound = errors.New("prompt not found")
 // ErrInvalidCursor indicates a pagination cursor is invalid.
 var ErrInvalidCursor = errors.New("invalid cursor")
 
+// ErrTaskNotFound indicates the requested task does not exist.
+var ErrTaskNotFound = errors.New("task not found")
+
+// ErrTasksNotImplemented indicates task orchestration is not available.
+var ErrTasksNotImplemented = errors.New("tasks not implemented")
+
 // ErrClientNotRegistered indicates the client is unknown.
 var ErrClientNotRegistered = errors.New("client not registered")
 

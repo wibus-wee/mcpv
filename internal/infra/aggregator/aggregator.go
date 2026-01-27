@@ -724,7 +724,7 @@ type wireResponse struct {
 func decodeProtocolError(raw json.RawMessage) (*domain.ProtocolError, error) {
 	var wire wireResponse
 	if err := json.Unmarshal(raw, &wire); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
+		return nil, nil
 	}
 	if wire.Error == nil {
 		return nil, nil

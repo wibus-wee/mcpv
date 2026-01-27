@@ -11,6 +11,11 @@ service ControlPlaneService {
   rpc ListTools(ListToolsRequest) returns (ListToolsResponse);
   rpc WatchTools(WatchToolsRequest) returns (stream ToolsSnapshot);
   rpc CallTool(CallToolRequest) returns (CallToolResponse);
+  rpc CallToolTask(CallToolTaskRequest) returns (CallToolTaskResponse);
+  rpc TasksGet(TasksGetRequest) returns (TasksGetResponse);
+  rpc TasksList(TasksListRequest) returns (TasksListResponse);
+  rpc TasksResult(TasksResultRequest) returns (TasksResultResponse);
+  rpc TasksCancel(TasksCancelRequest) returns (TasksCancelResponse);
   rpc ListResources(ListResourcesRequest) returns (ListResourcesResponse);
   rpc WatchResources(WatchResourcesRequest) returns (stream ResourcesSnapshot);
   rpc ReadResource(ReadResourceRequest) returns (ReadResourceResponse);
@@ -86,6 +91,76 @@ message CallToolRequest {
 message CallToolResponse {
   // JSON encoding of mcp.CallToolResult.
   bytes result_json = 1;
+}
+
+message CallToolTaskRequest {
+  string caller = 1;
+  string name = 2;
+  // JSON encoding of tool arguments (mcp.CallToolParams.Arguments).
+  bytes arguments_json = 3;
+  string routing_key = 4;
+  int64 ttl_ms = 5;
+  int64 poll_interval_ms = 6;
+}
+
+message CallToolTaskResponse {
+  Task task = 1;
+}
+
+message TasksGetRequest {
+  string caller = 1;
+  string task_id = 2;
+}
+
+message TasksGetResponse {
+  Task task = 1;
+}
+
+message TasksListRequest {
+  string caller = 1;
+  string cursor = 2;
+  int32 limit = 3;
+}
+
+message TasksListResponse {
+  repeated Task tasks = 1;
+  string next_cursor = 2;
+}
+
+message TasksResultRequest {
+  string caller = 1;
+  string task_id = 2;
+}
+
+message TasksResultResponse {
+  TaskResult result = 1;
+}
+
+message TasksCancelRequest {
+  string caller = 1;
+  string task_id = 2;
+}
+
+message TasksCancelResponse {
+  Task task = 1;
+}
+
+message Task {
+  string task_id = 1;
+  string status = 2;
+  string status_message = 3;
+  string created_at = 4;
+  string last_updated_at = 5;
+  int64 ttl_ms = 6;
+  int64 poll_interval_ms = 7;
+}
+
+message TaskResult {
+  string status = 1;
+  bytes result_json = 2;
+  int64 error_code = 3;
+  string error_message = 4;
+  bytes error_data_json = 5;
 }
 
 message ListResourcesRequest {

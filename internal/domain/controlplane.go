@@ -264,6 +264,16 @@ type ControlPlaneAutomation interface {
 	IsSubAgentEnabledForClient(client string) bool
 }
 
+// ControlPlaneTasks exposes task orchestration APIs.
+// TODO: Implement tasks once MCP protocol support is available in the upstream go-sdk.
+type ControlPlaneTasks interface {
+	CallToolTask(ctx context.Context, client, name string, args json.RawMessage, routingKey string, opts TaskCreateOptions) (Task, error)
+	GetTask(ctx context.Context, client, taskID string) (Task, error)
+	ListTasks(ctx context.Context, client, cursor string, limit int) (TaskPage, error)
+	GetTaskResult(ctx context.Context, client, taskID string) (TaskResult, error)
+	CancelTask(ctx context.Context, client, taskID string) (Task, error)
+}
+
 // ControlPlaneStore exposes profile storage access.
 type ControlPlaneStore interface {
 	GetCatalog() Catalog
@@ -277,5 +287,6 @@ type ControlPlane interface {
 	ControlPlaneObservability
 	ControlPlaneBootstrap
 	ControlPlaneAutomation
+	ControlPlaneTasks
 	ControlPlaneStore
 }

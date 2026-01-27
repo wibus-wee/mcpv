@@ -27,6 +27,9 @@ type Manager struct {
 	mu    sync.Mutex
 	conns map[string]domain.Conn
 	stops map[string]domain.StopFn
+
+	samplingHandler    domain.SamplingHandler
+	elicitationHandler domain.ElicitationHandler
 }
 
 const (
@@ -55,6 +58,16 @@ func NewManager(ctx context.Context, launcher domain.Launcher, transport domain.
 		logger:    logger.Named("lifecycle"),
 		ctx:       ctx,
 	}
+}
+
+// SetSamplingHandler configures the sampling handler for client capabilities.
+func (m *Manager) SetSamplingHandler(handler domain.SamplingHandler) {
+	m.samplingHandler = handler
+}
+
+// SetElicitationHandler configures the elicitation handler for client capabilities.
+func (m *Manager) SetElicitationHandler(handler domain.ElicitationHandler) {
+	m.elicitationHandler = handler
 }
 
 func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain.ServerSpec) (*domain.Instance, error) {
@@ -276,9 +289,13 @@ func (m *Manager) initialize(ctx context.Context, conn domain.Conn, protocolVers
 			Name:    "mcpd",
 			Version: "0.1.0",
 		},
-		Capabilities: &mcp.ClientCapabilities{
-			Sampling: &mcp.SamplingCapabilities{},
-		},
+		Capabilities: &mcp.ClientCapabilities{},
+	}
+	if m.samplingHandler != nil {
+		initParams.Capabilities.Sampling = &mcp.SamplingCapabilities{}
+	}
+	if m.elicitationHandler != nil {
+		initParams.Capabilities.Elicitation = &mcp.ElicitationCapabilities{}
 	}
 
 	id, err := jsonrpc.MakeID("mcpd-init")
