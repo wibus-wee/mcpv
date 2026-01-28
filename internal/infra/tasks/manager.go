@@ -12,16 +12,19 @@ import (
 )
 
 const (
-	defaultPollInterval = 5 * time.Second
-	defaultListLimit    = 50
+	defaultPollInterval  = 5 * time.Second
+	defaultListLimit     = 50
+	defaultPurgeInterval = 1 * time.Minute
 )
 
 // Manager implements an in-memory task manager.
 type Manager struct {
-	mu    sync.Mutex
-	tasks map[string]*taskState
-	order []string
-	now   func() time.Time
+	mu        sync.Mutex
+	tasks     map[string]*taskState
+	order     []string
+	now       func() time.Time
+	stopPurge chan struct{}
+	purgeDone chan struct{}
 }
 
 type taskState struct {
@@ -35,10 +38,38 @@ type taskState struct {
 
 // NewManager constructs a new task manager.
 func NewManager() *Manager {
-	return &Manager{
-		tasks: make(map[string]*taskState),
-		order: make([]string, 0),
-		now:   time.Now,
+	m := &Manager{
+		tasks:     make(map[string]*taskState),
+		order:     make([]string, 0),
+		now:       time.Now,
+		stopPurge: make(chan struct{}),
+		purgeDone: make(chan struct{}),
+	}
+	go m.backgroundPurge()
+	return m
+}
+
+// Stop gracefully stops the background purge goroutine.
+func (m *Manager) Stop() {
+	close(m.stopPurge)
+	<-m.purgeDone
+}
+
+// backgroundPurge periodically cleans up expired tasks.
+func (m *Manager) backgroundPurge() {
+	defer close(m.purgeDone)
+	ticker := time.NewTicker(defaultPurgeInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-m.stopPurge:
+			return
+		case <-ticker.C:
+			m.mu.Lock()
+			m.purgeExpiredLocked()
+			m.mu.Unlock()
+		}
 	}
 }
 
