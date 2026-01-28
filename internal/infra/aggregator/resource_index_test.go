@@ -147,7 +147,7 @@ type resourceRouter struct {
 	lastURI    string
 }
 
-func (r *resourceRouter) Route(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage) (json.RawMessage, error) {
+func (r *resourceRouter) Route(_ context.Context, _, _, _ string, payload json.RawMessage) (json.RawMessage, error) {
 	msg, err := jsonrpc.DecodeMessage(payload)
 	if err != nil {
 		return nil, err
@@ -178,7 +178,7 @@ func (r *resourceRouter) Route(ctx context.Context, serverType, specKey, routing
 	}
 }
 
-func (r *resourceRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, opts domain.RouteOptions) (json.RawMessage, error) {
+func (r *resourceRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, _ domain.RouteOptions) (json.RawMessage, error) {
 	return r.Route(ctx, serverType, specKey, routingKey, payload)
 }
 
@@ -188,6 +188,6 @@ func (r *noReadyResourceRouter) Route(ctx context.Context, serverType, specKey, 
 	return nil, domain.ErrNoReadyInstance
 }
 
-func (r *noReadyResourceRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, opts domain.RouteOptions) (json.RawMessage, error) {
+func (r *noReadyResourceRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, _ domain.RouteOptions) (json.RawMessage, error) {
 	return r.Route(ctx, serverType, specKey, routingKey, payload)
 }

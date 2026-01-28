@@ -22,7 +22,7 @@ func NewSubAgentService(deps *ServiceDeps) *SubAgentService {
 }
 
 // GetSubAgentConfig returns the runtime-level SubAgent configuration.
-func (s *SubAgentService) GetSubAgentConfig(ctx context.Context) (SubAgentConfigDetail, error) {
+func (s *SubAgentService) GetSubAgentConfig(_ context.Context) (SubAgentConfigDetail, error) {
 	cp, err := s.deps.getControlPlane()
 	if err != nil {
 		return SubAgentConfigDetail{}, err
@@ -80,7 +80,7 @@ func (s *SubAgentService) UpdateSubAgentConfig(ctx context.Context, req UpdateSu
 }
 
 // IsSubAgentAvailable returns whether SubAgent infrastructure is configured.
-func (s *SubAgentService) IsSubAgentAvailable(ctx context.Context) bool {
+func (s *SubAgentService) IsSubAgentAvailable(_ context.Context) bool {
 	cp, err := s.deps.getControlPlane()
 	if err != nil {
 		return false

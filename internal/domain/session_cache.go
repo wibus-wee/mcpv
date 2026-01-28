@@ -79,7 +79,7 @@ func (c *SessionCache) Invalidate(sessionKey string) {
 // Returns true if:
 // - Session has no entry
 // - Tool was never sent before
-// - Current hash differs from last sent hash (schema changed)
+// - Current hash differs from last sent hash (schema changed).
 func (c *SessionCache) NeedsFull(sessionKey, toolName, currentHash string) bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()

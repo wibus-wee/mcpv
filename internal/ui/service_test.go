@@ -94,7 +94,7 @@ func TestCoreService_StartCore_NoManager(t *testing.T) {
 	err := svc.StartCore(context.Background())
 
 	require.Error(t, err)
-	uiErr, ok := err.(*UIError)
+	uiErr, ok := err.(*Error)
 	require.True(t, ok)
 	assert.Equal(t, ErrCodeInternal, uiErr.Code)
 }
@@ -105,7 +105,7 @@ func TestCoreService_StopCore_NoManager(t *testing.T) {
 	err := svc.StopCore()
 
 	require.Error(t, err)
-	uiErr, ok := err.(*UIError)
+	uiErr, ok := err.(*Error)
 	require.True(t, ok)
 	assert.Equal(t, ErrCodeInternal, uiErr.Code)
 }
@@ -116,7 +116,7 @@ func TestCoreService_RestartCore_NoManager(t *testing.T) {
 	err := svc.RestartCore(context.Background())
 
 	require.Error(t, err)
-	uiErr, ok := err.(*UIError)
+	uiErr, ok := err.(*Error)
 	require.True(t, ok)
 	assert.Equal(t, ErrCodeInternal, uiErr.Code)
 }
@@ -199,7 +199,7 @@ func TestLogService_StartLogStream_NoManager(t *testing.T) {
 	err := svc.StartLogStream(context.Background(), "info")
 
 	require.Error(t, err)
-	uiErr, ok := err.(*UIError)
+	uiErr, ok := err.(*Error)
 	require.True(t, ok)
 	assert.Equal(t, ErrCodeInternal, uiErr.Code)
 }
@@ -208,5 +208,7 @@ func TestLogService_StopLogStream_NoActive(t *testing.T) {
 	svc := NewLogService(NewServiceDeps(&app.App{}, testLogger()))
 
 	// Should not panic when no stream is active
-	svc.StopLogStream()
+	assert.NotPanics(t, func() {
+		svc.StopLogStream()
+	})
 }

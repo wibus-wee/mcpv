@@ -68,6 +68,7 @@ func TestNewPrometheusMetrics_UsesProvidedRegistry(t *testing.T) {
 }
 
 func TestPrometheusMetrics_ImplementsInterface(t *testing.T) {
+	t.Helper()
 	var _ domain.Metrics = (*PrometheusMetrics)(nil)
 }
 

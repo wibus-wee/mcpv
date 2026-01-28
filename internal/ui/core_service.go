@@ -28,7 +28,7 @@ func (s *CoreService) GetCoreState() CoreStateResponse {
 		return CoreStateResponse{State: "unknown"}
 	}
 
-	state, err, uptime := manager.GetState()
+	state, uptime, err := manager.GetState()
 	resp := CoreStateResponse{
 		State:  string(state),
 		Uptime: uptime,
@@ -43,7 +43,7 @@ func (s *CoreService) GetCoreState() CoreStateResponse {
 func (s *CoreService) StartCore(ctx context.Context) error {
 	manager := s.deps.manager()
 	if manager == nil {
-		return NewUIError(ErrCodeInternal, "Manager not initialized")
+		return NewError(ErrCodeInternal, "Manager not initialized")
 	}
 	s.logger.Info("core start requested")
 	return manager.Start(ctx)
@@ -53,7 +53,7 @@ func (s *CoreService) StartCore(ctx context.Context) error {
 func (s *CoreService) StartCoreWithOptions(ctx context.Context, opts StartCoreOptions) error {
 	manager := s.deps.manager()
 	if manager == nil {
-		return NewUIError(ErrCodeInternal, "Manager not initialized")
+		return NewError(ErrCodeInternal, "Manager not initialized")
 	}
 	s.logger.Info("core start requested with options", zap.Any("options", opts))
 	return manager.StartWithOptions(ctx, opts)
@@ -63,7 +63,7 @@ func (s *CoreService) StartCoreWithOptions(ctx context.Context, opts StartCoreOp
 func (s *CoreService) StopCore() error {
 	manager := s.deps.manager()
 	if manager == nil {
-		return NewUIError(ErrCodeInternal, "Manager not initialized")
+		return NewError(ErrCodeInternal, "Manager not initialized")
 	}
 	return manager.Stop()
 }
@@ -72,7 +72,7 @@ func (s *CoreService) StopCore() error {
 func (s *CoreService) RestartCore(ctx context.Context) error {
 	manager := s.deps.manager()
 	if manager == nil {
-		return NewUIError(ErrCodeInternal, "Manager not initialized")
+		return NewError(ErrCodeInternal, "Manager not initialized")
 	}
 	return manager.Restart(ctx)
 }
@@ -109,7 +109,7 @@ func (s *CoreService) GetBootstrapProgress(ctx context.Context) (BootstrapProgre
 
 	cp, err := s.deps.getControlPlane()
 	if err != nil {
-		if uiErr, ok := err.(*UIError); ok && uiErr.Code == ErrCodeCoreNotRunning {
+		if uiErr, ok := err.(*Error); ok && uiErr.Code == ErrCodeCoreNotRunning {
 			return BootstrapProgressResponse{State: string(domain.BootstrapPending)}, nil
 		}
 		return BootstrapProgressResponse{}, err

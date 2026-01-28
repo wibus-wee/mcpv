@@ -210,8 +210,7 @@ func (m *ServerInitializationManager) SetMinReady(specKey string, minReady int, 
 		m.mu.Unlock()
 		return fmt.Errorf("unknown spec key %q", specKey)
 	}
-	switch {
-	case minReady < 0:
+	if minReady < 0 {
 		minReady = 0
 	}
 
@@ -305,6 +304,11 @@ func (m *ServerInitializationManager) Statuses(ctx context.Context) []domain.Ser
 						ready++
 					case domain.InstanceStateFailed:
 						failed++
+					case domain.InstanceStateStarting,
+						domain.InstanceStateInitializing,
+						domain.InstanceStateHandshaking,
+						domain.InstanceStateDraining,
+						domain.InstanceStateStopped:
 					}
 				}
 				readyBySpec[pool.SpecKey] = ready
@@ -569,6 +573,11 @@ func (m *ServerInitializationManager) snapshot(ctx context.Context, specKey stri
 				ready++
 			case domain.InstanceStateFailed:
 				failed++
+			case domain.InstanceStateStarting,
+				domain.InstanceStateInitializing,
+				domain.InstanceStateHandshaking,
+				domain.InstanceStateDraining,
+				domain.InstanceStateStopped:
 			}
 		}
 		return ready, failed, nil

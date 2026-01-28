@@ -70,7 +70,8 @@ func main() {
 
 	uiLogger.Info("starting MCPD Wails application")
 	if err := wailsApp.Run(); err != nil {
-		log.Fatal(err)
+		logger.Error("wails run failed", zap.Error(err))
+		return
 	}
 }
 
@@ -93,9 +94,4 @@ func createLoggerWithBroadcaster() (*zap.Logger, *telemetry.LogBroadcaster) {
 	}))
 
 	return logger, broadcaster
-}
-
-func createLogger() *zap.Logger {
-	logger, _ := createLoggerWithBroadcaster()
-	return logger
 }

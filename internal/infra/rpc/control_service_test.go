@@ -107,10 +107,10 @@ func TestControlService_ListTools(t *testing.T) {
 	resp, err := svc.ListTools(context.Background(), &controlv1.ListToolsRequest{Caller: "caller"})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	require.NotNil(t, resp.Snapshot)
-	require.Equal(t, "v1", resp.Snapshot.Etag)
-	require.Len(t, resp.Snapshot.Tools, 1)
-	require.Equal(t, "echo.echo", resp.Snapshot.Tools[0].Name)
+	require.NotNil(t, resp.GetSnapshot())
+	require.Equal(t, "v1", resp.GetSnapshot().GetEtag())
+	require.Len(t, resp.GetSnapshot().GetTools(), 1)
+	require.Equal(t, "echo.echo", resp.GetSnapshot().GetTools()[0].GetName())
 }
 
 func TestControlService_RegisterCaller(t *testing.T) {
@@ -123,7 +123,7 @@ func TestControlService_RegisterCaller(t *testing.T) {
 		Pid:    1234,
 	})
 	require.NoError(t, err)
-	require.Equal(t, "caller", resp.Profile)
+	require.Equal(t, "caller", resp.GetProfile())
 }
 
 func TestControlService_ListToolsRequiresCaller(t *testing.T) {
@@ -326,7 +326,7 @@ func (f *fakeControlPlane) IsSubAgentEnabled() bool {
 	return false
 }
 
-func (f *fakeControlPlane) IsSubAgentEnabledForClient(client string) bool {
+func (f *fakeControlPlane) IsSubAgentEnabledForClient(_ string) bool {
 	return false
 }
 

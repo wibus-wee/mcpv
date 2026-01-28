@@ -43,7 +43,7 @@ func (c *ControlPlane) StartClientMonitor(ctx context.Context) {
 }
 
 // Info returns control plane metadata.
-func (c *ControlPlane) Info(ctx context.Context) (domain.ControlPlaneInfo, error) {
+func (c *ControlPlane) Info(_ context.Context) (domain.ControlPlaneInfo, error) {
 	return c.state.info, nil
 }
 
@@ -158,27 +158,27 @@ func (c *ControlPlane) GetCatalog() domain.Catalog {
 }
 
 // CallToolTask executes a tool as an asynchronous task.
-func (c *ControlPlane) CallToolTask(ctx context.Context, client, name string, args json.RawMessage, routingKey string, opts domain.TaskCreateOptions) (domain.Task, error) {
+func (c *ControlPlane) CallToolTask(_ context.Context, client, name string, args json.RawMessage, routingKey string, opts domain.TaskCreateOptions) (domain.Task, error) {
 	return domain.Task{}, domain.ErrTasksNotImplemented
 }
 
 // GetTask returns task metadata.
-func (c *ControlPlane) GetTask(ctx context.Context, client, taskID string) (domain.Task, error) {
+func (c *ControlPlane) GetTask(_ context.Context, client, taskID string) (domain.Task, error) {
 	return domain.Task{}, domain.ErrTasksNotImplemented
 }
 
 // ListTasks returns a paginated task list.
-func (c *ControlPlane) ListTasks(ctx context.Context, client, cursor string, limit int) (domain.TaskPage, error) {
+func (c *ControlPlane) ListTasks(_ context.Context, client, cursor string, limit int) (domain.TaskPage, error) {
 	return domain.TaskPage{}, domain.ErrTasksNotImplemented
 }
 
 // GetTaskResult blocks until a task completes and returns the result.
-func (c *ControlPlane) GetTaskResult(ctx context.Context, client, taskID string) (domain.TaskResult, error) {
+func (c *ControlPlane) GetTaskResult(_ context.Context, client, taskID string) (domain.TaskResult, error) {
 	return domain.TaskResult{}, domain.ErrTasksNotImplemented
 }
 
 // CancelTask cancels a task and returns the updated task info.
-func (c *ControlPlane) CancelTask(ctx context.Context, client, taskID string) (domain.Task, error) {
+func (c *ControlPlane) CancelTask(_ context.Context, client, taskID string) (domain.Task, error) {
 	return domain.Task{}, domain.ErrTasksNotImplemented
 }
 
@@ -193,7 +193,7 @@ func (c *ControlPlane) GetServerInitStatus(ctx context.Context) ([]domain.Server
 }
 
 // RetryServerInit requests a retry for server initialization.
-func (c *ControlPlane) RetryServerInit(ctx context.Context, specKey string) error {
+func (c *ControlPlane) RetryServerInit(_ context.Context, specKey string) error {
 	if c.state.initManager == nil {
 		return errors.New("server init manager not configured")
 	}
@@ -261,7 +261,7 @@ func (c *ControlPlane) AutomaticEval(ctx context.Context, client string, params 
 }
 
 // GetBootstrapProgress returns bootstrap progress.
-func (c *ControlPlane) GetBootstrapProgress(ctx context.Context) (domain.BootstrapProgress, error) {
+func (c *ControlPlane) GetBootstrapProgress(_ context.Context) (domain.BootstrapProgress, error) {
 	if c.state.bootstrapManager == nil {
 		return domain.BootstrapProgress{State: domain.BootstrapCompleted}, nil
 	}

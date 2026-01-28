@@ -18,7 +18,7 @@ func TestToolRegistry_ApplySnapshotRegistersAndRemovesTools(t *testing.T) {
 	server := mcp.NewServer(&mcp.Implementation{Name: "gateway", Version: app.Version}, &mcp.ServerOptions{HasTools: true})
 
 	registry := newToolRegistry(server, func(name string) mcp.ToolHandler {
-		return func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return func(_ context.Context, _ *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			return &mcp.CallToolResult{
 				Content: []mcp.Content{&mcp.TextContent{Text: name}},
 			}, nil
@@ -40,7 +40,7 @@ func TestToolRegistry_ApplySnapshotRegistersAndRemovesTools(t *testing.T) {
 		},
 	})
 
-	_, session := connectClient(t, ctx, server)
+	_, session := connectClient(ctx, t, server)
 	defer session.Close()
 
 	res, err := session.ListTools(ctx, &mcp.ListToolsParams{})
@@ -55,7 +55,7 @@ func TestToolRegistry_ApplySnapshotRegistersAndRemovesTools(t *testing.T) {
 	require.Len(t, res.Tools, 0)
 }
 
-func connectClient(t *testing.T, ctx context.Context, server *mcp.Server) (*mcp.Client, *mcp.ClientSession) {
+func connectClient(ctx context.Context, t *testing.T, server *mcp.Server) (*mcp.Client, *mcp.ClientSession) {
 	t.Helper()
 	ct, st := mcp.NewInMemoryTransports()
 	_, err := server.Connect(ctx, st, nil)

@@ -40,10 +40,10 @@ func InitializeApplication(ctx context.Context, cfg ServeConfig, logging Logging
 		return nil, err
 	}
 	metadataCache := domain.NewMetadataCache()
-	appRuntimeState := NewRuntimeState(catalogState, scheduler, metrics, healthTracker, metadataCache, listChangeHub, logger)
+	appRuntimeState := newRuntimeState(catalogState, scheduler, metrics, healthTracker, metadataCache, listChangeHub, logger)
 	serverInitializationManager := NewServerInitializationManager(scheduler, catalogState, logger)
 	bootstrapManager := NewBootstrapManagerProvider(lifecycle, scheduler, catalogState, metadataCache, logger)
-	appControlPlaneState := NewControlPlaneState(ctx, appRuntimeState, catalogState, scheduler, serverInitializationManager, bootstrapManager, logger)
+	appControlPlaneState := provideControlPlaneState(ctx, appRuntimeState, catalogState, scheduler, serverInitializationManager, bootstrapManager, logger)
 	appClientRegistry := newClientRegistry(appControlPlaneState)
 	appDiscoveryService := newDiscoveryService(appControlPlaneState, appClientRegistry)
 	logBroadcaster := NewLogBroadcaster(appLogging)

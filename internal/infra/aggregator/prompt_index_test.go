@@ -148,7 +148,7 @@ type promptRouter struct {
 	lastPromptName string
 }
 
-func (r *promptRouter) Route(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage) (json.RawMessage, error) {
+func (r *promptRouter) Route(_ context.Context, _, _, _ string, payload json.RawMessage) (json.RawMessage, error) {
 	msg, err := jsonrpc.DecodeMessage(payload)
 	if err != nil {
 		return nil, err
@@ -178,16 +178,16 @@ func (r *promptRouter) Route(ctx context.Context, serverType, specKey, routingKe
 	}
 }
 
-func (r *promptRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, opts domain.RouteOptions) (json.RawMessage, error) {
+func (r *promptRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, _ domain.RouteOptions) (json.RawMessage, error) {
 	return r.Route(ctx, serverType, specKey, routingKey, payload)
 }
 
 type noReadyPromptRouter struct{}
 
-func (r *noReadyPromptRouter) Route(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage) (json.RawMessage, error) {
+func (r *noReadyPromptRouter) Route(_ context.Context, _, _, _ string, _ json.RawMessage) (json.RawMessage, error) {
 	return nil, domain.ErrNoReadyInstance
 }
 
-func (r *noReadyPromptRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, opts domain.RouteOptions) (json.RawMessage, error) {
+func (r *noReadyPromptRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, _ domain.RouteOptions) (json.RawMessage, error) {
 	return r.Route(ctx, serverType, specKey, routingKey, payload)
 }

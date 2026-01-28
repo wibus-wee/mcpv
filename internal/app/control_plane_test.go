@@ -180,11 +180,11 @@ func (f *fakeScheduler) ApplyCatalogDiff(ctx context.Context, diff domain.Catalo
 	return nil
 }
 
-func (f *fakeScheduler) StartIdleManager(interval time.Duration) {}
-func (f *fakeScheduler) StopIdleManager()                        {}
-func (f *fakeScheduler) StartPingManager(interval time.Duration) {}
-func (f *fakeScheduler) StopPingManager()                        {}
-func (f *fakeScheduler) StopAll(ctx context.Context)             {}
+func (f *fakeScheduler) StartIdleManager(_ time.Duration) {}
+func (f *fakeScheduler) StopIdleManager()                 {}
+func (f *fakeScheduler) StartPingManager(_ time.Duration) {}
+func (f *fakeScheduler) StopPingManager()                 {}
+func (f *fakeScheduler) StopAll(ctx context.Context)      {}
 
 func (f *fakeScheduler) GetPoolStatus(ctx context.Context) ([]domain.PoolInfo, error) {
 	return nil, nil

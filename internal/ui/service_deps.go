@@ -81,33 +81,19 @@ func (d *ServiceDeps) manager() *Manager {
 func (d *ServiceDeps) getControlPlane() (domain.ControlPlane, error) {
 	manager := d.manager()
 	if manager == nil {
-		return nil, NewUIError(ErrCodeInternal, "Manager not initialized")
+		return nil, NewError(ErrCodeInternal, "Manager not initialized")
 	}
 	return manager.GetControlPlane()
-}
-
-func (d *ServiceDeps) extractSpecKeyFromCache(toolName string) string {
-	manager := d.manager()
-	if manager == nil {
-		return ""
-	}
-	snapshot := manager.GetSharedState().GetToolSnapshot()
-	for _, tool := range snapshot.Tools {
-		if tool.Name == toolName {
-			return tool.SpecKey
-		}
-	}
-	return ""
 }
 
 func (d *ServiceDeps) catalogEditor() (*catalog.Editor, error) {
 	manager := d.manager()
 	if manager == nil {
-		return nil, NewUIError(ErrCodeInternal, "Manager not initialized")
+		return nil, NewError(ErrCodeInternal, "Manager not initialized")
 	}
 	path := strings.TrimSpace(manager.GetConfigPath())
 	if path == "" {
-		return nil, NewUIError(ErrCodeInvalidConfig, "Configuration path is not available")
+		return nil, NewError(ErrCodeInvalidConfig, "Configuration path is not available")
 	}
 	return catalog.NewEditor(path, d.loggerNamed("catalog-editor")), nil
 }

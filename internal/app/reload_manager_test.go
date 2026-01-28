@@ -124,46 +124,46 @@ type schedulerStub struct {
 	stopCalls     []string
 }
 
-func (s *schedulerStub) Acquire(ctx context.Context, specKey, routingKey string) (*domain.Instance, error) {
+func (s *schedulerStub) Acquire(_ context.Context, _, _ string) (*domain.Instance, error) {
 	return nil, nil
 }
 
-func (s *schedulerStub) AcquireReady(ctx context.Context, specKey, routingKey string) (*domain.Instance, error) {
+func (s *schedulerStub) AcquireReady(_ context.Context, _, _ string) (*domain.Instance, error) {
 	return nil, nil
 }
 
-func (s *schedulerStub) Release(ctx context.Context, instance *domain.Instance) error {
+func (s *schedulerStub) Release(_ context.Context, _ *domain.Instance) error {
 	return nil
 }
 
-func (s *schedulerStub) SetDesiredMinReady(ctx context.Context, specKey string, minReady int) error {
+func (s *schedulerStub) SetDesiredMinReady(_ context.Context, specKey string, minReady int) error {
 	s.minReadyCalls = append(s.minReadyCalls, reloadMinReadyCall{specKey: specKey, minReady: minReady})
 	return nil
 }
 
-func (s *schedulerStub) StopSpec(ctx context.Context, specKey, reason string) error {
+func (s *schedulerStub) StopSpec(_ context.Context, specKey, reason string) error {
 	s.stopCalls = append(s.stopCalls, specKey)
 	return nil
 }
 
-func (s *schedulerStub) ApplyCatalogDiff(ctx context.Context, diff domain.CatalogDiff, registry map[string]domain.ServerSpec) error {
+func (s *schedulerStub) ApplyCatalogDiff(_ context.Context, diff domain.CatalogDiff, registry map[string]domain.ServerSpec) error {
 	s.applyCalls++
 	s.lastDiff = diff
 	s.lastRegistry = copySpecRegistry(registry)
 	return nil
 }
 
-func (s *schedulerStub) StartIdleManager(interval time.Duration) {}
+func (s *schedulerStub) StartIdleManager(_ time.Duration) {}
 
 func (s *schedulerStub) StopIdleManager() {}
 
-func (s *schedulerStub) StartPingManager(interval time.Duration) {}
+func (s *schedulerStub) StartPingManager(_ time.Duration) {}
 
 func (s *schedulerStub) StopPingManager() {}
 
-func (s *schedulerStub) StopAll(ctx context.Context) {}
+func (s *schedulerStub) StopAll(_ context.Context) {}
 
-func (s *schedulerStub) GetPoolStatus(ctx context.Context) ([]domain.PoolInfo, error) {
+func (s *schedulerStub) GetPoolStatus(_ context.Context) ([]domain.PoolInfo, error) {
 	return nil, nil
 }
 

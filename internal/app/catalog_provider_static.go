@@ -47,13 +47,13 @@ func (p *StaticCatalogProvider) Snapshot(ctx context.Context) (domain.CatalogSta
 }
 
 // Watch returns a closed update channel for static catalogs.
-func (p *StaticCatalogProvider) Watch(ctx context.Context) (<-chan domain.CatalogUpdate, error) {
+func (p *StaticCatalogProvider) Watch(_ context.Context) (<-chan domain.CatalogUpdate, error) {
 	ch := make(chan domain.CatalogUpdate)
 	close(ch)
 	return ch, nil
 }
 
 // Reload is a no-op for static catalogs.
-func (p *StaticCatalogProvider) Reload(ctx context.Context) error {
+func (p *StaticCatalogProvider) Reload(_ context.Context) error {
 	return nil
 }

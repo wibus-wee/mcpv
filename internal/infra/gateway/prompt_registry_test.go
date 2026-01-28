@@ -18,7 +18,7 @@ func TestPromptRegistry_ApplySnapshotRegistersAndRemovesPrompts(t *testing.T) {
 	server := mcp.NewServer(&mcp.Implementation{Name: "gateway", Version: app.Version}, &mcp.ServerOptions{HasPrompts: true})
 
 	registry := newPromptRegistry(server, func(name string) mcp.PromptHandler {
-		return func(ctx context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
+		return func(_ context.Context, _ *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 			return &mcp.GetPromptResult{
 				Messages: []*mcp.PromptMessage{
 					{Role: "user", Content: &mcp.TextContent{Text: name}},
@@ -41,7 +41,7 @@ func TestPromptRegistry_ApplySnapshotRegistersAndRemovesPrompts(t *testing.T) {
 		},
 	})
 
-	_, session := connectClient(t, ctx, server)
+	_, session := connectClient(ctx, t, server)
 	defer session.Close()
 
 	prompts, err := session.ListPrompts(ctx, &mcp.ListPromptsParams{})

@@ -40,6 +40,10 @@ func expandNode(node *yaml.Node, missing map[string]struct{}) {
 		for _, child := range node.Content {
 			expandNode(child, missing)
 		}
+	case yaml.AliasNode:
+		if node.Alias != nil {
+			expandNode(node.Alias, missing)
+		}
 	case yaml.ScalarNode:
 		expandScalar(node, missing)
 	}

@@ -214,19 +214,19 @@ func newInitSchedulerStub(results map[string][]setResult) *initSchedulerStub {
 	}
 }
 
-func (s *initSchedulerStub) Acquire(ctx context.Context, specKey, routingKey string) (*domain.Instance, error) {
+func (s *initSchedulerStub) Acquire(_ context.Context, _, _ string) (*domain.Instance, error) {
 	return nil, nil
 }
 
-func (s *initSchedulerStub) AcquireReady(ctx context.Context, specKey, routingKey string) (*domain.Instance, error) {
+func (s *initSchedulerStub) AcquireReady(_ context.Context, _, _ string) (*domain.Instance, error) {
 	return nil, nil
 }
 
-func (s *initSchedulerStub) Release(ctx context.Context, instance *domain.Instance) error {
+func (s *initSchedulerStub) Release(_ context.Context, _ *domain.Instance) error {
 	return nil
 }
 
-func (s *initSchedulerStub) SetDesiredMinReady(ctx context.Context, specKey string, minReady int) error {
+func (s *initSchedulerStub) SetDesiredMinReady(_ context.Context, specKey string, minReady int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -249,19 +249,19 @@ func (s *initSchedulerStub) SetDesiredMinReady(ctx context.Context, specKey stri
 	return result.err
 }
 
-func (s *initSchedulerStub) StopSpec(ctx context.Context, specKey, reason string) error {
+func (s *initSchedulerStub) StopSpec(_ context.Context, _, _ string) error {
 	return nil
 }
 
-func (s *initSchedulerStub) ApplyCatalogDiff(ctx context.Context, diff domain.CatalogDiff, registry map[string]domain.ServerSpec) error {
+func (s *initSchedulerStub) ApplyCatalogDiff(_ context.Context, diff domain.CatalogDiff, registry map[string]domain.ServerSpec) error {
 	return nil
 }
 
-func (s *initSchedulerStub) StartIdleManager(interval time.Duration) {}
-func (s *initSchedulerStub) StopIdleManager()                        {}
-func (s *initSchedulerStub) StartPingManager(interval time.Duration) {}
-func (s *initSchedulerStub) StopPingManager()                        {}
-func (s *initSchedulerStub) StopAll(ctx context.Context)             {}
+func (s *initSchedulerStub) StartIdleManager(_ time.Duration) {}
+func (s *initSchedulerStub) StopIdleManager()                 {}
+func (s *initSchedulerStub) StartPingManager(_ time.Duration) {}
+func (s *initSchedulerStub) StopPingManager()                 {}
+func (s *initSchedulerStub) StopAll(ctx context.Context)      {}
 
 func (s *initSchedulerStub) GetPoolStatus(ctx context.Context) ([]domain.PoolInfo, error) {
 	s.mu.Lock()

@@ -32,7 +32,7 @@ func NewControlService(control domain.ControlPlane, logger *zap.Logger) *Control
 	}
 }
 
-func (s *ControlService) GetInfo(ctx context.Context, req *controlv1.GetInfoRequest) (*controlv1.GetInfoResponse, error) {
+func (s *ControlService) GetInfo(ctx context.Context, _ *controlv1.GetInfoRequest) (*controlv1.GetInfoResponse, error) {
 	info, err := s.control.Info(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "get info: %v", err)

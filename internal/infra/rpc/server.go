@@ -50,6 +50,9 @@ func (s *Server) Run(ctx context.Context) error {
 	if s.control == nil {
 		return errors.New("control plane is nil")
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
 	network, addr, err := parseListenAddress(s.cfg.ListenAddress)
 	if err != nil {
@@ -67,7 +70,8 @@ func (s *Server) Run(ctx context.Context) error {
 		}
 	}
 
-	lis, err := net.Listen(network, addr)
+	listenerConfig := net.ListenConfig{}
+	lis, err := listenerConfig.Listen(ctx, network, addr)
 	if err != nil {
 		return fmt.Errorf("listen rpc: %w", err)
 	}

@@ -8,7 +8,7 @@ import (
 	"mcpd/internal/domain"
 )
 
-// SharedState holds cached data and subscription tracking
+// SharedState holds cached data and subscription tracking.
 type SharedState struct {
 	mu sync.RWMutex
 
@@ -21,7 +21,7 @@ type SharedState struct {
 	activeWatches map[string]*WatchSubscription
 }
 
-// WatchSubscription represents an active Watch subscription
+// WatchSubscription represents an active Watch subscription.
 type WatchSubscription struct {
 	ID        string
 	Type      string // "tools", "resources", "prompts", "logs"
@@ -29,70 +29,70 @@ type WatchSubscription struct {
 	Cancel    context.CancelFunc
 }
 
-// NewSharedState creates a new SharedState instance
+// NewSharedState creates a new SharedState instance.
 func NewSharedState() *SharedState {
 	return &SharedState{
 		activeWatches: make(map[string]*WatchSubscription),
 	}
 }
 
-// GetToolSnapshot returns a copy of the cached tool snapshot
+// GetToolSnapshot returns a copy of the cached tool snapshot.
 func (s *SharedState) GetToolSnapshot() domain.ToolSnapshot {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return copyToolSnapshot(s.toolSnapshot)
 }
 
-// SetToolSnapshot updates the cached tool snapshot
+// SetToolSnapshot updates the cached tool snapshot.
 func (s *SharedState) SetToolSnapshot(snapshot domain.ToolSnapshot) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.toolSnapshot = snapshot
 }
 
-// GetResourceSnapshot returns a copy of the cached resource snapshot
+// GetResourceSnapshot returns a copy of the cached resource snapshot.
 func (s *SharedState) GetResourceSnapshot() domain.ResourceSnapshot {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return copyResourceSnapshot(s.resourceSnapshot)
 }
 
-// SetResourceSnapshot updates the cached resource snapshot
+// SetResourceSnapshot updates the cached resource snapshot.
 func (s *SharedState) SetResourceSnapshot(snapshot domain.ResourceSnapshot) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.resourceSnapshot = snapshot
 }
 
-// GetPromptSnapshot returns a copy of the cached prompt snapshot
+// GetPromptSnapshot returns a copy of the cached prompt snapshot.
 func (s *SharedState) GetPromptSnapshot() domain.PromptSnapshot {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return copyPromptSnapshot(s.promptSnapshot)
 }
 
-// SetPromptSnapshot updates the cached prompt snapshot
+// SetPromptSnapshot updates the cached prompt snapshot.
 func (s *SharedState) SetPromptSnapshot(snapshot domain.PromptSnapshot) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.promptSnapshot = snapshot
 }
 
-// RegisterWatch adds a watch subscription to the registry
+// RegisterWatch adds a watch subscription to the registry.
 func (s *SharedState) RegisterWatch(sub *WatchSubscription) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.activeWatches[sub.ID] = sub
 }
 
-// UnregisterWatch removes a watch subscription from the registry
+// UnregisterWatch removes a watch subscription from the registry.
 func (s *SharedState) UnregisterWatch(id string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.activeWatches, id)
 }
 
-// GetActiveWatches returns a copy of all active watch subscriptions
+// GetActiveWatches returns a copy of all active watch subscriptions.
 func (s *SharedState) GetActiveWatches() []WatchSubscription {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -104,7 +104,7 @@ func (s *SharedState) GetActiveWatches() []WatchSubscription {
 	return watches
 }
 
-// CancelAllWatches cancels all active watch subscriptions
+// CancelAllWatches cancels all active watch subscriptions.
 func (s *SharedState) CancelAllWatches() {
 	s.mu.Lock()
 	watches := s.activeWatches

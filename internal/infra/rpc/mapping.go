@@ -86,6 +86,8 @@ func mustMarshalLogData(data map[string]any) []byte {
 
 func fromProtoLogLevel(level controlv1.LogLevel) domain.LogLevel {
 	switch level {
+	case controlv1.LogLevel_LOG_LEVEL_UNSPECIFIED:
+		fallthrough
 	case controlv1.LogLevel_LOG_LEVEL_INFO:
 		return domain.LogLevelInfo
 	case controlv1.LogLevel_LOG_LEVEL_NOTICE:

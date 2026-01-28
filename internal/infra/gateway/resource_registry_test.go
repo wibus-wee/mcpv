@@ -18,7 +18,7 @@ func TestResourceRegistry_ApplySnapshotRegistersAndRemovesResources(t *testing.T
 	server := mcp.NewServer(&mcp.Implementation{Name: "gateway", Version: app.Version}, &mcp.ServerOptions{HasResources: true})
 
 	registry := newResourceRegistry(server, func(uri string) mcp.ResourceHandler {
-		return func(ctx context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+		return func(_ context.Context, _ *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
 			return &mcp.ReadResourceResult{
 				Contents: []*mcp.ResourceContents{{URI: uri, Text: "ok"}},
 			}, nil
@@ -39,7 +39,7 @@ func TestResourceRegistry_ApplySnapshotRegistersAndRemovesResources(t *testing.T
 		},
 	})
 
-	_, session := connectClient(t, ctx, server)
+	_, session := connectClient(ctx, t, server)
 	defer session.Close()
 
 	resources, err := session.ListResources(ctx, &mcp.ListResourcesParams{})

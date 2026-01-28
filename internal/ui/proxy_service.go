@@ -31,15 +31,15 @@ func NewProxyService(deps *ServiceDeps) *ProxyService {
 func (s *ProxyService) Fetch(ctx context.Context, req ProxyFetchRequest) (ProxyFetchResponse, error) {
 	trimmedURL := strings.TrimSpace(req.URL)
 	if trimmedURL == "" {
-		return ProxyFetchResponse{}, NewUIError(ErrCodeInvalidRequest, "URL is required")
+		return ProxyFetchResponse{}, NewError(ErrCodeInvalidRequest, "URL is required")
 	}
 
 	parsed, err := url.Parse(trimmedURL)
 	if err != nil {
-		return ProxyFetchResponse{}, NewUIErrorWithDetails(ErrCodeInvalidRequest, "Invalid URL", err.Error())
+		return ProxyFetchResponse{}, NewErrorWithDetails(ErrCodeInvalidRequest, "Invalid URL", err.Error())
 	}
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return ProxyFetchResponse{}, NewUIError(ErrCodeInvalidRequest, "Only http/https URLs are allowed")
+		return ProxyFetchResponse{}, NewError(ErrCodeInvalidRequest, "Only http/https URLs are allowed")
 	}
 
 	method := strings.ToUpper(strings.TrimSpace(req.Method))
@@ -47,7 +47,7 @@ func (s *ProxyService) Fetch(ctx context.Context, req ProxyFetchRequest) (ProxyF
 		method = http.MethodGet
 	}
 	if !isAllowedProxyMethod(method) {
-		return ProxyFetchResponse{}, NewUIError(ErrCodeInvalidRequest, fmt.Sprintf("Method %s is not allowed", method))
+		return ProxyFetchResponse{}, NewError(ErrCodeInvalidRequest, fmt.Sprintf("Method %s is not allowed", method))
 	}
 
 	var body io.Reader
@@ -57,7 +57,7 @@ func (s *ProxyService) Fetch(ctx context.Context, req ProxyFetchRequest) (ProxyF
 
 	request, err := http.NewRequestWithContext(ctx, method, trimmedURL, body)
 	if err != nil {
-		return ProxyFetchResponse{}, NewUIErrorWithDetails(ErrCodeInvalidRequest, "Failed to build request", err.Error())
+		return ProxyFetchResponse{}, NewErrorWithDetails(ErrCodeInvalidRequest, "Failed to build request", err.Error())
 	}
 
 	for key, value := range req.Headers {
@@ -79,13 +79,13 @@ func (s *ProxyService) Fetch(ctx context.Context, req ProxyFetchRequest) (ProxyF
 	response, err := client.Do(request)
 	if err != nil {
 		s.logger.Warn("proxy request failed", zap.String("url", trimmedURL), zap.Error(err))
-		return ProxyFetchResponse{}, NewUIErrorWithDetails(ErrCodeInternal, "Proxy request failed", err.Error())
+		return ProxyFetchResponse{}, NewErrorWithDetails(ErrCodeInternal, "Proxy request failed", err.Error())
 	}
 	defer response.Body.Close()
 
 	bodyBytes, err := readLimitedBody(response.Body, maxProxyBodyBytes)
 	if err != nil {
-		return ProxyFetchResponse{}, NewUIErrorWithDetails(ErrCodeInternal, "Failed to read response body", err.Error())
+		return ProxyFetchResponse{}, NewErrorWithDetails(ErrCodeInternal, "Failed to read response body", err.Error())
 	}
 
 	headers := make(map[string]string, len(response.Header))

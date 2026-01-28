@@ -29,7 +29,7 @@ func main() {
 	root := &cobra.Command{
 		Use:   "mcpd",
 		Short: "Elastic MCP control plane with scale-to-zero runtime",
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 			// if !opts.logStderr {
 			// 	opts.logger = zap.NewNop()
 			// 	return nil
@@ -45,7 +45,7 @@ func main() {
 			opts.logger = log
 			return nil
 		},
-		PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		PersistentPostRun: func(_ *cobra.Command, _ []string) {
 			_ = opts.logger.Sync()
 		},
 	}
@@ -67,7 +67,7 @@ func newServeCmd(opts *serveOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "Run the MCP control plane",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			applyFlagBindings(cmd.Flags(), opts)
 			ctx, cancel := signalAwareContext(cmd.Context())
 			defer cancel()
@@ -89,7 +89,7 @@ func newValidateCmd(opts *serveOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "validate",
 		Short: "Validate catalog configuration without running servers",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			applyFlagBindings(cmd.Flags(), opts)
 			application := app.New(opts.logger)
 			return application.ValidateConfig(cmd.Context(), app.ValidateConfig{
@@ -103,12 +103,11 @@ func newValidateCmd(opts *serveOptions) *cobra.Command {
 
 func applyFlagBindings(flags *pflag.FlagSet, opts *serveOptions) {
 	flags.Visit(func(f *pflag.Flag) {
-		switch f.Name {
-		case "config":
+		if f.Name == "config" {
 			opts.configPath, _ = flags.GetString("config")
-			// case "log-stderr":
-			// 	opts.logStderr, _ = flags.GetBool("log-stderr")
 		}
+		// case "log-stderr":
+		// 	opts.logStderr, _ = flags.GetBool("log-stderr")
 	})
 }
 

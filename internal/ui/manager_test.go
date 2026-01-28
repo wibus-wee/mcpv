@@ -28,7 +28,7 @@ func TestNewManager(t *testing.T) {
 func TestManager_GetState_Initial(t *testing.T) {
 	manager := NewManager(nil, &app.App{}, "")
 
-	state, err, uptime := manager.GetState()
+	state, uptime, err := manager.GetState()
 
 	assert.Equal(t, CoreStateStopped, state)
 	assert.Nil(t, err)
@@ -43,8 +43,8 @@ func TestManager_GetControlPlane_NotRunning(t *testing.T) {
 	assert.Nil(t, cp)
 	assert.NotNil(t, err)
 
-	uiErr, ok := err.(*UIError)
-	require.True(t, ok, "expected UIError")
+	uiErr, ok := err.(*Error)
+	require.True(t, ok, "expected Error")
 	assert.Equal(t, ErrCodeCoreNotRunning, uiErr.Code)
 }
 
@@ -65,8 +65,8 @@ func TestManager_GetControlPlane_Running(t *testing.T) {
 	assert.Nil(t, cp)
 	assert.NotNil(t, err)
 
-	uiErr, ok := err.(*UIError)
-	require.True(t, ok, "expected UIError")
+	uiErr, ok := err.(*Error)
+	require.True(t, ok, "expected Error")
 	assert.Equal(t, ErrCodeInternal, uiErr.Code)
 }
 
@@ -90,7 +90,7 @@ func TestManager_Stop_NotRunning(t *testing.T) {
 	err := manager.Stop()
 
 	assert.NotNil(t, err)
-	uiErr, ok := err.(*UIError)
+	uiErr, ok := err.(*Error)
 	require.True(t, ok)
 	assert.Equal(t, ErrCodeCoreNotRunning, uiErr.Code)
 }
@@ -106,7 +106,7 @@ func TestManager_Start_AlreadyRunning(t *testing.T) {
 	err := manager.Start(context.Background())
 
 	assert.NotNil(t, err)
-	uiErr, ok := err.(*UIError)
+	uiErr, ok := err.(*Error)
 	require.True(t, ok)
 	assert.Equal(t, ErrCodeCoreAlreadyRunning, uiErr.Code)
 }
@@ -173,7 +173,7 @@ func TestManager_GetState_WithUptime(t *testing.T) {
 	manager.coreStarted = time.Now().Add(-5 * time.Second)
 	manager.mu.Unlock()
 
-	state, err, uptime := manager.GetState()
+	state, uptime, err := manager.GetState()
 
 	assert.Equal(t, CoreStateRunning, state)
 	assert.Nil(t, err)

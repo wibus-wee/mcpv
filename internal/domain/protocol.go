@@ -16,6 +16,8 @@ func IsSupportedProtocolVersion(transport TransportKind, version string) bool {
 			}
 		}
 		return false
+	case TransportStdio:
+		return version == DefaultProtocolVersion
 	default:
 		return version == DefaultProtocolVersion
 	}

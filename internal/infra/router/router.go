@@ -20,12 +20,12 @@ type BasicRouter struct {
 	logger    *zap.Logger
 }
 
-type RouterOptions struct {
+type Options struct {
 	Timeout time.Duration
 	Logger  *zap.Logger
 }
 
-func NewBasicRouter(scheduler domain.Scheduler, opts RouterOptions) *BasicRouter {
+func NewBasicRouter(scheduler domain.Scheduler, opts Options) *BasicRouter {
 	timeout := opts.Timeout
 	if timeout <= 0 {
 		timeout = time.Duration(domain.DefaultRouteTimeoutSeconds) * time.Second

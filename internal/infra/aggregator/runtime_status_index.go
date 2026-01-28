@@ -15,7 +15,7 @@ import (
 	"mcpd/internal/domain"
 )
 
-// RuntimeStatusIndex manages server runtime status snapshots with broadcast support
+// RuntimeStatusIndex manages server runtime status snapshots with broadcast support.
 type RuntimeStatusIndex struct {
 	scheduler domain.Scheduler
 	logger    *zap.Logger
@@ -29,7 +29,7 @@ type runtimeStatusIndexState struct {
 	snapshot domain.RuntimeStatusSnapshot
 }
 
-// NewRuntimeStatusIndex creates a new runtime status index
+// NewRuntimeStatusIndex creates a new runtime status index.
 func NewRuntimeStatusIndex(scheduler domain.Scheduler, logger *zap.Logger) *RuntimeStatusIndex {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -81,7 +81,7 @@ func (idx *RuntimeStatusIndex) Current() domain.RuntimeStatusSnapshot {
 	return state.snapshot
 }
 
-// Refresh polls the scheduler for current status and broadcasts to subscribers
+// Refresh polls the scheduler for current status and broadcasts to subscribers.
 func (idx *RuntimeStatusIndex) Refresh(ctx context.Context) error {
 	poolInfos, err := idx.scheduler.GetPoolStatus(ctx)
 	if err != nil {
@@ -121,6 +121,7 @@ func (idx *RuntimeStatusIndex) Refresh(ctx context.Context) error {
 				stats.Handshaking++
 			case domain.InstanceStateDraining:
 				stats.Draining++
+			case domain.InstanceStateStopped:
 			case domain.InstanceStateFailed:
 				stats.Failed++
 			}
@@ -163,7 +164,7 @@ func (idx *RuntimeStatusIndex) Refresh(ctx context.Context) error {
 	return nil
 }
 
-// broadcast sends the snapshot to all subscribers (non-blocking)
+// broadcast sends the snapshot to all subscribers (non-blocking).
 func (idx *RuntimeStatusIndex) broadcast(snapshot domain.RuntimeStatusSnapshot) {
 	idx.mu.RLock()
 	for ch := range idx.subs {
@@ -172,7 +173,7 @@ func (idx *RuntimeStatusIndex) broadcast(snapshot domain.RuntimeStatusSnapshot) 
 	idx.mu.RUnlock()
 }
 
-// computeRuntimeStatusETag generates an ETag based on status content
+// computeRuntimeStatusETag generates an ETag based on status content.
 func computeRuntimeStatusETag(statuses []domain.ServerRuntimeStatus) string {
 	if len(statuses) == 0 {
 		return ""
@@ -188,7 +189,7 @@ func computeRuntimeStatusETag(statuses []domain.ServerRuntimeStatus) string {
 	return hex.EncodeToString(hash[:])
 }
 
-// sendRuntimeStatusSnapshot sends a snapshot to a channel (non-blocking)
+// sendRuntimeStatusSnapshot sends a snapshot to a channel (non-blocking).
 func sendRuntimeStatusSnapshot(ch chan domain.RuntimeStatusSnapshot, snapshot domain.RuntimeStatusSnapshot) {
 	select {
 	case ch <- snapshot:

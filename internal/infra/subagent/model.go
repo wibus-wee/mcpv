@@ -40,8 +40,3 @@ func initializeModel(ctx context.Context, config domain.SubAgentConfig) (model.T
 		return nil, fmt.Errorf("unsupported provider: %s", config.Provider)
 	}
 }
-
-// float32Ptr is a helper to return a pointer for a float32 value.
-func float32Ptr(f float32) *float32 {
-	return &f
-}

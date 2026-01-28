@@ -41,7 +41,7 @@ func (s *DiscoveryService) ListTools(ctx context.Context) ([]ToolEntry, error) {
 
 	entries, err := mapToolCatalogEntries(catalog)
 	if err != nil {
-		return nil, NewUIErrorWithDetails(ErrCodeInternal, "Failed to map tools", err.Error())
+		return nil, NewErrorWithDetails(ErrCodeInternal, "Failed to map tools", err.Error())
 	}
 	return entries, nil
 }
@@ -60,7 +60,7 @@ func (s *DiscoveryService) ListResources(ctx context.Context, cursor string) (*R
 
 	result, err := mapResourcePage(page)
 	if err != nil {
-		return nil, NewUIErrorWithDetails(ErrCodeInternal, "Failed to map resources", err.Error())
+		return nil, NewErrorWithDetails(ErrCodeInternal, "Failed to map resources", err.Error())
 	}
 	return result, nil
 }
@@ -79,7 +79,7 @@ func (s *DiscoveryService) ListPrompts(ctx context.Context, cursor string) (*Pro
 
 	result, err := mapPromptPage(page)
 	if err != nil {
-		return nil, NewUIErrorWithDetails(ErrCodeInternal, "Failed to map prompts", err.Error())
+		return nil, NewErrorWithDetails(ErrCodeInternal, "Failed to map prompts", err.Error())
 	}
 	return result, nil
 }

@@ -385,7 +385,7 @@ type fakeRouter struct {
 	lastServerType string
 }
 
-func (f *fakeRouter) Route(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage) (json.RawMessage, error) {
+func (f *fakeRouter) Route(_ context.Context, serverType, _, _ string, payload json.RawMessage) (json.RawMessage, error) {
 	msg, err := jsonrpc.DecodeMessage(payload)
 	if err != nil {
 		return nil, err
@@ -418,7 +418,7 @@ func (f *fakeRouter) last() (string, string) {
 	return f.lastMethod, f.lastServerType
 }
 
-func (f *fakeRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, opts domain.RouteOptions) (json.RawMessage, error) {
+func (f *fakeRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, _ domain.RouteOptions) (json.RawMessage, error) {
 	return f.Route(ctx, serverType, specKey, routingKey, payload)
 }
 
@@ -431,7 +431,7 @@ type blockingRouter struct {
 	responses map[string]toolListResponse
 }
 
-func (b *blockingRouter) Route(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage) (json.RawMessage, error) {
+func (b *blockingRouter) Route(ctx context.Context, serverType, _, _ string, payload json.RawMessage) (json.RawMessage, error) {
 	msg, err := jsonrpc.DecodeMessage(payload)
 	if err != nil {
 		return nil, err
@@ -457,7 +457,7 @@ func (b *blockingRouter) Route(ctx context.Context, serverType, specKey, routing
 	return encodeResponse(req.ID, &mcp.ListToolsResult{Tools: resp.tools})
 }
 
-func (b *blockingRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, opts domain.RouteOptions) (json.RawMessage, error) {
+func (b *blockingRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, _ domain.RouteOptions) (json.RawMessage, error) {
 	return b.Route(ctx, serverType, specKey, routingKey, payload)
 }
 
@@ -465,11 +465,11 @@ type failingRouter struct {
 	err error
 }
 
-func (f *failingRouter) Route(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage) (json.RawMessage, error) {
+func (f *failingRouter) Route(_ context.Context, _, _, _ string, _ json.RawMessage) (json.RawMessage, error) {
 	return nil, f.err
 }
 
-func (f *failingRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, opts domain.RouteOptions) (json.RawMessage, error) {
+func (f *failingRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, _ domain.RouteOptions) (json.RawMessage, error) {
 	return f.Route(ctx, serverType, specKey, routingKey, payload)
 }
 
@@ -482,7 +482,7 @@ func (f *flakyRouter) Route(ctx context.Context, serverType, specKey, routingKey
 	return f.RouteWithOptions(ctx, serverType, specKey, routingKey, payload, domain.RouteOptions{})
 }
 
-func (f *flakyRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, opts domain.RouteOptions) (json.RawMessage, error) {
+func (f *flakyRouter) RouteWithOptions(_ context.Context, serverType, specKey, routingKey string, payload json.RawMessage, _ domain.RouteOptions) (json.RawMessage, error) {
 	msg, err := jsonrpc.DecodeMessage(payload)
 	if err != nil {
 		return nil, err

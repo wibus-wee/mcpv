@@ -69,7 +69,7 @@ func (s *SystemService) GetVersion() string {
 }
 
 // Ping responds with pong.
-func (s *SystemService) Ping(ctx context.Context) string {
+func (s *SystemService) Ping(_ context.Context) string {
 	s.logger.Debug("ping received")
 	return "pong"
 }

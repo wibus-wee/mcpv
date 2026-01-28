@@ -95,55 +95,56 @@ func TestBootstrapManager_GetProgress_ThreadSafe(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		<-done
 	}
+	require.NotNil(t, manager)
 }
 
 // Minimal test stubs
 
 type minimalSchedulerStub struct{}
 
-func (s *minimalSchedulerStub) Acquire(ctx context.Context, specKey, routingKey string) (*domain.Instance, error) {
+func (s *minimalSchedulerStub) Acquire(_ context.Context, _, routingKey string) (*domain.Instance, error) {
 	return nil, nil
 }
 
-func (s *minimalSchedulerStub) AcquireReady(ctx context.Context, specKey, routingKey string) (*domain.Instance, error) {
+func (s *minimalSchedulerStub) AcquireReady(_ context.Context, _, routingKey string) (*domain.Instance, error) {
 	return nil, domain.ErrNoReadyInstance
 }
 
-func (s *minimalSchedulerStub) Release(ctx context.Context, instance *domain.Instance) error {
+func (s *minimalSchedulerStub) Release(_ context.Context, _ *domain.Instance) error {
 	return nil
 }
 
-func (s *minimalSchedulerStub) SetDesiredMinReady(ctx context.Context, specKey string, minReady int) error {
+func (s *minimalSchedulerStub) SetDesiredMinReady(_ context.Context, _ string, _ int) error {
 	return nil
 }
 
-func (s *minimalSchedulerStub) StopSpec(ctx context.Context, specKey, reason string) error {
+func (s *minimalSchedulerStub) StopSpec(_ context.Context, _, _ string) error {
 	return nil
 }
 
-func (s *minimalSchedulerStub) ApplyCatalogDiff(ctx context.Context, diff domain.CatalogDiff, registry map[string]domain.ServerSpec) error {
+func (s *minimalSchedulerStub) ApplyCatalogDiff(_ context.Context, _ domain.CatalogDiff, _ map[string]domain.ServerSpec) error {
 	return nil
 }
 
-func (s *minimalSchedulerStub) StartIdleManager(interval time.Duration) {}
-func (s *minimalSchedulerStub) StopIdleManager()                        {}
-func (s *minimalSchedulerStub) StartPingManager(interval time.Duration) {}
-func (s *minimalSchedulerStub) StopPingManager()                        {}
-func (s *minimalSchedulerStub) StopAll(ctx context.Context)             {}
+func (s *minimalSchedulerStub) StartIdleManager(_ time.Duration) {}
+func (s *minimalSchedulerStub) StopIdleManager()                 {}
+func (s *minimalSchedulerStub) StartPingManager(_ time.Duration) {}
+func (s *minimalSchedulerStub) StopPingManager()                 {}
+func (s *minimalSchedulerStub) StopAll(_ context.Context)      {}
 
-func (s *minimalSchedulerStub) GetPoolStatus(ctx context.Context) ([]domain.PoolInfo, error) {
+func (s *minimalSchedulerStub) GetPoolStatus(_ context.Context) ([]domain.PoolInfo, error) {
 	return nil, nil
 }
 
 type minimalLifecycleStub struct{}
 
-func (l *minimalLifecycleStub) StartInstance(ctx context.Context, specKey string, spec domain.ServerSpec) (*domain.Instance, error) {
+func (l *minimalLifecycleStub) StartInstance(_ context.Context, specKey string, spec domain.ServerSpec) (*domain.Instance, error) {
 	return domain.NewInstance(domain.InstanceOptions{
 		SpecKey: specKey,
 		Spec:    spec,
 	}), nil
 }
 
-func (l *minimalLifecycleStub) StopInstance(ctx context.Context, instance *domain.Instance, reason string) error {
+func (l *minimalLifecycleStub) StopInstance(_ context.Context, instance *domain.Instance, _ string) error {
 	return nil
 }

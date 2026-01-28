@@ -165,7 +165,7 @@ func TestManager_StartInstance_InitializeRetry(t *testing.T) {
 
 func TestManager_StopInstance_Success(t *testing.T) {
 	var stopped atomic.Bool
-	streams, stop := newTestStreamsWithStop(func(ctx context.Context) error {
+	streams, stop := newTestStreamsWithStop(func(_ context.Context) error {
 		stopped.Store(true)
 		return nil
 	})
@@ -238,7 +238,7 @@ type fakeLauncher struct {
 	startCtx context.Context
 }
 
-func (f *fakeLauncher) Start(ctx context.Context, specKey string, spec domain.ServerSpec) (domain.IOStreams, domain.StopFn, error) {
+func (f *fakeLauncher) Start(ctx context.Context, _ string, _ domain.ServerSpec) (domain.IOStreams, domain.StopFn, error) {
 	f.startCtx = ctx
 	return f.streams, f.stop, f.err
 }
@@ -249,7 +249,7 @@ type fakeTransport struct {
 	connectCtx context.Context
 }
 
-func (f *fakeTransport) Connect(ctx context.Context, specKey string, spec domain.ServerSpec, streams domain.IOStreams) (domain.Conn, error) {
+func (f *fakeTransport) Connect(ctx context.Context, _ string, _ domain.ServerSpec, _ domain.IOStreams) (domain.Conn, error) {
 	f.connectCtx = ctx
 	return f.conn, f.err
 }
@@ -260,7 +260,7 @@ type fakeConn struct {
 	closeErr error
 }
 
-func (f *fakeConn) Call(ctx context.Context, payload json.RawMessage) (json.RawMessage, error) {
+func (f *fakeConn) Call(_ context.Context, _ json.RawMessage) (json.RawMessage, error) {
 	if f.callErr != nil {
 		return nil, f.callErr
 	}
@@ -273,7 +273,7 @@ type retryConn struct {
 	callCount int
 }
 
-func (r *retryConn) Call(ctx context.Context, payload json.RawMessage) (json.RawMessage, error) {
+func (r *retryConn) Call(_ context.Context, _ json.RawMessage) (json.RawMessage, error) {
 	r.callCount++
 	if r.callCount <= initializeRetryCount {
 		return nil, errors.New("call fail")
@@ -284,7 +284,7 @@ func (r *retryConn) Call(ctx context.Context, payload json.RawMessage) (json.Raw
 func (r *retryConn) Close() error { return nil }
 
 func newTestStreams() (domain.IOStreams, domain.StopFn) {
-	return newTestStreamsWithStop(func(ctx context.Context) error { return nil })
+	return newTestStreamsWithStop(func(_ context.Context) error { return nil })
 }
 
 func newTestStreamsWithStop(stopFn domain.StopFn) (domain.IOStreams, domain.StopFn) {

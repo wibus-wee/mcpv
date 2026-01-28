@@ -7,57 +7,56 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"mcpd/internal/domain"
-	"mcpd/internal/infra/mcpcodec"
 )
 
-// Event name constants for Wails event emission
+// Event name constants for Wails event emission.
 const (
-	// Core lifecycle events
+	// Core lifecycle events.
 	EventCoreState = "core:state"
 
-	// Data update events
+	// Data update events.
 	EventToolsUpdated     = "tools:updated"
 	EventResourcesUpdated = "resources:updated"
 	EventPromptsUpdated   = "prompts:updated"
 
-	// Status update events
+	// Status update events.
 	EventRuntimeStatusUpdated = "runtime:status"
 	EventServerInitUpdated    = "server-init:status"
 	EventActiveClientsUpdated = "clients:active"
 
-	// Log streaming events
+	// Log streaming events.
 	EventLogEntry = "logs:entry"
 
-	// Error events
+	// Error events.
 	EventError = "error"
 )
 
-// CoreStateEvent represents core state changes
+// CoreStateEvent represents core state changes.
 type CoreStateEvent struct {
 	State  string  `json:"state"`
 	Error  *string `json:"error,omitempty"`
 	Uptime int64   `json:"uptime,omitempty"`
 }
 
-// ToolsUpdatedEvent represents tools snapshot updates
+// ToolsUpdatedEvent represents tools snapshot updates.
 type ToolsUpdatedEvent struct {
 	ETag  string      `json:"etag"`
 	Tools []ToolEntry `json:"tools"`
 }
 
-// ResourcesUpdatedEvent represents resources snapshot updates
+// ResourcesUpdatedEvent represents resources snapshot updates.
 type ResourcesUpdatedEvent struct {
 	ETag      string          `json:"etag"`
 	Resources []ResourceEntry `json:"resources"`
 }
 
-// PromptsUpdatedEvent represents prompts snapshot updates
+// PromptsUpdatedEvent represents prompts snapshot updates.
 type PromptsUpdatedEvent struct {
 	ETag    string        `json:"etag"`
 	Prompts []PromptEntry `json:"prompts"`
 }
 
-// LogEntryEvent represents a single log entry
+// LogEntryEvent represents a single log entry.
 type LogEntryEvent struct {
 	Logger    string          `json:"logger"`
 	Level     string          `json:"level"`
@@ -65,25 +64,25 @@ type LogEntryEvent struct {
 	Data      json.RawMessage `json:"data"`
 }
 
-// ErrorEvent represents an error event
+// ErrorEvent represents an error event.
 type ErrorEvent struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
 	Details string `json:"details,omitempty"`
 }
 
-// RuntimeStatusUpdatedEvent represents runtime status updates
+// RuntimeStatusUpdatedEvent represents runtime status updates.
 type RuntimeStatusUpdatedEvent struct {
 	ETag     string                `json:"etag"`
 	Statuses []ServerRuntimeStatus `json:"statuses"`
 }
 
-// ServerInitUpdatedEvent represents server init status updates
+// ServerInitUpdatedEvent represents server init status updates.
 type ServerInitUpdatedEvent struct {
 	Statuses []ServerInitStatus `json:"statuses"`
 }
 
-// ActiveClientsUpdatedEvent represents active client updates
+// ActiveClientsUpdatedEvent represents active client updates.
 type ActiveClientsUpdatedEvent struct {
 	Clients []ActiveClient `json:"clients"`
 }
@@ -100,76 +99,6 @@ func emitCoreState(app *application.App, state string, err error) {
 		event.Error = &errMsg
 	}
 	app.Event.Emit(EventCoreState, event)
-}
-
-func emitToolsUpdated(app *application.App, snapshot domain.ToolSnapshot) {
-	if app == nil {
-		return
-	}
-	tools := make([]ToolEntry, 0, len(snapshot.Tools))
-	for _, t := range snapshot.Tools {
-		raw, err := mcpcodec.MarshalToolDefinition(t)
-		if err != nil {
-			continue
-		}
-		tools = append(tools, ToolEntry{
-			Name:        t.Name,
-			Description: t.Description,
-			ToolJSON:    raw,
-			SpecKey:     t.SpecKey,
-			ServerName:  t.ServerName,
-			Source:      string(domain.ToolSourceLive),
-		})
-	}
-	event := ToolsUpdatedEvent{
-		ETag:  snapshot.ETag,
-		Tools: tools,
-	}
-	app.Event.Emit(EventToolsUpdated, event)
-}
-
-func emitResourcesUpdated(app *application.App, snapshot domain.ResourceSnapshot) {
-	if app == nil {
-		return
-	}
-	resources := make([]ResourceEntry, 0, len(snapshot.Resources))
-	for _, r := range snapshot.Resources {
-		raw, err := mcpcodec.MarshalResourceDefinition(r)
-		if err != nil {
-			continue
-		}
-		resources = append(resources, ResourceEntry{
-			URI:          r.URI,
-			ResourceJSON: raw,
-		})
-	}
-	event := ResourcesUpdatedEvent{
-		ETag:      snapshot.ETag,
-		Resources: resources,
-	}
-	app.Event.Emit(EventResourcesUpdated, event)
-}
-
-func emitPromptsUpdated(app *application.App, snapshot domain.PromptSnapshot) {
-	if app == nil {
-		return
-	}
-	prompts := make([]PromptEntry, 0, len(snapshot.Prompts))
-	for _, p := range snapshot.Prompts {
-		raw, err := mcpcodec.MarshalPromptDefinition(p)
-		if err != nil {
-			continue
-		}
-		prompts = append(prompts, PromptEntry{
-			Name:       p.Name,
-			PromptJSON: raw,
-		})
-	}
-	event := PromptsUpdatedEvent{
-		ETag:    snapshot.ETag,
-		Prompts: prompts,
-	}
-	app.Event.Emit(EventPromptsUpdated, event)
 }
 
 func emitLogEntry(app *application.App, entry domain.LogEntry) {

@@ -33,7 +33,7 @@ func NewCommandLauncher(opts CommandLauncherOptions) *CommandLauncher {
 	return &CommandLauncher{logger: logger}
 }
 
-func (l *CommandLauncher) Start(ctx context.Context, specKey string, spec domain.ServerSpec) (domain.IOStreams, domain.StopFn, error) {
+func (l *CommandLauncher) Start(ctx context.Context, _ string, spec domain.ServerSpec) (domain.IOStreams, domain.StopFn, error) {
 	if len(spec.Cmd) == 0 {
 		return domain.IOStreams{}, nil, fmt.Errorf("%w: cmd is required for stdio launcher", domain.ErrInvalidCommand)
 	}

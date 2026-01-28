@@ -1,3 +1,4 @@
+MACOS_MIN ?= 11.0
 GO ?= go
 PROTOC ?= protoc
 CONFIG ?= .
@@ -10,6 +11,12 @@ WIRE := $(BIN_DIR)/wire
 
 .PHONY: dev obs down reload proto wire tools build
 
+export MACOSX_DEPLOYMENT_TARGET=$(MACOS_MIN)
+export CGO_CFLAGS=-mmacosx-version-min=$(MACOS_MIN)
+export CGO_CXXFLAGS=-mmacosx-version-min=$(MACOS_MIN)
+export CGO_LDFLAGS=-mmacosx-version-min=$(MACOS_MIN)
+
+
 build:
 	$(GO) build -ldflags "$(LDFLAGS)" ./...
 
@@ -18,6 +25,20 @@ test:
 
 fmt:
 	$(GO) fmt ./...
+
+lint-check:
+	@command -v golangci-lint >/dev/null 2>&1 || { \
+		echo "golangci-lint not found. Install it with: brew install golangci-lint"; \
+		exit 1; \
+	}
+	golangci-lint run --config .golangci.yml
+
+lint-fix:
+	@command -v golangci-lint >/dev/null 2>&1 || { \
+		echo "golangci-lint not found. Install it with: brew install golangci-lint"; \
+		exit 1; \
+	}
+	golangci-lint run --config .golangci.yml --fix
 
 proto:
 	$(PROTOC) -I proto \

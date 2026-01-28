@@ -23,7 +23,7 @@ func TestBasicScheduler_StartsAndReusesInstance(t *testing.T) {
 		MinReady:        0,
 		ProtocolVersion: domain.DefaultProtocolVersion,
 	}
-	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, Options{})
 	require.NoError(t, err)
 
 	inst1, err := s.Acquire(context.Background(), "svc", "")
@@ -50,7 +50,7 @@ func TestBasicScheduler_StickyBinding(t *testing.T) {
 		Strategy:        domain.StrategyStateful,
 		ProtocolVersion: domain.DefaultProtocolVersion,
 	}
-	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, Options{})
 	require.NoError(t, err)
 
 	inst1, err := s.Acquire(context.Background(), "svc", "userA")
@@ -68,7 +68,7 @@ func TestBasicScheduler_StickyBinding(t *testing.T) {
 }
 
 func TestBasicScheduler_UnknownServer(t *testing.T) {
-	s, err := NewBasicScheduler(&fakeLifecycle{}, map[string]domain.ServerSpec{}, SchedulerOptions{})
+	s, err := NewBasicScheduler(&fakeLifecycle{}, map[string]domain.ServerSpec{}, Options{})
 	require.NoError(t, err)
 
 	_, err = s.Acquire(context.Background(), "missing", "")
@@ -83,7 +83,7 @@ func TestBasicScheduler_AcquireReadyDoesNotStart(t *testing.T) {
 		MaxConcurrent:   1,
 		ProtocolVersion: domain.DefaultProtocolVersion,
 	}
-	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, Options{})
 	require.NoError(t, err)
 
 	_, err = s.AcquireReady(context.Background(), "svc", "")
@@ -102,7 +102,7 @@ func TestBasicScheduler_IdleReapRespectsMinReady(t *testing.T) {
 		Strategy:        domain.StrategyStateless,
 		ProtocolVersion: domain.DefaultProtocolVersion,
 	}
-	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, Options{})
 	require.NoError(t, err)
 	require.NoError(t, s.SetDesiredMinReady(context.Background(), "svc", 1))
 
@@ -126,7 +126,7 @@ func TestBasicScheduler_IdleReapStopsWhenBelowMinReady(t *testing.T) {
 		Strategy:        domain.StrategyStateless,
 		ProtocolVersion: domain.DefaultProtocolVersion,
 	}
-	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, Options{})
 	require.NoError(t, err)
 
 	inst, err := s.Acquire(context.Background(), "svc", "")
@@ -148,7 +148,7 @@ func TestBasicScheduler_StatefulWithBindingSkipsIdle(t *testing.T) {
 		SessionTTLSeconds: 3600, // 1 hour, won't expire
 		ProtocolVersion:   domain.DefaultProtocolVersion,
 	}
-	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, Options{})
 	require.NoError(t, err)
 
 	inst, err := s.Acquire(context.Background(), "svc", "rk")
@@ -173,7 +173,7 @@ func TestBasicScheduler_IdleReapIgnoresIdleSecondsWhenMinReadyZero(t *testing.T)
 		Strategy:        domain.StrategyStateless,
 		ProtocolVersion: domain.DefaultProtocolVersion,
 	}
-	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, Options{})
 	require.NoError(t, err)
 
 	inst, err := s.Acquire(context.Background(), "svc", "")
@@ -196,7 +196,7 @@ func TestBasicScheduler_StatefulSessionTTLLimitsBindings(t *testing.T) {
 		SessionTTLSeconds: 1,
 		ProtocolVersion:   domain.DefaultProtocolVersion,
 	}
-	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, Options{
 		Logger: zap.NewNop(),
 	})
 	require.NoError(t, err)
@@ -233,7 +233,7 @@ func TestBasicScheduler_StatefulSessionTTLZeroKeepsBindings(t *testing.T) {
 		SessionTTLSeconds: 0,
 		ProtocolVersion:   domain.DefaultProtocolVersion,
 	}
-	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, Options{})
 	require.NoError(t, err)
 
 	inst, err := s.Acquire(context.Background(), "svc", "rk")
@@ -276,7 +276,7 @@ func TestBasicScheduler_IdleReapSkipsPersistentAndSingleton(t *testing.T) {
 				Strategy:        tc.strategy,
 				ProtocolVersion: domain.DefaultProtocolVersion,
 			}
-			s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
+			s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, Options{})
 			require.NoError(t, err)
 
 			inst, err := s.Acquire(context.Background(), "svc", "")
@@ -303,7 +303,7 @@ func TestBasicScheduler_PingFailureStopsInstance(t *testing.T) {
 		IdleSeconds:     10,
 		ProtocolVersion: domain.DefaultProtocolVersion,
 	}
-	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, Options{
 		Probe:  &fakeProbe{err: errors.New("ping failed")},
 		Logger: zap.NewNop(),
 	})
@@ -341,7 +341,7 @@ func TestBasicScheduler_SharedPool(t *testing.T) {
 
 	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{
 		specKeyA: specA,
-	}, SchedulerOptions{})
+	}, Options{})
 	require.NoError(t, err)
 
 	instA, err := s.Acquire(context.Background(), specKeyA, "")
@@ -359,7 +359,7 @@ func TestBasicScheduler_SetDesiredMinReadyStartsInstance(t *testing.T) {
 		MaxConcurrent:   1,
 		ProtocolVersion: domain.DefaultProtocolVersion,
 	}
-	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, Options{})
 	require.NoError(t, err)
 
 	require.NoError(t, s.SetDesiredMinReady(context.Background(), "svc", 1))
@@ -378,7 +378,7 @@ func TestBasicScheduler_StopSpecStopsInstances(t *testing.T) {
 		MaxConcurrent:   1,
 		ProtocolVersion: domain.DefaultProtocolVersion,
 	}
-	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, Options{})
 	require.NoError(t, err)
 
 	inst, err := s.Acquire(context.Background(), "svc", "")
@@ -405,7 +405,7 @@ func TestBasicScheduler_StopSpecDrainsBusyInstances(t *testing.T) {
 		DrainTimeoutSeconds: 1,
 		ProtocolVersion:     domain.DefaultProtocolVersion,
 	}
-	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, Options{
 		Logger: zap.NewNop(),
 	})
 	require.NoError(t, err)
@@ -446,7 +446,7 @@ func TestBasicScheduler_StopSpecCancelsInFlightStart(t *testing.T) {
 		MaxConcurrent:   1,
 		ProtocolVersion: domain.DefaultProtocolVersion,
 	}
-	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, Options{})
 	require.NoError(t, err)
 
 	errCh := make(chan error, 1)
@@ -478,7 +478,7 @@ func TestBasicScheduler_StartDrainCompletesImmediatelyWhenIdle(t *testing.T) {
 		DrainTimeoutSeconds: 1,
 		ProtocolVersion:     domain.DefaultProtocolVersion,
 	}
-	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, Options{
 		Logger: zap.NewNop(),
 	})
 	require.NoError(t, err)
@@ -523,7 +523,7 @@ func TestBasicScheduler_StartGateSingleflight(t *testing.T) {
 		MaxConcurrent:   3,
 		ProtocolVersion: domain.DefaultProtocolVersion,
 	}
-	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, SchedulerOptions{})
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, Options{})
 	require.NoError(t, err)
 
 	results := make(chan *domain.Instance, 3)
@@ -553,7 +553,7 @@ type fakeLifecycle struct {
 	counter int
 }
 
-func (f *fakeLifecycle) StartInstance(ctx context.Context, specKey string, spec domain.ServerSpec) (*domain.Instance, error) {
+func (f *fakeLifecycle) StartInstance(_ context.Context, specKey string, spec domain.ServerSpec) (*domain.Instance, error) {
 	f.counter++
 	return domain.NewInstance(domain.InstanceOptions{
 		ID:         spec.Name + "-inst",
@@ -564,7 +564,7 @@ func (f *fakeLifecycle) StartInstance(ctx context.Context, specKey string, spec 
 	}), nil
 }
 
-func (f *fakeLifecycle) StopInstance(ctx context.Context, instance *domain.Instance, reason string) error {
+func (f *fakeLifecycle) StopInstance(_ context.Context, instance *domain.Instance, _ string) error {
 	if instance != nil {
 		instance.SetState(domain.InstanceStateStopped)
 	}
@@ -575,7 +575,7 @@ type fakeProbe struct {
 	err error
 }
 
-func (f *fakeProbe) Ping(ctx context.Context, conn domain.Conn) error {
+func (f *fakeProbe) Ping(_ context.Context, _ domain.Conn) error {
 	return f.err
 }
 
@@ -588,7 +588,7 @@ type blockingLifecycle struct {
 	stopped int
 }
 
-func (b *blockingLifecycle) StartInstance(ctx context.Context, specKey string, spec domain.ServerSpec) (*domain.Instance, error) {
+func (b *blockingLifecycle) StartInstance(_ context.Context, specKey string, spec domain.ServerSpec) (*domain.Instance, error) {
 	b.mu.Lock()
 	b.count++
 	b.mu.Unlock()
@@ -607,7 +607,7 @@ func (b *blockingLifecycle) StartInstance(ctx context.Context, specKey string, s
 	}), nil
 }
 
-func (b *blockingLifecycle) StopInstance(ctx context.Context, instance *domain.Instance, reason string) error {
+func (b *blockingLifecycle) StopInstance(_ context.Context, instance *domain.Instance, reason string) error {
 	if instance != nil {
 		instance.SetState(domain.InstanceStateStopped)
 	}
@@ -634,7 +634,7 @@ type trackingLifecycle struct {
 	stopOnce sync.Once
 }
 
-func (t *trackingLifecycle) StartInstance(ctx context.Context, specKey string, spec domain.ServerSpec) (*domain.Instance, error) {
+func (t *trackingLifecycle) StartInstance(_ context.Context, specKey string, spec domain.ServerSpec) (*domain.Instance, error) {
 	return domain.NewInstance(domain.InstanceOptions{
 		ID:         spec.Name + "-inst",
 		Spec:       spec,
@@ -644,7 +644,7 @@ func (t *trackingLifecycle) StartInstance(ctx context.Context, specKey string, s
 	}), nil
 }
 
-func (t *trackingLifecycle) StopInstance(ctx context.Context, instance *domain.Instance, reason string) error {
+func (t *trackingLifecycle) StopInstance(_ context.Context, instance *domain.Instance, reason string) error {
 	if instance != nil {
 		instance.SetState(domain.InstanceStateStopped)
 	}

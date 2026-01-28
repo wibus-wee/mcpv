@@ -35,12 +35,12 @@ func (s *LogService) StartLogStream(ctx context.Context, minLevel string) error 
 	manager := s.deps.manager()
 	if manager == nil {
 		s.logger.Error("StartLogStream failed: Manager not initialized")
-		return NewUIError(ErrCodeInternal, "Manager not initialized")
+		return NewError(ErrCodeInternal, "Manager not initialized")
 	}
 
 	if s.logStreaming {
 		s.logger.Warn("StartLogStream: Log stream already active")
-		return NewUIError(ErrCodeInvalidState, "Log stream already active")
+		return NewError(ErrCodeInvalidState, "Log stream already active")
 	}
 
 	cp, err := manager.GetControlPlane()
@@ -58,7 +58,7 @@ func (s *LogService) StartLogStream(ctx context.Context, minLevel string) error 
 	case <-ctx.Done():
 		s.logger.Error("Input context is already cancelled!", zap.Error(ctx.Err()))
 		s.logStreaming = false
-		return NewUIError(ErrCodeInternal, "Input context already cancelled")
+		return NewError(ErrCodeInternal, "Input context already cancelled")
 	default:
 	}
 
