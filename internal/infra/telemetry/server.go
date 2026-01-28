@@ -87,7 +87,7 @@ func StartMetricsServer(ctx context.Context, port int, logger *zap.Logger) error
 }
 
 func healthHandler(tracker *HealthTracker) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		report := HealthReport{Status: "ok"}
 		if tracker != nil {
 			report = tracker.Report()

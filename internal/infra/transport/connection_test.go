@@ -67,7 +67,7 @@ type samplingStub struct {
 	err    error
 }
 
-func (s *samplingStub) CreateMessage(ctx context.Context, params *domain.SamplingRequest) (*domain.SamplingResult, error) {
+func (s *samplingStub) CreateMessage(_ context.Context, _ *domain.SamplingRequest) (*domain.SamplingResult, error) {
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -79,7 +79,7 @@ type elicitationStub struct {
 	err    error
 }
 
-func (e *elicitationStub) Elicit(ctx context.Context, params *domain.ElicitationRequest) (*domain.ElicitationResult, error) {
+func (e *elicitationStub) Elicit(_ context.Context, _ *domain.ElicitationRequest) (*domain.ElicitationResult, error) {
 	if e.err != nil {
 		return nil, e.err
 	}

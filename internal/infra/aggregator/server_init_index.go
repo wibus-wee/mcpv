@@ -15,7 +15,7 @@ import (
 	"mcpd/internal/domain"
 )
 
-// ServerInitIndex manages server initialization status snapshots with broadcast support
+// ServerInitIndex manages server initialization status snapshots with broadcast support.
 type ServerInitIndex struct {
 	cp     domain.ServerInitStatusReader
 	logger *zap.Logger
@@ -29,7 +29,7 @@ type serverInitStatusIndexState struct {
 	snapshot domain.ServerInitStatusSnapshot
 }
 
-// NewServerInitIndex creates a new server init status index
+// NewServerInitIndex creates a new server init status index.
 func NewServerInitIndex(cp domain.ServerInitStatusReader, logger *zap.Logger) *ServerInitIndex {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -80,7 +80,7 @@ func (idx *ServerInitIndex) Current() domain.ServerInitStatusSnapshot {
 	return state.snapshot
 }
 
-// Refresh polls the control plane for current init status and broadcasts to subscribers
+// Refresh polls the control plane for current init status and broadcasts to subscribers.
 func (idx *ServerInitIndex) Refresh(ctx context.Context) error {
 	statuses, err := idx.cp.GetServerInitStatus(ctx)
 	if err != nil {
@@ -115,7 +115,7 @@ func (idx *ServerInitIndex) Refresh(ctx context.Context) error {
 	return nil
 }
 
-// broadcast sends the snapshot to all subscribers (non-blocking)
+// broadcast sends the snapshot to all subscribers (non-blocking).
 func (idx *ServerInitIndex) broadcast(snapshot domain.ServerInitStatusSnapshot) {
 	idx.mu.RLock()
 	for ch := range idx.subs {
@@ -124,7 +124,7 @@ func (idx *ServerInitIndex) broadcast(snapshot domain.ServerInitStatusSnapshot) 
 	idx.mu.RUnlock()
 }
 
-// computeServerInitStatusHash generates a hash based on status content
+// computeServerInitStatusHash generates a hash based on status content.
 func computeServerInitStatusHash(statuses []domain.ServerInitStatus) string {
 	if len(statuses) == 0 {
 		return ""
@@ -140,7 +140,7 @@ func computeServerInitStatusHash(statuses []domain.ServerInitStatus) string {
 	return hex.EncodeToString(hash[:])
 }
 
-// sendServerInitStatusSnapshot sends a snapshot to a channel (non-blocking)
+// sendServerInitStatusSnapshot sends a snapshot to a channel (non-blocking).
 func sendServerInitStatusSnapshot(ch chan domain.ServerInitStatusSnapshot, snapshot domain.ServerInitStatusSnapshot) {
 	select {
 	case ch <- snapshot:

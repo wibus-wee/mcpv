@@ -1,0 +1,100 @@
+# Refer to golangci-lint's example config file for more options and information:
+# https://github.com/golangci/golangci-lint/blob/master/.golangci.reference.yml
+
+version: "2"
+
+run:
+  timeout: 10m
+  modules-download-mode: readonly
+  go: "1.25"
+
+linters:
+  settings:
+    staticcheck:
+      # https://staticcheck.io/docs/options#checks
+      checks: [ "all" ]
+
+  enable:
+    - bodyclose
+    - errcheck
+    - exhaustive
+    - exptostd
+    - forbidigo
+    - gocritic
+    - godot
+    - govet
+    - musttag
+    - noctx
+    - protogetter
+    - revive
+    - rowserrcheck
+    - staticcheck
+    - unused
+    - usestdlibvars
+    - whitespace
+
+  # settings:
+    # forbidigo:
+      # forbid:
+        # Ban direct stdout/stderr writes in cli/ - use io.OutFromCtx(ctx) instead
+        # - pattern: ^fmt\.Print$
+        #   msg: "use fmt.Fprint with io.OutFromCtx(ctx) instead of fmt.Print"
+        # - pattern: ^fmt\.Printf$
+        #   msg: "use fmt.Fprintf with io.OutFromCtx(ctx) instead of fmt.Printf"
+        # - pattern: ^fmt\.Println$
+        #   msg: "use fmt.Fprintln with io.OutFromCtx(ctx) instead of fmt.Println"
+        # # Ban global logger in cli/ - use io.LoggerFromCtx(ctx) instead
+        # - pattern: ^log\.Print$
+        #   msg: "use io.LoggerFromCtx(ctx).Print instead of log.Print"
+        # - pattern: ^log\.Printf$
+        #   msg: "use io.LoggerFromCtx(ctx).Printf instead of log.Printf"
+        # - pattern: ^log\.Println$
+        #   msg: "use io.LoggerFromCtx(ctx).Println instead of log.Println"
+        # - pattern: ^log\.Fatal$
+        #   msg: "use io.LoggerFromCtx(ctx).Fatal instead of log.Fatal"
+        # - pattern: ^log\.Fatalf$
+        #   msg: "use io.LoggerFromCtx(ctx).Fatalf instead of log.Fatalf"
+        # - pattern: ^log\.Fatalln$
+        #   msg: "use io.LoggerFromCtx(ctx).Fatalln instead of log.Fatalln"
+    # rowserrcheck:
+      # database/sql is always checked.
+      # Default: []
+      # packages:
+        # - github.com/jackc/pgx/v5
+
+  exclusions:
+    presets:
+      - comments
+      - std-error-handling
+    rules:
+      - path: ".*_test\\.go"
+        linters:
+          - bodyclose
+          - noctx
+          - musttag
+      - linters:
+        - revive
+        path: '(utils|common|types)/*'
+        text: 'var-naming: avoid meaningless package names'
+      # Only apply forbidigo to cli/ directory
+      # - path-except: "^cli/"
+      #   linters:
+      #     - forbidigo
+      # Exclude must.go which uses log.Fatal intentionally
+      # - path: "cli/utils/must\\.go"
+      #   linters:
+      #     - forbidigo
+      # Allow fmt.Print* and log.* in test files and e2e-test directory
+      # - path: ".*_test\\.go"
+      #   linters:
+      #     - forbidigo
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+issues:
+  fix: false
+  max-same-issues: 0
+  max-issues-per-linter: 0

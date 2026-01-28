@@ -25,8 +25,8 @@ var (
 	ErrNotImplemented = errors.New("scheduler not implemented")
 )
 
-// SchedulerOptions configures the basic scheduler.
-type SchedulerOptions struct {
+// Options configures the basic scheduler.
+type Options struct {
 	Probe        domain.HealthProbe
 	PingInterval time.Duration
 	Logger       *zap.Logger
@@ -98,7 +98,7 @@ type poolEntry struct {
 }
 
 // NewBasicScheduler constructs a BasicScheduler using the provided options.
-func NewBasicScheduler(lifecycle domain.Lifecycle, specs map[string]domain.ServerSpec, opts SchedulerOptions) (*BasicScheduler, error) {
+func NewBasicScheduler(lifecycle domain.Lifecycle, specs map[string]domain.ServerSpec, opts Options) (*BasicScheduler, error) {
 	logger := opts.Logger
 	if logger == nil {
 		logger = zap.NewNop()
@@ -237,6 +237,9 @@ func (s *BasicScheduler) AcquireReady(ctx context.Context, specKey, routingKey s
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	spec, ok := s.specForKey(specKey)
 	if !ok {
 		return nil, ErrUnknownSpecKey
@@ -253,7 +256,7 @@ func (s *BasicScheduler) AcquireReady(ctx context.Context, specKey, routingKey s
 }
 
 // Release marks an instance as idle and updates pool state.
-func (s *BasicScheduler) Release(ctx context.Context, instance *domain.Instance) error {
+func (s *BasicScheduler) Release(_ context.Context, instance *domain.Instance) error {
 	if instance == nil {
 		return errors.New("instance is nil")
 	}
@@ -277,6 +280,12 @@ func (s *BasicScheduler) Release(ctx context.Context, instance *domain.Instance)
 			instance.SetState(domain.InstanceStateReady)
 		case domain.InstanceStateDraining:
 			triggerDrain = state.findDrainingByIDLocked(instance.ID())
+		case domain.InstanceStateReady,
+			domain.InstanceStateStarting,
+			domain.InstanceStateInitializing,
+			domain.InstanceStateHandshaking,
+			domain.InstanceStateStopped,
+			domain.InstanceStateFailed:
 		}
 	}
 	state.mu.Unlock()
@@ -849,7 +858,7 @@ func (s *BasicScheduler) reapStaleBindings() {
 	}
 }
 
-// hasActiveBindingsForInstanceLocked checks if an instance has any active sticky bindings
+// hasActiveBindingsForInstanceLocked checks if an instance has any active sticky bindings.
 func (s *poolState) hasActiveBindingsForInstanceLocked(inst *trackedInstance) bool {
 	if s.sticky == nil {
 		return false
@@ -962,7 +971,7 @@ func (s *BasicScheduler) StopAll(ctx context.Context) {
 }
 
 // GetPoolStatus returns a snapshot of all pool states for status queries.
-func (s *BasicScheduler) GetPoolStatus(ctx context.Context) ([]domain.PoolInfo, error) {
+func (s *BasicScheduler) GetPoolStatus(_ context.Context) ([]domain.PoolInfo, error) {
 	entries := s.snapshotPools()
 	result := make([]domain.PoolInfo, 0, len(entries))
 

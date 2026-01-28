@@ -39,29 +39,29 @@ func (r *promptRegistry) ApplySnapshot(snapshot *controlv1.PromptsSnapshot) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if snapshot.Etag != "" && snapshot.Etag == r.etag {
+	if snapshot.GetEtag() != "" && snapshot.GetEtag() == r.etag {
 		return
 	}
 
 	next := make(map[string]struct{})
-	for _, def := range snapshot.Prompts {
-		if def == nil || len(def.PromptJson) == 0 {
+	for _, def := range snapshot.GetPrompts() {
+		if def == nil || len(def.GetPromptJson()) == 0 {
 			continue
 		}
 		var prompt mcp.Prompt
-		if err := json.Unmarshal(def.PromptJson, &prompt); err != nil {
-			r.logger.Warn("decode prompt failed", zap.String("prompt", def.Name), zap.Error(err))
+		if err := json.Unmarshal(def.GetPromptJson(), &prompt); err != nil {
+			r.logger.Warn("decode prompt failed", zap.String("prompt", def.GetName()), zap.Error(err))
 			continue
 		}
 		if prompt.Name == "" {
-			prompt.Name = def.Name
+			prompt.Name = def.GetName()
 		}
 		if prompt.Name == "" {
 			continue
 		}
-		if def.Name != "" && prompt.Name != def.Name {
-			r.logger.Warn("prompt name mismatch", zap.String("prompt", prompt.Name), zap.String("expected", def.Name))
-			prompt.Name = def.Name
+		if def.GetName() != "" && prompt.Name != def.GetName() {
+			r.logger.Warn("prompt name mismatch", zap.String("prompt", prompt.Name), zap.String("expected", def.GetName()))
+			prompt.Name = def.GetName()
 		}
 
 		r.server.AddPrompt(&prompt, r.handler(prompt.Name))
@@ -79,5 +79,5 @@ func (r *promptRegistry) ApplySnapshot(snapshot *controlv1.PromptsSnapshot) {
 	}
 
 	r.registered = next
-	r.etag = snapshot.Etag
+	r.etag = snapshot.GetEtag()
 }

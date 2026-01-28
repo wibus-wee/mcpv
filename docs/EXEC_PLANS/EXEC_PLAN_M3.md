@@ -105,10 +105,10 @@ This document must be maintained in accordance with .agent/PLANS.md from the rep
         func (l *Loader) Load(ctx context.Context, path string) (domain.Catalog, error)
 
     internal/infra/router/router.go
-        func NewBasicRouter(scheduler domain.Scheduler, opts RouterOptions) *BasicRouter
+        func NewBasicRouter(scheduler domain.Scheduler, opts Options) *BasicRouter
 
     internal/infra/scheduler/basic.go
-        func NewBasicScheduler(lc domain.Lifecycle, specs map[string]domain.ServerSpec, opts SchedulerOptions) *BasicScheduler
+        func NewBasicScheduler(lc domain.Lifecycle, specs map[string]domain.ServerSpec, opts Options) *BasicScheduler
 
     internal/infra/aggregator/aggregator.go
         func NewToolAggregator(rt domain.Router, specs map[string]domain.ServerSpec, cfg domain.RuntimeConfig, logger *zap.Logger) *ToolAggregator

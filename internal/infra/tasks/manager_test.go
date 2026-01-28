@@ -16,7 +16,7 @@ func TestManagerCreateAndResult(t *testing.T) {
 	ctx := context.Background()
 
 	payload := json.RawMessage(`{"ok":true}`)
-	task, err := manager.Create(ctx, "client-a", domain.TaskCreateOptions{}, func(ctx context.Context) (domain.TaskRunResult, error) {
+	task, err := manager.Create(ctx, "client-a", domain.TaskCreateOptions{}, func(_ context.Context) (domain.TaskRunResult, error) {
 		return domain.TaskRunResult{Result: payload}, nil
 	})
 	require.NoError(t, err)
@@ -51,7 +51,7 @@ func TestManagerList(t *testing.T) {
 	ctx := context.Background()
 
 	for i := 0; i < 3; i++ {
-		_, err := manager.Create(ctx, "client-a", domain.TaskCreateOptions{}, func(ctx context.Context) (domain.TaskRunResult, error) {
+		_, err := manager.Create(ctx, "client-a", domain.TaskCreateOptions{}, func(_ context.Context) (domain.TaskRunResult, error) {
 			return domain.TaskRunResult{Result: json.RawMessage(`{}`)}, nil
 		})
 		require.NoError(t, err)
@@ -73,7 +73,7 @@ func TestManagerTTLExpiry(t *testing.T) {
 	ctx := context.Background()
 
 	ttl := int64(10)
-	task, err := manager.Create(ctx, "client-a", domain.TaskCreateOptions{TTL: &ttl}, func(ctx context.Context) (domain.TaskRunResult, error) {
+	task, err := manager.Create(ctx, "client-a", domain.TaskCreateOptions{TTL: &ttl}, func(_ context.Context) (domain.TaskRunResult, error) {
 		return domain.TaskRunResult{Result: json.RawMessage(`{}`)}, nil
 	})
 	require.NoError(t, err)

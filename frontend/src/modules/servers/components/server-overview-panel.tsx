@@ -2,6 +2,7 @@
 // Output: Server overview panel showing health, stats
 // Position: Overview panel component for server module
 
+import { useAtom } from 'jotai'
 import {
   ActivityIcon,
   ClockIcon,
@@ -10,7 +11,6 @@ import {
   ZapIcon,
 } from 'lucide-react'
 import { m } from 'motion/react'
-import { useAtom } from 'jotai'
 
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -22,8 +22,8 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Spring } from '@/lib/spring'
 import { getMetricsSummary, getPoolStats } from '@/lib/server-stats'
+import { Spring } from '@/lib/spring'
 import {
   formatDuration,
   formatLatency,

@@ -12,20 +12,20 @@ func NewNoopMetrics() *NoopMetrics {
 	return &NoopMetrics{}
 }
 
-func (n *NoopMetrics) ObserveRoute(metric domain.RouteMetric) {}
+func (n *NoopMetrics) ObserveRoute(_ domain.RouteMetric) {}
 
-func (n *NoopMetrics) ObserveInstanceStart(serverType string, duration time.Duration, err error) {}
+func (n *NoopMetrics) ObserveInstanceStart(_ string, _ time.Duration, _ error) {}
 
-func (n *NoopMetrics) ObserveInstanceStop(serverType string, err error) {}
+func (n *NoopMetrics) ObserveInstanceStop(_ string, _ error) {}
 
-func (n *NoopMetrics) SetActiveInstances(serverType string, count int) {}
+func (n *NoopMetrics) SetActiveInstances(_ string, _ int) {}
 
-func (n *NoopMetrics) SetPoolCapacityRatio(serverType string, ratio float64) {}
+func (n *NoopMetrics) SetPoolCapacityRatio(_ string, _ float64) {}
 
-func (n *NoopMetrics) ObserveSubAgentTokens(provider string, model string, tokens int) {}
+func (n *NoopMetrics) ObserveSubAgentTokens(_ string, _ string, _ int) {}
 
-func (n *NoopMetrics) ObserveSubAgentLatency(provider string, model string, duration time.Duration) {}
+func (n *NoopMetrics) ObserveSubAgentLatency(_ string, _ string, _ time.Duration) {}
 
-func (n *NoopMetrics) ObserveSubAgentFilterPrecision(provider string, model string, ratio float64) {}
+func (n *NoopMetrics) ObserveSubAgentFilterPrecision(_ string, _ string, _ float64) {}
 
 var _ domain.Metrics = (*NoopMetrics)(nil)

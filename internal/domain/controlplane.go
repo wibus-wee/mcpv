@@ -15,21 +15,21 @@ type ControlPlaneInfo struct {
 
 // ToolDefinition describes a tool exposed by a server.
 type ToolDefinition struct {
-	Name         string
-	Description  string
-	InputSchema  any
-	OutputSchema any
-	Title        string
-	Annotations  *ToolAnnotations
-	Meta         Meta
-	SpecKey      string
-	ServerName   string
+	Name         string           `json:"name"`
+	Description  string           `json:"description"`
+	InputSchema  any              `json:"inputSchema"`
+	OutputSchema any              `json:"outputSchema"`
+	Title        string           `json:"title"`
+	Annotations  *ToolAnnotations `json:"annotations"`
+	Meta         Meta             `json:"meta"`
+	SpecKey      string           `json:"specKey"`
+	ServerName   string           `json:"serverName"`
 }
 
 // ToolSnapshot is a versioned snapshot of tools.
 type ToolSnapshot struct {
-	ETag  string
-	Tools []ToolDefinition
+	ETag  string           `json:"etag"`
+	Tools []ToolDefinition `json:"tools"`
 }
 
 // ToolTarget identifies the target server for a tool.
@@ -41,22 +41,22 @@ type ToolTarget struct {
 
 // ResourceDefinition describes a resource exposed by a server.
 type ResourceDefinition struct {
-	URI         string
-	Name        string
-	Title       string
-	Description string
-	MIMEType    string
-	Size        int64
-	Annotations *Annotations
-	Meta        Meta
-	SpecKey     string
-	ServerName  string
+	URI         string       `json:"uri"`
+	Name        string       `json:"name"`
+	Title       string       `json:"title"`
+	Description string       `json:"description"`
+	MIMEType    string       `json:"mimeType"`
+	Size        int64        `json:"size"`
+	Annotations *Annotations `json:"annotations"`
+	Meta        Meta         `json:"meta"`
+	SpecKey     string       `json:"specKey"`
+	ServerName  string       `json:"serverName"`
 }
 
 // ResourceSnapshot is a versioned snapshot of resources.
 type ResourceSnapshot struct {
-	ETag      string
-	Resources []ResourceDefinition
+	ETag      string               `json:"etag"`
+	Resources []ResourceDefinition `json:"resources"`
 }
 
 // ResourceTarget identifies the target server for a resource.
@@ -74,19 +74,19 @@ type ResourcePage struct {
 
 // PromptDefinition describes a prompt exposed by a server.
 type PromptDefinition struct {
-	Name        string
-	Title       string
-	Description string
-	Arguments   []PromptArgument
-	Meta        Meta
-	SpecKey     string
-	ServerName  string
+	Name        string           `json:"name"`
+	Title       string           `json:"title"`
+	Description string           `json:"description"`
+	Arguments   []PromptArgument `json:"arguments"`
+	Meta        Meta             `json:"meta"`
+	SpecKey     string           `json:"specKey"`
+	ServerName  string           `json:"serverName"`
 }
 
 // PromptSnapshot is a versioned snapshot of prompts.
 type PromptSnapshot struct {
-	ETag    string
-	Prompts []PromptDefinition
+	ETag    string             `json:"etag"`
+	Prompts []PromptDefinition `json:"prompts"`
 }
 
 // PromptTarget identifies the target server for a prompt.
@@ -147,50 +147,50 @@ type ActiveClientSnapshot struct {
 	GeneratedAt time.Time
 }
 
-// RuntimeStatusSnapshot contains a snapshot of all server runtime statuses
+// RuntimeStatusSnapshot contains a snapshot of all server runtime statuses.
 type RuntimeStatusSnapshot struct {
-	ETag        string
-	Statuses    []ServerRuntimeStatus
-	GeneratedAt time.Time
+	ETag        string                `json:"etag"`
+	Statuses    []ServerRuntimeStatus `json:"statuses"`
+	GeneratedAt time.Time             `json:"generatedAt"`
 }
 
-// ServerRuntimeStatus contains the runtime status of a server and its instances
+// ServerRuntimeStatus contains the runtime status of a server and its instances.
 type ServerRuntimeStatus struct {
-	SpecKey    string
-	ServerName string
-	Instances  []InstanceStatusInfo
-	Stats      PoolStats
-	Metrics    PoolMetrics
+	SpecKey    string               `json:"specKey"`
+	ServerName string               `json:"serverName"`
+	Instances  []InstanceStatusInfo `json:"instances"`
+	Stats      PoolStats            `json:"stats"`
+	Metrics    PoolMetrics          `json:"metrics"`
 }
 
-// InstanceStatusInfo represents the status of a single server instance
+// InstanceStatusInfo represents the status of a single server instance.
 type InstanceStatusInfo struct {
-	ID              string
-	State           InstanceState
-	BusyCount       int
-	LastActive      time.Time
-	SpawnedAt       time.Time
-	HandshakedAt    time.Time
-	LastHeartbeatAt time.Time
-	LastStartCause  *StartCause
+	ID              string        `json:"id"`
+	State           InstanceState `json:"state"`
+	BusyCount       int           `json:"busyCount"`
+	LastActive      time.Time     `json:"lastActive"`
+	SpawnedAt       time.Time     `json:"spawnedAt"`
+	HandshakedAt    time.Time     `json:"handshakedAt"`
+	LastHeartbeatAt time.Time     `json:"lastHeartbeatAt"`
+	LastStartCause  *StartCause   `json:"lastStartCause"`
 }
 
-// PoolStats contains aggregated statistics for a server pool
+// PoolStats contains aggregated statistics for a server pool.
 type PoolStats struct {
-	Total        int
-	Ready        int
-	Busy         int
-	Starting     int
-	Initializing int
-	Handshaking  int
-	Draining     int
-	Failed       int
+	Total        int `json:"total"`
+	Ready        int `json:"ready"`
+	Busy         int `json:"busy"`
+	Starting     int `json:"starting"`
+	Initializing int `json:"initializing"`
+	Handshaking  int `json:"handshaking"`
+	Draining     int `json:"draining"`
+	Failed       int `json:"failed"`
 }
 
-// ServerInitStatusSnapshot contains a snapshot of all server initialization statuses
+// ServerInitStatusSnapshot contains a snapshot of all server initialization statuses.
 type ServerInitStatusSnapshot struct {
-	Statuses    []ServerInitStatus
-	GeneratedAt time.Time
+	Statuses    []ServerInitStatus `json:"statuses"`
+	GeneratedAt time.Time          `json:"generatedAt"`
 }
 
 // ControlPlaneInfoProvider exposes basic control plane metadata.

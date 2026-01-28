@@ -4,7 +4,8 @@
 
 import { createFileRoute, useSearch } from '@tanstack/react-router'
 
-import { SERVER_TABS, type ServerTab } from '@/modules/servers/constants'
+import type { ServerTab } from '@/modules/servers/constants'
+import { SERVER_TABS } from '@/modules/servers/constants'
 import { ServersPage } from '@/modules/servers/servers-page'
 
 export const Route = createFileRoute('/servers')({

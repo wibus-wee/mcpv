@@ -208,7 +208,7 @@ func (r *clientRegistry) UnregisterClient(ctx context.Context, client string) er
 }
 
 // ListActiveClients lists active clients.
-func (r *clientRegistry) ListActiveClients(ctx context.Context) ([]domain.ActiveClient, error) {
+func (r *clientRegistry) ListActiveClients(_ context.Context) ([]domain.ActiveClient, error) {
 	now := time.Now()
 	r.mu.Lock()
 	snapshot := r.snapshotActiveClientsLocked(now)
@@ -545,7 +545,7 @@ func (r *clientRegistry) broadcastClientChange(event clientChangeEvent) {
 
 func applySpecDelta(counts map[string]int, add []string, remove []string) {
 	for _, key := range add {
-		counts[key] = counts[key] + 1
+		counts[key]++
 	}
 	for _, key := range remove {
 		count := counts[key]

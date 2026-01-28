@@ -327,6 +327,8 @@ func (g *GenericIndex[Snapshot, Target, Cache]) Refresh(ctx context.Context) err
 				g.resetFailure(res.serverType)
 				changed = true
 				continue
+			case refreshErrorLog:
+				fallthrough
 			default:
 				failures := g.recordFailure(res.serverType)
 				if g.failureThreshold > 0 && failures >= g.failureThreshold {

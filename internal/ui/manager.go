@@ -14,7 +14,7 @@ import (
 	"mcpd/internal/domain"
 )
 
-// CoreState represents the lifecycle state of the Core
+// CoreState represents the lifecycle state of the Core.
 type CoreState string
 
 const (
@@ -25,7 +25,7 @@ const (
 	CoreStateError    CoreState = "error"
 )
 
-// Manager coordinates Core lifecycle and all UI services
+// Manager coordinates Core lifecycle and all UI services.
 type Manager struct {
 	mu sync.RWMutex
 
@@ -56,7 +56,7 @@ type Manager struct {
 	// logService      *LogService
 }
 
-// NewManager creates a new Manager instance
+// NewManager creates a new Manager instance.
 func NewManager(wails *application.App, coreApp *app.App, configPath string) *Manager {
 	return &Manager{
 		wails:      wails,
@@ -78,7 +78,7 @@ func NewManager(wails *application.App, coreApp *app.App, configPath string) *Ma
 // 	m.logService = log
 // }
 
-// Start starts the Core and auto-starts Watch subscriptions
+// Start starts the Core and auto-starts Watch subscriptions.
 func (m *Manager) Start(ctx context.Context) error {
 	return m.startWithConfig(ctx, m.configPath, m.lastObservability)
 }
@@ -93,7 +93,7 @@ func (m *Manager) startWithConfig(ctx context.Context, configPath string, observ
 	m.mu.Lock()
 	if m.coreState == CoreStateRunning || m.coreState == CoreStateStarting {
 		m.mu.Unlock()
-		return NewUIError(ErrCodeCoreAlreadyRunning, "Core is already running or starting")
+		return NewError(ErrCodeCoreAlreadyRunning, "Core is already running or starting")
 	}
 
 	m.configPath = configPath
@@ -172,7 +172,7 @@ func boolPtr(value bool) *bool {
 	return &value
 }
 
-// runCore executes the Core's Serve method
+// runCore executes the Core's Serve method.
 func (m *Manager) runCore(cfg app.ServeConfig) {
 	m.mu.Lock()
 	m.coreStarted = time.Now()
@@ -241,7 +241,7 @@ func (m *Manager) handleControlPlaneReady(cp domain.ControlPlane) {
 	m.onCoreReady()
 }
 
-// onCoreReady is called when Core reaches running state
+// onCoreReady is called when Core reaches running state.
 func (m *Manager) onCoreReady() {
 	m.mu.Lock()
 	if m.coreState == CoreStateRunning {
@@ -266,7 +266,7 @@ func (m *Manager) onCoreReady() {
 	m.startWatchers()
 }
 
-// startWatchers automatically starts all Watch subscriptions
+// startWatchers automatically starts all Watch subscriptions.
 func (m *Manager) startWatchers() {
 	m.mu.Lock()
 	if m.watchersCancel != nil {
@@ -359,12 +359,12 @@ func (m *Manager) startWatchers() {
 	// }
 }
 
-// Stop stops the Core gracefully
+// Stop stops the Core gracefully.
 func (m *Manager) Stop() error {
 	m.mu.Lock()
 	if m.coreState != CoreStateRunning {
 		m.mu.Unlock()
-		return NewUIError(ErrCodeCoreNotRunning, "Core is not running")
+		return NewError(ErrCodeCoreNotRunning, "Core is not running")
 	}
 
 	m.coreState = CoreStateStopping
@@ -390,11 +390,11 @@ func (m *Manager) Stop() error {
 	return nil
 }
 
-// Restart restarts the Core
+// Restart restarts the Core.
 func (m *Manager) Restart(ctx context.Context) error {
 	// Stop if running
 	if err := m.Stop(); err != nil {
-		var uiErr *UIError
+		var uiErr *Error
 		if !errors.As(err, &uiErr) || uiErr.Code != ErrCodeCoreNotRunning {
 			return err
 		}
@@ -408,7 +408,7 @@ func (m *Manager) Restart(ctx context.Context) error {
 	for {
 		select {
 		case <-timeout:
-			return NewUIError(ErrCodeInternal, "Timeout waiting for Core to stop")
+			return NewError(ErrCodeInternal, "Timeout waiting for Core to stop")
 		case <-ticker.C:
 			m.mu.RLock()
 			state := m.coreState
@@ -422,7 +422,7 @@ func (m *Manager) Restart(ctx context.Context) error {
 	}
 }
 
-// Shutdown performs cleanup on application exit
+// Shutdown performs cleanup on application exit.
 func (m *Manager) Shutdown() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -440,8 +440,8 @@ func (m *Manager) Shutdown() {
 	}
 }
 
-// GetState returns current Core state information
-func (m *Manager) GetState() (CoreState, error, int64) {
+// GetState returns current Core state information.
+func (m *Manager) GetState() (CoreState, int64, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -450,28 +450,28 @@ func (m *Manager) GetState() (CoreState, error, int64) {
 		uptime = time.Since(m.coreStarted).Milliseconds()
 	}
 
-	return m.coreState, m.coreError, uptime
+	return m.coreState, uptime, m.coreError
 }
 
 // GetControlPlane returns the ControlPlane interface from Core
-// Returns error if Core is not running
+// Returns error if Core is not running.
 func (m *Manager) GetControlPlane() (domain.ControlPlane, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	if m.coreState != CoreStateRunning {
-		return nil, NewUIError(ErrCodeCoreNotRunning, "Core is not running")
+		return nil, NewError(ErrCodeCoreNotRunning, "Core is not running")
 	}
 
 	if m.controlPlane == nil {
-		return nil, NewUIError(ErrCodeInternal, "ControlPlane not initialized")
+		return nil, NewError(ErrCodeInternal, "ControlPlane not initialized")
 	}
 
 	return m.controlPlane, nil
 }
 
 // SetControlPlane sets the ControlPlane instance
-// This should be called after Core successfully starts
+// This should be called after Core successfully starts.
 func (m *Manager) SetControlPlane(cp domain.ControlPlane) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -479,25 +479,25 @@ func (m *Manager) SetControlPlane(cp domain.ControlPlane) {
 }
 
 // NotifyCoreReady should be called by external code when Core signals it's ready
-// This is a callback hook for the actual readiness detection
+// This is a callback hook for the actual readiness detection.
 func (m *Manager) NotifyCoreReady() {
 	m.onCoreReady()
 }
 
-// GetSharedState returns the shared state instance
+// GetSharedState returns the shared state instance.
 func (m *Manager) GetSharedState() *SharedState {
 	return m.state
 }
 
 // SetWailsApp sets the Wails application instance
-// This allows setting the app after Manager creation (for dependency injection)
+// This allows setting the app after Manager creation (for dependency injection).
 func (m *Manager) SetWailsApp(wails *application.App) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.wails = wails
 }
 
-// GetConfigPath returns the configuration path
+// GetConfigPath returns the configuration path.
 func (m *Manager) GetConfigPath() string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -511,16 +511,16 @@ func (m *Manager) ReloadConfig(ctx context.Context) error {
 	m.mu.RUnlock()
 
 	if state != CoreStateRunning {
-		return NewUIError(ErrCodeCoreNotRunning, "Core is not running")
+		return NewError(ErrCodeCoreNotRunning, "Core is not running")
 	}
 	if coreApp == nil {
-		return NewUIError(ErrCodeInternal, "Core app not initialized")
+		return NewError(ErrCodeInternal, "Core app not initialized")
 	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	if err := coreApp.ReloadConfig(ctx); err != nil {
-		return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Configuration reload failed", err.Error())
+		return NewErrorWithDetails(ErrCodeInvalidConfig, "Configuration reload failed", err.Error())
 	}
 	return nil
 }

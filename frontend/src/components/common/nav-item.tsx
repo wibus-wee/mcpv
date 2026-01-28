@@ -25,7 +25,7 @@ interface NavItemProps {
 }
 
 export function NavItem({ item, index, variant, fuzzy = true }: NavItemProps) {
-  "use no memo";
+  'use no memo'
   const matchRoute = useMatchRoute()
   const Icon = item.icon
   const isActive = !!matchRoute({ to: item.path, fuzzy })

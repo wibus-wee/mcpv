@@ -116,7 +116,7 @@ func NewScheduler(
 	logger *zap.Logger,
 ) (domain.Scheduler, error) {
 	summary := state.Summary
-	return scheduler.NewBasicScheduler(lifecycle, summary.SpecRegistry, scheduler.SchedulerOptions{
+	return scheduler.NewBasicScheduler(lifecycle, summary.SpecRegistry, scheduler.Options{
 		Probe:   pingProbe,
 		Logger:  logger,
 		Metrics: metrics,
@@ -164,8 +164,8 @@ func NewBootstrapManagerProvider(
 	})
 }
 
-// NewRuntimeState constructs runtime state for the catalog.
-func NewRuntimeState(
+// newRuntimeState constructs runtime state for the catalog.
+func newRuntimeState(
 	state *domain.CatalogState,
 	scheduler domain.Scheduler,
 	metrics domain.Metrics,
@@ -177,8 +177,8 @@ func NewRuntimeState(
 	return buildRuntimeState(state, scheduler, metrics, health, metadataCache, listChanges, logger)
 }
 
-// NewControlPlaneState constructs a control plane state container.
-func NewControlPlaneState(
+// provideControlPlaneState constructs a control plane state container.
+func provideControlPlaneState(
 	ctx context.Context,
 	runtime *runtimeState,
 	state *domain.CatalogState,
@@ -225,7 +225,7 @@ func buildRuntimeState(
 		logger = zap.NewNop()
 	}
 	refreshGate := aggregator.NewRefreshGate()
-	baseRouter := router.NewBasicRouter(scheduler, router.RouterOptions{
+	baseRouter := router.NewBasicRouter(scheduler, router.Options{
 		Timeout: state.Summary.Runtime.RouteTimeout(),
 		Logger:  logger,
 	})

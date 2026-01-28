@@ -1,0 +1,40 @@
+name: "Go Test"
+
+on:
+  workflow_call:
+  workflow_dispatch: {}
+
+jobs:
+  lint-web:
+    name: lint (Web)
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          package-manager-cache: false
+
+      - name: Install pnpm + dependencies
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: true
+          version: latest
+
+      - name: Cache pnpm modules
+        uses: actions/cache@v5
+        env:
+          cache-name: cache-pnpm-modules
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ matrix.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-${{ matrix.os }}-
+
+      - name: Test Web Files
+        working-directory: frontend
+        run: pnpm test

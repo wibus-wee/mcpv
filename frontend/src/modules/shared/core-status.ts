@@ -55,9 +55,9 @@ export const coreStatusConfig: Record<CoreStatus, CoreStatusConfig> = {
 
 // Legacy exports for backward compatibility
 export const coreStatusVariants: Record<CoreStatus, BadgeVariant> = Object.fromEntries(
-  Object.entries(coreStatusConfig).map(([key, config]) => [key, config.variant])
+  Object.entries(coreStatusConfig).map(([key, config]) => [key, config.variant]),
 ) as Record<CoreStatus, BadgeVariant>
 
 export const coreStatusLabels: Record<CoreStatus, string> = Object.fromEntries(
-  Object.entries(coreStatusConfig).map(([key, config]) => [key, config.label])
+  Object.entries(coreStatusConfig).map(([key, config]) => [key, config.label]),
 ) as Record<CoreStatus, string>

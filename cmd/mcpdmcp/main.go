@@ -48,7 +48,7 @@ func main() {
 		Use:   "mcpdmcp [server]",
 		Short: "MCP gateway entrypoint bound to a server or tags",
 		Args:  cobra.MaximumNArgs(1),
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 			cfg := zap.NewProductionConfig()
 			log, err := cfg.Build()
 			if err != nil {
@@ -57,7 +57,7 @@ func main() {
 			opts.logger = log
 			return nil
 		},
-		PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		PersistentPostRun: func(_ *cobra.Command, _ []string) {
 			_ = opts.logger.Sync()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -20,7 +20,7 @@ func TestBasicRouter_RouteSuccess(t *testing.T) {
 			Conn: &fakeConn{resp: respPayload},
 		}),
 	}
-	r := NewBasicRouter(sched, RouterOptions{})
+	r := NewBasicRouter(sched, Options{})
 
 	resp, err := r.Route(context.Background(), "svc", "spec", "rk", json.RawMessage(`{"jsonrpc":"2.0","id":1,"method":"ping"}`))
 	require.NoError(t, err)
@@ -31,7 +31,7 @@ func TestBasicRouter_RouteSuccess(t *testing.T) {
 
 func TestBasicRouter_AcquireError(t *testing.T) {
 	sched := &fakeScheduler{acquireErr: errors.New("busy")}
-	r := NewBasicRouter(sched, RouterOptions{})
+	r := NewBasicRouter(sched, Options{})
 
 	_, err := r.Route(context.Background(), "svc", "spec", "", json.RawMessage(`{"jsonrpc":"2.0","id":1,"method":"ping"}`))
 	require.Error(t, err)
@@ -41,7 +41,7 @@ func TestBasicRouter_NoConn(t *testing.T) {
 	sched := &fakeScheduler{
 		instance: domain.NewInstance(domain.InstanceOptions{ID: "x"}),
 	}
-	r := NewBasicRouter(sched, RouterOptions{})
+	r := NewBasicRouter(sched, Options{})
 
 	_, err := r.Route(context.Background(), "svc", "spec", "", json.RawMessage(`{"jsonrpc":"2.0","id":1,"method":"ping"}`))
 	require.Error(t, err)
@@ -54,7 +54,7 @@ func TestBasicRouter_MethodNotAllowed(t *testing.T) {
 			Conn: &fakeConn{resp: json.RawMessage(`{}`)},
 		}),
 	}
-	r := NewBasicRouter(sched, RouterOptions{})
+	r := NewBasicRouter(sched, Options{})
 
 	_, err := r.Route(context.Background(), "svc", "spec", "", json.RawMessage(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
 	require.Error(t, err)
@@ -68,7 +68,7 @@ func TestBasicRouter_RouteWithOptions_NoStart(t *testing.T) {
 			Conn: &fakeConn{resp: respPayload},
 		}),
 	}
-	r := NewBasicRouter(sched, RouterOptions{})
+	r := NewBasicRouter(sched, Options{})
 
 	resp, err := r.RouteWithOptions(context.Background(), "svc", "spec", "", json.RawMessage(`{"jsonrpc":"2.0","id":1,"method":"ping"}`), domain.RouteOptions{AllowStart: false})
 	require.NoError(t, err)
@@ -87,12 +87,12 @@ type fakeScheduler struct {
 	released           bool
 }
 
-func (f *fakeScheduler) Acquire(ctx context.Context, specKey, routingKey string) (*domain.Instance, error) {
+func (f *fakeScheduler) Acquire(_ context.Context, _, _ string) (*domain.Instance, error) {
 	f.acquireCalled = true
 	return f.instance, f.acquireErr
 }
 
-func (f *fakeScheduler) AcquireReady(ctx context.Context, specKey, routingKey string) (*domain.Instance, error) {
+func (f *fakeScheduler) AcquireReady(_ context.Context, _, _ string) (*domain.Instance, error) {
 	f.acquireReadyCalled = true
 	if f.readyInstance != nil {
 		return f.readyInstance, f.acquireReadyErr
@@ -100,30 +100,33 @@ func (f *fakeScheduler) AcquireReady(ctx context.Context, specKey, routingKey st
 	return f.instance, f.acquireReadyErr
 }
 
-func (f *fakeScheduler) Release(ctx context.Context, instance *domain.Instance) error {
+func (f *fakeScheduler) Release(_ context.Context, _ *domain.Instance) error {
 	f.released = true
 	return nil
 }
 
-func (f *fakeScheduler) SetDesiredMinReady(ctx context.Context, specKey string, minReady int) error {
+func (f *fakeScheduler) SetDesiredMinReady(ctx context.Context, _ string, _ int) error {
+	if ctx == nil {
+		return nil
+	}
+	return ctx.Err()
+}
+
+func (f *fakeScheduler) StopSpec(_ context.Context, _, _ string) error {
 	return nil
 }
 
-func (f *fakeScheduler) StopSpec(ctx context.Context, specKey, reason string) error {
+func (f *fakeScheduler) ApplyCatalogDiff(_ context.Context, _ domain.CatalogDiff, _ map[string]domain.ServerSpec) error {
 	return nil
 }
 
-func (f *fakeScheduler) ApplyCatalogDiff(ctx context.Context, diff domain.CatalogDiff, registry map[string]domain.ServerSpec) error {
-	return nil
-}
+func (f *fakeScheduler) StartIdleManager(_ time.Duration) {}
+func (f *fakeScheduler) StopIdleManager()                 {}
+func (f *fakeScheduler) StartPingManager(_ time.Duration) {}
+func (f *fakeScheduler) StopPingManager()                 {}
+func (f *fakeScheduler) StopAll(_ context.Context)        {}
 
-func (f *fakeScheduler) StartIdleManager(interval time.Duration) {}
-func (f *fakeScheduler) StopIdleManager()                        {}
-func (f *fakeScheduler) StartPingManager(interval time.Duration) {}
-func (f *fakeScheduler) StopPingManager()                        {}
-func (f *fakeScheduler) StopAll(ctx context.Context)             {}
-
-func (f *fakeScheduler) GetPoolStatus(ctx context.Context) ([]domain.PoolInfo, error) {
+func (f *fakeScheduler) GetPoolStatus(_ context.Context) ([]domain.PoolInfo, error) {
 	return nil, nil
 }
 
@@ -133,7 +136,7 @@ type fakeConn struct {
 	err  error
 }
 
-func (f *fakeConn) Call(ctx context.Context, payload json.RawMessage) (json.RawMessage, error) {
+func (f *fakeConn) Call(_ context.Context, payload json.RawMessage) (json.RawMessage, error) {
 	f.req = payload
 	return f.resp, f.err
 }

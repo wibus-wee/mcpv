@@ -87,13 +87,13 @@ func (m *Manager) Create(ctx context.Context, owner string, opts domain.TaskCrea
 	m.order = append(m.order, taskID)
 	m.mu.Unlock()
 
-	go m.runTask(taskID, taskCtx, run)
+	go m.runTask(taskCtx, taskID, run)
 
 	return task, nil
 }
 
 // Get returns task metadata without blocking.
-func (m *Manager) Get(ctx context.Context, owner, taskID string) (domain.Task, error) {
+func (m *Manager) Get(_ context.Context, owner, taskID string) (domain.Task, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.purgeExpiredLocked()
@@ -109,6 +109,9 @@ func (m *Manager) Get(ctx context.Context, owner, taskID string) (domain.Task, e
 
 // List returns a paginated list of tasks.
 func (m *Manager) List(ctx context.Context, owner, cursor string, limit int) (domain.TaskPage, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.TaskPage{}, err
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.purgeExpiredLocked()
@@ -161,9 +164,6 @@ func (m *Manager) Result(ctx context.Context, owner, taskID string) (domain.Task
 	if !ok {
 		return domain.TaskResult{}, domain.ErrTaskNotFound
 	}
-	if isTerminal(state.task.Status) {
-		return state.result, nil
-	}
 	select {
 	case <-ctx.Done():
 		return domain.TaskResult{}, ctx.Err()
@@ -174,6 +174,9 @@ func (m *Manager) Result(ctx context.Context, owner, taskID string) (domain.Task
 
 // Cancel cancels a running task.
 func (m *Manager) Cancel(ctx context.Context, owner, taskID string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.purgeExpiredLocked()
@@ -199,7 +202,7 @@ func (m *Manager) Cancel(ctx context.Context, owner, taskID string) error {
 	return nil
 }
 
-func (m *Manager) runTask(taskID string, ctx context.Context, run domain.TaskRunner) {
+func (m *Manager) runTask(ctx context.Context, taskID string, run domain.TaskRunner) {
 	runResult, err := run(ctx)
 
 	m.mu.Lock()
@@ -280,6 +283,8 @@ func isTerminal(status domain.TaskStatus) bool {
 	switch status {
 	case domain.TaskStatusCompleted, domain.TaskStatusFailed, domain.TaskStatusCancelled:
 		return true
+	case domain.TaskStatusWorking, domain.TaskStatusInputRequired:
+		return false
 	default:
 		return false
 	}

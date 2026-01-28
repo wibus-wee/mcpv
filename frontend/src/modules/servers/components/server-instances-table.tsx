@@ -1,4 +1,5 @@
 import type { InstanceStatus, ServerDetail } from '@bindings/mcpd/internal/ui'
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatRelativeTime } from '@/lib/time'
 import { formatStartReason, formatStartTriggerLines, resolvePolicyLabel, resolveStartCause } from '@/modules/shared/server-start'
@@ -26,7 +27,7 @@ export function ServerInstancesTable({ instances, specDetail }: ServerInstancesT
             const resolvedCause = resolveStartCause(
               instance.lastStartCause,
               specDetail?.activationMode,
-              specDetail?.minReady
+              specDetail?.minReady,
             )
             const triggerLines = formatStartTriggerLines(resolvedCause)
             const relativeTime = formatRelativeTime(
@@ -35,7 +36,7 @@ export function ServerInstancesTable({ instances, specDetail }: ServerInstancesT
             const policyLabel = resolvePolicyLabel(
               resolvedCause,
               specDetail?.activationMode,
-              specDetail?.minReady
+              specDetail?.minReady,
             )
             return (
               <TableRow key={instance.id}>
@@ -44,7 +45,7 @@ export function ServerInstancesTable({ instances, specDetail }: ServerInstancesT
                 </TableCell>
                 <TableCell className="text-xs">
                   {formatStartReason(
-                    resolvedCause
+                    resolvedCause,
                   )}
                 </TableCell>
                 <TableCell className="text-xs">

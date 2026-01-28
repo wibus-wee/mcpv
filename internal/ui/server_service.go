@@ -25,7 +25,7 @@ func NewServerService(deps *ServiceDeps) *ServerService {
 }
 
 // ListServers returns all configured servers.
-func (s *ServerService) ListServers(ctx context.Context) ([]ServerSummary, error) {
+func (s *ServerService) ListServers(_ context.Context) ([]ServerSummary, error) {
 	cp, err := s.deps.getControlPlane()
 	if err != nil {
 		return nil, err
@@ -51,10 +51,10 @@ func (s *ServerService) ListServers(ctx context.Context) ([]ServerSummary, error
 }
 
 // GetServer returns server detail by name.
-func (s *ServerService) GetServer(ctx context.Context, name string) (*ServerDetail, error) {
+func (s *ServerService) GetServer(_ context.Context, name string) (*ServerDetail, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return nil, NewUIError(ErrCodeInvalidRequest, "Server name is required")
+		return nil, NewError(ErrCodeInvalidRequest, "Server name is required")
 	}
 	cp, err := s.deps.getControlPlane()
 	if err != nil {
@@ -62,7 +62,7 @@ func (s *ServerService) GetServer(ctx context.Context, name string) (*ServerDeta
 	}
 	spec, ok := cp.GetCatalog().Specs[name]
 	if !ok {
-		return nil, NewUIError(ErrCodeNotFound, fmt.Sprintf("Server %q not found", name))
+		return nil, NewError(ErrCodeNotFound, fmt.Sprintf("Server %q not found", name))
 	}
 	specKey := domain.SpecFingerprint(spec)
 	detail := mapServerSpecDetail(spec, specKey)
@@ -83,7 +83,7 @@ func (s *ServerService) ListServerGroups(ctx context.Context) ([]ServerGroup, er
 
 	tools, err := mapToolCatalogEntries(toolCatalog)
 	if err != nil {
-		return nil, NewUIErrorWithDetails(ErrCodeInternal, "Failed to map tools", err.Error())
+		return nil, NewErrorWithDetails(ErrCodeInternal, "Failed to map tools", err.Error())
 	}
 
 	toolsBySpecKey := make(map[string][]ToolEntry, len(tools))

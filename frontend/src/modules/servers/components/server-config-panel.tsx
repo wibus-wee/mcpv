@@ -1,3 +1,11 @@
+import {
+  AlertTriangleIcon,
+  EditIcon,
+  PowerIcon,
+  ServerIcon,
+  Trash2Icon,
+} from 'lucide-react'
+import { m } from 'motion/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import {
@@ -27,14 +35,6 @@ import {
 } from '@/components/ui/empty'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  AlertTriangleIcon,
-  EditIcon,
-  PowerIcon,
-  ServerIcon,
-  Trash2Icon,
-} from 'lucide-react'
-import { m } from 'motion/react'
 import { Spring } from '@/lib/spring'
 import { useConfigMode, useServer, useServerOperation, useServers } from '@/modules/servers/hooks'
 import { buildCommandSummary, DetailRow } from '@/modules/shared/server-detail'

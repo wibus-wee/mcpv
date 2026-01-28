@@ -4,7 +4,7 @@ import "encoding/json"
 
 // Frontend-friendly types for Wails bindings
 
-// ToolEntry represents a single tool for the frontend
+// ToolEntry represents a single tool for the frontend.
 type ToolEntry struct {
 	Name        string          `json:"name"`
 	Description string          `json:"description"`
@@ -15,25 +15,25 @@ type ToolEntry struct {
 	CachedAt    string          `json:"cachedAt,omitempty"`
 }
 
-// ResourceEntry represents a single resource for the frontend
+// ResourceEntry represents a single resource for the frontend.
 type ResourceEntry struct {
 	URI          string          `json:"uri"`
 	ResourceJSON json.RawMessage `json:"resourceJson"`
 }
 
-// PromptEntry represents a single prompt for the frontend
+// PromptEntry represents a single prompt for the frontend.
 type PromptEntry struct {
 	Name       string          `json:"name"`
 	PromptJSON json.RawMessage `json:"promptJson"`
 }
 
-// ResourcePage represents a paginated list of resources
+// ResourcePage represents a paginated list of resources.
 type ResourcePage struct {
 	Resources  []ResourceEntry `json:"resources"`
 	NextCursor string          `json:"nextCursor,omitempty"`
 }
 
-// PromptPage represents a paginated list of prompts
+// PromptPage represents a paginated list of prompts.
 type PromptPage struct {
 	Prompts    []PromptEntry `json:"prompts"`
 	NextCursor string        `json:"nextCursor,omitempty"`
@@ -43,7 +43,7 @@ type PromptPage struct {
 // Configuration Management Types
 // =============================================================================
 
-// ConfigModeResponse indicates the configuration mode and path
+// ConfigModeResponse indicates the configuration mode and path.
 type ConfigModeResponse struct {
 	Mode       string `json:"mode"`       // "file" or "unknown"
 	Path       string `json:"path"`       // Configuration path
@@ -89,7 +89,7 @@ type StartCoreOptions struct {
 	HealthzEnabled *bool  `json:"healthzEnabled,omitempty"`
 }
 
-// RuntimeConfigDetail contains runtime configuration for frontend
+// RuntimeConfigDetail contains runtime configuration for frontend.
 type RuntimeConfigDetail struct {
 	RouteTimeoutSeconds        int                       `json:"routeTimeoutSeconds"`
 	PingIntervalSeconds        int                       `json:"pingIntervalSeconds"`
@@ -110,12 +110,12 @@ type RuntimeConfigDetail struct {
 	RPC                        RPCConfigDetail           `json:"rpc"`
 }
 
-// ObservabilityConfigDetail for frontend
+// ObservabilityConfigDetail for frontend.
 type ObservabilityConfigDetail struct {
 	ListenAddress string `json:"listenAddress"`
 }
 
-// RPCConfigDetail for frontend
+// RPCConfigDetail for frontend.
 type RPCConfigDetail struct {
 	ListenAddress           string             `json:"listenAddress"`
 	MaxRecvMsgSize          int                `json:"maxRecvMsgSize"`
@@ -126,7 +126,7 @@ type RPCConfigDetail struct {
 	TLS                     RPCTLSConfigDetail `json:"tls"`
 }
 
-// RPCTLSConfigDetail for frontend
+// RPCTLSConfigDetail for frontend.
 type RPCTLSConfigDetail struct {
 	Enabled    bool   `json:"enabled"`
 	CertFile   string `json:"certFile"`
@@ -135,7 +135,7 @@ type RPCTLSConfigDetail struct {
 	ClientAuth bool   `json:"clientAuth"`
 }
 
-// ServerSpecDetail contains server specification for frontend
+// ServerSpecDetail contains server specification for frontend.
 type ServerSummary struct {
 	Name      string   `json:"name"`
 	SpecKey   string   `json:"specKey"`
@@ -158,7 +158,7 @@ type ServerGroup struct {
 	SpecDetail  *ServerDetail `json:"specDetail,omitempty"`
 }
 
-// ServerSpecDetail contains server specification for frontend
+// ServerSpecDetail contains server specification for frontend.
 type ServerSpecDetail struct {
 	Name                string                      `json:"name"`
 	SpecKey             string                      `json:"specKey"`
@@ -180,7 +180,7 @@ type ServerSpecDetail struct {
 	HTTP                *StreamableHTTPConfigDetail `json:"http,omitempty"`
 }
 
-// StreamableHTTPConfigDetail contains streamable HTTP configuration for frontend
+// StreamableHTTPConfigDetail contains streamable HTTP configuration for frontend.
 type StreamableHTTPConfigDetail struct {
 	Endpoint   string            `json:"endpoint"`
 	Headers    map[string]string `json:"headers,omitempty"`
@@ -294,7 +294,7 @@ type StartCause struct {
 	Timestamp string            `json:"timestamp"`
 }
 
-// ServerRuntimeStatus contains the runtime status of a server and its instances
+// ServerRuntimeStatus contains the runtime status of a server and its instances.
 type ServerRuntimeStatus struct {
 	SpecKey    string           `json:"specKey"`
 	ServerName string           `json:"serverName"`
@@ -303,7 +303,7 @@ type ServerRuntimeStatus struct {
 	Metrics    PoolMetrics      `json:"metrics"`
 }
 
-// InstanceStatus represents the status of a single server instance
+// InstanceStatus represents the status of a single server instance.
 type InstanceStatus struct {
 	ID              string      `json:"id"`
 	State           string      `json:"state"`
@@ -315,7 +315,7 @@ type InstanceStatus struct {
 	LastStartCause  *StartCause `json:"lastStartCause,omitempty"`
 }
 
-// PoolStats contains aggregated statistics for a server pool
+// PoolStats contains aggregated statistics for a server pool.
 type PoolStats struct {
 	Total        int `json:"total"`
 	Ready        int `json:"ready"`
@@ -340,7 +340,7 @@ type PoolMetrics struct {
 // SubAgent Configuration Types
 // =============================================================================
 
-// SubAgentConfigDetail contains the runtime-level SubAgent LLM provider config
+// SubAgentConfigDetail contains the runtime-level SubAgent LLM provider config.
 type SubAgentConfigDetail struct {
 	EnabledTags        []string `json:"enabledTags,omitempty"`
 	Model              string   `json:"model"`
@@ -351,7 +351,7 @@ type SubAgentConfigDetail struct {
 	FilterPrompt       string   `json:"filterPrompt"`
 }
 
-// UpdateSubAgentConfigRequest updates the runtime-level SubAgent config
+// UpdateSubAgentConfigRequest updates the runtime-level SubAgent config.
 type UpdateSubAgentConfigRequest struct {
 	EnabledTags        []string `json:"enabledTags,omitempty"`
 	Model              string   `json:"model"`

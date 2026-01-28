@@ -27,10 +27,10 @@ func newDiscoveryService(state *controlPlaneState, registry *clientRegistry) *di
 }
 
 // StartClientChangeListener is a no-op for the server-centric discovery flow.
-func (d *discoveryService) StartClientChangeListener(ctx context.Context) {}
+func (d *discoveryService) StartClientChangeListener(_ context.Context) {}
 
 // ListTools lists tools visible to a client.
-func (d *discoveryService) ListTools(ctx context.Context, client string) (domain.ToolSnapshot, error) {
+func (d *discoveryService) ListTools(_ context.Context, client string) (domain.ToolSnapshot, error) {
 	serverName, err := d.registry.resolveClientServer(client)
 	if err != nil {
 		return domain.ToolSnapshot{}, err
@@ -54,7 +54,7 @@ func (d *discoveryService) ListTools(ctx context.Context, client string) (domain
 }
 
 // ListToolCatalog returns the full tool catalog snapshot.
-func (d *discoveryService) ListToolCatalog(ctx context.Context) (domain.ToolCatalogSnapshot, error) {
+func (d *discoveryService) ListToolCatalog(_ context.Context) (domain.ToolCatalogSnapshot, error) {
 	runtime := d.state.RuntimeState()
 	if runtime == nil || runtime.tools == nil {
 		return domain.ToolCatalogSnapshot{}, nil
@@ -193,7 +193,7 @@ func (d *discoveryService) CallToolAll(ctx context.Context, name string, args js
 }
 
 // ListResources lists resources visible to a client.
-func (d *discoveryService) ListResources(ctx context.Context, client string, cursor string) (domain.ResourcePage, error) {
+func (d *discoveryService) ListResources(_ context.Context, client string, cursor string) (domain.ResourcePage, error) {
 	serverName, err := d.registry.resolveClientServer(client)
 	if err != nil {
 		return domain.ResourcePage{}, err
@@ -219,7 +219,7 @@ func (d *discoveryService) ListResources(ctx context.Context, client string, cur
 }
 
 // ListResourcesAll lists resources across all servers.
-func (d *discoveryService) ListResourcesAll(ctx context.Context, cursor string) (domain.ResourcePage, error) {
+func (d *discoveryService) ListResourcesAll(_ context.Context, cursor string) (domain.ResourcePage, error) {
 	runtime := d.state.RuntimeState()
 	if runtime == nil || runtime.resources == nil {
 		return domain.ResourcePage{Snapshot: domain.ResourceSnapshot{}}, nil
@@ -322,7 +322,7 @@ func (d *discoveryService) ReadResourceAll(ctx context.Context, uri string) (jso
 }
 
 // ListPrompts lists prompts visible to a client.
-func (d *discoveryService) ListPrompts(ctx context.Context, client string, cursor string) (domain.PromptPage, error) {
+func (d *discoveryService) ListPrompts(_ context.Context, client string, cursor string) (domain.PromptPage, error) {
 	serverName, err := d.registry.resolveClientServer(client)
 	if err != nil {
 		return domain.PromptPage{}, err
@@ -348,7 +348,7 @@ func (d *discoveryService) ListPrompts(ctx context.Context, client string, curso
 }
 
 // ListPromptsAll lists prompts across all servers.
-func (d *discoveryService) ListPromptsAll(ctx context.Context, cursor string) (domain.PromptPage, error) {
+func (d *discoveryService) ListPromptsAll(_ context.Context, cursor string) (domain.PromptPage, error) {
 	runtime := d.state.RuntimeState()
 	if runtime == nil || runtime.prompts == nil {
 		return domain.PromptPage{Snapshot: domain.PromptSnapshot{}}, nil

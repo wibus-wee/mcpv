@@ -32,7 +32,7 @@ func NewControlService(control domain.ControlPlane, logger *zap.Logger) *Control
 	}
 }
 
-func (s *ControlService) GetInfo(ctx context.Context, req *controlv1.GetInfoRequest) (*controlv1.GetInfoResponse, error) {
+func (s *ControlService) GetInfo(ctx context.Context, _ *controlv1.GetInfoRequest) (*controlv1.GetInfoResponse, error) {
 	info, err := s.control.Info(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "get info: %v", err)
@@ -627,7 +627,7 @@ func (s *ControlService) AutomaticEval(ctx context.Context, req *controlv1.Autom
 }
 
 // IsSubAgentEnabled returns whether the SubAgent is enabled for the caller's profile.
-func (s *ControlService) IsSubAgentEnabled(ctx context.Context, req *controlv1.IsSubAgentEnabledRequest) (*controlv1.IsSubAgentEnabledResponse, error) {
+func (s *ControlService) IsSubAgentEnabled(_ context.Context, req *controlv1.IsSubAgentEnabledRequest) (*controlv1.IsSubAgentEnabledResponse, error) {
 	return &controlv1.IsSubAgentEnabledResponse{
 		Enabled: s.control.IsSubAgentEnabledForClient(req.GetCaller()),
 	}, nil

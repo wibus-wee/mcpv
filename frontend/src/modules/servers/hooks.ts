@@ -6,10 +6,10 @@ import type {
   ActiveClient,
   ConfigModeResponse,
   ServerDetail,
+  ServerGroup,
   ServerInitStatus,
   ServerRuntimeStatus,
   ServerSummary,
-  ServerGroup,
   ToolEntry,
 } from '@bindings/mcpd/internal/ui'
 import { ConfigService, DiscoveryService, RuntimeService, ServerService } from '@bindings/mcpd/internal/ui'
@@ -167,7 +167,7 @@ export function useServerOperation(
 
   const executeOperation = useCallback(async (
     operation: 'toggle' | 'delete',
-    server: { name: string; disabled?: boolean },
+    server: { name: string, disabled?: boolean },
   ) => {
     if (!canEdit || isWorking) return
     setIsWorking(true)
@@ -178,7 +178,8 @@ export function useServerOperation(
           server: server.name,
           disabled: !server.disabled,
         })
-      } else if (operation === 'delete') {
+      }
+      else if (operation === 'delete') {
         await ServerService.DeleteServer({ server: server.name })
       }
 
@@ -198,22 +199,25 @@ export function useServerOperation(
           server.disabled ? 'Server enabled' : 'Server disabled',
           'Changes applied.',
         )
-      } else if (operation === 'delete') {
+      }
+      else if (operation === 'delete') {
         successHandler?.('Server deleted', 'Changes applied.')
         onDeleted?.(server.name)
       }
-    } catch (err) {
+    }
+    catch (err) {
       const message = err instanceof Error ? err.message : `${operation} failed.`
       errorHandler?.(`${operation === 'toggle' ? 'Update' : 'Delete'} failed`, message)
-    } finally {
+    }
+    finally {
       setIsWorking(false)
     }
   }, [canEdit, isWorking, mutateServers, mutateServer, onDeleted, errorHandler, successHandler])
 
-  const toggleDisabled = useCallback((server: { name: string; disabled?: boolean }) =>
+  const toggleDisabled = useCallback((server: { name: string, disabled?: boolean }) =>
     executeOperation('toggle', server), [executeOperation])
 
-  const deleteServer = useCallback((server: { name: string; disabled?: boolean }) =>
+  const deleteServer = useCallback((server: { name: string, disabled?: boolean }) =>
     executeOperation('delete', server), [executeOperation])
 
   return {
@@ -234,8 +238,8 @@ export function useFilteredServers(
     if (searchQuery.trim() !== '') {
       const query = searchQuery.trim().toLowerCase()
       filtered = filtered.filter(server =>
-        server.name.toLowerCase().includes(query) ||
-        (server.tags?.some(tag => tag.toLowerCase().includes(query)) ?? false),
+        server.name.toLowerCase().includes(query)
+        || (server.tags?.some(tag => tag.toLowerCase().includes(query)) ?? false),
       )
     }
 

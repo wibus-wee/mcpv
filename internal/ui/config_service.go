@@ -63,17 +63,17 @@ func (s *ConfigService) GetConfigMode() ConfigModeResponse {
 func (s *ConfigService) GetRuntimeConfig(ctx context.Context) (RuntimeConfigDetail, error) {
 	manager := s.deps.manager()
 	if manager == nil {
-		return RuntimeConfigDetail{}, NewUIError(ErrCodeInternal, "Manager not initialized")
+		return RuntimeConfigDetail{}, NewError(ErrCodeInternal, "Manager not initialized")
 	}
 	path := strings.TrimSpace(manager.GetConfigPath())
 	if path == "" {
-		return RuntimeConfigDetail{}, NewUIError(ErrCodeInvalidConfig, "Configuration path is not available")
+		return RuntimeConfigDetail{}, NewError(ErrCodeInvalidConfig, "Configuration path is not available")
 	}
 
 	loader := catalog.NewLoader(s.logger)
 	runtime, err := loader.LoadRuntimeConfig(ctx, path)
 	if err != nil {
-		return RuntimeConfigDetail{}, NewUIErrorWithDetails(
+		return RuntimeConfigDetail{}, NewErrorWithDetails(
 			ErrCodeInvalidConfig,
 			"Failed to load runtime config",
 			err.Error(),
@@ -86,12 +86,12 @@ func (s *ConfigService) GetRuntimeConfig(ctx context.Context) (RuntimeConfigDeta
 func (s *ConfigService) OpenConfigInEditor(ctx context.Context) error {
 	manager := s.deps.manager()
 	if manager == nil {
-		return NewUIError(ErrCodeInternal, "Manager not initialized")
+		return NewError(ErrCodeInternal, "Manager not initialized")
 	}
 
 	path := manager.GetConfigPath()
 	if path == "" {
-		return NewUIError(ErrCodeNotFound, "No configuration path configured")
+		return NewError(ErrCodeNotFound, "No configuration path configured")
 	}
 
 	var cmd *exec.Cmd
@@ -103,12 +103,12 @@ func (s *ConfigService) OpenConfigInEditor(ctx context.Context) error {
 	case "linux":
 		cmd = exec.CommandContext(ctx, "xdg-open", path)
 	default:
-		return NewUIError(ErrCodeInternal, fmt.Sprintf("Unsupported platform: %s", runtime.GOOS))
+		return NewError(ErrCodeInternal, fmt.Sprintf("Unsupported platform: %s", runtime.GOOS))
 	}
 
 	if err := cmd.Start(); err != nil {
 		s.logger.Error("failed to open config in editor", zap.Error(err), zap.String("path", path))
-		return NewUIError(ErrCodeInternal, fmt.Sprintf("Failed to open editor: %v", err))
+		return NewError(ErrCodeInternal, fmt.Sprintf("Failed to open editor: %v", err))
 	}
 
 	s.logger.Info("opened config in editor", zap.String("path", path))
@@ -119,7 +119,7 @@ func (s *ConfigService) OpenConfigInEditor(ctx context.Context) error {
 func (s *ConfigService) ReloadConfig(ctx context.Context) error {
 	manager := s.deps.manager()
 	if manager == nil {
-		return NewUIError(ErrCodeInternal, "Manager not initialized")
+		return NewError(ErrCodeInternal, "Manager not initialized")
 	}
 	return manager.ReloadConfig(ctx)
 }

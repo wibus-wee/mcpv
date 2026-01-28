@@ -148,7 +148,7 @@ func NewLoader(logger *zap.Logger) *Loader {
 
 // LoadRuntimeConfig loads only the runtime section from a config file.
 // This is intended for profile-store level runtime defaults.
-func (l *Loader) LoadRuntimeConfig(ctx context.Context, path string) (domain.RuntimeConfig, error) {
+func (l *Loader) LoadRuntimeConfig(_ context.Context, path string) (domain.RuntimeConfig, error) {
 	if path == "" {
 		return domain.RuntimeConfig{}, errors.New("config path is required")
 	}

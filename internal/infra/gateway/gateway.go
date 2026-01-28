@@ -141,8 +141,8 @@ func (g *Gateway) registerCaller(ctx context.Context) error {
 		}
 		return err
 	}
-	if !g.registered.Swap(true) && resp != nil && resp.Profile != "" {
-		g.logger.Info("caller registered", zap.String("profile", resp.Profile))
+	if !g.registered.Swap(true) && resp != nil && resp.GetProfile() != "" {
+		g.logger.Info("caller registered", zap.String("profile", resp.GetProfile()))
 	}
 	return nil
 }
@@ -175,7 +175,7 @@ func (g *Gateway) toolHandler(name string) mcp.ToolHandler {
 			return nil, err
 		}
 		var result mcp.CallToolResult
-		if err := json.Unmarshal(resp.ResultJson, &result); err != nil {
+		if err := json.Unmarshal(resp.GetResultJson(), &result); err != nil {
 			return nil, err
 		}
 		return &result, nil
@@ -197,7 +197,7 @@ func (g *Gateway) promptHandler(name string) mcp.PromptHandler {
 			return nil, err
 		}
 		var result mcp.GetPromptResult
-		if err := json.Unmarshal(resp.ResultJson, &result); err != nil {
+		if err := json.Unmarshal(resp.GetResultJson(), &result); err != nil {
 			return nil, err
 		}
 		return &result, nil
@@ -215,7 +215,7 @@ func (g *Gateway) resourceHandler(uri string) mcp.ResourceHandler {
 			return nil, err
 		}
 		var result mcp.ReadResourceResult
-		if err := json.Unmarshal(resp.ResultJson, &result); err != nil {
+		if err := json.Unmarshal(resp.GetResultJson(), &result); err != nil {
 			return nil, err
 		}
 		return &result, nil
@@ -249,7 +249,7 @@ func (g *Gateway) callTool(ctx context.Context, name string, args json.RawMessag
 			return nil, err
 		}
 	}
-	if resp == nil || len(resp.ResultJson) == 0 {
+	if resp == nil || len(resp.GetResultJson()) == 0 {
 		return nil, errors.New("empty call tool response")
 	}
 	return resp, nil
@@ -282,7 +282,7 @@ func (g *Gateway) getPrompt(ctx context.Context, name string, args json.RawMessa
 			return nil, err
 		}
 	}
-	if resp == nil || len(resp.ResultJson) == 0 {
+	if resp == nil || len(resp.GetResultJson()) == 0 {
 		return nil, errors.New("empty get prompt response")
 	}
 	return resp, nil
@@ -313,7 +313,7 @@ func (g *Gateway) readResource(ctx context.Context, uri string) (*controlv1.Read
 			return nil, err
 		}
 	}
-	if resp == nil || len(resp.ResultJson) == 0 {
+	if resp == nil || len(resp.GetResultJson()) == 0 {
 		return nil, errors.New("empty read resource response")
 	}
 	return resp, nil
@@ -347,9 +347,9 @@ func (g *Gateway) syncTools(ctx context.Context) {
 			backoff.Sleep(ctx)
 			continue
 		}
-		if resp != nil && resp.Snapshot != nil {
-			g.registry.ApplySnapshot(resp.Snapshot)
-			lastETag = resp.Snapshot.Etag
+		if resp != nil && resp.GetSnapshot() != nil {
+			g.registry.ApplySnapshot(resp.GetSnapshot())
+			lastETag = resp.GetSnapshot().GetEtag()
 		}
 
 		stream, err := client.Control().WatchTools(ctx, &controlv1.WatchToolsRequest{
@@ -386,7 +386,7 @@ func (g *Gateway) syncTools(ctx context.Context) {
 			}
 			if snapshot != nil {
 				g.registry.ApplySnapshot(snapshot)
-				lastETag = snapshot.Etag
+				lastETag = snapshot.GetEtag()
 			}
 		}
 	}
@@ -422,7 +422,7 @@ func (g *Gateway) syncResources(ctx context.Context) {
 		}
 		if snapshot != nil {
 			g.resources.ApplySnapshot(snapshot)
-			lastETag = snapshot.Etag
+			lastETag = snapshot.GetEtag()
 		}
 
 		stream, err := client.Control().WatchResources(ctx, &controlv1.WatchResourcesRequest{
@@ -459,7 +459,7 @@ func (g *Gateway) syncResources(ctx context.Context) {
 			}
 			if snapshot != nil {
 				g.resources.ApplySnapshot(snapshot)
-				lastETag = snapshot.Etag
+				lastETag = snapshot.GetEtag()
 			}
 		}
 	}
@@ -495,7 +495,7 @@ func (g *Gateway) syncPrompts(ctx context.Context) {
 		}
 		if snapshot != nil {
 			g.prompts.ApplySnapshot(snapshot)
-			lastETag = snapshot.Etag
+			lastETag = snapshot.GetEtag()
 		}
 
 		stream, err := client.Control().WatchPrompts(ctx, &controlv1.WatchPromptsRequest{
@@ -532,7 +532,7 @@ func (g *Gateway) syncPrompts(ctx context.Context) {
 			}
 			if snapshot != nil {
 				g.prompts.ApplySnapshot(snapshot)
-				lastETag = snapshot.Etag
+				lastETag = snapshot.GetEtag()
 			}
 		}
 	}
@@ -552,20 +552,20 @@ func (g *Gateway) listAllResources(ctx context.Context, client *rpc.Client) (*co
 		if err != nil {
 			return nil, err
 		}
-		if resp != nil && resp.Snapshot != nil {
-			pageETag := resp.Snapshot.Etag
+		if resp != nil && resp.GetSnapshot() != nil {
+			pageETag := resp.GetSnapshot().GetEtag()
 			if !etagSet {
 				etag = pageETag
 				etagSet = true
 			} else if pageETag != etag {
 				return nil, errors.New("resource snapshot changed during pagination")
 			}
-			combined = append(combined, resp.Snapshot.Resources...)
+			combined = append(combined, resp.GetSnapshot().GetResources()...)
 		}
-		if resp == nil || resp.NextCursor == "" {
+		if resp == nil || resp.GetNextCursor() == "" {
 			break
 		}
-		cursor = resp.NextCursor
+		cursor = resp.GetNextCursor()
 	}
 
 	return &controlv1.ResourcesSnapshot{
@@ -588,20 +588,20 @@ func (g *Gateway) listAllPrompts(ctx context.Context, client *rpc.Client) (*cont
 		if err != nil {
 			return nil, err
 		}
-		if resp != nil && resp.Snapshot != nil {
-			pageETag := resp.Snapshot.Etag
+		if resp != nil && resp.GetSnapshot() != nil {
+			pageETag := resp.GetSnapshot().GetEtag()
 			if !etagSet {
 				etag = pageETag
 				etagSet = true
 			} else if pageETag != etag {
 				return nil, errors.New("prompt snapshot changed during pagination")
 			}
-			combined = append(combined, resp.Snapshot.Prompts...)
+			combined = append(combined, resp.GetSnapshot().GetPrompts()...)
 		}
-		if resp == nil || resp.NextCursor == "" {
+		if resp == nil || resp.GetNextCursor() == "" {
 			break
 		}
-		cursor = resp.NextCursor
+		cursor = resp.GetNextCursor()
 	}
 
 	return &controlv1.PromptsSnapshot{
@@ -629,7 +629,7 @@ func (g *Gateway) checkAndSetupSubAgent(ctx context.Context) error {
 		return err
 	}
 
-	if resp != nil && resp.Enabled {
+	if resp != nil && resp.GetEnabled() {
 		g.subAgentEnabled.Store(true)
 		g.registerSubAgentTools()
 		g.logger.Info("SubAgent enabled, registered automatic_mcp and automatic_eval tools")
@@ -777,12 +777,12 @@ func (g *Gateway) automaticEvalHandler() mcp.ToolHandler {
 			}
 		}
 
-		if resp == nil || len(resp.ResultJson) == 0 {
+		if resp == nil || len(resp.GetResultJson()) == 0 {
 			return nil, errors.New("empty automatic_eval response")
 		}
 
 		var result mcp.CallToolResult
-		if err := json.Unmarshal(resp.ResultJson, &result); err != nil {
+		if err := json.Unmarshal(resp.GetResultJson(), &result); err != nil {
 			return nil, err
 		}
 		return &result, nil

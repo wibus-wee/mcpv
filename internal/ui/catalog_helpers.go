@@ -18,12 +18,12 @@ func mapCatalogError(err error) error {
 		}
 		switch editorErr.Kind {
 		case catalog.EditorErrorInvalidRequest:
-			return NewUIErrorWithDetails(ErrCodeInvalidRequest, editorErr.Message, detail)
+			return NewErrorWithDetails(ErrCodeInvalidRequest, editorErr.Message, detail)
 		case catalog.EditorErrorInvalidConfig:
-			return NewUIErrorWithDetails(ErrCodeInvalidConfig, editorErr.Message, detail)
+			return NewErrorWithDetails(ErrCodeInvalidConfig, editorErr.Message, detail)
 		default:
-			return NewUIErrorWithDetails(ErrCodeInvalidConfig, editorErr.Message, detail)
+			return NewErrorWithDetails(ErrCodeInvalidConfig, editorErr.Message, detail)
 		}
 	}
-	return NewUIErrorWithDetails(ErrCodeInvalidConfig, "Failed to update configuration", err.Error())
+	return NewErrorWithDetails(ErrCodeInvalidConfig, "Failed to update configuration", err.Error())
 }

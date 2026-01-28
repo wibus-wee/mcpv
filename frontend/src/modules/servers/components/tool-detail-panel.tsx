@@ -14,7 +14,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Spring } from '@/lib/spring'
 import { getToolDisplayName, getToolQualifiedName } from '@/lib/tool-names'
-import { type ToolSchema } from '@/lib/tool-schema'
+import type { ToolSchema } from '@/lib/tool-schema'
 import { cn } from '@/lib/utils'
 
 interface ToolDetailPanelProps {

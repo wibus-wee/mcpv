@@ -115,9 +115,9 @@ func (b *logBridge) publish(ctx context.Context, entry *controlv1.LogEntry) {
 	}
 
 	params := &mcp.LoggingMessageParams{
-		Logger: entry.Logger,
-		Level:  mapProtoLogLevel(entry.Level),
-		Data:   json.RawMessage(entry.DataJson),
+		Logger: entry.GetLogger(),
+		Level:  mapProtoLogLevel(entry.GetLevel()),
+		Data:   json.RawMessage(entry.GetDataJson()),
 	}
 
 	for session := range b.server.Sessions() {
@@ -127,6 +127,8 @@ func (b *logBridge) publish(ctx context.Context, entry *controlv1.LogEntry) {
 
 func mapProtoLogLevel(level controlv1.LogLevel) mcp.LoggingLevel {
 	switch level {
+	case controlv1.LogLevel_LOG_LEVEL_UNSPECIFIED:
+		fallthrough
 	case controlv1.LogLevel_LOG_LEVEL_INFO:
 		return "info"
 	case controlv1.LogLevel_LOG_LEVEL_NOTICE:

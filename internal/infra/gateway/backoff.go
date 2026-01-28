@@ -11,14 +11,14 @@ type backoff struct {
 	current time.Duration
 }
 
-func newBackoff(base, max time.Duration) *backoff {
+func newBackoff(base, maxDelay time.Duration) *backoff {
 	if base <= 0 {
 		base = time.Second
 	}
-	if max < base {
-		max = base
+	if maxDelay < base {
+		maxDelay = base
 	}
-	return &backoff{base: base, max: max, current: base}
+	return &backoff{base: base, max: maxDelay, current: base}
 }
 
 func (b *backoff) Reset() {

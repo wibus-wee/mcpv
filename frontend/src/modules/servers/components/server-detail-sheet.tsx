@@ -2,10 +2,10 @@
 // Output: 60% width sheet with tabs for Overview/Tools/Config
 // Position: Detail panel for selected server
 
+import { useNavigate } from '@tanstack/react-router'
+import { useAtom } from 'jotai'
 import { LayoutGridIcon, SettingsIcon, WrenchIcon } from 'lucide-react'
 import { m } from 'motion/react'
-import { useAtom } from 'jotai'
-import { useNavigate } from '@tanstack/react-router'
 
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -16,11 +16,10 @@ import { Spring } from '@/lib/spring'
 import { useToolsByServer } from '@/modules/servers/hooks'
 
 import { selectedServerAtom } from '../atoms'
-
+import type { ServerTab } from '../constants'
 import { ServerConfigPanel } from './server-config-panel'
 import { ServerOverviewPanel } from './server-overview-panel'
 import { ServerToolsPanel } from './server-tools-panel'
-import type { ServerTab } from '../constants'
 
 interface ServerDetailSheetProps {
   open: boolean
@@ -43,7 +42,7 @@ export function ServerDetailSheet({
 
   const handleTabChange = (value: string) => {
     navigate({
-      search: (prev) => ({ ...prev, tab: value as ServerTab }),
+      search: prev => ({ ...prev, tab: value as ServerTab }),
       replace: true,
     })
   }

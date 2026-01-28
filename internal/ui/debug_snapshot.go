@@ -40,7 +40,7 @@ type debugSnapshotError struct {
 func (s *DebugService) ExportDebugSnapshot(ctx context.Context) (DebugSnapshotResponse, error) {
 	manager := s.deps.manager()
 	if manager == nil {
-		return DebugSnapshotResponse{}, NewUIError(ErrCodeInternal, "Manager not initialized")
+		return DebugSnapshotResponse{}, NewError(ErrCodeInternal, "Manager not initialized")
 	}
 
 	now := time.Now().UTC()
@@ -49,7 +49,7 @@ func (s *DebugService) ExportDebugSnapshot(ctx context.Context) (DebugSnapshotRe
 		ConfigPath:  strings.TrimSpace(manager.GetConfigPath()),
 	}
 
-	coreState, coreErr, uptime := manager.GetState()
+	coreState, uptime, coreErr := manager.GetState()
 	snapshot.Core = debugCoreState{
 		State:    string(coreState),
 		UptimeMs: uptime,
@@ -126,17 +126,17 @@ func (s *DebugService) ExportDebugSnapshot(ctx context.Context) (DebugSnapshotRe
 
 	debugDir := filepath.Join(outputDir, "debug")
 	if err := os.MkdirAll(debugDir, 0o755); err != nil {
-		return DebugSnapshotResponse{}, NewUIErrorWithDetails(ErrCodeInternal, "Failed to create debug directory", err.Error())
+		return DebugSnapshotResponse{}, NewErrorWithDetails(ErrCodeInternal, "Failed to create debug directory", err.Error())
 	}
 
 	filename := fmt.Sprintf("mcpd-debug-%s.json", now.Format("20060102-150405"))
 	path := filepath.Join(debugDir, filename)
 	payload, err := json.MarshalIndent(snapshot, "", "  ")
 	if err != nil {
-		return DebugSnapshotResponse{}, NewUIErrorWithDetails(ErrCodeInternal, "Failed to serialize debug snapshot", err.Error())
+		return DebugSnapshotResponse{}, NewErrorWithDetails(ErrCodeInternal, "Failed to serialize debug snapshot", err.Error())
 	}
 	if err := os.WriteFile(path, payload, 0o644); err != nil {
-		return DebugSnapshotResponse{}, NewUIErrorWithDetails(ErrCodeInternal, "Failed to write debug snapshot", err.Error())
+		return DebugSnapshotResponse{}, NewErrorWithDetails(ErrCodeInternal, "Failed to write debug snapshot", err.Error())
 	}
 
 	return DebugSnapshotResponse{

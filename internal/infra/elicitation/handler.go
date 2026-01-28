@@ -23,6 +23,13 @@ func NewDefaultHandler(logger *zap.Logger) *DefaultHandler {
 
 // Elicit responds with a cancel action to avoid blocking unattended clients.
 func (h *DefaultHandler) Elicit(ctx context.Context, params *domain.ElicitationRequest) (*domain.ElicitationResult, error) {
+	if ctx != nil {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+	}
 	if params == nil {
 		return &domain.ElicitationResult{Action: "cancel"}, nil
 	}

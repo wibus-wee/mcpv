@@ -2,11 +2,14 @@ package rpc
 
 import (
 	"context"
+	"errors"
+	"time"
+
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
-	"time"
 
 	"mcpd/internal/domain"
 	controlv1 "mcpd/pkg/api/control/v1"
@@ -50,9 +53,6 @@ func Dial(ctx context.Context, cfg ClientConfig) (*Client, error) {
 
 	opts := []grpc.DialOption{
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
-		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
-		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
-		grpc.WithBlock(),
 	}
 
 	if cfg.MaxRecvMsgSize > 0 || cfg.MaxSendMsgSize > 0 {
@@ -81,8 +81,12 @@ func Dial(ctx context.Context, cfg ClientConfig) (*Client, error) {
 		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
-	conn, err := grpc.DialContext(ctx, target, opts...)
+	conn, err := grpc.NewClient(target, opts...)
 	if err != nil {
+		return nil, err
+	}
+	if err := waitForReady(ctx, conn); err != nil {
+		_ = conn.Close()
 		return nil, err
 	}
 
@@ -90,6 +94,33 @@ func Dial(ctx context.Context, cfg ClientConfig) (*Client, error) {
 		conn:   conn,
 		client: controlv1.NewControlPlaneServiceClient(conn),
 	}, nil
+}
+
+func waitForReady(ctx context.Context, conn *grpc.ClientConn) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	state := conn.GetState()
+	if state == connectivity.Ready {
+		return nil
+	}
+	conn.Connect()
+	for {
+		if !conn.WaitForStateChange(ctx, state) {
+			return ctx.Err()
+		}
+		state = conn.GetState()
+		switch state {
+		case connectivity.Idle:
+			conn.Connect()
+		case connectivity.Connecting:
+		case connectivity.TransientFailure:
+		case connectivity.Ready:
+			return nil
+		case connectivity.Shutdown:
+			return errors.New("grpc connection shut down")
+		}
+	}
 }
 
 func (c *Client) Close() error {

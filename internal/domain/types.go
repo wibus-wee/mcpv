@@ -210,7 +210,7 @@ type Instance struct {
 	lastCallUnixNano int64
 }
 
-// InstanceInfo provides a read-only snapshot of instance state for status queries
+// InstanceInfo provides a read-only snapshot of instance state for status queries.
 type InstanceInfo struct {
 	ID              string
 	State           InstanceState
@@ -222,7 +222,7 @@ type InstanceInfo struct {
 	LastStartCause  *StartCause
 }
 
-// PoolInfo provides a read-only snapshot of a pool's state for status queries
+// PoolInfo provides a read-only snapshot of a pool's state for status queries.
 type PoolInfo struct {
 	SpecKey    string
 	ServerName string
@@ -233,12 +233,12 @@ type PoolInfo struct {
 
 // PoolMetrics aggregates pool-level metrics.
 type PoolMetrics struct {
-	StartCount    int
-	StopCount     int
-	TotalCalls    int64
-	TotalErrors   int64
-	TotalDuration time.Duration
-	LastCallAt    time.Time
+	StartCount    int           `json:"startCount"`
+	StopCount     int           `json:"stopCount"`
+	TotalCalls    int64         `json:"totalCalls"`
+	TotalErrors   int64         `json:"totalErrors"`
+	TotalDuration time.Duration `json:"totalDuration"`
+	LastCallAt    time.Time     `json:"lastCallAt"`
 }
 
 // ServerInitState describes the initialization state of a server.
@@ -261,16 +261,16 @@ const (
 
 // ServerInitStatus reports initialization progress for a server.
 type ServerInitStatus struct {
-	SpecKey     string
-	ServerName  string
-	MinReady    int
-	Ready       int
-	Failed      int
-	State       ServerInitState
-	LastError   string
-	RetryCount  int
-	NextRetryAt time.Time
-	UpdatedAt   time.Time
+	SpecKey     string          `json:"specKey"`
+	ServerName  string          `json:"serverName"`
+	MinReady    int             `json:"minReady"`
+	Ready       int             `json:"ready"`
+	Failed      int             `json:"failed"`
+	State       ServerInitState `json:"state"`
+	LastError   string          `json:"lastError"`
+	RetryCount  int             `json:"retryCount"`
+	NextRetryAt time.Time       `json:"nextRetryAt"`
+	UpdatedAt   time.Time       `json:"updatedAt"`
 }
 
 // ErrMethodNotAllowed indicates a method is not permitted by capabilities.
@@ -358,7 +358,7 @@ const (
 	BootstrapFailed BootstrapState = "failed"
 )
 
-// BootstrapProgress provides real-time status of the bootstrap process
+// BootstrapProgress provides real-time status of the bootstrap process.
 type BootstrapProgress struct {
 	State     BootstrapState
 	Total     int               // Total number of servers to bootstrap
@@ -368,7 +368,7 @@ type BootstrapProgress struct {
 	Errors    map[string]string // specKey -> error message for failed servers
 }
 
-// Bootstrap configuration defaults
+// Bootstrap configuration defaults.
 const (
 	// DefaultBootstrapMode is the default bootstrap mode.
 	DefaultBootstrapMode = BootstrapModeMetadata

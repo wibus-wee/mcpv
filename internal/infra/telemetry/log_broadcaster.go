@@ -127,6 +127,8 @@ func (c *logBroadcasterCore) buildData(entry zapcore.Entry, fields []zapcore.Fie
 
 func mapZapLevel(level zapcore.Level) domain.LogLevel {
 	switch level {
+	case zapcore.InvalidLevel:
+		fallthrough
 	case zapcore.DebugLevel:
 		return domain.LogLevelDebug
 	case zapcore.InfoLevel:

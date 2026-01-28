@@ -10,25 +10,6 @@ import (
 	"mcpd/internal/infra/mcpcodec"
 )
 
-func mapToolEntries(snapshot domain.ToolSnapshot) ([]ToolEntry, error) {
-	entries := make([]ToolEntry, 0, len(snapshot.Tools))
-	for _, tool := range snapshot.Tools {
-		raw, err := mcpcodec.MarshalToolDefinition(tool)
-		if err != nil {
-			return nil, fmt.Errorf("marshal tool %q: %w", tool.Name, err)
-		}
-		entries = append(entries, ToolEntry{
-			Name:        tool.Name,
-			Description: tool.Description,
-			ToolJSON:    raw,
-			SpecKey:     tool.SpecKey,
-			ServerName:  tool.ServerName,
-			Source:      string(domain.ToolSourceLive),
-		})
-	}
-	return entries, nil
-}
-
 func mapToolCatalogEntries(snapshot domain.ToolCatalogSnapshot) ([]ToolEntry, error) {
 	entries := make([]ToolEntry, 0, len(snapshot.Tools))
 	for _, entry := range snapshot.Tools {
@@ -156,6 +137,7 @@ func mapPoolInfo(pool domain.PoolInfo) ServerRuntimeStatus {
 			stats.Handshaking++
 		case domain.InstanceStateDraining:
 			stats.Draining++
+		case domain.InstanceStateStopped:
 		case domain.InstanceStateFailed:
 			stats.Failed++
 		}

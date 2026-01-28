@@ -11,9 +11,9 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { useCoreState } from '@/hooks/use-core-state'
-import { coreStatusConfig } from '@/modules/shared/core-status'
 import { Spring } from '@/lib/spring'
 import { cn } from '@/lib/utils'
+import { coreStatusConfig } from '@/modules/shared/core-status'
 
 export function AppTopbar() {
   const { theme, setTheme } = useTheme()

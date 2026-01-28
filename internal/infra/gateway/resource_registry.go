@@ -42,7 +42,7 @@ func (r *resourceRegistry) ApplySnapshot(snapshot *controlv1.ResourcesSnapshot) 
 	defer r.applyMu.Unlock()
 
 	r.mu.Lock()
-	if snapshot.Etag != "" && snapshot.Etag == r.etag {
+	if snapshot.GetEtag() != "" && snapshot.GetEtag() == r.etag {
 		r.mu.Unlock()
 		return
 	}
@@ -53,25 +53,25 @@ func (r *resourceRegistry) ApplySnapshot(snapshot *controlv1.ResourcesSnapshot) 
 	r.mu.Unlock()
 
 	next := make(map[string]struct{})
-	toAdd := make([]mcp.Resource, 0, len(snapshot.Resources))
-	for _, def := range snapshot.Resources {
-		if def == nil || len(def.ResourceJson) == 0 {
+	toAdd := make([]mcp.Resource, 0, len(snapshot.GetResources()))
+	for _, def := range snapshot.GetResources() {
+		if def == nil || len(def.GetResourceJson()) == 0 {
 			continue
 		}
 		var resource mcp.Resource
-		if err := json.Unmarshal(def.ResourceJson, &resource); err != nil {
-			r.logger.Warn("decode resource failed", zap.String("uri", def.Uri), zap.Error(err))
+		if err := json.Unmarshal(def.GetResourceJson(), &resource); err != nil {
+			r.logger.Warn("decode resource failed", zap.String("uri", def.GetUri()), zap.Error(err))
 			continue
 		}
 		if resource.URI == "" {
-			resource.URI = def.Uri
+			resource.URI = def.GetUri()
 		}
 		if resource.URI == "" {
 			continue
 		}
-		if def.Uri != "" && resource.URI != def.Uri {
-			r.logger.Warn("resource uri mismatch", zap.String("uri", resource.URI), zap.String("expected", def.Uri))
-			resource.URI = def.Uri
+		if def.GetUri() != "" && resource.URI != def.GetUri() {
+			r.logger.Warn("resource uri mismatch", zap.String("uri", resource.URI), zap.String("expected", def.GetUri()))
+			resource.URI = def.GetUri()
 		}
 		if !validResourceURI(resource.URI) {
 			r.logger.Warn("skip resource with invalid uri", zap.String("uri", resource.URI))
@@ -98,7 +98,7 @@ func (r *resourceRegistry) ApplySnapshot(snapshot *controlv1.ResourcesSnapshot) 
 
 	r.mu.Lock()
 	r.registered = next
-	r.etag = snapshot.Etag
+	r.etag = snapshot.GetEtag()
 	r.mu.Unlock()
 }
 

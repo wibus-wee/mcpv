@@ -42,7 +42,7 @@ func (r *toolRegistry) ApplySnapshot(snapshot *controlv1.ToolsSnapshot) {
 	defer r.applyMu.Unlock()
 
 	r.mu.Lock()
-	if snapshot.Etag != "" && snapshot.Etag == r.etag {
+	if snapshot.GetEtag() != "" && snapshot.GetEtag() == r.etag {
 		r.mu.Unlock()
 		return
 	}
@@ -53,25 +53,25 @@ func (r *toolRegistry) ApplySnapshot(snapshot *controlv1.ToolsSnapshot) {
 	r.mu.Unlock()
 
 	next := make(map[string]struct{})
-	toAdd := make([]mcp.Tool, 0, len(snapshot.Tools))
-	for _, def := range snapshot.Tools {
-		if def == nil || len(def.ToolJson) == 0 {
+	toAdd := make([]mcp.Tool, 0, len(snapshot.GetTools()))
+	for _, def := range snapshot.GetTools() {
+		if def == nil || len(def.GetToolJson()) == 0 {
 			continue
 		}
 		var tool mcp.Tool
-		if err := json.Unmarshal(def.ToolJson, &tool); err != nil {
-			r.logger.Warn("decode tool failed", zap.String("tool", def.Name), zap.Error(err))
+		if err := json.Unmarshal(def.GetToolJson(), &tool); err != nil {
+			r.logger.Warn("decode tool failed", zap.String("tool", def.GetName()), zap.Error(err))
 			continue
 		}
 		if tool.Name == "" {
-			tool.Name = def.Name
+			tool.Name = def.GetName()
 		}
 		if tool.Name == "" {
 			continue
 		}
-		if tool.Name != def.Name && def.Name != "" {
-			r.logger.Warn("tool name mismatch", zap.String("tool", tool.Name), zap.String("expected", def.Name))
-			tool.Name = def.Name
+		if tool.Name != def.GetName() && def.GetName() != "" {
+			r.logger.Warn("tool name mismatch", zap.String("tool", tool.Name), zap.String("expected", def.GetName()))
+			tool.Name = def.GetName()
 		}
 		if !mcpcodec.IsObjectSchema(tool.InputSchema) {
 			r.logger.Warn("skip tool with invalid input schema", zap.String("tool", tool.Name))
@@ -102,6 +102,6 @@ func (r *toolRegistry) ApplySnapshot(snapshot *controlv1.ToolsSnapshot) {
 
 	r.mu.Lock()
 	r.registered = next
-	r.etag = snapshot.Etag
+	r.etag = snapshot.GetEtag()
 	r.mu.Unlock()
 }

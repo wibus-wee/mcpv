@@ -8,7 +8,7 @@
 - `docs`：设计/约束文档；示例配置使用仓库根目录的 `runtime.yaml`、`callers.yaml` 与 `profiles/*.yaml`，修改配置或协议时同步更新。
 
 ## 构建、测试与开发命令
-- `make build` 编译全部包；`make test` 运行所有单测。
+- `make build` 编译全部包；`make test` 运行所有单测;`make lint-check` 执行 GolangCI check。
 - `make fmt` 触发 `go fmt ./...`；`make vet` 做静态检查；`make tidy` 清理/同步依赖。
 - 运行服务：`go run ./cmd/mcpd serve --config <profile-store-dir>`；仅验证配置：`go run ./cmd/mcpd validate --config <profile-store-dir>`。
 - Go 版本要求 `go 1.25+`，使用 `go.mod` 中指定版本。

@@ -154,38 +154,38 @@ type fakeScheduler struct {
 	stopCalls     []stopCall
 }
 
-func (f *fakeScheduler) Acquire(ctx context.Context, specKey, routingKey string) (*domain.Instance, error) {
+func (f *fakeScheduler) Acquire(_ context.Context, _, _ string) (*domain.Instance, error) {
 	return nil, nil
 }
 
-func (f *fakeScheduler) AcquireReady(ctx context.Context, specKey, routingKey string) (*domain.Instance, error) {
+func (f *fakeScheduler) AcquireReady(_ context.Context, _, _ string) (*domain.Instance, error) {
 	return nil, nil
 }
 
-func (f *fakeScheduler) Release(ctx context.Context, instance *domain.Instance) error {
+func (f *fakeScheduler) Release(_ context.Context, _ *domain.Instance) error {
 	return nil
 }
 
-func (f *fakeScheduler) SetDesiredMinReady(ctx context.Context, specKey string, minReady int) error {
+func (f *fakeScheduler) ApplyCatalogDiff(_ context.Context, _ domain.CatalogDiff, _ map[string]domain.ServerSpec) error {
+	return nil
+}
+
+func (f *fakeScheduler) SetDesiredMinReady(_ context.Context, specKey string, minReady int) error {
 	f.minReadyCalls = append(f.minReadyCalls, minReadyCall{specKey: specKey, minReady: minReady})
 	return nil
 }
 
-func (f *fakeScheduler) StopSpec(ctx context.Context, specKey, reason string) error {
+func (f *fakeScheduler) StopSpec(_ context.Context, specKey, reason string) error {
 	f.stopCalls = append(f.stopCalls, stopCall{specKey: specKey, reason: reason})
 	return nil
 }
 
-func (f *fakeScheduler) ApplyCatalogDiff(ctx context.Context, diff domain.CatalogDiff, registry map[string]domain.ServerSpec) error {
-	return nil
-}
+func (f *fakeScheduler) StartIdleManager(_ time.Duration) {}
+func (f *fakeScheduler) StopIdleManager()                 {}
+func (f *fakeScheduler) StartPingManager(_ time.Duration) {}
+func (f *fakeScheduler) StopPingManager()                 {}
+func (f *fakeScheduler) StopAll(_ context.Context)        {}
 
-func (f *fakeScheduler) StartIdleManager(interval time.Duration) {}
-func (f *fakeScheduler) StopIdleManager()                        {}
-func (f *fakeScheduler) StartPingManager(interval time.Duration) {}
-func (f *fakeScheduler) StopPingManager()                        {}
-func (f *fakeScheduler) StopAll(ctx context.Context)             {}
-
-func (f *fakeScheduler) GetPoolStatus(ctx context.Context) ([]domain.PoolInfo, error) {
+func (f *fakeScheduler) GetPoolStatus(_ context.Context) ([]domain.PoolInfo, error) {
 	return nil, nil
 }
