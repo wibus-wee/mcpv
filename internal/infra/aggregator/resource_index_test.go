@@ -184,7 +184,7 @@ func (r *resourceRouter) RouteWithOptions(ctx context.Context, serverType, specK
 
 type noReadyResourceRouter struct{}
 
-func (r *noReadyResourceRouter) Route(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage) (json.RawMessage, error) {
+func (r *noReadyResourceRouter) Route(_ context.Context, _, _, _ string, _ json.RawMessage) (json.RawMessage, error) {
 	return nil, domain.ErrNoReadyInstance
 }
 

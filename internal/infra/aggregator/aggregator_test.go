@@ -482,7 +482,7 @@ func (f *flakyRouter) Route(ctx context.Context, serverType, specKey, routingKey
 	return f.RouteWithOptions(ctx, serverType, specKey, routingKey, payload, domain.RouteOptions{})
 }
 
-func (f *flakyRouter) RouteWithOptions(_ context.Context, serverType, specKey, routingKey string, payload json.RawMessage, _ domain.RouteOptions) (json.RawMessage, error) {
+func (f *flakyRouter) RouteWithOptions(_ context.Context, _, _, _ string, payload json.RawMessage, _ domain.RouteOptions) (json.RawMessage, error) {
 	msg, err := jsonrpc.DecodeMessage(payload)
 	if err != nil {
 		return nil, err

@@ -102,11 +102,11 @@ func TestBootstrapManager_GetProgress_ThreadSafe(t *testing.T) {
 
 type minimalSchedulerStub struct{}
 
-func (s *minimalSchedulerStub) Acquire(_ context.Context, _, routingKey string) (*domain.Instance, error) {
+func (s *minimalSchedulerStub) Acquire(_ context.Context, _, _ string) (*domain.Instance, error) {
 	return nil, nil
 }
 
-func (s *minimalSchedulerStub) AcquireReady(_ context.Context, _, routingKey string) (*domain.Instance, error) {
+func (s *minimalSchedulerStub) AcquireReady(_ context.Context, _, _ string) (*domain.Instance, error) {
 	return nil, domain.ErrNoReadyInstance
 }
 
@@ -130,7 +130,7 @@ func (s *minimalSchedulerStub) StartIdleManager(_ time.Duration) {}
 func (s *minimalSchedulerStub) StopIdleManager()                 {}
 func (s *minimalSchedulerStub) StartPingManager(_ time.Duration) {}
 func (s *minimalSchedulerStub) StopPingManager()                 {}
-func (s *minimalSchedulerStub) StopAll(_ context.Context)      {}
+func (s *minimalSchedulerStub) StopAll(_ context.Context)        {}
 
 func (s *minimalSchedulerStub) GetPoolStatus(_ context.Context) ([]domain.PoolInfo, error) {
 	return nil, nil
@@ -145,6 +145,6 @@ func (l *minimalLifecycleStub) StartInstance(_ context.Context, specKey string, 
 	}), nil
 }
 
-func (l *minimalLifecycleStub) StopInstance(_ context.Context, instance *domain.Instance, _ string) error {
+func (l *minimalLifecycleStub) StopInstance(_ context.Context, _ *domain.Instance, _ string) error {
 	return nil
 }

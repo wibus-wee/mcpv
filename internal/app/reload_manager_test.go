@@ -141,7 +141,7 @@ func (s *schedulerStub) SetDesiredMinReady(_ context.Context, specKey string, mi
 	return nil
 }
 
-func (s *schedulerStub) StopSpec(_ context.Context, specKey, reason string) error {
+func (s *schedulerStub) StopSpec(_ context.Context, specKey, _ string) error {
 	s.stopCalls = append(s.stopCalls, specKey)
 	return nil
 }

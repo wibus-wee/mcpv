@@ -253,7 +253,7 @@ func (s *initSchedulerStub) StopSpec(_ context.Context, _, _ string) error {
 	return nil
 }
 
-func (s *initSchedulerStub) ApplyCatalogDiff(_ context.Context, diff domain.CatalogDiff, registry map[string]domain.ServerSpec) error {
+func (s *initSchedulerStub) ApplyCatalogDiff(_ context.Context, _ domain.CatalogDiff, _ map[string]domain.ServerSpec) error {
 	return nil
 }
 
@@ -261,9 +261,9 @@ func (s *initSchedulerStub) StartIdleManager(_ time.Duration) {}
 func (s *initSchedulerStub) StopIdleManager()                 {}
 func (s *initSchedulerStub) StartPingManager(_ time.Duration) {}
 func (s *initSchedulerStub) StopPingManager()                 {}
-func (s *initSchedulerStub) StopAll(ctx context.Context)      {}
+func (s *initSchedulerStub) StopAll(_ context.Context)        {}
 
-func (s *initSchedulerStub) GetPoolStatus(ctx context.Context) ([]domain.PoolInfo, error) {
+func (s *initSchedulerStub) GetPoolStatus(_ context.Context) ([]domain.PoolInfo, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

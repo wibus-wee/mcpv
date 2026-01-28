@@ -158,27 +158,27 @@ func (c *ControlPlane) GetCatalog() domain.Catalog {
 }
 
 // CallToolTask executes a tool as an asynchronous task.
-func (c *ControlPlane) CallToolTask(_ context.Context, client, name string, args json.RawMessage, routingKey string, opts domain.TaskCreateOptions) (domain.Task, error) {
+func (c *ControlPlane) CallToolTask(_ context.Context, _, _ string, _ json.RawMessage, _ string, _ domain.TaskCreateOptions) (domain.Task, error) {
 	return domain.Task{}, domain.ErrTasksNotImplemented
 }
 
 // GetTask returns task metadata.
-func (c *ControlPlane) GetTask(_ context.Context, client, taskID string) (domain.Task, error) {
+func (c *ControlPlane) GetTask(_ context.Context, _, _ string) (domain.Task, error) {
 	return domain.Task{}, domain.ErrTasksNotImplemented
 }
 
 // ListTasks returns a paginated task list.
-func (c *ControlPlane) ListTasks(_ context.Context, client, cursor string, limit int) (domain.TaskPage, error) {
+func (c *ControlPlane) ListTasks(_ context.Context, _, _ string, _ int) (domain.TaskPage, error) {
 	return domain.TaskPage{}, domain.ErrTasksNotImplemented
 }
 
 // GetTaskResult blocks until a task completes and returns the result.
-func (c *ControlPlane) GetTaskResult(_ context.Context, client, taskID string) (domain.TaskResult, error) {
+func (c *ControlPlane) GetTaskResult(_ context.Context, _, _ string) (domain.TaskResult, error) {
 	return domain.TaskResult{}, domain.ErrTasksNotImplemented
 }
 
 // CancelTask cancels a task and returns the updated task info.
-func (c *ControlPlane) CancelTask(_ context.Context, client, taskID string) (domain.Task, error) {
+func (c *ControlPlane) CancelTask(_ context.Context, _, _ string) (domain.Task, error) {
 	return domain.Task{}, domain.ErrTasksNotImplemented
 }
 

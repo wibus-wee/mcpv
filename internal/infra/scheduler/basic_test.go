@@ -607,7 +607,7 @@ func (b *blockingLifecycle) StartInstance(_ context.Context, specKey string, spe
 	}), nil
 }
 
-func (b *blockingLifecycle) StopInstance(_ context.Context, instance *domain.Instance, reason string) error {
+func (b *blockingLifecycle) StopInstance(_ context.Context, instance *domain.Instance, _ string) error {
 	if instance != nil {
 		instance.SetState(domain.InstanceStateStopped)
 	}
@@ -644,7 +644,7 @@ func (t *trackingLifecycle) StartInstance(_ context.Context, specKey string, spe
 	}), nil
 }
 
-func (t *trackingLifecycle) StopInstance(_ context.Context, instance *domain.Instance, reason string) error {
+func (t *trackingLifecycle) StopInstance(_ context.Context, instance *domain.Instance, _ string) error {
 	if instance != nil {
 		instance.SetState(domain.InstanceStateStopped)
 	}

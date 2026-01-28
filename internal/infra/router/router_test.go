@@ -124,7 +124,7 @@ func (f *fakeScheduler) StartIdleManager(_ time.Duration) {}
 func (f *fakeScheduler) StopIdleManager()                 {}
 func (f *fakeScheduler) StartPingManager(_ time.Duration) {}
 func (f *fakeScheduler) StopPingManager()                 {}
-func (f *fakeScheduler) StopAll(_ context.Context)      {}
+func (f *fakeScheduler) StopAll(_ context.Context)        {}
 
 func (f *fakeScheduler) GetPoolStatus(_ context.Context) ([]domain.PoolInfo, error) {
 	return nil, nil
@@ -136,7 +136,7 @@ type fakeConn struct {
 	err  error
 }
 
-func (f *fakeConn) Call(ctx context.Context, payload json.RawMessage) (json.RawMessage, error) {
+func (f *fakeConn) Call(_ context.Context, payload json.RawMessage) (json.RawMessage, error) {
 	f.req = payload
 	return f.resp, f.err
 }

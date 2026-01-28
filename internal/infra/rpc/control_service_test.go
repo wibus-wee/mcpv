@@ -149,11 +149,11 @@ type fakeControlPlane struct {
 	unregisterErr        error
 }
 
-func (f *fakeControlPlane) Info(ctx context.Context) (domain.ControlPlaneInfo, error) {
+func (f *fakeControlPlane) Info(_ context.Context) (domain.ControlPlaneInfo, error) {
 	return domain.ControlPlaneInfo{}, nil
 }
 
-func (f *fakeControlPlane) RegisterClient(ctx context.Context, client string, pid int, tags []string, server string) (domain.ClientRegistration, error) {
+func (f *fakeControlPlane) RegisterClient(_ context.Context, client string, _ int, _ []string, _ string) (domain.ClientRegistration, error) {
 	if f.registerErr != nil {
 		return domain.ClientRegistration{}, f.registerErr
 	}
@@ -163,163 +163,163 @@ func (f *fakeControlPlane) RegisterClient(ctx context.Context, client string, pi
 	return f.registerRegistration, nil
 }
 
-func (f *fakeControlPlane) UnregisterClient(ctx context.Context, client string) error {
+func (f *fakeControlPlane) UnregisterClient(_ context.Context, _ string) error {
 	return f.unregisterErr
 }
 
-func (f *fakeControlPlane) ListActiveClients(ctx context.Context) ([]domain.ActiveClient, error) {
+func (f *fakeControlPlane) ListActiveClients(_ context.Context) ([]domain.ActiveClient, error) {
 	return nil, nil
 }
 
-func (f *fakeControlPlane) WatchActiveClients(ctx context.Context) (<-chan domain.ActiveClientSnapshot, error) {
+func (f *fakeControlPlane) WatchActiveClients(_ context.Context) (<-chan domain.ActiveClientSnapshot, error) {
 	ch := make(chan domain.ActiveClientSnapshot)
 	close(ch)
 	return ch, nil
 }
 
-func (f *fakeControlPlane) ListTools(ctx context.Context, client string) (domain.ToolSnapshot, error) {
+func (f *fakeControlPlane) ListTools(_ context.Context, _ string) (domain.ToolSnapshot, error) {
 	if f.listToolsErr != nil {
 		return domain.ToolSnapshot{}, f.listToolsErr
 	}
 	return f.snapshot, nil
 }
 
-func (f *fakeControlPlane) ListToolCatalog(ctx context.Context) (domain.ToolCatalogSnapshot, error) {
+func (f *fakeControlPlane) ListToolCatalog(_ context.Context) (domain.ToolCatalogSnapshot, error) {
 	if f.listToolsErr != nil {
 		return domain.ToolCatalogSnapshot{}, f.listToolsErr
 	}
 	return domain.ToolCatalogSnapshot{}, nil
 }
 
-func (f *fakeControlPlane) WatchTools(ctx context.Context, client string) (<-chan domain.ToolSnapshot, error) {
+func (f *fakeControlPlane) WatchTools(_ context.Context, _ string) (<-chan domain.ToolSnapshot, error) {
 	ch := make(chan domain.ToolSnapshot)
 	close(ch)
 	return ch, nil
 }
 
-func (f *fakeControlPlane) CallTool(ctx context.Context, client, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
+func (f *fakeControlPlane) CallTool(_ context.Context, _, _ string, _ json.RawMessage, _ string) (json.RawMessage, error) {
 	if f.callToolErr != nil {
 		return nil, f.callToolErr
 	}
 	return json.RawMessage(`{"content":[{"type":"text","text":"ok"}]}`), nil
 }
 
-func (f *fakeControlPlane) CallToolAll(ctx context.Context, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
-	return f.CallTool(ctx, "", name, args, routingKey)
+func (f *fakeControlPlane) CallToolAll(_ context.Context, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
+	return f.CallTool(context.TODO(), "", name, args, routingKey)
 }
 
-func (f *fakeControlPlane) ListResources(ctx context.Context, client string, cursor string) (domain.ResourcePage, error) {
+func (f *fakeControlPlane) ListResources(_ context.Context, _ string, _ string) (domain.ResourcePage, error) {
 	return f.resourcePage, nil
 }
 
-func (f *fakeControlPlane) ListResourcesAll(ctx context.Context, cursor string) (domain.ResourcePage, error) {
+func (f *fakeControlPlane) ListResourcesAll(_ context.Context, _ string) (domain.ResourcePage, error) {
 	return f.resourcePage, nil
 }
 
-func (f *fakeControlPlane) WatchResources(ctx context.Context, client string) (<-chan domain.ResourceSnapshot, error) {
+func (f *fakeControlPlane) WatchResources(_ context.Context, _ string) (<-chan domain.ResourceSnapshot, error) {
 	ch := make(chan domain.ResourceSnapshot)
 	close(ch)
 	return ch, nil
 }
 
-func (f *fakeControlPlane) ReadResource(ctx context.Context, client, uri string) (json.RawMessage, error) {
+func (f *fakeControlPlane) ReadResource(_ context.Context, _, _ string) (json.RawMessage, error) {
 	if f.readResourceErr != nil {
 		return nil, f.readResourceErr
 	}
 	return json.RawMessage(`{"contents":[{"uri":"file:///a","text":"ok"}]}`), nil
 }
 
-func (f *fakeControlPlane) ReadResourceAll(ctx context.Context, uri string) (json.RawMessage, error) {
-	return f.ReadResource(ctx, "", uri)
+func (f *fakeControlPlane) ReadResourceAll(_ context.Context, uri string) (json.RawMessage, error) {
+	return f.ReadResource(context.TODO(), "", uri)
 }
 
-func (f *fakeControlPlane) ListPrompts(ctx context.Context, client string, cursor string) (domain.PromptPage, error) {
+func (f *fakeControlPlane) ListPrompts(_ context.Context, _ string, _ string) (domain.PromptPage, error) {
 	return f.promptPage, nil
 }
 
-func (f *fakeControlPlane) ListPromptsAll(ctx context.Context, cursor string) (domain.PromptPage, error) {
+func (f *fakeControlPlane) ListPromptsAll(_ context.Context, _ string) (domain.PromptPage, error) {
 	return f.promptPage, nil
 }
 
-func (f *fakeControlPlane) WatchPrompts(ctx context.Context, client string) (<-chan domain.PromptSnapshot, error) {
+func (f *fakeControlPlane) WatchPrompts(_ context.Context, _ string) (<-chan domain.PromptSnapshot, error) {
 	ch := make(chan domain.PromptSnapshot)
 	close(ch)
 	return ch, nil
 }
 
-func (f *fakeControlPlane) GetPrompt(ctx context.Context, client, name string, args json.RawMessage) (json.RawMessage, error) {
+func (f *fakeControlPlane) GetPrompt(_ context.Context, _, _ string, _ json.RawMessage) (json.RawMessage, error) {
 	if f.getPromptErr != nil {
 		return nil, f.getPromptErr
 	}
 	return json.RawMessage(`{"messages":[{"role":"user","content":{"type":"text","text":"ok"}}]}`), nil
 }
 
-func (f *fakeControlPlane) GetPromptAll(ctx context.Context, name string, args json.RawMessage) (json.RawMessage, error) {
-	return f.GetPrompt(ctx, "", name, args)
+func (f *fakeControlPlane) GetPromptAll(_ context.Context, name string, args json.RawMessage) (json.RawMessage, error) {
+	return f.GetPrompt(context.TODO(), "", name, args)
 }
 
-func (f *fakeControlPlane) StreamLogs(ctx context.Context, client string, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
+func (f *fakeControlPlane) StreamLogs(_ context.Context, _ string, _ domain.LogLevel) (<-chan domain.LogEntry, error) {
 	ch := make(chan domain.LogEntry)
 	close(ch)
 	return ch, nil
 }
 
-func (f *fakeControlPlane) StreamLogsAllServers(ctx context.Context, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
-	return f.StreamLogs(ctx, "", minLevel)
+func (f *fakeControlPlane) StreamLogsAllServers(_ context.Context, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
+	return f.StreamLogs(context.TODO(), "", minLevel)
 }
 
 func (f *fakeControlPlane) GetCatalog() domain.Catalog {
 	return domain.Catalog{}
 }
 
-func (f *fakeControlPlane) GetPoolStatus(ctx context.Context) ([]domain.PoolInfo, error) {
+func (f *fakeControlPlane) GetPoolStatus(_ context.Context) ([]domain.PoolInfo, error) {
 	return nil, nil
 }
 
-func (f *fakeControlPlane) GetServerInitStatus(ctx context.Context) ([]domain.ServerInitStatus, error) {
+func (f *fakeControlPlane) GetServerInitStatus(_ context.Context) ([]domain.ServerInitStatus, error) {
 	return nil, nil
 }
 
-func (f *fakeControlPlane) GetBootstrapProgress(ctx context.Context) (domain.BootstrapProgress, error) {
+func (f *fakeControlPlane) GetBootstrapProgress(_ context.Context) (domain.BootstrapProgress, error) {
 	return domain.BootstrapProgress{State: domain.BootstrapCompleted}, nil
 }
 
-func (f *fakeControlPlane) WatchBootstrapProgress(ctx context.Context) (<-chan domain.BootstrapProgress, error) {
+func (f *fakeControlPlane) WatchBootstrapProgress(_ context.Context) (<-chan domain.BootstrapProgress, error) {
 	ch := make(chan domain.BootstrapProgress)
 	close(ch)
 	return ch, nil
 }
 
-func (f *fakeControlPlane) RetryServerInit(ctx context.Context, specKey string) error {
+func (f *fakeControlPlane) RetryServerInit(_ context.Context, _ string) error {
 	return nil
 }
 
-func (f *fakeControlPlane) WatchRuntimeStatus(ctx context.Context, client string) (<-chan domain.RuntimeStatusSnapshot, error) {
+func (f *fakeControlPlane) WatchRuntimeStatus(_ context.Context, _ string) (<-chan domain.RuntimeStatusSnapshot, error) {
 	ch := make(chan domain.RuntimeStatusSnapshot)
 	close(ch)
 	return ch, nil
 }
 
-func (f *fakeControlPlane) WatchRuntimeStatusAllServers(ctx context.Context) (<-chan domain.RuntimeStatusSnapshot, error) {
-	return f.WatchRuntimeStatus(ctx, "")
+func (f *fakeControlPlane) WatchRuntimeStatusAllServers(_ context.Context) (<-chan domain.RuntimeStatusSnapshot, error) {
+	return f.WatchRuntimeStatus(context.TODO(), "")
 }
 
-func (f *fakeControlPlane) WatchServerInitStatus(ctx context.Context, client string) (<-chan domain.ServerInitStatusSnapshot, error) {
+func (f *fakeControlPlane) WatchServerInitStatus(_ context.Context, _ string) (<-chan domain.ServerInitStatusSnapshot, error) {
 	ch := make(chan domain.ServerInitStatusSnapshot)
 	close(ch)
 	return ch, nil
 }
 
-func (f *fakeControlPlane) WatchServerInitStatusAllServers(ctx context.Context) (<-chan domain.ServerInitStatusSnapshot, error) {
-	return f.WatchServerInitStatus(ctx, "")
+func (f *fakeControlPlane) WatchServerInitStatusAllServers(_ context.Context) (<-chan domain.ServerInitStatusSnapshot, error) {
+	return f.WatchServerInitStatus(context.TODO(), "")
 }
 
-func (f *fakeControlPlane) AutomaticMCP(ctx context.Context, client string, params domain.AutomaticMCPParams) (domain.AutomaticMCPResult, error) {
+func (f *fakeControlPlane) AutomaticMCP(_ context.Context, _ string, _ domain.AutomaticMCPParams) (domain.AutomaticMCPResult, error) {
 	return domain.AutomaticMCPResult{}, nil
 }
 
-func (f *fakeControlPlane) AutomaticEval(ctx context.Context, client string, params domain.AutomaticEvalParams) (json.RawMessage, error) {
-	return f.CallTool(ctx, client, params.ToolName, params.Arguments, params.RoutingKey)
+func (f *fakeControlPlane) AutomaticEval(_ context.Context, client string, params domain.AutomaticEvalParams) (json.RawMessage, error) {
+	return f.CallTool(context.TODO(), client, params.ToolName, params.Arguments, params.RoutingKey)
 }
 
 func (f *fakeControlPlane) IsSubAgentEnabled() bool {
@@ -330,22 +330,22 @@ func (f *fakeControlPlane) IsSubAgentEnabledForClient(_ string) bool {
 	return false
 }
 
-func (f *fakeControlPlane) CallToolTask(ctx context.Context, client, name string, args json.RawMessage, routingKey string, opts domain.TaskCreateOptions) (domain.Task, error) {
+func (f *fakeControlPlane) CallToolTask(_ context.Context, _, _ string, _ json.RawMessage, _ string, _ domain.TaskCreateOptions) (domain.Task, error) {
 	return domain.Task{}, nil
 }
 
-func (f *fakeControlPlane) GetTask(ctx context.Context, client, taskID string) (domain.Task, error) {
+func (f *fakeControlPlane) GetTask(_ context.Context, _, _ string) (domain.Task, error) {
 	return domain.Task{}, nil
 }
 
-func (f *fakeControlPlane) ListTasks(ctx context.Context, client, cursor string, limit int) (domain.TaskPage, error) {
+func (f *fakeControlPlane) ListTasks(_ context.Context, _, _ string, _ int) (domain.TaskPage, error) {
 	return domain.TaskPage{}, nil
 }
 
-func (f *fakeControlPlane) GetTaskResult(ctx context.Context, client, taskID string) (domain.TaskResult, error) {
+func (f *fakeControlPlane) GetTaskResult(_ context.Context, _, _ string) (domain.TaskResult, error) {
 	return domain.TaskResult{}, nil
 }
 
-func (f *fakeControlPlane) CancelTask(ctx context.Context, client, taskID string) (domain.Task, error) {
+func (f *fakeControlPlane) CancelTask(_ context.Context, _, _ string) (domain.Task, error) {
 	return domain.Task{}, nil
 }
