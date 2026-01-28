@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -31,6 +32,8 @@ type gatewayOptions struct {
 	caller              string
 	tags                []string
 	server              string
+	launchUIOnFail      bool
+	urlScheme           string
 	logger              *zap.Logger
 }
 
@@ -96,7 +99,16 @@ func main() {
 			}
 
 			gw := gateway.NewGateway(clientCfg, opts.caller, opts.tags, opts.server, opts.logger)
-			return gw.Run(ctx)
+			err := gw.Run(ctx)
+			if err != nil && opts.launchUIOnFail && isConnectionError(err) {
+				opts.logger.Info("failed to connect to mcpd, attempting to launch UI", zap.Error(err))
+				if launchErr := launchMCPDUI(opts.urlScheme, opts.logger); launchErr != nil {
+					opts.logger.Error("failed to launch UI", zap.Error(launchErr))
+					return err // return original error
+				}
+				opts.logger.Info("UI launch triggered, please start mcpd and retry")
+			}
+			return err
 		},
 	}
 
@@ -112,6 +124,8 @@ func main() {
 	root.PersistentFlags().StringVar(&opts.caller, "caller", "", "explicit caller name (optional)")
 	root.PersistentFlags().StringVar(&opts.server, "server", "", "server name for single-server mode")
 	root.PersistentFlags().StringArrayVar(&opts.tags, "tag", nil, "tag for server visibility (repeatable)")
+	root.PersistentFlags().BoolVar(&opts.launchUIOnFail, "launch-ui-on-fail", false, "attempt to launch MCPD UI if connection fails")
+	root.PersistentFlags().StringVar(&opts.urlScheme, "url-scheme", "mcpd", "URL scheme to use for launching UI (mcpd or mcpdev)")
 
 	if err := root.Execute(); err != nil {
 		opts.logger.Fatal("command failed", zap.Error(err))
@@ -145,6 +159,10 @@ func applyGatewayFlagBindings(flags *pflag.FlagSet, opts *gatewayOptions) {
 			opts.server, _ = flags.GetString("server")
 		case "tag":
 			opts.tags, _ = flags.GetStringArray("tag")
+		case "launch-ui-on-fail":
+			opts.launchUIOnFail, _ = flags.GetBool("launch-ui-on-fail")
+		case "url-scheme":
+			opts.urlScheme, _ = flags.GetString("url-scheme")
 		}
 	})
 }
@@ -179,4 +197,47 @@ func signalAwareContext(parent context.Context) (context.Context, context.Cancel
 	}()
 
 	return ctx, cancel
+}
+
+func isConnectionError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "connection refused") ||
+		strings.Contains(msg, "connect: no such file or directory") ||
+		strings.Contains(msg, "failed to connect") ||
+		strings.Contains(msg, "Unavailable")
+}
+
+func launchMCPDUI(scheme string, logger *zap.Logger) error {
+	if scheme == "" {
+		scheme = "mcpd"
+	}
+
+	// Validate scheme
+	if scheme != "mcpd" && scheme != "mcpdev" {
+		return fmt.Errorf("invalid URL scheme: %s (must be mcpd or mcpdev)", scheme)
+	}
+
+	url := fmt.Sprintf("%s://", scheme)
+	logger.Info("launching MCPD UI", zap.String("url", url))
+
+	// Use 'open' command on macOS, 'xdg-open' on Linux, 'start' on Windows
+	var cmd *exec.Cmd
+	switch {
+	case strings.Contains(strings.ToLower(os.Getenv("OS")), "windows"):
+		cmd = exec.CommandContext(context.Background(), "cmd", "/c", "start", url)
+	case fileExists("/usr/bin/open"): // macOS
+		cmd = exec.CommandContext(context.Background(), "open", url)
+	default: // Linux
+		cmd = exec.CommandContext(context.Background(), "xdg-open", url)
+	}
+
+	return cmd.Start()
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
