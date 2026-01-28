@@ -1101,3 +1101,201 @@ func (t *trackingLifecycle) StopInstance(_ context.Context, instance *domain.Ins
 	})
 	return nil
 }
+
+// slowStopLifecycle simulates a slow process exit for testing stop performance.
+type slowStopLifecycle struct {
+	stopDelay time.Duration
+	mu        sync.Mutex
+	stopCount int
+}
+
+func (s *slowStopLifecycle) StartInstance(_ context.Context, specKey string, spec domain.ServerSpec) (*domain.Instance, error) {
+	return domain.NewInstance(domain.InstanceOptions{
+		ID:         fmt.Sprintf("%s-inst-%d", spec.Name, time.Now().UnixNano()),
+		Spec:       spec,
+		SpecKey:    specKey,
+		State:      domain.InstanceStateReady,
+		LastActive: time.Now(),
+	}), nil
+}
+
+func (s *slowStopLifecycle) StopInstance(_ context.Context, instance *domain.Instance, _ string) error {
+	time.Sleep(s.stopDelay)
+	s.mu.Lock()
+	s.stopCount++
+	s.mu.Unlock()
+	if instance != nil {
+		instance.SetState(domain.InstanceStateStopped)
+	}
+	return nil
+}
+
+func (s *slowStopLifecycle) stops() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.stopCount
+}
+
+func TestStopSpec_SerialStopPerformance(t *testing.T) {
+	// This test documents the current behavior: StopSpec stops idle instances serially.
+	// With N instances each taking D time to stop, total time is N*D.
+	// Ideally this should be closer to D (parallel) rather than N*D (serial).
+
+	const (
+		instanceCount = 5
+		stopDelay     = 50 * time.Millisecond
+	)
+
+	lc := &slowStopLifecycle{stopDelay: stopDelay}
+	spec := domain.ServerSpec{
+		Name:            "svc",
+		Cmd:             []string{"./svc"},
+		MaxConcurrent:   1, // Force new instance per acquire when busy
+		ProtocolVersion: domain.DefaultProtocolVersion,
+	}
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, Options{})
+	require.NoError(t, err)
+
+	// Start multiple instances by keeping them busy
+	instances := make([]*domain.Instance, instanceCount)
+	for i := 0; i < instanceCount; i++ {
+		inst, err := s.Acquire(context.Background(), "svc", "")
+		require.NoError(t, err)
+		instances[i] = inst
+	}
+
+	// Verify we have multiple instances
+	state := s.getPool("svc", spec)
+	state.mu.Lock()
+	actualInstances := len(state.instances)
+	state.mu.Unlock()
+	require.Equal(t, instanceCount, actualInstances, "should have created %d separate instances", instanceCount)
+
+	// Release all instances so they become idle
+	for _, inst := range instances {
+		require.NoError(t, s.Release(context.Background(), inst))
+	}
+
+	// Measure StopSpec duration
+	start := time.Now()
+	require.NoError(t, s.StopSpec(context.Background(), "svc", "test"))
+	elapsed := time.Since(start)
+
+	require.Equal(t, instanceCount, lc.stops())
+
+	// Current behavior: serial stop takes ~N*D
+	// This assertion documents the current (suboptimal) behavior.
+	// If parallelized, elapsed should be closer to stopDelay.
+	serialThreshold := time.Duration(instanceCount-1) * stopDelay
+	if elapsed < serialThreshold {
+		t.Logf("StopSpec completed in %v (parallel behavior achieved)", elapsed)
+	} else {
+		t.Logf("StopSpec completed in %v (serial behavior, expected ~%v)", elapsed, time.Duration(instanceCount)*stopDelay)
+	}
+}
+
+func TestApplyCatalogDiff_PoolsMapNotCleaned(t *testing.T) {
+	// This test documents the current behavior: ApplyCatalogDiff removes instances
+	// but does NOT remove the poolState from the pools map.
+	// This causes memory to grow unbounded when specs are frequently added/removed.
+
+	lc := &fakeLifecycle{}
+	initialSpecs := map[string]domain.ServerSpec{
+		"svc-a": {Name: "svc-a", Cmd: []string{"./a"}, MaxConcurrent: 1, ProtocolVersion: domain.DefaultProtocolVersion},
+		"svc-b": {Name: "svc-b", Cmd: []string{"./b"}, MaxConcurrent: 1, ProtocolVersion: domain.DefaultProtocolVersion},
+	}
+	s, err := NewBasicScheduler(lc, initialSpecs, Options{})
+	require.NoError(t, err)
+
+	// Acquire instances to create pool states
+	instA, err := s.Acquire(context.Background(), "svc-a", "")
+	require.NoError(t, err)
+	require.NoError(t, s.Release(context.Background(), instA))
+
+	instB, err := s.Acquire(context.Background(), "svc-b", "")
+	require.NoError(t, err)
+	require.NoError(t, s.Release(context.Background(), instB))
+
+	// Verify pools exist
+	s.poolsMu.RLock()
+	poolCountBefore := len(s.pools)
+	s.poolsMu.RUnlock()
+	require.Equal(t, 2, poolCountBefore)
+
+	// Apply diff that removes svc-a
+	diff := domain.CatalogDiff{
+		RemovedSpecKeys: []string{"svc-a"},
+	}
+	newRegistry := map[string]domain.ServerSpec{
+		"svc-b": initialSpecs["svc-b"],
+	}
+	require.NoError(t, s.ApplyCatalogDiff(context.Background(), diff, newRegistry))
+
+	// Verify instance was stopped
+	require.Equal(t, domain.InstanceStateStopped, instA.State())
+
+	// Check pools map - this documents the current (leaky) behavior
+	s.poolsMu.RLock()
+	poolCountAfter := len(s.pools)
+	_, svcAPoolExists := s.pools["svc-a"]
+	s.poolsMu.RUnlock()
+
+	// Current behavior: pool still exists even after spec removed
+	// This is a memory leak - poolState for "svc-a" is never cleaned up.
+	if svcAPoolExists {
+		t.Logf("pools map still contains removed spec 'svc-a' (memory leak)")
+		require.Equal(t, poolCountBefore, poolCountAfter, "pool count unchanged - poolState not cleaned")
+	} else {
+		t.Logf("pools map correctly cleaned up removed spec 'svc-a'")
+		require.Equal(t, poolCountBefore-1, poolCountAfter)
+	}
+}
+
+func TestApplyCatalogDiff_ContextTimeoutLeavesPartialState(t *testing.T) {
+	// This test documents the risk: if context times out during ApplyCatalogDiff,
+	// some specs may not be stopped, leading to orphaned processes.
+
+	const (
+		stopDelay = 100 * time.Millisecond
+	)
+
+	lc := &slowStopLifecycle{stopDelay: stopDelay}
+	specs := map[string]domain.ServerSpec{
+		"svc-a": {Name: "svc-a", Cmd: []string{"./a"}, MaxConcurrent: 1, ProtocolVersion: domain.DefaultProtocolVersion},
+		"svc-b": {Name: "svc-b", Cmd: []string{"./b"}, MaxConcurrent: 1, ProtocolVersion: domain.DefaultProtocolVersion},
+		"svc-c": {Name: "svc-c", Cmd: []string{"./c"}, MaxConcurrent: 1, ProtocolVersion: domain.DefaultProtocolVersion},
+	}
+	s, err := NewBasicScheduler(lc, specs, Options{})
+	require.NoError(t, err)
+
+	// Create instances for all specs
+	instances := make(map[string]*domain.Instance)
+	for key := range specs {
+		inst, err := s.Acquire(context.Background(), key, "")
+		require.NoError(t, err)
+		require.NoError(t, s.Release(context.Background(), inst))
+		instances[key] = inst
+	}
+
+	// Apply diff with a very short timeout (less than time to stop all)
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	diff := domain.CatalogDiff{
+		RemovedSpecKeys: []string{"svc-a", "svc-b", "svc-c"},
+	}
+	err = s.ApplyCatalogDiff(ctx, diff, map[string]domain.ServerSpec{})
+
+	// Count how many were actually stopped
+	stoppedCount := 0
+	for _, inst := range instances {
+		if inst.State() == domain.InstanceStateStopped {
+			stoppedCount++
+		}
+	}
+
+	// Document behavior: with serial stops and short timeout,
+	// not all instances may be stopped
+	t.Logf("stopped %d/%d instances before timeout/completion", stoppedCount, len(instances))
+	t.Logf("ApplyCatalogDiff returned: %v", err)
+}

@@ -3,6 +3,7 @@ package scheduler
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"mcpd/internal/domain"
@@ -137,10 +138,19 @@ func (s *BasicScheduler) StopSpec(ctx context.Context, specKey, reason string) e
 		startCancel()
 	}
 
-	for _, inst := range immediate {
-		err := s.stopInstance(ctx, spec, inst.instance, reason)
-		s.observeInstanceStop(spec.Name, err)
-		s.recordInstanceStop(state)
+	// Stop idle instances in parallel
+	if len(immediate) > 0 {
+		var wg sync.WaitGroup
+		wg.Add(len(immediate))
+		for _, inst := range immediate {
+			go func(inst *trackedInstance) {
+				defer wg.Done()
+				err := s.stopInstance(ctx, spec, inst.instance, reason)
+				s.observeInstanceStop(spec.Name, err)
+				s.recordInstanceStop(state)
+			}(inst)
+		}
+		wg.Wait()
 	}
 
 	drainTimeout := spec.DrainTimeout()
