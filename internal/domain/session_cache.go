@@ -1,42 +1,58 @@
 package domain
 
 import (
+	"container/list"
 	"sync"
 	"time"
 )
 
 // SessionCache tracks per-session state for schema deduplication.
 // It uses hash mismatch detection to determine when full schemas need to be resent.
+// Implements LRU eviction using a doubly-linked list for O(1) eviction performance.
 type SessionCache struct {
 	mu      sync.RWMutex
-	entries map[string]*SessionCacheEntry
+	entries map[string]*list.Element // sessionKey -> list element
+	lru     *list.List               // LRU list, front = most recent, back = oldest
 	ttl     time.Duration
 	maxSize int
+}
+
+// lruEntry wraps SessionCacheEntry with LRU metadata.
+type lruEntry struct {
+	sessionKey string
+	entry      *SessionCacheEntry
 }
 
 // NewSessionCache creates a new session cache.
 func NewSessionCache(ttl time.Duration, maxSize int) *SessionCache {
 	return &SessionCache{
-		entries: make(map[string]*SessionCacheEntry),
+		entries: make(map[string]*list.Element),
+		lru:     list.New(),
 		ttl:     ttl,
 		maxSize: maxSize,
 	}
 }
 
 // Get retrieves session state for a session key.
+// Accessing an entry moves it to the front of the LRU list.
 func (c *SessionCache) Get(sessionKey string) (*SessionCacheEntry, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-	entry, ok := c.entries[sessionKey]
+	elem, ok := c.entries[sessionKey]
 	if !ok {
 		return nil, false
 	}
+
+	entry := elem.Value.(*lruEntry).entry
 
 	// Check TTL expiration
 	if time.Since(entry.LastUpdated) > c.ttl {
 		return nil, false
 	}
+
+	// Move to front (most recently used)
+	c.lru.MoveToFront(elem)
 
 	return entry, true
 }
@@ -46,13 +62,25 @@ func (c *SessionCache) Update(sessionKey string, sentSchemas map[string]string) 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	entry, ok := c.entries[sessionKey]
+	elem, ok := c.entries[sessionKey]
+	var entry *SessionCacheEntry
+
 	if !ok {
+		// New entry
 		entry = &SessionCacheEntry{
 			SessionKey:  sessionKey,
 			SentSchemas: make(map[string]string),
 		}
-		c.entries[sessionKey] = entry
+		lruItem := &lruEntry{
+			sessionKey: sessionKey,
+			entry:      entry,
+		}
+		elem = c.lru.PushFront(lruItem)
+		c.entries[sessionKey] = elem
+	} else {
+		// Existing entry - move to front (most recently used)
+		c.lru.MoveToFront(elem)
+		entry = elem.Value.(*lruEntry).entry
 	}
 
 	// Merge sent schemas
@@ -62,8 +90,8 @@ func (c *SessionCache) Update(sessionKey string, sentSchemas map[string]string) 
 	entry.LastUpdated = time.Now()
 	entry.RequestCount++
 
-	// Enforce max size by evicting oldest entries
-	if len(c.entries) > c.maxSize {
+	// Enforce max size by evicting oldest entries (O(1) operation)
+	for len(c.entries) > c.maxSize {
 		c.evictOldest()
 	}
 }
@@ -72,6 +100,13 @@ func (c *SessionCache) Update(sessionKey string, sentSchemas map[string]string) 
 func (c *SessionCache) Invalidate(sessionKey string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	elem, ok := c.entries[sessionKey]
+	if !ok {
+		return
+	}
+
+	c.lru.Remove(elem)
 	delete(c.entries, sessionKey)
 }
 
@@ -80,14 +115,17 @@ func (c *SessionCache) Invalidate(sessionKey string) {
 // - Session has no entry
 // - Tool was never sent before
 // - Current hash differs from last sent hash (schema changed).
+// Accessing an entry moves it to the front of the LRU list.
 func (c *SessionCache) NeedsFull(sessionKey, toolName, currentHash string) bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-	entry, ok := c.entries[sessionKey]
+	elem, ok := c.entries[sessionKey]
 	if !ok {
 		return true
 	}
+
+	entry := elem.Value.(*lruEntry).entry
 
 	// Check TTL expiration
 	if time.Since(entry.LastUpdated) > c.ttl {
@@ -99,6 +137,9 @@ func (c *SessionCache) NeedsFull(sessionKey, toolName, currentHash string) bool 
 		return true
 	}
 
+	// Move to front (most recently used)
+	c.lru.MoveToFront(elem)
+
 	// Hash mismatch detection - if hash changed, resend full schema
 	return lastHash != currentHash
 }
@@ -109,8 +150,10 @@ func (c *SessionCache) Cleanup() {
 	defer c.mu.Unlock()
 
 	now := time.Now()
-	for sessionKey, entry := range c.entries {
+	for sessionKey, elem := range c.entries {
+		entry := elem.Value.(*lruEntry).entry
 		if now.Sub(entry.LastUpdated) > c.ttl {
+			c.lru.Remove(elem)
 			delete(c.entries, sessionKey)
 		}
 	}
@@ -124,18 +167,14 @@ func (c *SessionCache) Size() int {
 }
 
 // evictOldest removes the oldest entry (must be called with lock held).
+// This is now O(1) thanks to the LRU list.
 func (c *SessionCache) evictOldest() {
-	var oldestID string
-	var oldestTime time.Time
-
-	for sessionKey, entry := range c.entries {
-		if oldestID == "" || entry.LastUpdated.Before(oldestTime) {
-			oldestID = sessionKey
-			oldestTime = entry.LastUpdated
-		}
+	elem := c.lru.Back()
+	if elem == nil {
+		return
 	}
 
-	if oldestID != "" {
-		delete(c.entries, oldestID)
-	}
+	lruItem := elem.Value.(*lruEntry)
+	c.lru.Remove(elem)
+	delete(c.entries, lruItem.sessionKey)
 }

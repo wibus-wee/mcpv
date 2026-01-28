@@ -96,26 +96,16 @@ func (s *ControlService) ListTools(ctx context.Context, req *controlv1.ListTools
 func (s *ControlService) WatchTools(req *controlv1.WatchToolsRequest, stream controlv1.ControlPlaneService_WatchToolsServer) error {
 	ctx := stream.Context()
 	client := req.GetCaller()
-	current, err := s.control.ListTools(ctx, client)
-	if err != nil {
-		return mapClientError("list tools", err)
-	}
-	lastETag := req.GetLastEtag()
-	if lastETag == "" || lastETag != current.ETag {
-		protoSnapshot, err := toProtoSnapshot(current)
-		if err != nil {
-			return status.Errorf(codes.Internal, "watch tools: %v", err)
-		}
-		if err := stream.Send(protoSnapshot); err != nil {
-			return err
-		}
-		lastETag = current.ETag
-	}
 
+	// WatchTools atomically subscribes and returns the initial snapshot,
+	// eliminating the race condition between ListTools and subscription.
 	updates, err := s.control.WatchTools(ctx, client)
 	if err != nil {
 		return mapClientError("watch tools", err)
 	}
+
+	// Client's lastETag enables incremental sync optimization
+	lastETag := req.GetLastEtag()
 
 	for {
 		select {
@@ -125,7 +115,8 @@ func (s *ControlService) WatchTools(req *controlv1.WatchToolsRequest, stream con
 			if !ok {
 				return nil
 			}
-			if lastETag == snapshot.ETag {
+			// Skip if client already has this version
+			if lastETag != "" && lastETag == snapshot.ETag {
 				continue
 			}
 			protoSnapshot, err := toProtoSnapshot(snapshot)

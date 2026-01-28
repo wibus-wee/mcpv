@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	"mcpd/internal/domain"
@@ -136,6 +137,109 @@ func TestControlService_ListToolsRequiresCaller(t *testing.T) {
 	require.Equal(t, codes.FailedPrecondition, status.Code(err))
 }
 
+func TestControlService_WatchToolsInitialSnapshot(t *testing.T) {
+	// Test that WatchTools atomically sends initial snapshot without race condition
+	initialSnapshot := domain.ToolSnapshot{
+		ETag: "v1",
+		Tools: []domain.ToolDefinition{
+			{Name: "tool1", InputSchema: map[string]any{"type": "object"}},
+		},
+	}
+
+	updateSnapshot := domain.ToolSnapshot{
+		ETag: "v2",
+		Tools: []domain.ToolDefinition{
+			{Name: "tool1", InputSchema: map[string]any{"type": "object"}},
+			{Name: "tool2", InputSchema: map[string]any{"type": "object"}},
+		},
+	}
+
+	watchCh := make(chan domain.ToolSnapshot, 2)
+	watchCh <- initialSnapshot
+	watchCh <- updateSnapshot
+	close(watchCh)
+
+	svc := NewControlService(&fakeControlPlane{
+		watchToolsCh: watchCh,
+	}, nil)
+
+	stream := &fakeWatchToolsStream{
+		ctx:       context.Background(),
+		snapshots: []domain.ToolSnapshot{},
+	}
+
+	err := svc.WatchTools(&controlv1.WatchToolsRequest{Caller: "caller"}, stream)
+	require.NoError(t, err)
+
+	// Should receive both initial and update snapshots
+	require.Len(t, stream.snapshots, 2)
+	require.Equal(t, "v1", stream.snapshots[0].ETag)
+	require.Equal(t, "v2", stream.snapshots[1].ETag)
+}
+
+func TestControlService_WatchToolsSkipsDuplicateETag(t *testing.T) {
+	// Test that WatchTools skips sending snapshot if client already has it
+	snapshot := domain.ToolSnapshot{
+		ETag: "v1",
+		Tools: []domain.ToolDefinition{
+			{Name: "tool1", InputSchema: map[string]any{"type": "object"}},
+		},
+	}
+
+	watchCh := make(chan domain.ToolSnapshot, 1)
+	watchCh <- snapshot
+	close(watchCh)
+
+	svc := NewControlService(&fakeControlPlane{
+		watchToolsCh: watchCh,
+	}, nil)
+
+	stream := &fakeWatchToolsStream{
+		ctx:       context.Background(),
+		snapshots: []domain.ToolSnapshot{},
+	}
+
+	// Client already has v1
+	err := svc.WatchTools(&controlv1.WatchToolsRequest{
+		Caller:   "caller",
+		LastEtag: "v1",
+	}, stream)
+	require.NoError(t, err)
+
+	// Should not receive any snapshots since client already has v1
+	require.Len(t, stream.snapshots, 0)
+}
+
+type fakeWatchToolsStream struct {
+	ctx       context.Context
+	snapshots []domain.ToolSnapshot
+}
+
+func (f *fakeWatchToolsStream) Send(snapshot *controlv1.ToolsSnapshot) error {
+	tools := make([]domain.ToolDefinition, len(snapshot.GetTools()))
+	for i, t := range snapshot.GetTools() {
+		tools[i] = domain.ToolDefinition{
+			Name:        t.GetName(),
+			InputSchema: make(map[string]any),
+		}
+	}
+	f.snapshots = append(f.snapshots, domain.ToolSnapshot{
+		ETag:  snapshot.GetEtag(),
+		Tools: tools,
+	})
+	return nil
+}
+
+func (f *fakeWatchToolsStream) Context() context.Context {
+	return f.ctx
+}
+
+func (f *fakeWatchToolsStream) SetHeader(metadata.MD) error  { return nil }
+func (f *fakeWatchToolsStream) SendHeader(metadata.MD) error { return nil }
+func (f *fakeWatchToolsStream) SetTrailer(metadata.MD)       {}
+func (f *fakeWatchToolsStream) SendMsg(any) error            { return nil }
+func (f *fakeWatchToolsStream) RecvMsg(any) error            { return nil }
+
 type fakeControlPlane struct {
 	snapshot             domain.ToolSnapshot
 	resourcePage         domain.ResourcePage
@@ -147,6 +251,7 @@ type fakeControlPlane struct {
 	registerRegistration domain.ClientRegistration
 	registerErr          error
 	unregisterErr        error
+	watchToolsCh         <-chan domain.ToolSnapshot
 }
 
 func (f *fakeControlPlane) Info(_ context.Context) (domain.ControlPlaneInfo, error) {
@@ -192,6 +297,9 @@ func (f *fakeControlPlane) ListToolCatalog(_ context.Context) (domain.ToolCatalo
 }
 
 func (f *fakeControlPlane) WatchTools(_ context.Context, _ string) (<-chan domain.ToolSnapshot, error) {
+	if f.watchToolsCh != nil {
+		return f.watchToolsCh, nil
+	}
 	ch := make(chan domain.ToolSnapshot)
 	close(ch)
 	return ch, nil
