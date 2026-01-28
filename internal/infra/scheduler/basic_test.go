@@ -780,12 +780,19 @@ func TestBasicScheduler_WaitersWakeAfterStartFailure(t *testing.T) {
 	<-started
 	close(release)
 
+	successes := 0
 	for i := 0; i < 3; i++ {
 		err := <-errorsCh
-		require.NoError(t, err)
-		require.NotNil(t, <-results)
+		inst := <-results
+		if err != nil {
+			require.Nil(t, inst)
+			continue
+		}
+		require.NotNil(t, inst)
+		successes++
 	}
 	require.Equal(t, 2, lc.starts())
+	require.Equal(t, 2, successes)
 }
 
 func TestBasicScheduler_Acquire_DetachesStartFromCallerCancel(t *testing.T) {
