@@ -4,9 +4,9 @@
 
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { coreStatusVariants } from '@/modules/shared/core-status'
 import type { ServerRuntimeState } from '@/modules/shared/server-status'
 import { serverStateLabels, serverStateVariants } from '@/modules/shared/server-status'
-import { coreStatusVariants } from '@/modules/shared/core-status'
 
 /**
  * Core application status types

@@ -2,7 +2,7 @@
 // Output: Data table with sorting, filtering, and row selection
 // Position: Main table component for servers page
 
-import type { ServerSummary, ServerRuntimeStatus } from '@bindings/mcpd/internal/ui'
+import type { ServerRuntimeStatus, ServerSummary } from '@bindings/mcpd/internal/ui'
 import type { ColumnDef, ColumnFiltersState, SortingState } from '@tanstack/react-table'
 import {
   flexRender,
@@ -19,7 +19,7 @@ import {
   Trash2Icon,
   WrenchIcon,
 } from 'lucide-react'
-import { useMemo, useState, memo } from 'react'
+import { memo, useMemo, useState } from 'react'
 
 import {
   AlertDialog,
@@ -58,10 +58,9 @@ import { useActiveClients } from '@/hooks/use-active-clients'
 import { formatDuration, getElapsedMs } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import { ServerRuntimeIndicator } from '@/modules/servers/components/server-runtime-status'
-import { useRuntimeStatus, useServerOperation, useServers } from '@/modules/servers/hooks'
+import { useRuntimeStatus, useServerOperation, useServers, useToolsByServer } from '@/modules/servers/hooks'
 import type { ServerRuntimeState } from '@/modules/shared/server-status'
 import { ACTIVE_INSTANCE_STATES, hasActiveInstance } from '@/modules/shared/server-status'
-import { useToolsByServer } from '@/modules/servers/hooks'
 
 interface ServersDataTableProps {
   servers: ServerSummary[]
@@ -267,7 +266,7 @@ export function ServersDataTable({
   // Create index Maps - O(n) once
   const statusMap = useMemo(() => {
     const map = new Map<string, ServerRuntimeStatus>()
-    statusList?.forEach(status => {
+    statusList?.forEach((status) => {
       if (status.specKey) {
         map.set(status.specKey, status)
       }
@@ -277,7 +276,7 @@ export function ServersDataTable({
 
   const clientsMap = useMemo(() => {
     const map = new Map<string, number>()
-    clients?.forEach(client => {
+    clients?.forEach((client) => {
       if (client.server) {
         const count = map.get(client.server) ?? 0
         map.set(client.server, count + 1)
@@ -419,9 +418,9 @@ export function ServersDataTable({
                   {header.isPlaceholder
                     ? null
                     : flexRender(
-                      header.column.columnDef.header,
-                      header.getContext(),
-                    )}
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )}
                 </TableHead>
               ))}
             </TableRow>

@@ -20,8 +20,8 @@ import { useCoreState } from '@/hooks/use-core-state'
 import { Spring } from '@/lib/spring'
 import { formatDuration } from '@/lib/time'
 import { useServers } from '@/modules/servers/hooks'
-
 import { coreStatusConfig } from '@/modules/shared/core-status'
+
 import { useResources, useTools } from '../hooks'
 import { AnimatedNumber } from './sparkline'
 

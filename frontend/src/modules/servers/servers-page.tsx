@@ -4,10 +4,10 @@
 
 import type { ServerDetail, ServerSummary } from '@bindings/mcpd/internal/ui'
 import { useNavigate } from '@tanstack/react-router'
+import { useSetAtom } from 'jotai'
 import { PlusIcon, SearchIcon } from 'lucide-react'
 import { m } from 'motion/react'
 import { useEffect, useState } from 'react'
-import { useSetAtom } from 'jotai'
 
 import { RefreshButton } from '@/components/custom/refresh-button'
 import { Badge } from '@/components/ui/badge'
@@ -20,12 +20,11 @@ import { Spring } from '@/lib/spring'
 import { ImportMcpServersSheet } from '@/modules/servers/components/import-mcp-servers-sheet'
 
 import { selectedServerAtom } from './atoms'
-
 import { ServerDetailSheet } from './components/server-detail-sheet'
 import { ServerEditSheet } from './components/server-edit-sheet'
 import { ServersDataTable } from './components/servers-data-table'
-import { useFilteredServers, useConfigMode, useServer, useServers } from './hooks'
 import type { ServerTab } from './constants'
+import { useConfigMode, useFilteredServers, useServer, useServers } from './hooks'
 
 interface ServersPageProps {
   initialTab?: ServerTab

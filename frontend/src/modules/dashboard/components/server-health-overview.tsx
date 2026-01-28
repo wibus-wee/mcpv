@@ -18,11 +18,12 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import type { AggregatedStats } from '@/lib/server-stats'
+import { aggregateStats } from '@/lib/server-stats'
 import { Spring } from '@/lib/spring'
-import { aggregateStats, type AggregatedStats } from '@/lib/server-stats'
+import { useRuntimeStatus, useServerInitStatus } from '@/modules/servers/hooks'
 
 import { AnimatedNumber, StackedBar } from './sparkline'
-import { useRuntimeStatus, useServerInitStatus } from '@/modules/servers/hooks'
 
 function HealthVerdict({ stats }: { stats: AggregatedStats }) {
   const { utilization, errorRate, failedInstances, suspendedServers, totalServers } = stats
@@ -209,20 +210,22 @@ export function ServerHealthOverview() {
           <StackedBar segments={poolSegments} height={10} />
           <div className="flex flex-wrap gap-3 text-xs">
             {poolSegments.map(segment =>
-              segment.value > 0 ? (
-                <Tooltip key={segment.label}>
-                  <TooltipTrigger>
-                    <div className="flex items-center gap-1.5">
-                      <span className={`size-2 rounded-full ${segment.color}`} />
-                      <span className="text-muted-foreground">{segment.label}</span>
-                      <span className="font-medium">{segment.value}</span>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {segment.label}: {segment.value} instance{segment.value !== 1 ? 's' : ''}
-                  </TooltipContent>
-                </Tooltip>
-              ) : null
+              segment.value > 0
+                ? (
+                    <Tooltip key={segment.label}>
+                      <TooltipTrigger>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`size-2 rounded-full ${segment.color}`} />
+                          <span className="text-muted-foreground">{segment.label}</span>
+                          <span className="font-medium">{segment.value}</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {segment.label}: {segment.value} instance{segment.value !== 1 ? 's' : ''}
+                      </TooltipContent>
+                    </Tooltip>
+                  )
+                : null,
             )}
           </div>
         </div>

@@ -14,9 +14,9 @@ import { useForm } from 'react-hook-form'
 import useSWR from 'swr'
 
 import { toastManager } from '@/components/ui/toast'
+import { swrKeys } from '@/lib/swr-keys'
 import { useClients, useServers } from '@/modules/servers/hooks'
 import { reloadConfig } from '@/modules/servers/lib/reload-config'
-import { swrKeys } from '@/lib/swr-keys'
 
 import {
   DEFAULT_SUBAGENT_FORM,

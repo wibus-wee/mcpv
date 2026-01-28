@@ -25,8 +25,8 @@ import { coreStateKey, useCoreState } from '@/hooks/use-core-state'
 import type { LogEntry } from '@/hooks/use-logs'
 import { logsKey, maxLogEntries } from '@/hooks/use-logs'
 import { jotaiStore } from '@/lib/jotai'
-import { swrKeys } from '@/lib/swr-keys'
 import { Spring } from '@/lib/spring'
+import { swrKeys } from '@/lib/swr-keys'
 
 const logSourceValues = new Set<LogEntry['source']>(['core', 'downstream', 'ui'])
 

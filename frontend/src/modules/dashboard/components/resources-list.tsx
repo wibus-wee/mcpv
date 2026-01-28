@@ -28,10 +28,11 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
+import type { ResourceSchema } from '@/lib/tool-schema'
+import { parseResourceJson } from '@/lib/tool-schema'
 import { cn } from '@/lib/utils'
 
 import { useResources } from '../hooks'
-import { parseResourceJson, type ResourceSchema } from '@/lib/tool-schema'
 
 export function ResourcesList() {
   const { resources, isLoading, mutate } = useResources()

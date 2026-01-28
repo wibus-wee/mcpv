@@ -31,7 +31,6 @@ import {
 } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import { toastManager } from '@/components/ui/toast'
-
 import { formatCommaSeparated, formatEnvironmentVariables, parseCommaSeparated, parseEnvironmentVariables } from '@/lib/parsers'
 import { reloadConfig } from '@/modules/servers/lib/reload-config'
 
@@ -161,7 +160,8 @@ export function ServerEditSheet({
         httpMaxRetries: server.http?.maxRetries ?? 3,
         httpHeaders: httpHeadersString,
       })
-    } else {
+    }
+    else {
       reset(INITIAL_FORM_DATA)
     }
   }, [server, open, reset])
@@ -212,13 +212,13 @@ export function ServerEditSheet({
         sessionTTLSeconds: data.sessionTTLSeconds,
         drainTimeoutSeconds: data.drainTimeoutSeconds,
         activationMode: data.activationMode,
-        exposeTools: exposeTools,
+        exposeTools,
         http: data.transport === 'streamable_http'
           ? {
-            endpoint: data.endpoint.trim(),
-            headers: httpHeaders,
-            maxRetries: data.httpMaxRetries,
-          }
+              endpoint: data.endpoint.trim(),
+              headers: httpHeaders,
+              maxRetries: data.httpMaxRetries,
+            }
           : null,
       }
 
@@ -463,7 +463,7 @@ export function ServerEditSheet({
                 />
               </FormField>
 
-              <div></div>
+              <div />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -525,17 +525,17 @@ export function ServerEditSheet({
               'Saving...'
             ) : isEdit
               ? (
-                <>
-                  <SaveIcon className="mr-2 size-4" />
-                  Save Changes
-                </>
-              )
+                  <>
+                    <SaveIcon className="mr-2 size-4" />
+                    Save Changes
+                  </>
+                )
               : (
-                <>
-                  <PlusIcon className="mr-2 size-4" />
-                  Add Server
-                </>
-              )}
+                  <>
+                    <PlusIcon className="mr-2 size-4" />
+                    Add Server
+                  </>
+                )}
           </Button>
         </SheetFooter>
       </SheetContent>

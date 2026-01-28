@@ -2,6 +2,7 @@
 // Output: SubAgent settings card using compound component pattern
 // Position: Settings page SubAgent section
 
+import type { SubAgentConfigDetail } from '@bindings/mcpd/internal/ui'
 import { AlertCircleIcon, AlertTriangleIcon, TagIcon, XIcon } from 'lucide-react'
 import type * as React from 'react'
 import type { UseFormReturn } from 'react-hook-form'
@@ -22,8 +23,6 @@ import {
 import { InputGroup, InputGroupInput } from '@/components/ui/input-group'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-
-import type { SubAgentConfigDetail } from '@bindings/mcpd/internal/ui'
 
 import { SUBAGENT_PROVIDER_OPTIONS } from '../lib/subagent-config'
 import type { ModelFetchState } from '../lib/subagent-models'

@@ -6,13 +6,13 @@ import type { ServerInitStatus, ServerRuntimeStatus } from '@bindings/mcpd/inter
 import { RuntimeService } from '@bindings/mcpd/internal/ui'
 import { useState } from 'react'
 
+import { ServerStateBadge, ServerStateCountBadge } from '@/components/custom/status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { formatInstanceId, formatInstanceTimeline, getOldestUptimeMs } from '@/lib/server-stats'
 import { formatDuration, formatLatency, getElapsedMs, getRemainingSeconds } from '@/lib/time'
 import { cn } from '@/lib/utils'
-import { ServerStateBadge, ServerStateCountBadge } from '@/components/custom/status-badge'
-import { formatInstanceId, formatInstanceTimeline, getOldestUptimeMs } from '@/lib/server-stats'
 
 import { useRuntimeStatus, useServerInitStatus } from '../hooks'
 
@@ -117,12 +117,12 @@ export function ServerRuntimeDetails({
   const showInitBadge = Boolean(initStatus) && !showInitDetails
   const stateCount
     = stats.ready
-    + stats.busy
-    + stats.starting
-    + stats.initializing
-    + stats.handshaking
-    + stats.draining
-    + stats.failed
+      + stats.busy
+      + stats.starting
+      + stats.initializing
+      + stats.handshaking
+      + stats.draining
+      + stats.failed
 
   return (
     <div className={cn('space-y-3', className)}>
