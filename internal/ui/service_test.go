@@ -254,24 +254,30 @@ func TestLogService_StopLogStream_CancelsSession(t *testing.T) {
 }
 
 func newLogServiceWithControlPlane(cp app.ControlPlaneAPI) *LogService {
-	manager := NewManager(nil, &app.App{}, "")
-	manager.mu.Lock()
-	manager.coreState = CoreStateRunning
-	manager.controlPlane = cp
-	manager.mu.Unlock()
-
+	manager := newRunningManagerForTest(cp)
 	deps := NewServiceDeps(&app.App{}, testLogger())
 	deps.setManager(manager)
 
 	return NewLogService(deps)
 }
 
+func newRunningManagerForTest(cp app.ControlPlaneAPI) *Manager {
+	manager := NewManager(nil, &app.App{}, "")
+	manager.mu.Lock()
+	manager.coreState = CoreStateRunning
+	manager.controlPlane = cp
+	manager.mu.Unlock()
+	return manager
+}
+
 func waitForContextDone(ctx context.Context, t *testing.T, timeout time.Duration) {
 	t.Helper()
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
 	select {
 	case <-ctx.Done():
 		return
-	case <-time.After(timeout):
+	case <-timer.C:
 		t.Fatalf("expected context to be canceled within %s", timeout)
 	}
 }

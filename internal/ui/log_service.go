@@ -174,6 +174,8 @@ func (s *LogService) replaceLogSession(next *logSession) *logSession {
 	s.logSession = next
 	s.logMu.Unlock()
 
+	// Cancel the previous session immediately; the active session is canceled
+	// by StopLogStream or by its parent context.
 	if prev != nil {
 		prev.cancel()
 	}
