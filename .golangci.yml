@@ -8,21 +8,12 @@ run:
   modules-download-mode: readonly
   go: "1.25"
 
-staticcheck:
-  go: "1.25"
-  # https://staticcheck.io/docs/options#checks
-  checks: [ "all" ]
-
-stylecheck:
-  go: "1.25"
-
-# linters-settings:
-#   goimports:
-#     # Put imports beginning with prefix after 3rd-party packages.
-#     # It's a comma-separated list of prefixes.
-#     local-prefixes: github.com/risingwavelabs/risingwave-cloud
-
 linters:
+  settings:
+    staticcheck:
+      # https://staticcheck.io/docs/options#checks
+      checks: [ "all" ]
+
   enable:
     - bodyclose
     - errcheck
