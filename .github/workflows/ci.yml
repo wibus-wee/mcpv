@@ -1,0 +1,30 @@
+name: "CI Pipeline"
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  lint:
+    name: Lint
+    uses: ./.github/workflows/lint.yml
+
+  test:
+    name: Test
+    uses: ./.github/workflows/test.yml
+
+  cli-build:
+    name: CLI Build
+    uses: ./.github/workflows/cli-build.yml
+    needs: test
+    secrets: inherit
+
+  gui-build:
+    name: GUI Build
+    uses: ./.github/workflows/gui-build.yml
+    needs: test
+    secrets: inherit
