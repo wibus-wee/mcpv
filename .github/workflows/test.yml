@@ -47,7 +47,9 @@ jobs:
           go-version: '1.25'
         
       - name: Ensure Dist
-        run: mkdir -p ./frontend/dist
+        run: |
+          mkdir -p ./frontend/dist
+          echo "<html>Fake</html>" > ./frontend/dist/index.html
 
       - name: generate test coverage
         run: go test ./... -coverprofile=./cover.out -covermode=atomic
