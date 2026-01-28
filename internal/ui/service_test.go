@@ -229,7 +229,7 @@ func TestLogService_StartLogStream_RestartsExisting(t *testing.T) {
 	streams := cp.streamContexts()
 	require.Len(t, streams, 2)
 
-	waitForContextDone(t, streams[0], time.Second)
+	waitForContextDone(streams[0], t, time.Second)
 
 	select {
 	case <-streams[1].Done():
@@ -250,7 +250,7 @@ func TestLogService_StopLogStream_CancelsSession(t *testing.T) {
 
 	svc.StopLogStream()
 
-	waitForContextDone(t, streams[0], time.Second)
+	waitForContextDone(streams[0], t, time.Second)
 }
 
 func newLogServiceWithControlPlane(cp app.ControlPlaneAPI) *LogService {
@@ -266,7 +266,7 @@ func newLogServiceWithControlPlane(cp app.ControlPlaneAPI) *LogService {
 	return NewLogService(deps)
 }
 
-func waitForContextDone(t *testing.T, ctx context.Context, timeout time.Duration) {
+func waitForContextDone(ctx context.Context, t *testing.T, timeout time.Duration) {
 	t.Helper()
 	select {
 	case <-ctx.Done():
