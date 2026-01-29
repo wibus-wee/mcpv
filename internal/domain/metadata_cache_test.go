@@ -2,6 +2,7 @@ package domain
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -148,4 +149,31 @@ func TestMetadataCache_EmptySlices(t *testing.T) {
 	prompts, ok := cache.GetPrompts("spec-3")
 	require.True(t, ok)
 	require.Len(t, prompts, 0)
+}
+
+func TestMetadataCache_TTLExpiration(t *testing.T) {
+	cache := NewMetadataCacheWithTTL(10 * time.Millisecond)
+
+	tools := []ToolDefinition{{Name: "tool1"}}
+	resources := []ResourceDefinition{{URI: "file://test"}}
+	prompts := []PromptDefinition{{Name: "prompt1"}}
+
+	cache.SetTools("spec-1", tools, "etag-tools")
+	cache.SetResources("spec-1", resources, "etag-resources")
+	cache.SetPrompts("spec-1", prompts, "etag-prompts")
+
+	require.True(t, cache.HasTools("spec-1"))
+
+	time.Sleep(15 * time.Millisecond)
+
+	_, ok := cache.GetTools("spec-1")
+	require.False(t, ok)
+	require.False(t, cache.HasResources("spec-1"))
+	require.False(t, cache.HasPrompts("spec-1"))
+	require.Empty(t, cache.GetToolETag("spec-1"))
+	require.Empty(t, cache.GetResourceETag("spec-1"))
+	require.Empty(t, cache.GetPromptETag("spec-1"))
+	_, ok = cache.GetCachedAt("spec-1")
+	require.False(t, ok)
+	require.Equal(t, 0, cache.Stats().ServerCount)
 }

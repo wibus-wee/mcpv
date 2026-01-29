@@ -5,11 +5,14 @@ import (
 	"time"
 )
 
+const defaultMetadataCacheTTL = 24 * time.Hour
+
 // MetadataCache provides thread-safe storage for MCP server metadata
 // collected during bootstrap. This allows the system to serve tool/resource/prompt
 // information even when servers are not running (lazy startup strategy).
 type MetadataCache struct {
 	mu sync.RWMutex
+	ttl time.Duration
 
 	tools     map[string][]ToolDefinition     // specKey -> tools
 	resources map[string][]ResourceDefinition // specKey -> resources
@@ -24,6 +27,12 @@ type MetadataCache struct {
 
 // NewMetadataCache creates a new empty metadata cache.
 func NewMetadataCache() *MetadataCache {
+	return NewMetadataCacheWithTTL(defaultMetadataCacheTTL)
+}
+
+// NewMetadataCacheWithTTL creates a metadata cache with a TTL.
+// A non-positive TTL disables expiration.
+func NewMetadataCacheWithTTL(ttl time.Duration) *MetadataCache {
 	return &MetadataCache{
 		tools:         make(map[string][]ToolDefinition),
 		resources:     make(map[string][]ResourceDefinition),
@@ -32,6 +41,7 @@ func NewMetadataCache() *MetadataCache {
 		resourceETags: make(map[string]string),
 		promptETags:   make(map[string]string),
 		cachedAt:      make(map[string]time.Time),
+		ttl:           ttl,
 	}
 }
 
@@ -51,8 +61,17 @@ func (c *MetadataCache) SetTools(specKey string, tools []ToolDefinition, etag st
 
 // GetTools retrieves cached tool definitions for a server.
 func (c *MetadataCache) GetTools(specKey string) ([]ToolDefinition, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	return c.getToolsAt(specKey, time.Now())
+}
+
+func (c *MetadataCache) getToolsAt(specKey string, now time.Time) ([]ToolDefinition, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.isExpiredLocked(specKey, now) {
+		c.clearSpecLocked(specKey)
+		return nil, false
+	}
 
 	tools, ok := c.tools[specKey]
 	if !ok {
@@ -67,8 +86,12 @@ func (c *MetadataCache) GetTools(specKey string) ([]ToolDefinition, bool) {
 
 // GetToolETag returns the ETag for cached tools.
 func (c *MetadataCache) GetToolETag(specKey string) string {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.isExpiredLocked(specKey, time.Now()) {
+		c.clearSpecLocked(specKey)
+		return ""
+	}
 	return c.toolETags[specKey]
 }
 
@@ -87,8 +110,13 @@ func (c *MetadataCache) SetResources(specKey string, resources []ResourceDefinit
 
 // GetResources retrieves cached resource definitions for a server.
 func (c *MetadataCache) GetResources(specKey string) ([]ResourceDefinition, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.isExpiredLocked(specKey, time.Now()) {
+		c.clearSpecLocked(specKey)
+		return nil, false
+	}
 
 	resources, ok := c.resources[specKey]
 	if !ok {
@@ -102,8 +130,12 @@ func (c *MetadataCache) GetResources(specKey string) ([]ResourceDefinition, bool
 
 // GetResourceETag returns the ETag for cached resources.
 func (c *MetadataCache) GetResourceETag(specKey string) string {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.isExpiredLocked(specKey, time.Now()) {
+		c.clearSpecLocked(specKey)
+		return ""
+	}
 	return c.resourceETags[specKey]
 }
 
@@ -122,8 +154,13 @@ func (c *MetadataCache) SetPrompts(specKey string, prompts []PromptDefinition, e
 
 // GetPrompts retrieves cached prompt definitions for a server.
 func (c *MetadataCache) GetPrompts(specKey string) ([]PromptDefinition, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.isExpiredLocked(specKey, time.Now()) {
+		c.clearSpecLocked(specKey)
+		return nil, false
+	}
 
 	prompts, ok := c.prompts[specKey]
 	if !ok {
@@ -137,39 +174,59 @@ func (c *MetadataCache) GetPrompts(specKey string) ([]PromptDefinition, bool) {
 
 // GetPromptETag returns the ETag for cached prompts.
 func (c *MetadataCache) GetPromptETag(specKey string) string {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.isExpiredLocked(specKey, time.Now()) {
+		c.clearSpecLocked(specKey)
+		return ""
+	}
 	return c.promptETags[specKey]
 }
 
 // GetCachedAt returns when a server's metadata was cached.
 func (c *MetadataCache) GetCachedAt(specKey string) (time.Time, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.isExpiredLocked(specKey, time.Now()) {
+		c.clearSpecLocked(specKey)
+		return time.Time{}, false
+	}
 	t, ok := c.cachedAt[specKey]
 	return t, ok
 }
 
 // HasTools returns true if tools are cached for the given specKey.
 func (c *MetadataCache) HasTools(specKey string) bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.isExpiredLocked(specKey, time.Now()) {
+		c.clearSpecLocked(specKey)
+		return false
+	}
 	_, ok := c.tools[specKey]
 	return ok
 }
 
 // HasResources returns true if resources are cached for the given specKey.
 func (c *MetadataCache) HasResources(specKey string) bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.isExpiredLocked(specKey, time.Now()) {
+		c.clearSpecLocked(specKey)
+		return false
+	}
 	_, ok := c.resources[specKey]
 	return ok
 }
 
 // HasPrompts returns true if prompts are cached for the given specKey.
 func (c *MetadataCache) HasPrompts(specKey string) bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.isExpiredLocked(specKey, time.Now()) {
+		c.clearSpecLocked(specKey)
+		return false
+	}
 	_, ok := c.prompts[specKey]
 	return ok
 }
@@ -192,20 +249,14 @@ func (c *MetadataCache) Clear() {
 func (c *MetadataCache) ClearSpec(specKey string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-
-	delete(c.tools, specKey)
-	delete(c.resources, specKey)
-	delete(c.prompts, specKey)
-	delete(c.toolETags, specKey)
-	delete(c.resourceETags, specKey)
-	delete(c.promptETags, specKey)
-	delete(c.cachedAt, specKey)
+	c.clearSpecLocked(specKey)
 }
 
 // GetAllTools returns all cached tools across all servers.
 func (c *MetadataCache) GetAllTools() []ToolDefinition {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.purgeExpiredLocked(time.Now())
 
 	var all []ToolDefinition
 	for _, tools := range c.tools {
@@ -218,8 +269,9 @@ func (c *MetadataCache) GetAllTools() []ToolDefinition {
 
 // GetAllResources returns all cached resources across all servers.
 func (c *MetadataCache) GetAllResources() []ResourceDefinition {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.purgeExpiredLocked(time.Now())
 
 	var all []ResourceDefinition
 	for _, resources := range c.resources {
@@ -232,8 +284,9 @@ func (c *MetadataCache) GetAllResources() []ResourceDefinition {
 
 // GetAllPrompts returns all cached prompts across all servers.
 func (c *MetadataCache) GetAllPrompts() []PromptDefinition {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.purgeExpiredLocked(time.Now())
 
 	var all []PromptDefinition
 	for _, prompts := range c.prompts {
@@ -246,8 +299,9 @@ func (c *MetadataCache) GetAllPrompts() []PromptDefinition {
 
 // SpecKeys returns all specKeys that have cached metadata.
 func (c *MetadataCache) SpecKeys() []string {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.purgeExpiredLocked(time.Now())
 
 	seen := make(map[string]struct{})
 	for key := range c.tools {
@@ -269,8 +323,9 @@ func (c *MetadataCache) SpecKeys() []string {
 
 // Stats returns cache statistics.
 func (c *MetadataCache) Stats() MetadataCacheStats {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.purgeExpiredLocked(time.Now())
 
 	totalTools := 0
 	for _, tools := range c.tools {
@@ -293,6 +348,38 @@ func (c *MetadataCache) Stats() MetadataCacheStats {
 		ResourceCount: totalResources,
 		PromptCount:   totalPrompts,
 	}
+}
+
+func (c *MetadataCache) isExpiredLocked(specKey string, now time.Time) bool {
+	if c.ttl <= 0 {
+		return false
+	}
+	cachedAt, ok := c.cachedAt[specKey]
+	if !ok {
+		return true
+	}
+	return now.Sub(cachedAt) > c.ttl
+}
+
+func (c *MetadataCache) purgeExpiredLocked(now time.Time) {
+	if c.ttl <= 0 {
+		return
+	}
+	for specKey, cachedAt := range c.cachedAt {
+		if now.Sub(cachedAt) > c.ttl {
+			c.clearSpecLocked(specKey)
+		}
+	}
+}
+
+func (c *MetadataCache) clearSpecLocked(specKey string) {
+	delete(c.tools, specKey)
+	delete(c.resources, specKey)
+	delete(c.prompts, specKey)
+	delete(c.toolETags, specKey)
+	delete(c.resourceETags, specKey)
+	delete(c.promptETags, specKey)
+	delete(c.cachedAt, specKey)
 }
 
 // MetadataCacheStats provides statistics about the cache contents.
