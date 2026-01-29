@@ -30,7 +30,7 @@ With `mcpd`, you can manage MCP servers like containers: **On-demand startup, Sc
 - **🎯 Unified Gateway (`mcpdmcp`)**: Provides a single entry point for all your MCP servers. Supports sticky sessions and concurrency control for high-frequency AI interactions.
 - **🧠 Smart SubAgent**: Built-in intelligent filtering powered by `CloudWeGo/Eino`. The `automatic_mcp` tool dynamically selects relevant tools based on task context, minimizing context window bloat and token costs.
 - **🖼 GUI Support (`mcpdui`)**: A desktop client built with Wails 3. Features real-time log streaming, tool inspection, resource browsing, and intuitive configuration editing.
-- **📁 Profile Store**: Advanced caller-to-profile mapping. Configure independent toolsets for different clients like VSCode, Cursor, or specific projects.
+- **📁 Single Config File**: Server-centric configuration with tag-based visibility. Configure MCP servers with optional tags and filter toolsets for clients like VSCode, Cursor, or specific projects based on tag matching.
 - **📊 Observability**: Native Prometheus metrics and structured logging. Includes a pre-configured Grafana dashboard to monitor latency, cold-start times, and error rates.
 
 ## 🏗 Architecture
