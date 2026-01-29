@@ -143,9 +143,6 @@ export function ActiveClientsPanel() {
           >
             <UserIcon className="mb-2 size-8 text-muted-foreground/30" />
             <p className="text-sm text-muted-foreground">No active clients</p>
-            <p className="text-xs text-muted-foreground/60">
-              Clients will appear when IDEs connect
-            </p>
           </m.div>
         ) : (
           <ScrollArea className="h-48">

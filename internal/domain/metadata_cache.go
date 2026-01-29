@@ -11,7 +11,7 @@ const defaultMetadataCacheTTL = 24 * time.Hour
 // collected during bootstrap. This allows the system to serve tool/resource/prompt
 // information even when servers are not running (lazy startup strategy).
 type MetadataCache struct {
-	mu sync.RWMutex
+	mu  sync.RWMutex
 	ttl time.Duration
 
 	tools     map[string][]ToolDefinition     // specKey -> tools

@@ -1194,10 +1194,9 @@ func TestStopSpec_SerialStopPerformance(t *testing.T) {
 	}
 }
 
-func TestApplyCatalogDiff_PoolsMapNotCleaned(t *testing.T) {
-	// This test documents the current behavior: ApplyCatalogDiff removes instances
-	// but does NOT remove the poolState from the pools map.
-	// This causes memory to grow unbounded when specs are frequently added/removed.
+func TestApplyCatalogDiff_PoolsMapCleaned(t *testing.T) {
+	// ApplyCatalogDiff should remove the poolState from the pools map once
+	// the spec is removed and instances are stopped.
 
 	lc := &fakeLifecycle{}
 	initialSpecs := map[string]domain.ServerSpec{
@@ -1234,21 +1233,13 @@ func TestApplyCatalogDiff_PoolsMapNotCleaned(t *testing.T) {
 	// Verify instance was stopped
 	require.Equal(t, domain.InstanceStateStopped, instA.State())
 
-	// Check pools map - this documents the current (leaky) behavior
+	// Check pools map - removed spec should be cleaned
 	s.poolsMu.RLock()
 	poolCountAfter := len(s.pools)
 	_, svcAPoolExists := s.pools["svc-a"]
 	s.poolsMu.RUnlock()
-
-	// Current behavior: pool still exists even after spec removed
-	// This is a memory leak - poolState for "svc-a" is never cleaned up.
-	if svcAPoolExists {
-		t.Logf("pools map still contains removed spec 'svc-a' (memory leak)")
-		require.Equal(t, poolCountBefore, poolCountAfter, "pool count unchanged - poolState not cleaned")
-	} else {
-		t.Logf("pools map correctly cleaned up removed spec 'svc-a'")
-		require.Equal(t, poolCountBefore-1, poolCountAfter)
-	}
+	require.False(t, svcAPoolExists)
+	require.Equal(t, poolCountBefore-1, poolCountAfter)
 }
 
 func TestApplyCatalogDiff_ContextTimeoutLeavesPartialState(t *testing.T) {

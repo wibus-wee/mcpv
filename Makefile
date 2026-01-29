@@ -18,7 +18,8 @@ export CGO_LDFLAGS=-mmacosx-version-min=$(MACOS_MIN)
 
 
 build:
-	$(GO) build -ldflags "$(LDFLAGS)" ./...
+	mkdir -p bin/core
+	$(GO) build -ldflags "$(LDFLAGS)" -o bin/core ./...
 
 test:
 	$(GO) test ./...

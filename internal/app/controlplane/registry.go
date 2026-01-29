@@ -346,6 +346,12 @@ func (r *ClientRegistry) activateSpecs(ctx context.Context, specKeys []string, c
 	runtime := r.state.Runtime()
 	registry := r.state.SpecRegistry()
 
+	type activationTask struct {
+		specKey  string
+		minReady int
+		cause    domain.StartCause
+	}
+
 	// filter the specs that need to be started (reference count from 0 to 1)
 	r.mu.Lock()
 	specsToStart := make([]string, 0, len(order))
@@ -357,7 +363,8 @@ func (r *ClientRegistry) activateSpecs(ctx context.Context, specKeys []string, c
 	}
 	r.mu.Unlock()
 
-	// Perform the actual start operations outside the lock
+	// Prepare activation tasks outside the lock to avoid lock inversion.
+	tasks := make([]activationTask, 0, len(specsToStart))
 	for _, specKey := range specsToStart {
 		spec, ok := registry[specKey]
 		if !ok {
@@ -365,18 +372,27 @@ func (r *ClientRegistry) activateSpecs(ctx context.Context, specKeys []string, c
 		}
 		minReady := bootstrap.ActiveMinReady(spec)
 		cause := bootstrap.ClientStartCause(runtime, spec, client, minReady)
-		causeCtx := domain.WithStartCause(ctx, cause)
+		tasks = append(tasks, activationTask{
+			specKey:  specKey,
+			minReady: minReady,
+			cause:    cause,
+		})
+	}
+
+	// Perform the actual start operations outside the lock.
+	for _, task := range tasks {
+		causeCtx := domain.WithStartCause(ctx, task.cause)
 		if r.state.initManager != nil {
-			err := r.state.initManager.SetMinReady(specKey, minReady, cause)
+			err := r.state.initManager.SetMinReady(task.specKey, task.minReady, task.cause)
 			if err == nil {
 				continue
 			}
-			r.state.logger.Warn("server init manager failed to set min ready", zap.String("specKey", specKey), zap.Error(err))
+			r.state.logger.Warn("server init manager failed to set min ready", zap.String("specKey", task.specKey), zap.Error(err))
 		}
 		if r.state.scheduler == nil {
 			return errors.New("scheduler not configured")
 		}
-		if err := r.state.scheduler.SetDesiredMinReady(causeCtx, specKey, minReady); err != nil {
+		if err := r.state.scheduler.SetDesiredMinReady(causeCtx, task.specKey, task.minReady); err != nil {
 			return err
 		}
 	}

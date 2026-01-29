@@ -56,6 +56,7 @@ func (s *BasicScheduler) startDrain(specKey string, inst *trackedInstance, timeo
 			err := s.stopInstance(context.Background(), state.spec, inst.instance, finalReason)
 			s.observeInstanceStop(inst.instance.Spec().Name, err)
 			s.recordInstanceStop(state)
+			s.tryRemovePool(specKey, state)
 		}()
 
 		state := s.getPool(specKey, inst.instance.Spec())

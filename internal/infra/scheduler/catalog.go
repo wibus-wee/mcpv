@@ -33,7 +33,7 @@ func (s *BasicScheduler) ApplyCatalogDiff(ctx context.Context, diff domain.Catal
 			if err := s.StopSpec(ctx, specKey, "catalog remove"); err != nil {
 				return err
 			}
-			s.removePool(specKey)
+			s.tryRemovePool(specKey, state)
 		}
 	}
 	for _, specKey := range diff.UpdatedSpecKeys {
@@ -62,6 +62,25 @@ func (s *BasicScheduler) removePool(specKey string) {
 	s.poolsMu.Lock()
 	delete(s.pools, specKey)
 	s.poolsMu.Unlock()
+}
+
+func (s *BasicScheduler) tryRemovePool(specKey string, state *poolState) {
+	if _, ok := s.specForKey(specKey); ok {
+		return
+	}
+
+	state.mu.Lock()
+	empty := len(state.instances) == 0 &&
+		len(state.draining) == 0 &&
+		state.starting == 0 &&
+		!state.startInFlight
+	state.mu.Unlock()
+
+	if !empty {
+		return
+	}
+
+	s.removePool(specKey)
 }
 
 func cloneSpecRegistry(specs map[string]domain.ServerSpec) map[string]domain.ServerSpec {

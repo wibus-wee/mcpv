@@ -73,6 +73,13 @@ func (m *Manager) StartWithOptions(ctx context.Context, opts StartCoreOptions) e
 }
 
 func (m *Manager) startWithConfig(ctx context.Context, configPath string, observability *app.ObservabilityOptions) error {
+	m.mu.RLock()
+	if m.coreState == CoreStateRunning || m.coreState == CoreStateStarting {
+		m.mu.RUnlock()
+		return NewError(ErrCodeCoreAlreadyRunning, "Core is already running or starting")
+	}
+	m.mu.RUnlock()
+
 	configPath = strings.TrimSpace(configPath)
 	if configPath == "" {
 		return NewError(ErrCodeInvalidConfig, "Config path is required")
