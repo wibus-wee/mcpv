@@ -193,6 +193,16 @@ type ServerInitStatusSnapshot struct {
 	GeneratedAt time.Time          `json:"generatedAt"`
 }
 
+// ControlPlaneCoreAPI describes the shared control plane surface across coordinators.
+type ControlPlaneCoreAPI interface {
+	InfoAPI
+	RegistryAPI
+	DiscoveryAPI
+	ObservabilityAPI
+	BootstrapAPI
+	SubAgentStatusAPI
+}
+
 // InfoAPI exposes basic control plane metadata.
 type InfoAPI interface {
 	Info(ctx context.Context) (ControlPlaneInfo, error)

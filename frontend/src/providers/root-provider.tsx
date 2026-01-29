@@ -157,7 +157,7 @@ function WailsEventsBridge() {
     return () => unbind()
   }, [mutate])
 
-  const level = coreStatus === 'running' ? 'debug' : null
+  const level = (coreStatus === 'running' || coreStatus === 'starting') ? 'debug' : null
 
   useEffect(() => {
     if (level === null) {

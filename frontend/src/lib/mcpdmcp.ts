@@ -70,8 +70,8 @@ export function buildTomlConfig(path: string, selector: SelectorConfig, rpc = de
     `[mcp_servers.${serverName}]`,
     `command = "${path}"`,
     argsArray,
-    ``,
-    `[mcp_servers.${serverName}.env]`,
-    `# MY_ENV_VAR = "MY_ENV_VALUE"`,
+    // ``,
+    // `[mcp_servers.${serverName}.env]`,
+    // `# MY_ENV_VAR = "MY_ENV_VALUE"`,
   ].join('\n')
 }

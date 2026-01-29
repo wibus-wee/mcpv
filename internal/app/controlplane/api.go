@@ -4,11 +4,6 @@ import "mcpd/internal/domain"
 
 // API describes the surface exposed to external coordinators (e.g. UI).
 type API interface {
-	domain.InfoAPI
-	domain.RegistryAPI
-	domain.DiscoveryAPI
-	domain.ObservabilityAPI
-	domain.BootstrapAPI
-	domain.SubAgentStatusAPI
+	domain.ControlPlaneCoreAPI
 	domain.StoreAPI
 }
