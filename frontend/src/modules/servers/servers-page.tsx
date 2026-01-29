@@ -2,12 +2,12 @@
 // Output: ServersPage component - Master-Detail layout with resizable panels
 // Position: Main page for servers module
 
-import type { ServerDetail, ServerRuntimeStatus } from '@bindings/mcpd/internal/ui'
-import { useNavigate } from '@tanstack/react-router'
+import type { ServerDetail } from '@bindings/mcpd/internal/ui'
 import { useSetAtom } from 'jotai'
 import { PlusIcon, SearchIcon } from 'lucide-react'
 import { m } from 'motion/react'
-import { useEffect, useMemo, useState } from 'react'
+import { parseAsString, parseAsStringEnum, useQueryStates } from 'nuqs'
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 
 import { RefreshButton } from '@/components/custom/refresh-button'
 import { Badge } from '@/components/ui/badge'
@@ -24,27 +24,36 @@ import { ServerDetailPanel } from './components/server-detail-panel'
 import { ServerEditSheet } from './components/server-edit-sheet'
 import { ServersMasterList } from './components/servers-master-list'
 import type { ServerTab } from './constants'
-import { useConfigMode, useFilteredServers, useRuntimeStatus, useServer, useServers, useToolsByServer } from './hooks'
+import { SERVER_TABS } from './constants'
+import { useConfigMode, useFilteredServers, useServer, useServers, useToolsByServer } from './hooks'
 
-interface ServersPageProps {
-  initialTab?: ServerTab
-  initialServer?: string
-}
-
-export function ServersPage({ initialTab = 'overview', initialServer }: ServersPageProps) {
-  const navigate = useNavigate()
+export function ServersPage() {
   const { data: servers, isLoading, mutate } = useServers()
   const { data: configMode } = useConfigMode()
-  const { data: selectedServer, isLoading: isServerLoading } = useServer(initialServer || null)
-  const { data: runtimeStatus } = useRuntimeStatus()
   const { serverMap } = useToolsByServer()
   const setSelectedServer = useSetAtom(selectedServerAtom)
+  const [, startTransition] = useTransition()
+
+  const [query, setQuery] = useQueryStates(
+    {
+      tab: parseAsStringEnum(SERVER_TABS).withDefault('overview'),
+      server: parseAsString,
+    },
+    {
+      history: 'replace',
+      shallow: true,
+      startTransition,
+    },
+  )
+
+  const currentTab = query.tab as ServerTab
+  const currentServer = query.server ?? null
+  const { data: selectedServer, isLoading: isServerLoading } = useServer(currentServer)
 
   const [editSheetOpen, setEditSheetOpen] = useState(false)
   const [editingServer, setEditingServer] = useState<ServerDetail | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [currentTab, setCurrentTab] = useState<ServerTab>(initialTab)
 
   const { size: masterWidth, resizeHandleProps, isDragging } = useResizable({
     defaultSize: 400,
@@ -59,17 +68,6 @@ export function ServersPage({ initialTab = 'overview', initialServer }: ServersP
   const serverCount = servers?.length ?? 0
 
   const filteredServers = useFilteredServers(servers ?? [], searchQuery)
-
-  // Build runtime status map
-  const runtimeStatusMap = useMemo(() => {
-    const map = new Map<string, ServerRuntimeStatus>()
-    if (runtimeStatus) {
-      runtimeStatus.forEach((status) => {
-        map.set(status.specKey, status)
-      })
-    }
-    return map
-  }, [runtimeStatus])
 
   // Build tool count map
   const toolCountMap = useMemo(() => {
@@ -89,29 +87,19 @@ export function ServersPage({ initialTab = 'overview', initialServer }: ServersP
     setSelectedServer(selectedServer || null)
   }, [selectedServer, setSelectedServer])
 
-  // Sync tab with URL
-  useEffect(() => {
-    setCurrentTab(initialTab)
-  }, [initialTab])
-
-  // Sync tab with URL
-  useEffect(() => {
-    setCurrentTab(initialTab)
-  }, [initialTab])
-
-  const handleAddServer = () => {
+  const handleAddServer = useCallback(() => {
     setEditingServer(null)
     setEditSheetOpen(true)
-  }
+  }, [])
 
-  const handleEditServer = () => {
+  const handleEditServer = useCallback(() => {
     if (selectedServer) {
       setEditingServer(selectedServer as ServerDetail)
       setEditSheetOpen(true)
     }
-  }
+  }, [selectedServer])
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     setIsRefreshing(true)
     try {
       await mutate()
@@ -119,36 +107,23 @@ export function ServersPage({ initialTab = 'overview', initialServer }: ServersP
     finally {
       setIsRefreshing(false)
     }
-  }
+  }, [mutate])
 
-  const handleSelectServer = (name: string) => {
-    navigate({
-      to: '/servers',
-      search: { tab: currentTab, server: name },
-    })
-  }
+  const handleSelectServer = useCallback((name: string) => {
+    void setQuery(values => ({ ...values, server: name }))
+  }, [setQuery])
 
-  const handleSelectServerTab = (name: string, tab: ServerTab) => {
-    navigate({
-      to: '/servers',
-      search: { tab, server: name },
-    })
-  }
+  const handleSelectServerTab = useCallback((name: string, tab: ServerTab) => {
+    void setQuery({ tab, server: name })
+  }, [setQuery])
 
-  const handleTabChange = (tab: ServerTab) => {
-    setCurrentTab(tab)
-    navigate({
-      to: '/servers',
-      search: { tab, server: initialServer },
-    })
-  }
+  const handleTabChange = useCallback((tab: ServerTab) => {
+    void setQuery(values => ({ ...values, tab }))
+  }, [setQuery])
 
-  const handleDeleted = () => {
-    navigate({
-      to: '/servers',
-      search: { tab: currentTab, server: undefined },
-    })
-  }
+  const handleDeleted = useCallback(() => {
+    void setQuery(values => ({ ...values, server: null }))
+  }, [setQuery])
 
   return (
     <div className="flex flex-col h-full">
@@ -195,38 +170,35 @@ export function ServersPage({ initialTab = 'overview', initialServer }: ServersP
 
       <Separator />
 
-      {/* Toolbar */}
-      <div className="px-6 py-4 flex items-center gap-3">
-        <div className="relative flex-1 max-w-md">
-          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-          <Input
-            type="search"
-            placeholder="Search servers..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        {searchQuery && (
-          <Badge variant="secondary" size="sm">
-            {filteredServers?.length ?? 0} results
-          </Badge>
-        )}
-      </div>
-
-      <Separator />
-
       {/* Master-Detail Layout */}
       <div className={cn('flex flex-1 min-h-0', isDragging && 'select-none')}>
         {/* Master Panel (Left) */}
         <div className="relative" style={{ width: `${masterWidth}px` }}>
+          {/* Toolbar */}
+          <div className="p-2 pt-4 flex items-center gap-3">
+            <div className="relative flex-1 max-w-md">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+              <Input
+                type="search"
+                placeholder="Search servers..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            {searchQuery && (
+              <Badge variant="secondary" size="sm">
+                {filteredServers?.length ?? 0} results
+              </Badge>
+            )}
+          </div>
+
           <ServersMasterList
             servers={filteredServers ?? []}
-            selectedServer={initialServer || null}
+            selectedServer={currentServer}
             onSelectServer={handleSelectServer}
             onSelectServerTab={handleSelectServerTab}
             isLoading={isLoading}
-            runtimeStatusMap={runtimeStatusMap}
             toolCountMap={toolCountMap}
           />
           <div

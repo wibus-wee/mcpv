@@ -2,9 +2,10 @@
 // Output: Compact server list for master-detail layout left pane
 // Position: Left panel in servers master-detail layout
 
-import type { ServerRuntimeStatus, ServerSummary } from '@bindings/mcpd/internal/ui'
+import type { ServerSummary } from '@bindings/mcpd/internal/ui'
 import { ServerIcon, WrenchIcon } from 'lucide-react'
 import { AnimatePresence, m } from 'motion/react'
+import { memo } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -21,7 +22,6 @@ interface ServersMasterListProps {
   onSelectServer: (name: string) => void
   onSelectServerTab: (name: string, tab: ServerTab) => void
   isLoading: boolean
-  runtimeStatusMap: Map<string, ServerRuntimeStatus>
   toolCountMap: Map<string, number>
 }
 
@@ -44,13 +44,12 @@ function ListEmpty() {
   )
 }
 
-export function ServersMasterList({
+export const ServersMasterList = memo(function ServersMasterList({
   servers,
   selectedServer,
   onSelectServer,
   onSelectServerTab,
   isLoading,
-  runtimeStatusMap: _runtimeStatusMap,
   toolCountMap,
 }: ServersMasterListProps) {
   if (isLoading) {
@@ -94,7 +93,8 @@ export function ServersMasterList({
                       <span className={cn(
                         'text-sm font-medium truncate',
                         isActive && 'text-accent-foreground',
-                      )}>
+                      )}
+                      >
                         {server.name}
                       </span>
                       {server.disabled && (
@@ -127,4 +127,4 @@ export function ServersMasterList({
       </div>
     </ScrollArea>
   )
-}
+})

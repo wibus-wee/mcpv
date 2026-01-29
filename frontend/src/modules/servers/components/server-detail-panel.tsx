@@ -4,6 +4,7 @@
 
 import type { ServerDetail } from '@bindings/mcpd/internal/ui'
 import { LayoutGridIcon, SettingsIcon, WrenchIcon } from 'lucide-react'
+import { Activity } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -94,28 +95,34 @@ export function ServerDetailPanel({
         </TabsList>
 
         <div className="flex-1 min-h-0">
-          <TabsContent value="overview" className="m-0 p-0 h-full">
-            <ScrollArea className="h-full">
-              <div className="p-6">
-                <ServerOverviewPanel server={server} />
-              </div>
-            </ScrollArea>
+          <TabsContent value="overview" keepMounted className="m-0 p-0 h-full">
+            <Activity mode={tab === 'overview' ? 'visible' : 'hidden'}>
+              <ScrollArea className="h-full">
+                <div className="p-6">
+                  <ServerOverviewPanel server={server} />
+                </div>
+              </ScrollArea>
+            </Activity>
           </TabsContent>
 
-          <TabsContent value="tools" className="m-0 p-0 h-full">
-            <ServerToolsPanel serverName={server.name} />
+          <TabsContent value="tools" keepMounted className="m-0 p-0 h-full">
+            <Activity mode={tab === 'tools' ? 'visible' : 'hidden'}>
+              <ServerToolsPanel serverName={server.name} />
+            </Activity>
           </TabsContent>
 
-          <TabsContent value="configuration" className="m-0 p-0 h-full">
-            <ScrollArea className="h-full">
-              <div className="p-6">
-                <ServerConfigPanel
-                  serverName={server.name}
-                  onDeleted={onDeleted}
-                  onEdit={onEdit}
-                />
-              </div>
-            </ScrollArea>
+          <TabsContent value="configuration" keepMounted className="m-0 p-0 h-full">
+            <Activity mode={tab === 'configuration' ? 'visible' : 'hidden'}>
+              <ScrollArea className="h-full">
+                <div className="p-6">
+                  <ServerConfigPanel
+                    serverName={server.name}
+                    onDeleted={onDeleted}
+                    onEdit={onEdit}
+                  />
+                </div>
+              </ScrollArea>
+            </Activity>
           </TabsContent>
         </div>
       </Tabs>

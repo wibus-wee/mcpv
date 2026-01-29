@@ -2,7 +2,7 @@
 // Output: Servers route component with URL-synced tab and server selection
 // Position: /servers route - unified servers management page
 
-import { createFileRoute, useSearch } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 
 import type { ServerTab } from '@/modules/servers/constants'
 import { SERVER_TABS } from '@/modules/servers/constants'
@@ -22,6 +22,5 @@ export const Route = createFileRoute('/servers')({
 })
 
 function ServersRoute() {
-  const { tab, server } = useSearch({ from: '/servers' })
-  return <ServersPage initialTab={tab} initialServer={server} />
+  return <ServersPage />
 }

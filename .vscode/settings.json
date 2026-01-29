@@ -11,5 +11,32 @@
   "go.formatFlags": [
     "fmt",
     "--stdin"
-  ]
+  ],
+  "files.watcherExclude": {
+    "**/routeTree.gen.ts": true
+  },
+  "search.exclude": {
+    "**/routeTree.gen.ts": true
+  },
+  "files.readonlyInclude": {
+    "**/routeTree.gen.ts": true
+  },
+  // "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+  "editor.formatOnSave": true,
+  "[javascript][javascriptreact][typescript][typescriptreact][json][jsonc]": {
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit"
+    }
+  },
+  "tailwindCSS.experimental.classRegex": [
+    ["([\"'`][^\"'`]*.*?[\"'`])", "[\"'`]([^\"'`]*).*?[\"'`]"]
+  ],
+  "eslint.rules.customizations": [
+    {
+      "rule": "@stylistic/*",
+      "severity": "off",
+      "fixable": true
+    }
+  ],
+  "typescript.tsdk": "node_modules/typescript/lib"
 }

@@ -168,11 +168,6 @@ export function ServerToolsPanel({ serverName }: ServerToolsPanelProps) {
             )}
           </div>
         </ScrollArea>
-        <div className="p-2 border-t">
-          <Badge variant="secondary" className="w-full justify-center">
-            {filteredTools.length} of {tools.length} tools
-          </Badge>
-        </div>
         <div {...resizeHandleProps} />
       </div>
       <div className="flex-1 min-w-0">
