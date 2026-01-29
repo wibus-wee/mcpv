@@ -344,7 +344,20 @@ func (r *clientRegistry) activateSpecs(ctx context.Context, specKeys []string, c
 	sort.Strings(order)
 	runtime := r.state.Runtime()
 	registry := r.state.SpecRegistry()
+
+	// filter the specs that need to be started (reference count from 0 to 1)
+	r.mu.Lock()
+	specsToStart := make([]string, 0, len(order))
 	for _, specKey := range order {
+		// only start if going from 0 to 1
+		if r.specCounts[specKey] == 1 {
+			specsToStart = append(specsToStart, specKey)
+		}
+	}
+	r.mu.Unlock()
+
+	// Perform the actual start operations outside the lock
+	for _, specKey := range specsToStart {
 		spec, ok := registry[specKey]
 		if !ok {
 			return errors.New("unknown spec key " + specKey)
@@ -378,11 +391,25 @@ func (r *clientRegistry) deactivateSpecs(ctx context.Context, specKeys []string)
 	runtime := r.state.Runtime()
 	registry := r.state.SpecRegistry()
 	var firstErr error
+
+	// 关键修复：先在锁内过滤出引用计数为 0 的 spec
+	r.mu.Lock()
+	specsToStop := make([]string, 0, len(order))
 	for _, specKey := range order {
+		// 只停止引用计数为 0 的 spec（没有客户端在使用）
+		if r.specCounts[specKey] > 0 {
+			continue
+		}
 		spec, ok := registry[specKey]
 		if ok && resolveActivationMode(runtime, spec) == domain.ActivationAlwaysOn {
 			continue
 		}
+		specsToStop = append(specsToStop, specKey)
+	}
+	r.mu.Unlock()
+
+	// 在锁外执行实际的停止操作
+	for _, specKey := range specsToStop {
 		if r.state.initManager != nil {
 			_ = r.state.initManager.SetMinReady(specKey, 0, domain.StartCause{})
 		}
