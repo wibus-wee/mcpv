@@ -32,7 +32,11 @@ Three-layer architecture for maximum decoupling:
 
 **Internal Structure**:
 - `internal/domain/`: Domain models and interfaces (ServerSpec, Instance, Transport, Scheduler, Router, etc.)
-- `internal/app/`: Application orchestration layer combining catalog/scheduler/router/lifecycle/telemetry
+- `internal/app/`: Application glue layer with explicit subpackages:
+  - `controlplane/`: Control plane facade, registry/discovery/observability/automation, reload application
+  - `bootstrap/`: Bootstrap and server initialization management
+  - `catalog/`: Catalog providers and state loading
+  - `runtime/`: Runtime indexes and aggregation state
 - `internal/infra/`: Infrastructure adapters organized by concern:
   - `catalog/`: Configuration loading and validation
   - `scheduler/`: Instance lifecycle and capacity constraints coordination

@@ -1,4 +1,4 @@
-package app
+package catalog
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 
 	"mcpd/internal/domain"
-	"mcpd/internal/infra/catalog"
+	infraCatalog "mcpd/internal/infra/catalog"
 )
 
 const defaultReloadDebounce = 200 * time.Millisecond
@@ -21,7 +21,7 @@ const defaultReloadDebounce = 200 * time.Millisecond
 // DynamicCatalogProvider loads and watches catalog updates.
 type DynamicCatalogProvider struct {
 	logger      *zap.Logger
-	loader      *catalog.Loader
+	loader      *infraCatalog.Loader
 	configPath  string
 	allowCreate bool
 
@@ -37,15 +37,15 @@ type DynamicCatalogProvider struct {
 }
 
 // NewDynamicCatalogProvider loads a catalog and watches for updates.
-func NewDynamicCatalogProvider(ctx context.Context, cfg ServeConfig, logger *zap.Logger) (*DynamicCatalogProvider, error) {
+func NewDynamicCatalogProvider(ctx context.Context, configPath string, logger *zap.Logger) (*DynamicCatalogProvider, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	if logger == nil {
 		logger = zap.NewNop()
 	}
-	loader := catalog.NewLoader(logger)
-	catalogData, err := loader.Load(ctx, cfg.ConfigPath)
+	loader := infraCatalog.NewLoader(logger)
+	catalogData, err := loader.Load(ctx, configPath)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func NewDynamicCatalogProvider(ctx context.Context, cfg ServeConfig, logger *zap
 	provider := &DynamicCatalogProvider{
 		logger:      logger.Named("catalog_provider"),
 		loader:      loader,
-		configPath:  cfg.ConfigPath,
+		configPath:  configPath,
 		allowCreate: false,
 		subs:        make(map[chan domain.CatalogUpdate]struct{}),
 		watchCtx:    ctx,

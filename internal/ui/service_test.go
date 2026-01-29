@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"mcpd/internal/app"
+	"mcpd/internal/app/controlplane"
 	"mcpd/internal/domain"
 )
 
@@ -253,7 +254,7 @@ func TestLogService_StopLogStream_CancelsSession(t *testing.T) {
 	waitForContextDone(streams[0], t, time.Second)
 }
 
-func newLogServiceWithControlPlane(cp app.ControlPlaneAPI) *LogService {
+func newLogServiceWithControlPlane(cp controlplane.API) *LogService {
 	manager := newRunningManagerForTest(cp)
 	deps := NewServiceDeps(&app.App{}, testLogger())
 	deps.setManager(manager)
@@ -261,7 +262,7 @@ func newLogServiceWithControlPlane(cp app.ControlPlaneAPI) *LogService {
 	return NewLogService(deps)
 }
 
-func newRunningManagerForTest(cp app.ControlPlaneAPI) *Manager {
+func newRunningManagerForTest(cp controlplane.API) *Manager {
 	manager := NewManager(nil, &app.App{}, "")
 	manager.mu.Lock()
 	manager.coreState = CoreStateRunning

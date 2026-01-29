@@ -1,4 +1,4 @@
-package app
+package controlplane
 
 import (
 	"context"
@@ -16,16 +16,16 @@ const (
 	defaultAutomaticMCPCacheSize  = 10000
 )
 
-type automationService struct {
-	state     *controlPlaneState
-	registry  *clientRegistry
-	discovery *discoveryService
+type AutomationService struct {
+	state     *State
+	registry  *ClientRegistry
+	discovery *DiscoveryService
 	subAgent  domain.SubAgent
 	cache     *domain.SessionCache
 }
 
-func newAutomationService(state *controlPlaneState, registry *clientRegistry, discovery *discoveryService) *automationService {
-	return &automationService{
+func NewAutomationService(state *State, registry *ClientRegistry, discovery *DiscoveryService) *AutomationService {
+	return &AutomationService{
 		state:     state,
 		registry:  registry,
 		discovery: discovery,
@@ -34,17 +34,17 @@ func newAutomationService(state *controlPlaneState, registry *clientRegistry, di
 }
 
 // SetSubAgent sets the active SubAgent implementation.
-func (a *automationService) SetSubAgent(agent domain.SubAgent) {
+func (a *AutomationService) SetSubAgent(agent domain.SubAgent) {
 	a.subAgent = agent
 }
 
 // IsSubAgentEnabled reports whether SubAgent is enabled.
-func (a *automationService) IsSubAgentEnabled() bool {
+func (a *AutomationService) IsSubAgentEnabled() bool {
 	return a.subAgent != nil
 }
 
 // IsSubAgentEnabledForClient reports whether SubAgent is enabled for a client.
-func (a *automationService) IsSubAgentEnabledForClient(client string) bool {
+func (a *AutomationService) IsSubAgentEnabledForClient(client string) bool {
 	if a.subAgent == nil {
 		return false
 	}
@@ -61,7 +61,7 @@ func (a *automationService) IsSubAgentEnabledForClient(client string) bool {
 }
 
 // AutomaticMCP filters tools using the automatic MCP flow.
-func (a *automationService) AutomaticMCP(ctx context.Context, client string, params domain.AutomaticMCPParams) (domain.AutomaticMCPResult, error) {
+func (a *AutomationService) AutomaticMCP(ctx context.Context, client string, params domain.AutomaticMCPParams) (domain.AutomaticMCPResult, error) {
 	if a.subAgent != nil && a.IsSubAgentEnabledForClient(client) {
 		return a.subAgent.SelectToolsForClient(ctx, client, params)
 	}
@@ -69,7 +69,7 @@ func (a *automationService) AutomaticMCP(ctx context.Context, client string, par
 	return a.fallbackAutomaticMCP(ctx, client, params)
 }
 
-func (a *automationService) fallbackAutomaticMCP(ctx context.Context, client string, params domain.AutomaticMCPParams) (domain.AutomaticMCPResult, error) {
+func (a *AutomationService) fallbackAutomaticMCP(ctx context.Context, client string, params domain.AutomaticMCPParams) (domain.AutomaticMCPResult, error) {
 	snapshot, err := a.discovery.ListTools(ctx, client)
 	if err != nil {
 		return domain.AutomaticMCPResult{}, err
@@ -106,7 +106,7 @@ func (a *automationService) fallbackAutomaticMCP(ctx context.Context, client str
 }
 
 // AutomaticEval evaluates a tool call using the automatic MCP flow.
-func (a *automationService) AutomaticEval(ctx context.Context, client string, params domain.AutomaticEvalParams) (json.RawMessage, error) {
+func (a *AutomationService) AutomaticEval(ctx context.Context, client string, params domain.AutomaticEvalParams) (json.RawMessage, error) {
 	if _, err := a.getToolDefinition(ctx, client, params.ToolName); err != nil {
 		return nil, err
 	}
@@ -114,7 +114,7 @@ func (a *automationService) AutomaticEval(ctx context.Context, client string, pa
 	return a.discovery.CallTool(ctx, client, params.ToolName, params.Arguments, params.RoutingKey)
 }
 
-func (a *automationService) getToolDefinition(ctx context.Context, client, name string) (domain.ToolDefinition, error) {
+func (a *AutomationService) getToolDefinition(ctx context.Context, client, name string) (domain.ToolDefinition, error) {
 	snapshot, err := a.discovery.ListTools(ctx, client)
 	if err != nil {
 		return domain.ToolDefinition{}, err

@@ -1,4 +1,4 @@
-package app
+package bootstrap
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 
 func TestBootstrapManager_InitialState(t *testing.T) {
 	cache := domain.NewMetadataCache()
-	manager := NewBootstrapManager(BootstrapManagerOptions{
+	manager := NewManager(ManagerOptions{
 		Scheduler:   &minimalSchedulerStub{},
 		Lifecycle:   &minimalLifecycleStub{},
 		Specs:       map[string]domain.ServerSpec{},
@@ -37,7 +37,7 @@ func TestBootstrapManager_InitialState(t *testing.T) {
 
 func TestBootstrapManager_WaitForCompletion_AlreadyCompleted(t *testing.T) {
 	cache := domain.NewMetadataCache()
-	manager := NewBootstrapManager(BootstrapManagerOptions{
+	manager := NewManager(ManagerOptions{
 		Scheduler:   &minimalSchedulerStub{},
 		Lifecycle:   &minimalLifecycleStub{},
 		Specs:       map[string]domain.ServerSpec{},
@@ -63,7 +63,7 @@ func TestBootstrapManager_WaitForCompletion_AlreadyCompleted(t *testing.T) {
 
 func TestBootstrapManager_GetProgress_ThreadSafe(t *testing.T) {
 	cache := domain.NewMetadataCache()
-	manager := NewBootstrapManager(BootstrapManagerOptions{
+	manager := NewManager(ManagerOptions{
 		Scheduler:   &minimalSchedulerStub{},
 		Lifecycle:   &minimalLifecycleStub{},
 		Specs:       map[string]domain.ServerSpec{},

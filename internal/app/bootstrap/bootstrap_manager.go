@@ -1,4 +1,4 @@
-package app
+package bootstrap
 
 import (
 	"context"
@@ -18,10 +18,10 @@ import (
 	"mcpd/internal/infra/mcpcodec"
 )
 
-// BootstrapManager handles the asynchronous bootstrap process for MCP servers.
+// Manager handles the asynchronous bootstrap process for MCP servers.
 // It starts servers temporarily to fetch their metadata (tools, resources, prompts)
 // and caches the metadata based on the bootstrap mode.
-type BootstrapManager struct {
+type Manager struct {
 	scheduler domain.Scheduler
 	lifecycle domain.Lifecycle
 	specs     map[string]domain.ServerSpec
@@ -47,8 +47,8 @@ type bootstrapTarget struct {
 	spec    domain.ServerSpec
 }
 
-// BootstrapManagerOptions configures the BootstrapManager.
-type BootstrapManagerOptions struct {
+// ManagerOptions configures the Manager.
+type ManagerOptions struct {
 	Scheduler   domain.Scheduler
 	Lifecycle   domain.Lifecycle
 	Specs       map[string]domain.ServerSpec
@@ -61,8 +61,8 @@ type BootstrapManagerOptions struct {
 	Mode        domain.BootstrapMode
 }
 
-// NewBootstrapManager creates a new BootstrapManager.
-func NewBootstrapManager(opts BootstrapManagerOptions) *BootstrapManager {
+// NewManager creates a new Manager.
+func NewManager(opts ManagerOptions) *Manager {
 	logger := opts.Logger
 	if logger == nil {
 		logger = zap.NewNop()
@@ -83,7 +83,7 @@ func NewBootstrapManager(opts BootstrapManagerOptions) *BootstrapManager {
 		mode = domain.DefaultBootstrapMode
 	}
 
-	return &BootstrapManager{
+	return &Manager{
 		scheduler:   opts.Scheduler,
 		lifecycle:   opts.Lifecycle,
 		specs:       opts.Specs,
@@ -105,7 +105,7 @@ func NewBootstrapManager(opts BootstrapManagerOptions) *BootstrapManager {
 
 // Bootstrap starts the async bootstrap process. Returns immediately.
 // Call WaitForCompletion() to block until done.
-func (m *BootstrapManager) Bootstrap(ctx context.Context) {
+func (m *Manager) Bootstrap(ctx context.Context) {
 	if m.mode == domain.BootstrapModeDisabled {
 		m.completeBootstrap(true)
 		return
@@ -133,7 +133,7 @@ func (m *BootstrapManager) Bootstrap(ctx context.Context) {
 	go m.run(ctx, targets)
 }
 
-func (m *BootstrapManager) bootstrapTargets() []bootstrapTarget {
+func (m *Manager) bootstrapTargets() []bootstrapTarget {
 	targets := make(map[string]domain.ServerSpec)
 	if len(m.specKeys) == 0 {
 		for specKey, spec := range m.specs {
@@ -162,7 +162,7 @@ func (m *BootstrapManager) bootstrapTargets() []bootstrapTarget {
 	return result
 }
 
-func (m *BootstrapManager) run(ctx context.Context, targets []bootstrapTarget) {
+func (m *Manager) run(ctx context.Context, targets []bootstrapTarget) {
 	startTime := time.Now()
 
 	if len(targets) == 0 {
@@ -243,7 +243,7 @@ func (m *BootstrapManager) run(ctx context.Context, targets []bootstrapTarget) {
 	m.completeBootstrap(failed == 0)
 }
 
-func (m *BootstrapManager) bootstrapOne(ctx context.Context, specKey string, spec domain.ServerSpec) error {
+func (m *Manager) bootstrapOne(ctx context.Context, specKey string, spec domain.ServerSpec) error {
 	ctx, cancel := context.WithTimeout(ctx, m.timeout)
 	defer cancel()
 
@@ -285,15 +285,15 @@ func (m *BootstrapManager) bootstrapOne(ctx context.Context, specKey string, spe
 	return nil
 }
 
-func (m *BootstrapManager) shouldWaitForReady(spec domain.ServerSpec) bool {
-	mode := resolveActivationMode(m.runtime, spec)
+func (m *Manager) shouldWaitForReady(spec domain.ServerSpec) bool {
+	mode := ResolveActivationMode(m.runtime, spec)
 	if mode == domain.ActivationAlwaysOn {
 		return true
 	}
 	return spec.MinReady > 0
 }
 
-func (m *BootstrapManager) waitBudget() time.Duration {
+func (m *Manager) waitBudget() time.Duration {
 	budget := 2 * time.Second
 	if m.timeout > 0 {
 		if m.timeout/4 < budget {
@@ -306,7 +306,7 @@ func (m *BootstrapManager) waitBudget() time.Duration {
 	return budget
 }
 
-func (m *BootstrapManager) waitForReadyInstance(ctx context.Context, specKey string) (*domain.Instance, error) {
+func (m *Manager) waitForReadyInstance(ctx context.Context, specKey string) (*domain.Instance, error) {
 	ticker := time.NewTicker(200 * time.Millisecond)
 	defer ticker.Stop()
 
@@ -326,7 +326,7 @@ func (m *BootstrapManager) waitForReadyInstance(ctx context.Context, specKey str
 	}
 }
 
-func (m *BootstrapManager) poolHasInstances(ctx context.Context, specKey string) bool {
+func (m *Manager) poolHasInstances(ctx context.Context, specKey string) bool {
 	pools, err := m.scheduler.GetPoolStatus(ctx)
 	if err != nil {
 		return false
@@ -339,7 +339,7 @@ func (m *BootstrapManager) poolHasInstances(ctx context.Context, specKey string)
 	return false
 }
 
-func (m *BootstrapManager) fetchAndCacheMetadata(ctx context.Context, specKey string, spec domain.ServerSpec, instance *domain.Instance) error {
+func (m *Manager) fetchAndCacheMetadata(ctx context.Context, specKey string, spec domain.ServerSpec, instance *domain.Instance) error {
 	if instance == nil {
 		return errors.New("instance is nil")
 	}
@@ -384,7 +384,7 @@ func (m *BootstrapManager) fetchAndCacheMetadata(ctx context.Context, specKey st
 	return nil
 }
 
-func (m *BootstrapManager) fetchTools(ctx context.Context, instance *domain.Instance) ([]*mcp.Tool, error) {
+func (m *Manager) fetchTools(ctx context.Context, instance *domain.Instance) ([]*mcp.Tool, error) {
 	if instance.Conn() == nil {
 		return nil, errors.New("instance has no connection")
 	}
@@ -408,7 +408,7 @@ func (m *BootstrapManager) fetchTools(ctx context.Context, instance *domain.Inst
 	return result.Tools, nil
 }
 
-func (m *BootstrapManager) fetchResources(ctx context.Context, instance *domain.Instance) ([]*mcp.Resource, error) {
+func (m *Manager) fetchResources(ctx context.Context, instance *domain.Instance) ([]*mcp.Resource, error) {
 	if instance.Conn() == nil {
 		return nil, errors.New("instance has no connection")
 	}
@@ -432,7 +432,7 @@ func (m *BootstrapManager) fetchResources(ctx context.Context, instance *domain.
 	return result.Resources, nil
 }
 
-func (m *BootstrapManager) fetchPrompts(ctx context.Context, instance *domain.Instance) ([]*mcp.Prompt, error) {
+func (m *Manager) fetchPrompts(ctx context.Context, instance *domain.Instance) ([]*mcp.Prompt, error) {
 	if instance.Conn() == nil {
 		return nil, errors.New("instance has no connection")
 	}
@@ -456,7 +456,7 @@ func (m *BootstrapManager) fetchPrompts(ctx context.Context, instance *domain.In
 	return result.Prompts, nil
 }
 
-func (m *BootstrapManager) filterAndNameTools(tools []*mcp.Tool, specKey string, spec domain.ServerSpec) []domain.ToolDefinition {
+func (m *Manager) filterAndNameTools(tools []*mcp.Tool, specKey string, spec domain.ServerSpec) []domain.ToolDefinition {
 	allowed := allowedToolNames(spec)
 	result := make([]domain.ToolDefinition, 0, len(tools))
 
@@ -477,7 +477,7 @@ func (m *BootstrapManager) filterAndNameTools(tools []*mcp.Tool, specKey string,
 	return result
 }
 
-func (m *BootstrapManager) filterAndNameResources(resources []*mcp.Resource, specKey string, spec domain.ServerSpec) []domain.ResourceDefinition {
+func (m *Manager) filterAndNameResources(resources []*mcp.Resource, specKey string, spec domain.ServerSpec) []domain.ResourceDefinition {
 	result := make([]domain.ResourceDefinition, 0, len(resources))
 
 	for _, resource := range resources {
@@ -494,7 +494,7 @@ func (m *BootstrapManager) filterAndNameResources(resources []*mcp.Resource, spe
 	return result
 }
 
-func (m *BootstrapManager) filterAndNamePrompts(prompts []*mcp.Prompt, specKey string, spec domain.ServerSpec) []domain.PromptDefinition {
+func (m *Manager) filterAndNamePrompts(prompts []*mcp.Prompt, specKey string, spec domain.ServerSpec) []domain.PromptDefinition {
 	result := make([]domain.PromptDefinition, 0, len(prompts))
 
 	for _, prompt := range prompts {
@@ -511,20 +511,20 @@ func (m *BootstrapManager) filterAndNamePrompts(prompts []*mcp.Prompt, specKey s
 	return result
 }
 
-func (m *BootstrapManager) setCurrentServer(name string) {
+func (m *Manager) setCurrentServer(name string) {
 	m.mu.Lock()
 	m.progress.Current = name
 	m.mu.Unlock()
 }
 
-func (m *BootstrapManager) recordSuccess() {
+func (m *Manager) recordSuccess() {
 	m.mu.Lock()
 	m.progress.Completed++
 	m.progress.Current = ""
 	m.mu.Unlock()
 }
 
-func (m *BootstrapManager) recordFailure(specKey string, err error) {
+func (m *Manager) recordFailure(specKey string, err error) {
 	m.mu.Lock()
 	m.progress.Failed++
 	m.progress.Current = ""
@@ -535,7 +535,7 @@ func (m *BootstrapManager) recordFailure(specKey string, err error) {
 	m.mu.Unlock()
 }
 
-func (m *BootstrapManager) completeBootstrap(success bool) {
+func (m *Manager) completeBootstrap(success bool) {
 	m.mu.Lock()
 	if m.state == domain.BootstrapCompleted || m.state == domain.BootstrapFailed {
 		m.mu.Unlock()
@@ -556,7 +556,7 @@ func (m *BootstrapManager) completeBootstrap(success bool) {
 }
 
 // WaitForCompletion blocks until bootstrap completes or context cancels.
-func (m *BootstrapManager) WaitForCompletion(ctx context.Context) error {
+func (m *Manager) WaitForCompletion(ctx context.Context) error {
 	select {
 	case <-m.completed:
 		m.mu.RLock()
@@ -573,7 +573,7 @@ func (m *BootstrapManager) WaitForCompletion(ctx context.Context) error {
 }
 
 // GetProgress returns the current bootstrap progress.
-func (m *BootstrapManager) GetProgress() domain.BootstrapProgress {
+func (m *Manager) GetProgress() domain.BootstrapProgress {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -594,14 +594,14 @@ func (m *BootstrapManager) GetProgress() domain.BootstrapProgress {
 }
 
 // IsCompleted returns true if bootstrap has finished.
-func (m *BootstrapManager) IsCompleted() bool {
+func (m *Manager) IsCompleted() bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.state == domain.BootstrapCompleted || m.state == domain.BootstrapFailed
 }
 
 // GetCache returns the metadata cache.
-func (m *BootstrapManager) GetCache() *domain.MetadataCache {
+func (m *Manager) GetCache() *domain.MetadataCache {
 	return m.cache
 }
 

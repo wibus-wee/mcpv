@@ -1,4 +1,4 @@
-package app
+package catalog
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	"mcpd/internal/domain"
-	"mcpd/internal/infra/catalog"
+	infraCatalog "mcpd/internal/infra/catalog"
 )
 
 // StaticCatalogProvider serves an immutable catalog snapshot.
@@ -16,15 +16,15 @@ type StaticCatalogProvider struct {
 }
 
 // NewStaticCatalogProvider loads a catalog once and returns a static provider.
-func NewStaticCatalogProvider(ctx context.Context, cfg ServeConfig, logger *zap.Logger) (*StaticCatalogProvider, error) {
+func NewStaticCatalogProvider(ctx context.Context, configPath string, logger *zap.Logger) (*StaticCatalogProvider, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	if logger == nil {
 		logger = zap.NewNop()
 	}
-	loader := catalog.NewLoader(logger)
-	catalogData, err := loader.Load(ctx, cfg.ConfigPath)
+	loader := infraCatalog.NewLoader(logger)
+	catalogData, err := loader.Load(ctx, configPath)
 	if err != nil {
 		return nil, err
 	}

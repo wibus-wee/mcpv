@@ -1,4 +1,4 @@
-package app
+package bootstrap
 
 import (
 	"context"
@@ -83,7 +83,7 @@ func (m *ServerInitializationManager) ApplyCatalogState(state *domain.CatalogSta
 	m.maxRetries = maxRetries
 
 	for specKey, spec := range specs {
-		minReady := baselineMinReady(runtime, spec)
+		minReady := BaselineMinReady(runtime, spec)
 		status, ok := m.statuses[specKey]
 		if !ok {
 			added = append(added, specKey)
@@ -115,7 +115,7 @@ func (m *ServerInitializationManager) ApplyCatalogState(state *domain.CatalogSta
 		}
 		m.targets[specKey] = minReady
 		if minReady > 0 {
-			m.causes[specKey] = policyStartCause(runtime, spec, minReady)
+			m.causes[specKey] = PolicyStartCause(runtime, spec, minReady)
 		} else {
 			delete(m.causes, specKey)
 		}
@@ -168,7 +168,7 @@ func (m *ServerInitializationManager) Start(ctx context.Context) {
 	m.ctx, m.cancel = context.WithCancel(ctx)
 	now := time.Now()
 	for specKey, spec := range m.specs {
-		minReady := baselineMinReady(m.runtime, spec)
+		minReady := BaselineMinReady(m.runtime, spec)
 		m.targets[specKey] = minReady
 		m.statuses[specKey] = domain.ServerInitStatus{
 			SpecKey:     specKey,
@@ -219,7 +219,7 @@ func (m *ServerInitializationManager) SetMinReady(specKey string, minReady int, 
 	if minReady > 0 {
 		if cause.Reason == "" {
 			if spec, ok := m.specs[specKey]; ok {
-				cause = policyStartCause(m.runtime, spec, minReady)
+				cause = PolicyStartCause(m.runtime, spec, minReady)
 			}
 		}
 		m.causes[specKey] = cause

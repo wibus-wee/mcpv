@@ -1,4 +1,4 @@
-package app
+package controlplane
 
 import (
 	"context"
@@ -12,20 +12,20 @@ import (
 
 // ControlPlane aggregates control plane services behind a facade.
 type ControlPlane struct {
-	state         *controlPlaneState
-	registry      *clientRegistry
-	discovery     *discoveryService
-	observability *observabilityService
-	automation    *automationService
+	state         *State
+	registry      *ClientRegistry
+	discovery     *DiscoveryService
+	observability *ObservabilityService
+	automation    *AutomationService
 }
 
 // NewControlPlane constructs a control plane facade from services.
 func NewControlPlane(
-	state *controlPlaneState,
-	registry *clientRegistry,
-	discovery *discoveryService,
-	observability *observabilityService,
-	automation *automationService,
+	state *State,
+	registry *ClientRegistry,
+	discovery *DiscoveryService,
+	observability *ObservabilityService,
+	automation *AutomationService,
 ) *ControlPlane {
 	return &ControlPlane{
 		state:         state,

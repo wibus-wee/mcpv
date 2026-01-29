@@ -1,4 +1,4 @@
-package app
+package controlplane
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
+	"mcpd/internal/app/runtime"
 	"mcpd/internal/domain"
 )
 
@@ -128,14 +129,12 @@ func newTestControlPlane(
 	if err != nil {
 		panic(err)
 	}
-	runtime := &runtimeState{
-		specKeys: copySpecKeyMap(state.Summary.ServerSpecKeys),
-	}
-	controlState := newControlPlaneState(ctx, runtime, scheduler, nil, nil, &state, zap.NewNop())
-	registry := newClientRegistry(controlState)
-	discovery := newDiscoveryService(controlState, registry)
-	observability := newObservabilityService(controlState, registry, nil)
-	automation := newAutomationService(controlState, registry, discovery)
+	runtimeState := runtime.NewStateFromSpecKeys(state.Summary.ServerSpecKeys)
+	controlState := NewState(ctx, runtimeState, scheduler, nil, nil, &state, zap.NewNop())
+	registry := NewClientRegistry(controlState)
+	discovery := NewDiscoveryService(controlState, registry)
+	observability := NewObservabilityService(controlState, registry, nil)
+	automation := NewAutomationService(controlState, registry, discovery)
 	return NewControlPlane(controlState, registry, discovery, observability, automation)
 }
 

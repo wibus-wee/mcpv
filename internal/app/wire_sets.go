@@ -6,13 +6,18 @@ package app
 import (
 	"github.com/google/wire"
 
+	"mcpd/internal/app/bootstrap"
+	appCatalog "mcpd/internal/app/catalog"
+	"mcpd/internal/app/controlplane"
 	"mcpd/internal/domain"
+	"mcpd/internal/infra/rpc"
 )
 
 // CatalogProviderSet wires catalog providers for dependency injection.
 var CatalogProviderSet = wire.NewSet(
-	NewDynamicCatalogProvider,
-	wire.Bind(new(domain.CatalogProvider), new(*DynamicCatalogProvider)),
+	ConfigPath,
+	appCatalog.NewDynamicCatalogProvider,
+	wire.Bind(new(domain.CatalogProvider), new(*appCatalog.DynamicCatalogProvider)),
 )
 
 // CoreInfraSet wires core infrastructure dependencies.
@@ -35,21 +40,22 @@ var CoreInfraSet = wire.NewSet(
 // ReloadableAppSet wires reloadable application dependencies.
 var ReloadableAppSet = wire.NewSet(
 	CatalogProviderSet,
-	NewCatalogState,
+	appCatalog.NewCatalogState,
 	NewScheduler,
 	domain.NewMetadataCache,
 	NewBootstrapManagerProvider,
-	NewServerInitializationManager,
+	bootstrap.NewServerInitializationManager,
 	newRuntimeState,
 	provideControlPlaneState,
-	newClientRegistry,
-	newDiscoveryService,
-	newObservabilityService,
-	newAutomationService,
-	NewControlPlane,
+	controlplane.NewClientRegistry,
+	controlplane.NewDiscoveryService,
+	controlplane.NewObservabilityService,
+	controlplane.NewAutomationService,
+	controlplane.NewControlPlane,
 	NewRPCServer,
-	NewReloadManager,
-	wire.Bind(new(ControlPlaneAPI), new(*ControlPlane)),
+	controlplane.NewReloadManager,
+	wire.Bind(new(controlplane.API), new(*controlplane.ControlPlane)),
+	wire.Bind(new(rpc.ControlPlaneAPI), new(*controlplane.ControlPlane)),
 )
 
 // AppSet wires the full application dependency set.

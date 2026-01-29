@@ -1,6 +1,6 @@
 //go:build !darwin && !linux
 
-package app
+package controlplane
 
 func pidAlive(pid int) bool {
 	if pid <= 0 {

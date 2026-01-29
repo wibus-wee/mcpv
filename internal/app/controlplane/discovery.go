@@ -1,4 +1,4 @@
-package app
+package controlplane
 
 import (
 	"context"
@@ -12,35 +12,35 @@ import (
 	"mcpd/internal/infra/hashutil"
 )
 
-type discoveryService struct {
-	state    *controlPlaneState
-	registry *clientRegistry
+type DiscoveryService struct {
+	state    *State
+	registry *ClientRegistry
 }
 
 const snapshotPageSize = 200
 
-func newDiscoveryService(state *controlPlaneState, registry *clientRegistry) *discoveryService {
-	return &discoveryService{
+func NewDiscoveryService(state *State, registry *ClientRegistry) *DiscoveryService {
+	return &DiscoveryService{
 		state:    state,
 		registry: registry,
 	}
 }
 
 // StartClientChangeListener is a no-op for the server-centric discovery flow.
-func (d *discoveryService) StartClientChangeListener(_ context.Context) {}
+func (d *DiscoveryService) StartClientChangeListener(_ context.Context) {}
 
 // ListTools lists tools visible to a client.
-func (d *discoveryService) ListTools(_ context.Context, client string) (domain.ToolSnapshot, error) {
+func (d *DiscoveryService) ListTools(_ context.Context, client string) (domain.ToolSnapshot, error) {
 	serverName, err := d.registry.resolveClientServer(client)
 	if err != nil {
 		return domain.ToolSnapshot{}, err
 	}
 	runtime := d.state.RuntimeState()
-	if runtime == nil || runtime.tools == nil {
+	if runtime == nil || runtime.Tools() == nil {
 		return domain.ToolSnapshot{}, nil
 	}
 	if serverName != "" {
-		snapshot, ok := runtime.tools.SnapshotForServer(serverName)
+		snapshot, ok := runtime.Tools().SnapshotForServer(serverName)
 		if !ok {
 			return domain.ToolSnapshot{}, nil
 		}
@@ -50,17 +50,17 @@ func (d *discoveryService) ListTools(_ context.Context, client string) (domain.T
 	if err != nil {
 		return domain.ToolSnapshot{}, err
 	}
-	return d.filterToolSnapshot(runtime.tools.Snapshot(), visibleSpecKeys), nil
+	return d.filterToolSnapshot(runtime.Tools().Snapshot(), visibleSpecKeys), nil
 }
 
 // ListToolCatalog returns the full tool catalog snapshot.
-func (d *discoveryService) ListToolCatalog(_ context.Context) (domain.ToolCatalogSnapshot, error) {
+func (d *DiscoveryService) ListToolCatalog(_ context.Context) (domain.ToolCatalogSnapshot, error) {
 	runtime := d.state.RuntimeState()
-	if runtime == nil || runtime.tools == nil {
+	if runtime == nil || runtime.Tools() == nil {
 		return domain.ToolCatalogSnapshot{}, nil
 	}
-	live := runtime.tools.Snapshot().Tools
-	cached := runtime.tools.CachedSnapshot().Tools
+	live := runtime.Tools().Snapshot().Tools
+	cached := runtime.Tools().CachedSnapshot().Tools
 
 	cachedAt := make(map[string]time.Time)
 	if len(cached) > 0 {
@@ -85,23 +85,23 @@ func (d *discoveryService) ListToolCatalog(_ context.Context) (domain.ToolCatalo
 }
 
 // WatchTools streams tool snapshots for a client.
-func (d *discoveryService) WatchTools(ctx context.Context, client string) (<-chan domain.ToolSnapshot, error) {
+func (d *DiscoveryService) WatchTools(ctx context.Context, client string) (<-chan domain.ToolSnapshot, error) {
 	if _, err := d.registry.resolveClientServer(client); err != nil {
 		return closedToolSnapshotChannel(), err
 	}
 	runtime := d.state.RuntimeState()
-	if runtime == nil || runtime.tools == nil {
+	if runtime == nil || runtime.Tools() == nil {
 		return closedToolSnapshotChannel(), nil
 	}
 
 	output := make(chan domain.ToolSnapshot, 1)
-	indexCh := runtime.tools.Subscribe(ctx)
+	indexCh := runtime.Tools().Subscribe(ctx)
 	changes := d.registry.WatchClientChanges(ctx)
 
 	go func() {
 		defer close(output)
 		var last domain.ToolSnapshot
-		last = runtime.tools.Snapshot()
+		last = runtime.Tools().Snapshot()
 		d.sendFilteredTools(output, client, last)
 		for {
 			select {
@@ -128,17 +128,17 @@ func (d *discoveryService) WatchTools(ctx context.Context, client string) (<-cha
 }
 
 // CallTool executes a tool on behalf of a client.
-func (d *discoveryService) CallTool(ctx context.Context, client, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
+func (d *DiscoveryService) CallTool(ctx context.Context, client, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
 	serverName, err := d.registry.resolveClientServer(client)
 	if err != nil {
 		return nil, err
 	}
 	runtime := d.state.RuntimeState()
-	if runtime == nil || runtime.tools == nil {
+	if runtime == nil || runtime.Tools() == nil {
 		return nil, domain.ErrToolNotFound
 	}
 	if serverName != "" {
-		if _, ok := runtime.tools.ResolveForServer(serverName, name); !ok {
+		if _, ok := runtime.Tools().ResolveForServer(serverName, name); !ok {
 			return nil, domain.ErrToolNotFound
 		}
 		ctx = domain.WithRouteContext(ctx, domain.RouteContext{Client: client})
@@ -147,13 +147,13 @@ func (d *discoveryService) CallTool(ctx context.Context, client, name string, ar
 			Client:   client,
 			ToolName: name,
 		})
-		return runtime.tools.CallToolForServer(ctx, serverName, name, args, routingKey)
+		return runtime.Tools().CallToolForServer(ctx, serverName, name, args, routingKey)
 	}
 	visibleSpecKeys, err := d.registry.resolveVisibleSpecKeys(client)
 	if err != nil {
 		return nil, err
 	}
-	target, ok := runtime.tools.Resolve(name)
+	target, ok := runtime.Tools().Resolve(name)
 	if !ok {
 		return nil, domain.ErrToolNotFound
 	}
@@ -171,16 +171,16 @@ func (d *discoveryService) CallTool(ctx context.Context, client, name string, ar
 		Client:   client,
 		ToolName: name,
 	})
-	return runtime.tools.CallTool(ctx, name, args, routingKey)
+	return runtime.Tools().CallTool(ctx, name, args, routingKey)
 }
 
 // CallToolAll executes a tool without client visibility checks.
-func (d *discoveryService) CallToolAll(ctx context.Context, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
+func (d *DiscoveryService) CallToolAll(ctx context.Context, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
 	runtime := d.state.RuntimeState()
-	if runtime == nil || runtime.tools == nil {
+	if runtime == nil || runtime.Tools() == nil {
 		return nil, domain.ErrToolNotFound
 	}
-	if _, ok := runtime.tools.Resolve(name); !ok {
+	if _, ok := runtime.Tools().Resolve(name); !ok {
 		return nil, domain.ErrToolNotFound
 	}
 	ctx = domain.WithRouteContext(ctx, domain.RouteContext{Client: domain.InternalUIClientName})
@@ -189,21 +189,21 @@ func (d *discoveryService) CallToolAll(ctx context.Context, name string, args js
 		Client:   domain.InternalUIClientName,
 		ToolName: name,
 	})
-	return runtime.tools.CallTool(ctx, name, args, routingKey)
+	return runtime.Tools().CallTool(ctx, name, args, routingKey)
 }
 
 // ListResources lists resources visible to a client.
-func (d *discoveryService) ListResources(_ context.Context, client string, cursor string) (domain.ResourcePage, error) {
+func (d *DiscoveryService) ListResources(_ context.Context, client string, cursor string) (domain.ResourcePage, error) {
 	serverName, err := d.registry.resolveClientServer(client)
 	if err != nil {
 		return domain.ResourcePage{}, err
 	}
 	runtime := d.state.RuntimeState()
-	if runtime == nil || runtime.resources == nil {
+	if runtime == nil || runtime.Resources() == nil {
 		return domain.ResourcePage{Snapshot: domain.ResourceSnapshot{}}, nil
 	}
 	if serverName != "" {
-		snapshot, ok := runtime.resources.SnapshotForServer(serverName)
+		snapshot, ok := runtime.Resources().SnapshotForServer(serverName)
 		if !ok {
 			return domain.ResourcePage{Snapshot: domain.ResourceSnapshot{}}, nil
 		}
@@ -213,39 +213,39 @@ func (d *discoveryService) ListResources(_ context.Context, client string, curso
 	if err != nil {
 		return domain.ResourcePage{}, err
 	}
-	snapshot := runtime.resources.Snapshot()
+	snapshot := runtime.Resources().Snapshot()
 	filtered := d.filterResourceSnapshot(snapshot, visibleSpecKeys)
 	return paginateResources(filtered, cursor)
 }
 
 // ListResourcesAll lists resources across all servers.
-func (d *discoveryService) ListResourcesAll(_ context.Context, cursor string) (domain.ResourcePage, error) {
+func (d *DiscoveryService) ListResourcesAll(_ context.Context, cursor string) (domain.ResourcePage, error) {
 	runtime := d.state.RuntimeState()
-	if runtime == nil || runtime.resources == nil {
+	if runtime == nil || runtime.Resources() == nil {
 		return domain.ResourcePage{Snapshot: domain.ResourceSnapshot{}}, nil
 	}
-	snapshot := runtime.resources.Snapshot()
+	snapshot := runtime.Resources().Snapshot()
 	return paginateResources(snapshot, cursor)
 }
 
 // WatchResources streams resource snapshots for a client.
-func (d *discoveryService) WatchResources(ctx context.Context, client string) (<-chan domain.ResourceSnapshot, error) {
+func (d *DiscoveryService) WatchResources(ctx context.Context, client string) (<-chan domain.ResourceSnapshot, error) {
 	if _, err := d.registry.resolveClientServer(client); err != nil {
 		return closedResourceSnapshotChannel(), err
 	}
 	runtime := d.state.RuntimeState()
-	if runtime == nil || runtime.resources == nil {
+	if runtime == nil || runtime.Resources() == nil {
 		return closedResourceSnapshotChannel(), nil
 	}
 
 	output := make(chan domain.ResourceSnapshot, 1)
-	indexCh := runtime.resources.Subscribe(ctx)
+	indexCh := runtime.Resources().Subscribe(ctx)
 	changes := d.registry.WatchClientChanges(ctx)
 
 	go func() {
 		defer close(output)
 		var last domain.ResourceSnapshot
-		last = runtime.resources.Snapshot()
+		last = runtime.Resources().Snapshot()
 		d.sendFilteredResources(output, client, last)
 		for {
 			select {
@@ -272,27 +272,27 @@ func (d *discoveryService) WatchResources(ctx context.Context, client string) (<
 }
 
 // ReadResource reads a resource on behalf of a client.
-func (d *discoveryService) ReadResource(ctx context.Context, client, uri string) (json.RawMessage, error) {
+func (d *DiscoveryService) ReadResource(ctx context.Context, client, uri string) (json.RawMessage, error) {
 	serverName, err := d.registry.resolveClientServer(client)
 	if err != nil {
 		return nil, err
 	}
 	runtime := d.state.RuntimeState()
-	if runtime == nil || runtime.resources == nil {
+	if runtime == nil || runtime.Resources() == nil {
 		return nil, domain.ErrResourceNotFound
 	}
 	if serverName != "" {
-		if _, ok := runtime.resources.ResolveForServer(serverName, uri); !ok {
+		if _, ok := runtime.Resources().ResolveForServer(serverName, uri); !ok {
 			return nil, domain.ErrResourceNotFound
 		}
 		ctx = domain.WithRouteContext(ctx, domain.RouteContext{Client: client})
-		return runtime.resources.ReadResourceForServer(ctx, serverName, uri)
+		return runtime.Resources().ReadResourceForServer(ctx, serverName, uri)
 	}
 	visibleSpecKeys, err := d.registry.resolveVisibleSpecKeys(client)
 	if err != nil {
 		return nil, err
 	}
-	target, ok := runtime.resources.Resolve(uri)
+	target, ok := runtime.Resources().Resolve(uri)
 	if !ok {
 		return nil, domain.ErrResourceNotFound
 	}
@@ -305,34 +305,34 @@ func (d *discoveryService) ReadResource(ctx context.Context, client, uri string)
 		return nil, domain.ErrResourceNotFound
 	}
 	ctx = domain.WithRouteContext(ctx, domain.RouteContext{Client: client})
-	return runtime.resources.ReadResource(ctx, uri)
+	return runtime.Resources().ReadResource(ctx, uri)
 }
 
 // ReadResourceAll reads a resource without client visibility checks.
-func (d *discoveryService) ReadResourceAll(ctx context.Context, uri string) (json.RawMessage, error) {
+func (d *DiscoveryService) ReadResourceAll(ctx context.Context, uri string) (json.RawMessage, error) {
 	runtime := d.state.RuntimeState()
-	if runtime == nil || runtime.resources == nil {
+	if runtime == nil || runtime.Resources() == nil {
 		return nil, domain.ErrResourceNotFound
 	}
-	if _, ok := runtime.resources.Resolve(uri); !ok {
+	if _, ok := runtime.Resources().Resolve(uri); !ok {
 		return nil, domain.ErrResourceNotFound
 	}
 	ctx = domain.WithRouteContext(ctx, domain.RouteContext{Client: domain.InternalUIClientName})
-	return runtime.resources.ReadResource(ctx, uri)
+	return runtime.Resources().ReadResource(ctx, uri)
 }
 
 // ListPrompts lists prompts visible to a client.
-func (d *discoveryService) ListPrompts(_ context.Context, client string, cursor string) (domain.PromptPage, error) {
+func (d *DiscoveryService) ListPrompts(_ context.Context, client string, cursor string) (domain.PromptPage, error) {
 	serverName, err := d.registry.resolveClientServer(client)
 	if err != nil {
 		return domain.PromptPage{}, err
 	}
 	runtime := d.state.RuntimeState()
-	if runtime == nil || runtime.prompts == nil {
+	if runtime == nil || runtime.Prompts() == nil {
 		return domain.PromptPage{Snapshot: domain.PromptSnapshot{}}, nil
 	}
 	if serverName != "" {
-		snapshot, ok := runtime.prompts.SnapshotForServer(serverName)
+		snapshot, ok := runtime.Prompts().SnapshotForServer(serverName)
 		if !ok {
 			return domain.PromptPage{Snapshot: domain.PromptSnapshot{}}, nil
 		}
@@ -342,39 +342,39 @@ func (d *discoveryService) ListPrompts(_ context.Context, client string, cursor 
 	if err != nil {
 		return domain.PromptPage{}, err
 	}
-	snapshot := runtime.prompts.Snapshot()
+	snapshot := runtime.Prompts().Snapshot()
 	filtered := d.filterPromptSnapshot(snapshot, visibleSpecKeys)
 	return paginatePrompts(filtered, cursor)
 }
 
 // ListPromptsAll lists prompts across all servers.
-func (d *discoveryService) ListPromptsAll(_ context.Context, cursor string) (domain.PromptPage, error) {
+func (d *DiscoveryService) ListPromptsAll(_ context.Context, cursor string) (domain.PromptPage, error) {
 	runtime := d.state.RuntimeState()
-	if runtime == nil || runtime.prompts == nil {
+	if runtime == nil || runtime.Prompts() == nil {
 		return domain.PromptPage{Snapshot: domain.PromptSnapshot{}}, nil
 	}
-	snapshot := runtime.prompts.Snapshot()
+	snapshot := runtime.Prompts().Snapshot()
 	return paginatePrompts(snapshot, cursor)
 }
 
 // WatchPrompts streams prompt snapshots for a client.
-func (d *discoveryService) WatchPrompts(ctx context.Context, client string) (<-chan domain.PromptSnapshot, error) {
+func (d *DiscoveryService) WatchPrompts(ctx context.Context, client string) (<-chan domain.PromptSnapshot, error) {
 	if _, err := d.registry.resolveClientServer(client); err != nil {
 		return closedPromptSnapshotChannel(), err
 	}
 	runtime := d.state.RuntimeState()
-	if runtime == nil || runtime.prompts == nil {
+	if runtime == nil || runtime.Prompts() == nil {
 		return closedPromptSnapshotChannel(), nil
 	}
 
 	output := make(chan domain.PromptSnapshot, 1)
-	indexCh := runtime.prompts.Subscribe(ctx)
+	indexCh := runtime.Prompts().Subscribe(ctx)
 	changes := d.registry.WatchClientChanges(ctx)
 
 	go func() {
 		defer close(output)
 		var last domain.PromptSnapshot
-		last = runtime.prompts.Snapshot()
+		last = runtime.Prompts().Snapshot()
 		d.sendFilteredPrompts(output, client, last)
 		for {
 			select {
@@ -401,27 +401,27 @@ func (d *discoveryService) WatchPrompts(ctx context.Context, client string) (<-c
 }
 
 // GetPrompt resolves a prompt for a client.
-func (d *discoveryService) GetPrompt(ctx context.Context, client, name string, args json.RawMessage) (json.RawMessage, error) {
+func (d *DiscoveryService) GetPrompt(ctx context.Context, client, name string, args json.RawMessage) (json.RawMessage, error) {
 	serverName, err := d.registry.resolveClientServer(client)
 	if err != nil {
 		return nil, err
 	}
 	runtime := d.state.RuntimeState()
-	if runtime == nil || runtime.prompts == nil {
+	if runtime == nil || runtime.Prompts() == nil {
 		return nil, domain.ErrPromptNotFound
 	}
 	if serverName != "" {
-		if _, ok := runtime.prompts.ResolveForServer(serverName, name); !ok {
+		if _, ok := runtime.Prompts().ResolveForServer(serverName, name); !ok {
 			return nil, domain.ErrPromptNotFound
 		}
 		ctx = domain.WithRouteContext(ctx, domain.RouteContext{Client: client})
-		return runtime.prompts.GetPromptForServer(ctx, serverName, name, args)
+		return runtime.Prompts().GetPromptForServer(ctx, serverName, name, args)
 	}
 	visibleSpecKeys, err := d.registry.resolveVisibleSpecKeys(client)
 	if err != nil {
 		return nil, err
 	}
-	target, ok := runtime.prompts.Resolve(name)
+	target, ok := runtime.Prompts().Resolve(name)
 	if !ok {
 		return nil, domain.ErrPromptNotFound
 	}
@@ -434,38 +434,38 @@ func (d *discoveryService) GetPrompt(ctx context.Context, client, name string, a
 		return nil, domain.ErrPromptNotFound
 	}
 	ctx = domain.WithRouteContext(ctx, domain.RouteContext{Client: client})
-	return runtime.prompts.GetPrompt(ctx, name, args)
+	return runtime.Prompts().GetPrompt(ctx, name, args)
 }
 
 // GetPromptAll resolves a prompt without client visibility checks.
-func (d *discoveryService) GetPromptAll(ctx context.Context, name string, args json.RawMessage) (json.RawMessage, error) {
+func (d *DiscoveryService) GetPromptAll(ctx context.Context, name string, args json.RawMessage) (json.RawMessage, error) {
 	runtime := d.state.RuntimeState()
-	if runtime == nil || runtime.prompts == nil {
+	if runtime == nil || runtime.Prompts() == nil {
 		return nil, domain.ErrPromptNotFound
 	}
-	if _, ok := runtime.prompts.Resolve(name); !ok {
+	if _, ok := runtime.Prompts().Resolve(name); !ok {
 		return nil, domain.ErrPromptNotFound
 	}
 	ctx = domain.WithRouteContext(ctx, domain.RouteContext{Client: domain.InternalUIClientName})
-	return runtime.prompts.GetPrompt(ctx, name, args)
+	return runtime.Prompts().GetPrompt(ctx, name, args)
 }
 
 // GetToolSnapshotForClient returns the tool snapshot for a client.
-func (d *discoveryService) GetToolSnapshotForClient(client string) (domain.ToolSnapshot, error) {
+func (d *DiscoveryService) GetToolSnapshotForClient(client string) (domain.ToolSnapshot, error) {
 	return d.ListTools(context.Background(), client)
 }
 
-func (d *discoveryService) sendFilteredTools(ch chan<- domain.ToolSnapshot, client string, snapshot domain.ToolSnapshot) {
+func (d *DiscoveryService) sendFilteredTools(ch chan<- domain.ToolSnapshot, client string, snapshot domain.ToolSnapshot) {
 	serverName, err := d.registry.resolveClientServer(client)
 	if err != nil {
 		return
 	}
 	runtime := d.state.RuntimeState()
-	if runtime == nil || runtime.tools == nil {
+	if runtime == nil || runtime.Tools() == nil {
 		return
 	}
 	if serverName != "" {
-		serverSnapshot, ok := runtime.tools.SnapshotForServer(serverName)
+		serverSnapshot, ok := runtime.Tools().SnapshotForServer(serverName)
 		if !ok {
 			return
 		}
@@ -486,17 +486,17 @@ func (d *discoveryService) sendFilteredTools(ch chan<- domain.ToolSnapshot, clie
 	}
 }
 
-func (d *discoveryService) sendFilteredResources(ch chan<- domain.ResourceSnapshot, client string, snapshot domain.ResourceSnapshot) {
+func (d *DiscoveryService) sendFilteredResources(ch chan<- domain.ResourceSnapshot, client string, snapshot domain.ResourceSnapshot) {
 	serverName, err := d.registry.resolveClientServer(client)
 	if err != nil {
 		return
 	}
 	runtime := d.state.RuntimeState()
-	if runtime == nil || runtime.resources == nil {
+	if runtime == nil || runtime.Resources() == nil {
 		return
 	}
 	if serverName != "" {
-		serverSnapshot, ok := runtime.resources.SnapshotForServer(serverName)
+		serverSnapshot, ok := runtime.Resources().SnapshotForServer(serverName)
 		if !ok {
 			return
 		}
@@ -517,17 +517,17 @@ func (d *discoveryService) sendFilteredResources(ch chan<- domain.ResourceSnapsh
 	}
 }
 
-func (d *discoveryService) sendFilteredPrompts(ch chan<- domain.PromptSnapshot, client string, snapshot domain.PromptSnapshot) {
+func (d *DiscoveryService) sendFilteredPrompts(ch chan<- domain.PromptSnapshot, client string, snapshot domain.PromptSnapshot) {
 	serverName, err := d.registry.resolveClientServer(client)
 	if err != nil {
 		return
 	}
 	runtime := d.state.RuntimeState()
-	if runtime == nil || runtime.prompts == nil {
+	if runtime == nil || runtime.Prompts() == nil {
 		return
 	}
 	if serverName != "" {
-		serverSnapshot, ok := runtime.prompts.SnapshotForServer(serverName)
+		serverSnapshot, ok := runtime.Prompts().SnapshotForServer(serverName)
 		if !ok {
 			return
 		}
@@ -548,7 +548,7 @@ func (d *discoveryService) sendFilteredPrompts(ch chan<- domain.PromptSnapshot, 
 	}
 }
 
-func (d *discoveryService) filterToolSnapshot(snapshot domain.ToolSnapshot, visibleSpecKeys []string) domain.ToolSnapshot {
+func (d *DiscoveryService) filterToolSnapshot(snapshot domain.ToolSnapshot, visibleSpecKeys []string) domain.ToolSnapshot {
 	if len(snapshot.Tools) == 0 {
 		return domain.ToolSnapshot{}
 	}
@@ -584,7 +584,7 @@ func (d *discoveryService) filterToolSnapshot(snapshot domain.ToolSnapshot, visi
 	}
 }
 
-func (d *discoveryService) filterResourceSnapshot(snapshot domain.ResourceSnapshot, visibleSpecKeys []string) domain.ResourceSnapshot {
+func (d *DiscoveryService) filterResourceSnapshot(snapshot domain.ResourceSnapshot, visibleSpecKeys []string) domain.ResourceSnapshot {
 	if len(snapshot.Resources) == 0 {
 		return domain.ResourceSnapshot{}
 	}
@@ -614,7 +614,7 @@ func (d *discoveryService) filterResourceSnapshot(snapshot domain.ResourceSnapsh
 	}
 }
 
-func (d *discoveryService) filterPromptSnapshot(snapshot domain.PromptSnapshot, visibleSpecKeys []string) domain.PromptSnapshot {
+func (d *DiscoveryService) filterPromptSnapshot(snapshot domain.PromptSnapshot, visibleSpecKeys []string) domain.PromptSnapshot {
 	if len(snapshot.Prompts) == 0 {
 		return domain.PromptSnapshot{}
 	}
@@ -644,7 +644,7 @@ func (d *discoveryService) filterPromptSnapshot(snapshot domain.PromptSnapshot, 
 	}
 }
 
-func (d *discoveryService) visibleServers(visibleSpecKeys []string) (map[string]struct{}, map[string]struct{}) {
+func (d *DiscoveryService) visibleServers(visibleSpecKeys []string) (map[string]struct{}, map[string]struct{}) {
 	visibleServers := make(map[string]struct{})
 	visibleSpecSet := make(map[string]struct{})
 	specRegistry := d.state.SpecRegistry()
@@ -661,7 +661,7 @@ func (d *discoveryService) visibleServers(visibleSpecKeys []string) (map[string]
 	return visibleServers, visibleSpecSet
 }
 
-func (d *discoveryService) isServerVisible(visibleSpecKeys map[string]struct{}, serverName string) bool {
+func (d *DiscoveryService) isServerVisible(visibleSpecKeys map[string]struct{}, serverName string) bool {
 	if serverName == "" {
 		return false
 	}
@@ -685,12 +685,12 @@ func toSpecKeySet(keys []string) map[string]struct{} {
 	return set
 }
 
-func (d *discoveryService) metadataCache() *domain.MetadataCache {
+func (d *DiscoveryService) metadataCache() *domain.MetadataCache {
 	runtime := d.state.RuntimeState()
 	if runtime == nil {
 		return nil
 	}
-	return runtime.metadataCache
+	return runtime.MetadataCache()
 }
 
 func closedToolSnapshotChannel() chan domain.ToolSnapshot {

@@ -7,6 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"mcpd/internal/app/controlplane"
 	"mcpd/internal/infra/telemetry"
 )
 
@@ -15,13 +16,13 @@ type App struct {
 	logger         *zap.Logger
 	logBroadcaster *telemetry.LogBroadcaster
 	mu             sync.RWMutex
-	reloadManager  *ReloadManager
+	reloadManager  *controlplane.ReloadManager
 }
 
 // ServeConfig describes how to start the core application.
 type ServeConfig struct {
 	ConfigPath    string
-	OnReady       func(ControlPlaneAPI) // Called when Core is ready (after RPC server starts).
+	OnReady       func(controlplane.API) // Called when Core is ready (after RPC server starts).
 	Observability *ObservabilityOptions
 }
 
@@ -85,7 +86,7 @@ func (a *App) ReloadConfig(ctx context.Context) error {
 	return manager.Reload(ctx)
 }
 
-func (a *App) setReloadManager(manager *ReloadManager) {
+func (a *App) setReloadManager(manager *controlplane.ReloadManager) {
 	a.mu.Lock()
 	a.reloadManager = manager
 	a.mu.Unlock()

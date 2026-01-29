@@ -1,4 +1,4 @@
-package app
+package controlplane
 
 import (
 	"context"
@@ -10,21 +10,22 @@ import (
 
 	"go.uber.org/zap"
 
+	"mcpd/internal/app/bootstrap"
 	"mcpd/internal/domain"
 )
 
-type clientRegistry struct {
-	state *controlPlaneState
+type ClientRegistry struct {
+	state *State
 
 	mu               sync.Mutex
 	activeClients    map[string]clientState
 	activeClientSubs map[chan domain.ActiveClientSnapshot]struct{}
-	clientChangeSubs map[chan clientChangeEvent]struct{}
+	clientChangeSubs map[chan ClientChangeEvent]struct{}
 	specCounts       map[string]int
 	monitorStarted   bool
 }
 
-type clientChangeEvent struct {
+type ClientChangeEvent struct {
 	Client string
 }
 
@@ -34,18 +35,18 @@ func isInternalClientName(client string) bool {
 	return client == domain.InternalUIClientName
 }
 
-func newClientRegistry(state *controlPlaneState) *clientRegistry {
-	return &clientRegistry{
+func NewClientRegistry(state *State) *ClientRegistry {
+	return &ClientRegistry{
 		state:            state,
 		activeClients:    make(map[string]clientState),
 		activeClientSubs: make(map[chan domain.ActiveClientSnapshot]struct{}),
-		clientChangeSubs: make(map[chan clientChangeEvent]struct{}),
+		clientChangeSubs: make(map[chan ClientChangeEvent]struct{}),
 		specCounts:       make(map[string]int),
 	}
 }
 
 // StartMonitor begins monitoring client heartbeats.
-func (r *clientRegistry) StartMonitor(ctx context.Context) {
+func (r *ClientRegistry) StartMonitor(ctx context.Context) {
 	runtime := r.state.Runtime()
 	interval := runtime.ClientCheckInterval()
 	if interval <= 0 {
@@ -82,7 +83,7 @@ func (r *clientRegistry) StartMonitor(ctx context.Context) {
 }
 
 // RegisterClient registers a client and returns registration metadata.
-func (r *clientRegistry) RegisterClient(ctx context.Context, client string, pid int, tags []string, server string) (domain.ClientRegistration, error) {
+func (r *ClientRegistry) RegisterClient(ctx context.Context, client string, pid int, tags []string, server string) (domain.ClientRegistration, error) {
 	if client == "" {
 		return domain.ClientRegistration{}, errors.New("client is required")
 	}
@@ -163,7 +164,7 @@ func (r *clientRegistry) RegisterClient(ctx context.Context, client string, pid 
 		r.broadcastActiveClients(finalizeActiveClientSnapshot(snapshot))
 	}
 	if selectorChanged {
-		r.broadcastClientChange(clientChangeEvent{Client: client})
+		r.broadcastClientChange(ClientChangeEvent{Client: client})
 	}
 
 	return domain.ClientRegistration{
@@ -174,7 +175,7 @@ func (r *clientRegistry) RegisterClient(ctx context.Context, client string, pid 
 }
 
 // UnregisterClient unregisters a client.
-func (r *clientRegistry) UnregisterClient(ctx context.Context, client string) error {
+func (r *ClientRegistry) UnregisterClient(ctx context.Context, client string) error {
 	if client == "" {
 		return errors.New("client is required")
 	}
@@ -208,7 +209,7 @@ func (r *clientRegistry) UnregisterClient(ctx context.Context, client string) er
 }
 
 // ListActiveClients lists active clients.
-func (r *clientRegistry) ListActiveClients(_ context.Context) ([]domain.ActiveClient, error) {
+func (r *ClientRegistry) ListActiveClients(_ context.Context) ([]domain.ActiveClient, error) {
 	now := time.Now()
 	r.mu.Lock()
 	snapshot := r.snapshotActiveClientsLocked(now)
@@ -217,7 +218,7 @@ func (r *clientRegistry) ListActiveClients(_ context.Context) ([]domain.ActiveCl
 }
 
 // WatchActiveClients streams active client updates.
-func (r *clientRegistry) WatchActiveClients(ctx context.Context) (<-chan domain.ActiveClientSnapshot, error) {
+func (r *ClientRegistry) WatchActiveClients(ctx context.Context) (<-chan domain.ActiveClientSnapshot, error) {
 	ch := make(chan domain.ActiveClientSnapshot, 1)
 	r.mu.Lock()
 	r.activeClientSubs[ch] = struct{}{}
@@ -237,8 +238,8 @@ func (r *clientRegistry) WatchActiveClients(ctx context.Context) (<-chan domain.
 }
 
 // WatchClientChanges streams client change events.
-func (r *clientRegistry) WatchClientChanges(ctx context.Context) <-chan clientChangeEvent {
-	ch := make(chan clientChangeEvent, 16)
+func (r *ClientRegistry) WatchClientChanges(ctx context.Context) <-chan ClientChangeEvent {
+	ch := make(chan ClientChangeEvent, 16)
 	r.mu.Lock()
 	r.clientChangeSubs[ch] = struct{}{}
 	r.mu.Unlock()
@@ -254,7 +255,7 @@ func (r *clientRegistry) WatchClientChanges(ctx context.Context) <-chan clientCh
 	return ch
 }
 
-func (r *clientRegistry) resolveClientTags(client string) ([]string, error) {
+func (r *ClientRegistry) resolveClientTags(client string) ([]string, error) {
 	if client == "" {
 		return nil, domain.ErrClientNotRegistered
 	}
@@ -271,7 +272,7 @@ func (r *clientRegistry) resolveClientTags(client string) ([]string, error) {
 	return append([]string(nil), state.tags...), nil
 }
 
-func (r *clientRegistry) resolveClientServer(client string) (string, error) {
+func (r *ClientRegistry) resolveClientServer(client string) (string, error) {
 	if client == "" {
 		return "", domain.ErrClientNotRegistered
 	}
@@ -288,7 +289,7 @@ func (r *clientRegistry) resolveClientServer(client string) (string, error) {
 	return state.server, nil
 }
 
-func (r *clientRegistry) resolveVisibleSpecKeys(client string) ([]string, error) {
+func (r *ClientRegistry) resolveVisibleSpecKeys(client string) ([]string, error) {
 	if client == "" {
 		return nil, domain.ErrClientNotRegistered
 	}
@@ -305,7 +306,7 @@ func (r *clientRegistry) resolveVisibleSpecKeys(client string) ([]string, error)
 	return append([]string(nil), state.specKeys...), nil
 }
 
-func (r *clientRegistry) visibleSpecKeys(tags []string, server string) ([]string, int) {
+func (r *ClientRegistry) visibleSpecKeys(tags []string, server string) ([]string, int) {
 	catalog := r.state.Catalog()
 	serverSpecKeys := r.state.ServerSpecKeys()
 	if len(serverSpecKeys) == 0 {
@@ -336,7 +337,7 @@ func (r *clientRegistry) visibleSpecKeys(tags []string, server string) ([]string
 	return keysFromSet(visible), serverCount
 }
 
-func (r *clientRegistry) activateSpecs(ctx context.Context, specKeys []string, client string) error {
+func (r *ClientRegistry) activateSpecs(ctx context.Context, specKeys []string, client string) error {
 	if len(specKeys) == 0 {
 		return nil
 	}
@@ -362,8 +363,8 @@ func (r *clientRegistry) activateSpecs(ctx context.Context, specKeys []string, c
 		if !ok {
 			return errors.New("unknown spec key " + specKey)
 		}
-		minReady := activeMinReady(spec)
-		cause := clientStartCause(runtime, spec, client, minReady)
+		minReady := bootstrap.ActiveMinReady(spec)
+		cause := bootstrap.ClientStartCause(runtime, spec, client, minReady)
 		causeCtx := domain.WithStartCause(ctx, cause)
 		if r.state.initManager != nil {
 			err := r.state.initManager.SetMinReady(specKey, minReady, cause)
@@ -382,7 +383,7 @@ func (r *clientRegistry) activateSpecs(ctx context.Context, specKeys []string, c
 	return nil
 }
 
-func (r *clientRegistry) deactivateSpecs(ctx context.Context, specKeys []string) error {
+func (r *ClientRegistry) deactivateSpecs(ctx context.Context, specKeys []string) error {
 	if len(specKeys) == 0 {
 		return nil
 	}
@@ -401,7 +402,7 @@ func (r *clientRegistry) deactivateSpecs(ctx context.Context, specKeys []string)
 			continue
 		}
 		spec, ok := registry[specKey]
-		if ok && resolveActivationMode(runtime, spec) == domain.ActivationAlwaysOn {
+		if ok && bootstrap.ResolveActivationMode(runtime, spec) == domain.ActivationAlwaysOn {
 			continue
 		}
 		specsToStop = append(specsToStop, specKey)
@@ -426,7 +427,7 @@ func (r *clientRegistry) deactivateSpecs(ctx context.Context, specKeys []string)
 	return firstErr
 }
 
-func (r *clientRegistry) reapDeadClients(ctx context.Context) {
+func (r *ClientRegistry) reapDeadClients(ctx context.Context) {
 	now := time.Now()
 	runtime := r.state.Runtime()
 	timeout := runtime.ClientCheckInterval() * clientReapTimeoutMultiplier
@@ -454,7 +455,7 @@ func (r *clientRegistry) reapDeadClients(ctx context.Context) {
 	}
 }
 
-func (r *clientRegistry) snapshotActiveClientsLocked(now time.Time) domain.ActiveClientSnapshot {
+func (r *ClientRegistry) snapshotActiveClientsLocked(now time.Time) domain.ActiveClientSnapshot {
 	clients := make([]domain.ActiveClient, 0, len(r.activeClients))
 	for client, state := range r.activeClients {
 		if isInternalClientName(client) {
@@ -487,7 +488,7 @@ func finalizeActiveClientSnapshot(snapshot domain.ActiveClientSnapshot) domain.A
 	return snapshot
 }
 
-func (r *clientRegistry) broadcastActiveClients(snapshot domain.ActiveClientSnapshot) {
+func (r *ClientRegistry) broadcastActiveClients(snapshot domain.ActiveClientSnapshot) {
 	subs := r.copyActiveClientSubscribers()
 	for _, ch := range subs {
 		sendActiveClientSnapshot(ch, snapshot)
@@ -495,7 +496,7 @@ func (r *clientRegistry) broadcastActiveClients(snapshot domain.ActiveClientSnap
 }
 
 // ApplyCatalogUpdate updates client state based on catalog changes.
-func (r *clientRegistry) ApplyCatalogUpdate(ctx context.Context, update domain.CatalogUpdate) error {
+func (r *ClientRegistry) ApplyCatalogUpdate(ctx context.Context, update domain.CatalogUpdate) error {
 	now := time.Now()
 
 	r.mu.Lock()
@@ -531,12 +532,12 @@ func (r *clientRegistry) ApplyCatalogUpdate(ctx context.Context, update domain.C
 	}
 	r.broadcastActiveClients(finalizeActiveClientSnapshot(snapshot))
 	for _, client := range changedClients {
-		r.broadcastClientChange(clientChangeEvent{Client: client})
+		r.broadcastClientChange(ClientChangeEvent{Client: client})
 	}
 	return nil
 }
 
-func (r *clientRegistry) copyActiveClientSubscribers() []chan domain.ActiveClientSnapshot {
+func (r *ClientRegistry) copyActiveClientSubscribers() []chan domain.ActiveClientSnapshot {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -554,9 +555,9 @@ func sendActiveClientSnapshot(ch chan domain.ActiveClientSnapshot, snapshot doma
 	}
 }
 
-func (r *clientRegistry) broadcastClientChange(event clientChangeEvent) {
+func (r *ClientRegistry) broadcastClientChange(event ClientChangeEvent) {
 	r.mu.Lock()
-	subs := make([]chan clientChangeEvent, 0, len(r.clientChangeSubs))
+	subs := make([]chan ClientChangeEvent, 0, len(r.clientChangeSubs))
 	for ch := range r.clientChangeSubs {
 		subs = append(subs, ch)
 	}

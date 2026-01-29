@@ -8,6 +8,9 @@ package app
 
 import (
 	"context"
+	"mcpd/internal/app/bootstrap"
+	"mcpd/internal/app/catalog"
+	"mcpd/internal/app/controlplane"
 	"mcpd/internal/domain"
 )
 
@@ -20,11 +23,12 @@ func InitializeApplication(ctx context.Context, cfg ServeConfig, logging Logging
 	registry := NewMetricsRegistry()
 	metrics := NewMetrics(registry)
 	healthTracker := NewHealthTracker()
-	dynamicCatalogProvider, err := NewDynamicCatalogProvider(ctx, cfg, logger)
+	string2 := ConfigPath(cfg)
+	dynamicCatalogProvider, err := catalog.NewDynamicCatalogProvider(ctx, string2, logger)
 	if err != nil {
 		return nil, err
 	}
-	catalogState, err := NewCatalogState(ctx, dynamicCatalogProvider)
+	catalogState, err := catalog.NewCatalogState(ctx, dynamicCatalogProvider)
 	if err != nil {
 		return nil, err
 	}
@@ -40,19 +44,19 @@ func InitializeApplication(ctx context.Context, cfg ServeConfig, logging Logging
 		return nil, err
 	}
 	metadataCache := domain.NewMetadataCache()
-	appRuntimeState := newRuntimeState(catalogState, scheduler, metrics, healthTracker, metadataCache, listChangeHub, logger)
-	serverInitializationManager := NewServerInitializationManager(scheduler, catalogState, logger)
-	bootstrapManager := NewBootstrapManagerProvider(lifecycle, scheduler, catalogState, metadataCache, logger)
-	appControlPlaneState := provideControlPlaneState(ctx, appRuntimeState, catalogState, scheduler, serverInitializationManager, bootstrapManager, logger)
-	appClientRegistry := newClientRegistry(appControlPlaneState)
-	appDiscoveryService := newDiscoveryService(appControlPlaneState, appClientRegistry)
+	state := newRuntimeState(catalogState, scheduler, metrics, healthTracker, metadataCache, listChangeHub, logger)
+	serverInitializationManager := bootstrap.NewServerInitializationManager(scheduler, catalogState, logger)
+	manager := NewBootstrapManagerProvider(lifecycle, scheduler, catalogState, metadataCache, logger)
+	controlplaneState := provideControlPlaneState(ctx, state, catalogState, scheduler, serverInitializationManager, manager, logger)
+	clientRegistry := controlplane.NewClientRegistry(controlplaneState)
+	discoveryService := controlplane.NewDiscoveryService(controlplaneState, clientRegistry)
 	logBroadcaster := NewLogBroadcaster(appLogging)
-	appObservabilityService := newObservabilityService(appControlPlaneState, appClientRegistry, logBroadcaster)
-	appAutomationService := newAutomationService(appControlPlaneState, appClientRegistry, appDiscoveryService)
-	controlPlane := NewControlPlane(appControlPlaneState, appClientRegistry, appDiscoveryService, appObservabilityService, appAutomationService)
+	observabilityService := controlplane.NewObservabilityService(controlplaneState, clientRegistry, logBroadcaster)
+	automationService := controlplane.NewAutomationService(controlplaneState, clientRegistry, discoveryService)
+	controlPlane := controlplane.NewControlPlane(controlplaneState, clientRegistry, discoveryService, observabilityService, automationService)
 	server := NewRPCServer(controlPlane, catalogState, logger)
-	reloadManager := NewReloadManager(dynamicCatalogProvider, appControlPlaneState, appClientRegistry, scheduler, serverInitializationManager, metrics, healthTracker, metadataCache, listChangeHub, logger)
-	application := NewApplication(ApplicationOptions{
+	reloadManager := controlplane.NewReloadManager(dynamicCatalogProvider, controlplaneState, clientRegistry, scheduler, serverInitializationManager, metrics, healthTracker, metadataCache, listChangeHub, logger)
+	applicationOptions := ApplicationOptions{
 		Context:           ctx,
 		ServeConfig:       cfg,
 		Logger:            logger,
@@ -60,13 +64,14 @@ func InitializeApplication(ctx context.Context, cfg ServeConfig, logging Logging
 		Metrics:           metrics,
 		Health:            healthTracker,
 		CatalogState:      catalogState,
-		ControlPlaneState: appControlPlaneState,
+		ControlPlaneState: controlplaneState,
 		Scheduler:         scheduler,
 		InitManager:       serverInitializationManager,
-		BootstrapManager:  bootstrapManager,
+		BootstrapManager:  manager,
 		ControlPlane:      controlPlane,
 		RPCServer:         server,
 		ReloadManager:     reloadManager,
-	})
+	}
+	application := NewApplication(applicationOptions)
 	return application, nil
 }

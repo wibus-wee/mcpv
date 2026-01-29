@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"mcpd/internal/app"
+	"mcpd/internal/app/controlplane"
 )
 
 func TestNewManager(t *testing.T) {
@@ -74,7 +75,7 @@ func TestManager_SetControlPlane(t *testing.T) {
 
 	// Create a mock control plane (we'll use nil for this test)
 	// In real usage, this would be set from app.ControlPlane
-	var mockCP app.ControlPlaneAPI
+	var mockCP controlplane.API
 	manager.SetControlPlane(mockCP)
 
 	// Verify it was set (even though it's nil)

@@ -1,9 +1,9 @@
-package app
+package controlplane
 
 import "mcpd/internal/domain"
 
-// ControlPlaneAPI describes the surface exposed to external coordinators (e.g. UI).
-type ControlPlaneAPI interface {
+// API describes the surface exposed to external coordinators (e.g. UI).
+type API interface {
 	domain.InfoAPI
 	domain.RegistryAPI
 	domain.DiscoveryAPI

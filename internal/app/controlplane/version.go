@@ -1,9 +1,7 @@
-package app
-
-import "mcpd/internal/app/controlplane"
+package controlplane
 
 // Version is the semantic version of mcpd, set at build time via -ldflags.
-var Version = controlplane.Version
+var Version = "dev"
 
 // Build is the git commit hash or build identifier, set at build time via -ldflags.
-var Build = controlplane.Build
+var Build = "unknown"

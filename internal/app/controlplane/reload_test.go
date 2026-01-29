@@ -1,4 +1,4 @@
-package app
+package controlplane
 
 import (
 	"context"
@@ -8,11 +8,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
+	"mcpd/internal/app/bootstrap"
+	"mcpd/internal/app/runtime"
 	"mcpd/internal/domain"
 )
 
 func TestReloadManager_ApplyUpdate_UpdatesRuntimeAndRegistry(t *testing.T) {
-	runtime := domain.RuntimeConfig{
+	runtimeCfg := domain.RuntimeConfig{
 		ServerInitRetryBaseSeconds: 1,
 		ServerInitRetryMaxSeconds:  1,
 		ServerInitMaxRetries:       1,
@@ -22,11 +24,11 @@ func TestReloadManager_ApplyUpdate_UpdatesRuntimeAndRegistry(t *testing.T) {
 
 	prevCatalog := domain.Catalog{
 		Specs:   map[string]domain.ServerSpec{"svc": prevSpec},
-		Runtime: runtime,
+		Runtime: runtimeCfg,
 	}
 	nextCatalog := domain.Catalog{
 		Specs:   map[string]domain.ServerSpec{"svc": nextSpec},
-		Runtime: runtime,
+		Runtime: runtimeCfg,
 	}
 
 	prevState := newCatalogState(t, prevCatalog)
@@ -37,12 +39,10 @@ func TestReloadManager_ApplyUpdate_UpdatesRuntimeAndRegistry(t *testing.T) {
 	require.NotEqual(t, prevSpecKey, nextSpecKey)
 
 	scheduler := &schedulerStub{}
-	initManager := NewServerInitializationManager(scheduler, &prevState, zap.NewNop())
-	runtimeState := &runtimeState{
-		specKeys: copySpecKeyMap(prevState.Summary.ServerSpecKeys),
-	}
-	state := newControlPlaneState(context.Background(), runtimeState, scheduler, initManager, nil, &prevState, zap.NewNop())
-	registry := newClientRegistry(state)
+	initManager := bootstrap.NewServerInitializationManager(scheduler, &prevState, zap.NewNop())
+	runtimeState := runtime.NewStateFromSpecKeys(prevState.Summary.ServerSpecKeys)
+	state := NewState(context.Background(), runtimeState, scheduler, initManager, nil, &prevState, zap.NewNop())
+	registry := NewClientRegistry(state)
 
 	_, err := registry.RegisterClient(context.Background(), "client-1", 1, nil, "")
 	require.NoError(t, err)
@@ -89,11 +89,9 @@ func TestReloadManager_ApplyUpdate_RemovesServer(t *testing.T) {
 	removedSpecKey := domain.SpecFingerprint(removedSpec)
 
 	scheduler := &schedulerStub{}
-	runtimeState := &runtimeState{
-		specKeys: copySpecKeyMap(prevState.Summary.ServerSpecKeys),
-	}
-	state := newControlPlaneState(context.Background(), runtimeState, scheduler, nil, nil, &prevState, zap.NewNop())
-	registry := newClientRegistry(state)
+	runtimeState := runtime.NewStateFromSpecKeys(prevState.Summary.ServerSpecKeys)
+	state := NewState(context.Background(), runtimeState, scheduler, nil, nil, &prevState, zap.NewNop())
+	registry := NewClientRegistry(state)
 
 	_, err := registry.RegisterClient(context.Background(), "client-1", 1, nil, "")
 	require.NoError(t, err)

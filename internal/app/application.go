@@ -7,6 +7,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 
+	"mcpd/internal/app/bootstrap"
+	"mcpd/internal/app/controlplane"
 	"mcpd/internal/domain"
 	"mcpd/internal/infra/rpc"
 	"mcpd/internal/infra/telemetry"
@@ -16,7 +18,7 @@ import (
 type Application struct {
 	ctx           context.Context
 	configPath    string
-	onReady       func(ControlPlaneAPI)
+	onReady       func(controlplane.API)
 	observability *ObservabilityOptions
 
 	logger           *zap.Logger
@@ -24,13 +26,13 @@ type Application struct {
 	metrics          domain.Metrics
 	health           *telemetry.HealthTracker
 	summary          domain.CatalogSummary
-	state            *controlPlaneState
+	state            *controlplane.State
 	scheduler        domain.Scheduler
-	initManager      *ServerInitializationManager
-	bootstrapManager *BootstrapManager
-	controlPlane     *ControlPlane
+	initManager      *bootstrap.ServerInitializationManager
+	bootstrapManager *bootstrap.Manager
+	controlPlane     *controlplane.ControlPlane
 	rpcServer        *rpc.Server
-	reloadManager    *ReloadManager
+	reloadManager    *controlplane.ReloadManager
 }
 
 // ApplicationOptions captures dependencies and settings for Application.
@@ -42,13 +44,13 @@ type ApplicationOptions struct {
 	Metrics           domain.Metrics
 	Health            *telemetry.HealthTracker
 	CatalogState      *domain.CatalogState
-	ControlPlaneState *controlPlaneState
+	ControlPlaneState *controlplane.State
 	Scheduler         domain.Scheduler
-	InitManager       *ServerInitializationManager
-	BootstrapManager  *BootstrapManager
-	ControlPlane      *ControlPlane
+	InitManager       *bootstrap.ServerInitializationManager
+	BootstrapManager  *bootstrap.Manager
+	ControlPlane      *controlplane.ControlPlane
 	RPCServer         *rpc.Server
-	ReloadManager     *ReloadManager
+	ReloadManager     *controlplane.ReloadManager
 }
 
 // NewApplication constructs the core application runtime.
@@ -112,7 +114,7 @@ func (a *Application) Run() error {
 	}
 
 	if a.summary.Runtime.SubAgent.Model != "" && a.summary.Runtime.SubAgent.Provider != "" {
-		subAgent, err := initializeSubAgent(a.ctx, a.summary.Runtime.SubAgent, a.controlPlane, a.metrics, a.logger)
+		subAgent, err := controlplane.InitializeSubAgent(a.ctx, a.summary.Runtime.SubAgent, a.controlPlane, a.metrics, a.logger)
 		if err != nil {
 			a.logger.Warn("failed to initialize SubAgent", zap.Error(err))
 		} else {

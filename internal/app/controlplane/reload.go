@@ -1,4 +1,4 @@
-package app
+package controlplane
 
 import (
 	"context"
@@ -7,6 +7,8 @@ import (
 
 	"go.uber.org/zap"
 
+	"mcpd/internal/app/bootstrap"
+	appRuntime "mcpd/internal/app/runtime"
 	"mcpd/internal/domain"
 	"mcpd/internal/infra/notifications"
 	"mcpd/internal/infra/telemetry"
@@ -15,10 +17,10 @@ import (
 // ReloadManager coordinates catalog reloads and applies updates.
 type ReloadManager struct {
 	provider      domain.CatalogProvider
-	state         *controlPlaneState
-	registry      *clientRegistry
+	state         *State
+	registry      *ClientRegistry
 	scheduler     domain.Scheduler
-	initManager   *ServerInitializationManager
+	initManager   *bootstrap.ServerInitializationManager
 	metrics       domain.Metrics
 	health        *telemetry.HealthTracker
 	metadataCache *domain.MetadataCache
@@ -32,10 +34,10 @@ type ReloadManager struct {
 // NewReloadManager constructs a reload manager.
 func NewReloadManager(
 	provider domain.CatalogProvider,
-	state *controlPlaneState,
-	registry *clientRegistry,
+	state *State,
+	registry *ClientRegistry,
 	scheduler domain.Scheduler,
-	initManager *ServerInitializationManager,
+	initManager *bootstrap.ServerInitializationManager,
 	metrics domain.Metrics,
 	health *telemetry.HealthTracker,
 	metadataCache *domain.MetadataCache,
@@ -122,7 +124,7 @@ func (m *ReloadManager) applyUpdate(ctx context.Context, update domain.CatalogUp
 	started := time.Now()
 	runtime := m.state.RuntimeState()
 	if runtime == nil {
-		runtime = buildRuntimeState(&update.Snapshot, m.scheduler, m.metrics, m.health, m.metadataCache, m.listChanges, m.coreLogger)
+		runtime = appRuntime.NewState(&update.Snapshot, m.scheduler, m.metrics, m.health, m.metadataCache, m.listChanges, m.coreLogger)
 	} else {
 		runtime.UpdateCatalog(update.Snapshot.Catalog, update.Snapshot.Summary.ServerSpecKeys, update.Snapshot.Summary.Runtime)
 	}
@@ -154,25 +156,25 @@ func (m *ReloadManager) applyUpdate(ctx context.Context, update domain.CatalogUp
 	return nil
 }
 
-func (m *ReloadManager) refreshRuntime(ctx context.Context, update domain.CatalogUpdate, runtime *runtimeState) {
+func (m *ReloadManager) refreshRuntime(ctx context.Context, update domain.CatalogUpdate, runtime *appRuntime.State) {
 	if runtime == nil {
 		return
 	}
 	if len(update.Diff.AddedSpecKeys) == 0 && len(update.Diff.UpdatedSpecKeys) == 0 && len(update.Diff.ReplacedSpecKeys) == 0 {
 		return
 	}
-	if runtime.tools != nil {
-		if err := runtime.tools.Refresh(ctx); err != nil {
+	if runtime.Tools() != nil {
+		if err := runtime.Tools().Refresh(ctx); err != nil {
 			m.logger.Warn("tool refresh after reload failed", zap.Error(err))
 		}
 	}
-	if runtime.resources != nil {
-		if err := runtime.resources.Refresh(ctx); err != nil {
+	if runtime.Resources() != nil {
+		if err := runtime.Resources().Refresh(ctx); err != nil {
 			m.logger.Warn("resource refresh after reload failed", zap.Error(err))
 		}
 	}
-	if runtime.prompts != nil {
-		if err := runtime.prompts.Refresh(ctx); err != nil {
+	if runtime.Prompts() != nil {
+		if err := runtime.Prompts().Refresh(ctx); err != nil {
 			m.logger.Warn("prompt refresh after reload failed", zap.Error(err))
 		}
 	}

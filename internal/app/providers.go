@@ -7,13 +7,14 @@ import (
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"go.uber.org/zap"
 
+	"mcpd/internal/app/bootstrap"
+	"mcpd/internal/app/controlplane"
+	"mcpd/internal/app/runtime"
 	"mcpd/internal/domain"
-	"mcpd/internal/infra/aggregator"
 	"mcpd/internal/infra/elicitation"
 	"mcpd/internal/infra/lifecycle"
 	"mcpd/internal/infra/notifications"
 	"mcpd/internal/infra/probe"
-	"mcpd/internal/infra/router"
 	"mcpd/internal/infra/rpc"
 	"mcpd/internal/infra/sampling"
 	"mcpd/internal/infra/scheduler"
@@ -27,6 +28,11 @@ func NewMetricsRegistry() *prometheus.Registry {
 	registry.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
 	registry.MustRegister(collectors.NewGoCollector())
 	return registry
+}
+
+// ConfigPath extracts the config path from the serve config.
+func ConfigPath(cfg ServeConfig) string {
+	return cfg.ConfigPath
 }
 
 // NewMetrics constructs metrics backed by Prometheus.
@@ -131,7 +137,7 @@ func NewBootstrapManagerProvider(
 	state *domain.CatalogState,
 	cache *domain.MetadataCache,
 	logger *zap.Logger,
-) *BootstrapManager {
+) *bootstrap.Manager {
 	summary := state.Summary
 	runtime := summary.Runtime
 
@@ -150,7 +156,7 @@ func NewBootstrapManagerProvider(
 
 	timeout := runtime.BootstrapTimeout()
 
-	return NewBootstrapManager(BootstrapManagerOptions{
+	return bootstrap.NewManager(bootstrap.ManagerOptions{
 		Scheduler:   scheduler,
 		Lifecycle:   lifecycle,
 		Specs:       summary.SpecRegistry,
@@ -173,35 +179,27 @@ func newRuntimeState(
 	metadataCache *domain.MetadataCache,
 	listChanges *notifications.ListChangeHub,
 	logger *zap.Logger,
-) *runtimeState {
-	return buildRuntimeState(state, scheduler, metrics, health, metadataCache, listChanges, logger)
+) *runtime.State {
+	return runtime.NewState(state, scheduler, metrics, health, metadataCache, listChanges, logger)
 }
 
 // provideControlPlaneState constructs a control plane state container.
 func provideControlPlaneState(
 	ctx context.Context,
-	runtime *runtimeState,
+	runtimeState *runtime.State,
 	state *domain.CatalogState,
 	scheduler domain.Scheduler,
-	initManager *ServerInitializationManager,
-	bootstrapManager *BootstrapManager,
+	initManager *bootstrap.ServerInitializationManager,
+	bootstrapManager *bootstrap.Manager,
 	logger *zap.Logger,
-) *controlPlaneState {
-	controlState := newControlPlaneState(ctx, runtime, scheduler, initManager, bootstrapManager, state, logger)
+) *controlplane.State {
+	controlState := controlplane.NewState(ctx, runtimeState, scheduler, initManager, bootstrapManager, state, logger)
 
-	if bootstrapManager != nil && runtime != nil {
+	if bootstrapManager != nil && runtimeState != nil {
 		waiter := func(ctx context.Context) error {
 			return bootstrapManager.WaitForCompletion(ctx)
 		}
-		if runtime.tools != nil {
-			runtime.tools.SetBootstrapWaiter(waiter)
-		}
-		if runtime.resources != nil {
-			runtime.resources.SetBootstrapWaiter(waiter)
-		}
-		if runtime.prompts != nil {
-			runtime.prompts.SetBootstrapWaiter(waiter)
-		}
+		runtimeState.SetBootstrapWaiter(waiter)
 	}
 
 	return controlState
@@ -210,34 +208,4 @@ func provideControlPlaneState(
 // NewRPCServer constructs the RPC server.
 func NewRPCServer(control rpc.ControlPlaneAPI, state *domain.CatalogState, logger *zap.Logger) *rpc.Server {
 	return rpc.NewServer(control, state.Summary.Runtime.RPC, logger)
-}
-
-func buildRuntimeState(
-	state *domain.CatalogState,
-	scheduler domain.Scheduler,
-	metrics domain.Metrics,
-	health *telemetry.HealthTracker,
-	metadataCache *domain.MetadataCache,
-	listChanges *notifications.ListChangeHub,
-	logger *zap.Logger,
-) *runtimeState {
-	if logger == nil {
-		logger = zap.NewNop()
-	}
-	refreshGate := aggregator.NewRefreshGate()
-	baseRouter := router.NewBasicRouter(scheduler, router.Options{
-		Timeout: state.Summary.Runtime.RouteTimeout(),
-		Logger:  logger,
-	})
-	rt := router.NewMetricRouter(baseRouter, metrics)
-	toolIndex := aggregator.NewToolIndex(rt, state.Catalog.Specs, state.Summary.ServerSpecKeys, state.Summary.Runtime, metadataCache, logger, health, refreshGate, listChanges)
-	resourceIndex := aggregator.NewResourceIndex(rt, state.Catalog.Specs, state.Summary.ServerSpecKeys, state.Summary.Runtime, metadataCache, logger, health, refreshGate, listChanges)
-	promptIndex := aggregator.NewPromptIndex(rt, state.Catalog.Specs, state.Summary.ServerSpecKeys, state.Summary.Runtime, metadataCache, logger, health, refreshGate, listChanges)
-	return &runtimeState{
-		specKeys:      copySpecKeyMap(state.Summary.ServerSpecKeys),
-		metadataCache: metadataCache,
-		tools:         toolIndex,
-		resources:     resourceIndex,
-		prompts:       promptIndex,
-	}
 }
