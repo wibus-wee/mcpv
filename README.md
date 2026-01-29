@@ -1,6 +1,6 @@
 <p align="center">
   <p align="center">
-    <img src="./.github/mcpd.png" alt="mcpd-logo" width="128" />
+    <img src="./build/appicon.png" alt="mcpd-logo" width="128" />
   </p>
   <h1 align="center"><b>mcpd</b></h1>
   <p align="center">
