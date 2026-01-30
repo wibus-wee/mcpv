@@ -240,7 +240,6 @@ func (m *ReloadManager) handleApplyError(update domain.CatalogUpdate, err error,
 	m.observeReloadApply(reloadMode, domain.ReloadApplyResultFailure, stage, duration)
 	if reloadMode == domain.ReloadModeStrict {
 		m.coreLogger.Fatal("config reload apply failed; shutting down", fields...)
-		return
 	}
 	m.logger.Warn("config reload apply failed", fields...)
 }
