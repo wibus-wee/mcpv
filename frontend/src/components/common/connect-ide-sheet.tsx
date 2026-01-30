@@ -1,3 +1,7 @@
+// Input: motion/react, lucide-react icons, UI components, server hooks, mcpdmcp config helpers
+// Output: ConnectIdeSheet component for IDE connection presets
+// Position: Shared UI component for configuring IDE connections in the app
+
 import {
   CheckIcon,
   ClipboardIcon,
@@ -12,7 +16,7 @@ import {
 } from 'lucide-react'
 import { m } from 'motion/react'
 import type * as React from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -130,23 +134,16 @@ export function ConnectIdeSheet() {
     return Array.from(set).sort((a, b) => a.localeCompare(b))
   }, [servers])
 
-  useEffect(() => {
-    if (selectorValue) {
-      return
-    }
-    if (selectorMode === 'server' && serverOptions.length > 0) {
-      setSelectorValue(serverOptions[0])
-      return
-    }
-    if (selectorMode === 'tag' && tagOptions.length > 0) {
-      setSelectorValue(tagOptions[0])
-    }
-  }, [selectorMode, selectorValue, serverOptions, tagOptions])
+  const defaultSelectorValue = selectorMode === 'server'
+    ? serverOptions[0] ?? ''
+    : tagOptions[0] ?? ''
+
+  const effectiveSelectorValue = selectorValue || defaultSelectorValue
 
   const selector = useMemo(() => ({
     mode: selectorMode,
-    value: selectorValue || (selectorMode === 'server' ? serverOptions[0] ?? '' : tagOptions[0] ?? ''),
-  }), [selectorMode, selectorValue, serverOptions, tagOptions])
+    value: effectiveSelectorValue,
+  }), [selectorMode, effectiveSelectorValue])
 
   const configServerName = selector.mode === 'server'
     ? selector.value
@@ -232,7 +229,7 @@ export function ConnectIdeSheet() {
             </ToggleGroup>
             <div className="space-y-2">
               <Input
-                value={selectorValue}
+                value={effectiveSelectorValue}
                 onChange={event => setSelectorValue(event.target.value)}
                 placeholder={selectorMode === 'server' ? 'Server name' : 'Tag name'}
               />
