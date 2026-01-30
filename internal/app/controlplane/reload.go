@@ -127,6 +127,7 @@ func (m *ReloadManager) Reload(ctx context.Context) error {
 		m.recordReloadFailure(domain.CatalogUpdateSourceManual, domain.ReloadActionEntry)
 		return err
 	}
+	m.recordReloadSuccess(domain.CatalogUpdateSourceManual, domain.ReloadActionEntry)
 	return nil
 }
 
