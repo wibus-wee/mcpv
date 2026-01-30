@@ -122,15 +122,19 @@ func (m *ReloadManager) run(ctx context.Context, updates <-chan domain.CatalogUp
 
 func (m *ReloadManager) applyUpdate(ctx context.Context, update domain.CatalogUpdate) error {
 	started := time.Now()
+	diff := update.Diff
+	runtimeOnly := diff.IsRuntimeOnly()
 	runtime := m.state.RuntimeState()
 	if runtime == nil {
 		runtime = appRuntime.NewState(&update.Snapshot, m.scheduler, m.metrics, m.health, m.metadataCache, m.listChanges, m.coreLogger)
-	} else {
+	} else if diff.RuntimeChanged || diff.HasSpecChanges() {
 		runtime.UpdateCatalog(update.Snapshot.Catalog, update.Snapshot.Summary.ServerSpecKeys, update.Snapshot.Summary.Runtime)
 	}
 
-	if err := m.scheduler.ApplyCatalogDiff(ctx, update.Diff, update.Snapshot.Summary.SpecRegistry); err != nil {
-		return err
+	if !runtimeOnly {
+		if err := m.scheduler.ApplyCatalogDiff(ctx, diff, update.Snapshot.Summary.SpecRegistry); err != nil {
+			return err
+		}
 	}
 	if m.initManager != nil {
 		m.initManager.ApplyCatalogState(&update.Snapshot)
@@ -150,6 +154,9 @@ func (m *ReloadManager) applyUpdate(ctx context.Context, update domain.CatalogUp
 		zap.Int("added", len(update.Diff.AddedSpecKeys)),
 		zap.Int("removed", len(update.Diff.RemovedSpecKeys)),
 		zap.Int("updated", len(update.Diff.UpdatedSpecKeys)),
+		zap.Int("tools_only", len(update.Diff.ToolsOnlySpecKeys)),
+		zap.Int("restart_required", len(update.Diff.RestartRequiredSpecKeys)),
+		zap.Bool("runtime_only", runtimeOnly),
 		zap.Duration("latency", time.Since(started)),
 	)
 	m.appliedRev.Store(update.Snapshot.Revision)
