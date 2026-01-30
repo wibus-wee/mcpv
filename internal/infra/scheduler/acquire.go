@@ -73,7 +73,9 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 				// Release reservation atomically under lock.
 				// This ensures no race with concurrent capacity checks.
 				state.mu.Lock()
-				state.startInFlight = false
+				if err != nil || r != nil {
+					state.startInFlight = false
+				}
 				startCancel := state.startCancel
 				state.startCancel = nil
 				state.starting--
@@ -97,6 +99,7 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 
 		if err != nil {
 			state.mu.Lock()
+			state.startInFlight = false
 			state.signalWaiterLocked()
 			state.mu.Unlock()
 			return nil, fmt.Errorf("start instance: %w", err)
@@ -104,6 +107,7 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 		tracked := &trackedInstance{instance: newInst}
 		state.mu.Lock()
 		if state.generation != startGen {
+			state.startInFlight = false
 			state.signalWaiterLocked()
 			state.mu.Unlock()
 			stopErr := s.stopInstance(context.Background(), state.spec, newInst, "start superseded")
@@ -114,6 +118,7 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 
 		// For singleton, check if we already have an instance
 		if state.spec.Strategy == domain.StrategySingleton && len(state.instances) > 0 {
+			state.startInFlight = false
 			state.signalWaiterLocked()
 			state.mu.Unlock()
 			stopErr := s.stopInstance(context.Background(), state.spec, newInst, "singleton already exists")
@@ -133,6 +138,7 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 			state.bindStickyLocked(routingKey, tracked)
 		}
 		instance := state.markBusyLocked(tracked)
+		state.startInFlight = false
 		state.signalWaiterLocked()
 		state.mu.Unlock()
 		s.observePoolStats(state)
