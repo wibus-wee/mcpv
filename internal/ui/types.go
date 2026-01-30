@@ -100,6 +100,7 @@ type RuntimeConfigDetail struct {
 	ServerInitRetryBaseSeconds int                       `json:"serverInitRetryBaseSeconds"`
 	ServerInitRetryMaxSeconds  int                       `json:"serverInitRetryMaxSeconds"`
 	ServerInitMaxRetries       int                       `json:"serverInitMaxRetries"`
+	ReloadMode                 string                    `json:"reloadMode"`
 	BootstrapMode              string                    `json:"bootstrapMode"`
 	BootstrapConcurrency       int                       `json:"bootstrapConcurrency"`
 	BootstrapTimeoutSeconds    int                       `json:"bootstrapTimeoutSeconds"`
@@ -236,6 +237,7 @@ type UpdateRuntimeConfigRequest struct {
 	ServerInitRetryBaseSeconds int    `json:"serverInitRetryBaseSeconds"`
 	ServerInitRetryMaxSeconds  int    `json:"serverInitRetryMaxSeconds"`
 	ServerInitMaxRetries       int    `json:"serverInitMaxRetries"`
+	ReloadMode                 string `json:"reloadMode"`
 	BootstrapMode              string `json:"bootstrapMode"`
 	BootstrapConcurrency       int    `json:"bootstrapConcurrency"`
 	BootstrapTimeoutSeconds    int    `json:"bootstrapTimeoutSeconds"`

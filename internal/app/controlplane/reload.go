@@ -2,6 +2,8 @@ package controlplane
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -29,6 +31,19 @@ type ReloadManager struct {
 	logger        *zap.Logger
 	appliedRev    atomic.Uint64
 	started       atomic.Bool
+}
+
+type reloadApplyError struct {
+	stage string
+	err   error
+}
+
+func (e reloadApplyError) Error() string {
+	return fmt.Sprintf("%s: %v", e.stage, e.err)
+}
+
+func (e reloadApplyError) Unwrap() error {
+	return e.err
 }
 
 // NewReloadManager constructs a reload manager.
@@ -113,9 +128,24 @@ func (m *ReloadManager) run(ctx context.Context, updates <-chan domain.CatalogUp
 			if update.Diff.IsEmpty() {
 				continue
 			}
+			started := time.Now()
 			if err := m.applyUpdate(ctx, update); err != nil {
-				m.logger.Warn("config reload apply failed", zap.Error(err))
+				duration := time.Since(started)
+				m.handleApplyError(update, err, duration)
+				continue
 			}
+			duration := time.Since(started)
+			reloadMode := resolveReloadMode(update.Snapshot.Summary.Runtime.ReloadMode)
+			m.observeReloadApply(reloadMode, domain.ReloadApplyResultSuccess, "none", duration)
+			m.logger.Info("config reload applied",
+				zap.Uint64("revision", update.Snapshot.Revision),
+				zap.Int("servers", update.Snapshot.Summary.TotalServers),
+				zap.Int("added", len(update.Diff.AddedSpecKeys)),
+				zap.Int("removed", len(update.Diff.RemovedSpecKeys)),
+				zap.Int("updated", len(update.Diff.UpdatedSpecKeys)),
+				zap.String("reload_mode", string(reloadMode)),
+				zap.Duration("latency", duration),
+			)
 		}
 	}
 }
@@ -143,7 +173,7 @@ func (m *ReloadManager) applyUpdate(ctx context.Context, update domain.CatalogUp
 	m.state.UpdateCatalog(&update.Snapshot, runtime)
 
 	if err := m.registry.ApplyCatalogUpdate(ctx, update); err != nil {
-		return err
+		return reloadApplyError{stage: "registry_update", err: err}
 	}
 
 	m.refreshRuntime(ctx, update, runtime)
@@ -206,4 +236,53 @@ func (m *ReloadManager) waitForRevision(ctx context.Context, revision uint64) er
 			}
 		}
 	}
+}
+
+func (m *ReloadManager) handleApplyError(update domain.CatalogUpdate, err error, duration time.Duration) {
+	reloadMode := resolveReloadMode(update.Snapshot.Summary.Runtime.ReloadMode)
+	stage := reloadFailureStage(err)
+	fields := []zap.Field{
+		zap.Uint64("revision", update.Snapshot.Revision),
+		zap.Int("servers", update.Snapshot.Summary.TotalServers),
+		zap.Int("added", len(update.Diff.AddedSpecKeys)),
+		zap.Int("removed", len(update.Diff.RemovedSpecKeys)),
+		zap.Int("updated", len(update.Diff.UpdatedSpecKeys)),
+		zap.String("reload_mode", string(reloadMode)),
+		zap.String("failure_stage", stage),
+		zap.String("failure_summary", err.Error()),
+		zap.Duration("latency", duration),
+		zap.Error(err),
+	}
+	m.observeReloadApply(reloadMode, domain.ReloadApplyResultFailure, stage, duration)
+	if reloadMode == domain.ReloadModeStrict {
+		m.coreLogger.Fatal("config reload apply failed; shutting down", fields...)
+	}
+	m.logger.Warn("config reload apply failed", fields...)
+}
+
+func (m *ReloadManager) observeReloadApply(mode domain.ReloadMode, result domain.ReloadApplyResult, summary string, duration time.Duration) {
+	if m.metrics == nil {
+		return
+	}
+	m.metrics.ObserveReloadApply(domain.ReloadApplyMetric{
+		Mode:     mode,
+		Result:   result,
+		Summary:  summary,
+		Duration: duration,
+	})
+}
+
+func resolveReloadMode(mode domain.ReloadMode) domain.ReloadMode {
+	if mode == "" {
+		return domain.DefaultReloadMode
+	}
+	return mode
+}
+
+func reloadFailureStage(err error) string {
+	var applyErr reloadApplyError
+	if errors.As(err, &applyErr) && applyErr.stage != "" {
+		return applyErr.stage
+	}
+	return "unknown"
 }

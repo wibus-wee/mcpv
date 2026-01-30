@@ -293,6 +293,7 @@ func mapRuntimeConfigDetail(cfg domain.RuntimeConfig) RuntimeConfigDetail {
 		ServerInitRetryBaseSeconds: cfg.ServerInitRetryBaseSeconds,
 		ServerInitRetryMaxSeconds:  cfg.ServerInitRetryMaxSeconds,
 		ServerInitMaxRetries:       cfg.ServerInitMaxRetries,
+		ReloadMode:                 string(cfg.ReloadMode),
 		BootstrapMode:              string(cfg.BootstrapMode),
 		BootstrapConcurrency:       cfg.BootstrapConcurrency,
 		BootstrapTimeoutSeconds:    cfg.BootstrapTimeoutSeconds,

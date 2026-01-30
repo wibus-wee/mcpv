@@ -27,6 +27,8 @@ type PrometheusMetrics struct {
 	subAgentTokens          *prometheus.CounterVec
 	subAgentLatency         *prometheus.HistogramVec
 	subAgentFilterPrecision *prometheus.HistogramVec
+	reloadApplyTotal        *prometheus.CounterVec
+	reloadApplyDuration     *prometheus.HistogramVec
 }
 
 func NewPrometheusMetrics(registerer prometheus.Registerer) *PrometheusMetrics {
@@ -160,6 +162,21 @@ func NewPrometheusMetrics(registerer prometheus.Registerer) *PrometheusMetrics {
 			},
 			[]string{"provider", "model"},
 		),
+		reloadApplyTotal: factory.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "mcpv_reload_apply_total",
+				Help: "Total number of reload apply attempts",
+			},
+			[]string{"mode", "result", "summary"},
+		),
+		reloadApplyDuration: factory.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    "mcpv_reload_apply_duration_seconds",
+				Help:    "Duration of reload apply attempts in seconds",
+				Buckets: []float64{.01, .05, .1, .25, .5, 1, 2.5, 5, 10},
+			},
+			[]string{"mode", "result"},
+		),
 	}
 }
 
@@ -236,6 +253,23 @@ func (p *PrometheusMetrics) ObserveSubAgentLatency(provider string, model string
 
 func (p *PrometheusMetrics) ObserveSubAgentFilterPrecision(provider string, model string, ratio float64) {
 	p.subAgentFilterPrecision.WithLabelValues(provider, model).Observe(ratio)
+}
+
+func (p *PrometheusMetrics) ObserveReloadApply(metric domain.ReloadApplyMetric) {
+	mode := string(metric.Mode)
+	if mode == "" {
+		mode = string(domain.DefaultReloadMode)
+	}
+	result := string(metric.Result)
+	if result == "" {
+		result = string(domain.ReloadApplyResultSuccess)
+	}
+	summary := metric.Summary
+	if summary == "" {
+		summary = "none"
+	}
+	p.reloadApplyTotal.WithLabelValues(mode, result, summary).Inc()
+	p.reloadApplyDuration.WithLabelValues(mode, result).Observe(metric.Duration.Seconds())
 }
 
 var _ domain.Metrics = (*PrometheusMetrics)(nil)

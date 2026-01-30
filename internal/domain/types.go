@@ -43,6 +43,16 @@ const (
 	ToolNamespaceStrategyFlat ToolNamespaceStrategy = "flat"
 )
 
+// ReloadMode controls how reload failures are handled.
+type ReloadMode string
+
+const (
+	// ReloadModeStrict triggers a core shutdown on reload failure.
+	ReloadModeStrict ReloadMode = "strict"
+	// ReloadModeLenient logs reload failures and continues.
+	ReloadModeLenient ReloadMode = "lenient"
+)
+
 // TransportKind identifies the transport used by a server.
 type TransportKind string
 
@@ -92,6 +102,7 @@ type RuntimeConfig struct {
 	ServerInitRetryBaseSeconds int                   `json:"serverInitRetryBaseSeconds"`
 	ServerInitRetryMaxSeconds  int                   `json:"serverInitRetryMaxSeconds"`
 	ServerInitMaxRetries       int                   `json:"serverInitMaxRetries"`
+	ReloadMode                 ReloadMode            `json:"reloadMode"`
 	ExposeTools                bool                  `json:"exposeTools"`
 	ToolNamespaceStrategy      ToolNamespaceStrategy `json:"toolNamespaceStrategy"`
 	Observability              ObservabilityConfig   `json:"observability"`
@@ -380,4 +391,6 @@ const (
 	DefaultBootstrapTimeoutSeconds = 30
 	// DefaultActivationMode is the default activation mode.
 	DefaultActivationMode = ActivationOnDemand
+	// DefaultReloadMode is the default reload behavior.
+	DefaultReloadMode = ReloadModeLenient
 )
