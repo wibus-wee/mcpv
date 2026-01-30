@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@antv/layout": "1.2.14-beta.8",
     "@base-ui/react": "^1.0.0",
     "@tailwindcss/vite": "^4.0.6",
     "@tanstack/react-devtools": "^0.7.0",
@@ -20,6 +21,7 @@
     "@tanstack/react-router-devtools": "^1.132.0",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/router-plugin": "^1.132.0",
+    "@tsparticles/confetti": "^3.9.1",
     "@wailsio/runtime": "3.0.0-alpha.77",
     "@xyflow/react": "^12.10.0",
     "class-variance-authority": "^0.7.1",
@@ -60,5 +62,10 @@
     "vite": "^7.1.7",
     "vitest": "^3.0.5",
     "web-vitals": "^5.1.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@tsparticles/engine"
+    ]
   }
 }

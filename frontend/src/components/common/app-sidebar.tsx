@@ -3,6 +3,7 @@
 // Position: App-specific sidebar for main layout
 
 import {
+  InfoIcon,
   LayoutDashboardIcon,
   NetworkIcon,
   ScrollTextIcon,
@@ -51,6 +52,11 @@ const navItems: NavItem[] = [
     label: 'Settings',
     icon: SettingsIcon,
   },
+  {
+    path: '/about',
+    label: 'About',
+    icon: InfoIcon,
+  },
 ]
 
 export function AppSidebar() {
@@ -84,7 +90,7 @@ export function AppSidebar() {
           animate={{ opacity: 1 }}
           transition={Spring.smooth(0.4)}
         >
-          {/* 评估版本 */}
+          {/* Evaluation build */}
           mcpd © 2025. All rights reserved.
         </m.div>
       </SidebarFooter>

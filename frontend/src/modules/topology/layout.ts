@@ -10,7 +10,7 @@ import type {
 } from '@bindings/mcpd/internal/ui'
 import type { Edge } from '@xyflow/react'
 import { MarkerType } from '@xyflow/react'
-import ELK from 'elkjs'
+import ELK from 'elkjs/lib/elk.bundled.js'
 
 import type { FlowNode, LayoutResult } from './types'
 

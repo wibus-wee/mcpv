@@ -8,7 +8,9 @@
 
 ## Files
 
-- **config/**: 配置管理模块（servers、tags、clients、运行状态）
+- **about/**: About 页面模块（产品定位、版本信息、链接入口）
 - **dashboard/**: 仪表盘模块（核心状态、工具、日志）
+- **servers/**: 服务器管理模块（列表、详情、工具）
 - **settings/**: 全局运行时配置的设置模块
-- **tools/**: 工具浏览与 server 详情模块
+- **shared/**: 跨模块共享的展示与状态逻辑
+- **topology/**: 拓扑展示模块
