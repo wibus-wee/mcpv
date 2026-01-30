@@ -40,4 +40,6 @@ func (n *NoopMetrics) ObserveSubAgentLatency(_ string, _ string, _ time.Duration
 
 func (n *NoopMetrics) ObserveSubAgentFilterPrecision(_ string, _ string, _ float64) {}
 
+func (n *NoopMetrics) ObserveReloadApply(_ domain.ReloadApplyMetric) {}
+
 var _ domain.Metrics = (*NoopMetrics)(nil)

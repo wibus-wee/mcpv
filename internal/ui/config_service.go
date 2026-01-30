@@ -140,6 +140,7 @@ func (s *ConfigService) UpdateRuntimeConfig(ctx context.Context, req UpdateRunti
 		ServerInitRetryBaseSeconds: req.ServerInitRetryBaseSeconds,
 		ServerInitRetryMaxSeconds:  req.ServerInitRetryMaxSeconds,
 		ServerInitMaxRetries:       req.ServerInitMaxRetries,
+		ReloadMode:                 req.ReloadMode,
 		BootstrapMode:              req.BootstrapMode,
 		BootstrapConcurrency:       req.BootstrapConcurrency,
 		BootstrapTimeoutSeconds:    req.BootstrapTimeoutSeconds,

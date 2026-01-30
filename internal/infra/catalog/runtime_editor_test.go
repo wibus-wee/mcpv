@@ -55,6 +55,7 @@ rpc:
 		ServerInitRetryBaseSeconds: 1,
 		ServerInitRetryMaxSeconds:  5,
 		ServerInitMaxRetries:       2,
+		ReloadMode:                 "strict",
 		BootstrapMode:              "metadata",
 		BootstrapConcurrency:       3,
 		BootstrapTimeoutSeconds:    15,
@@ -67,6 +68,7 @@ rpc:
 	var doc map[string]any
 	require.NoError(t, yaml.Unmarshal(update.Data, &doc))
 	require.Equal(t, 15, doc["routeTimeoutSeconds"])
+	require.Equal(t, "strict", doc["reloadMode"])
 
 	subAgent, ok := doc["subAgent"].(map[string]any)
 	require.True(t, ok)

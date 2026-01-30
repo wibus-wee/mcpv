@@ -95,6 +95,7 @@ type rawRuntimeConfig struct {
 	ServerInitRetryBaseSeconds int                    `mapstructure:"serverInitRetryBaseSeconds"`
 	ServerInitRetryMaxSeconds  int                    `mapstructure:"serverInitRetryMaxSeconds"`
 	ServerInitMaxRetries       int                    `mapstructure:"serverInitMaxRetries"`
+	ReloadMode                 string                 `mapstructure:"reloadMode"`
 	BootstrapMode              string                 `mapstructure:"bootstrapMode"`
 	BootstrapConcurrency       int                    `mapstructure:"bootstrapConcurrency"`
 	BootstrapTimeoutSeconds    int                    `mapstructure:"bootstrapTimeoutSeconds"`
@@ -573,6 +574,14 @@ func normalizeRuntimeConfig(cfg rawRuntimeConfig) (domain.RuntimeConfig, []strin
 		errs = append(errs, "serverInitMaxRetries must be >= 0")
 	}
 
+	reloadMode := strings.ToLower(strings.TrimSpace(cfg.ReloadMode))
+	if reloadMode == "" {
+		reloadMode = string(domain.DefaultReloadMode)
+	}
+	if reloadMode != string(domain.ReloadModeStrict) && reloadMode != string(domain.ReloadModeLenient) {
+		errs = append(errs, "reloadMode must be strict or lenient")
+	}
+
 	bootstrapMode := strings.ToLower(strings.TrimSpace(cfg.BootstrapMode))
 	if bootstrapMode == "" {
 		bootstrapMode = string(domain.DefaultBootstrapMode)
@@ -623,6 +632,7 @@ func normalizeRuntimeConfig(cfg rawRuntimeConfig) (domain.RuntimeConfig, []strin
 		ServerInitRetryBaseSeconds: serverInitRetryBase,
 		ServerInitRetryMaxSeconds:  serverInitRetryMax,
 		ServerInitMaxRetries:       serverInitMaxRetries,
+		ReloadMode:                 domain.ReloadMode(reloadMode),
 		BootstrapMode:              domain.BootstrapMode(bootstrapMode),
 		BootstrapConcurrency:       bootstrapConcurrency,
 		BootstrapTimeoutSeconds:    bootstrapTimeoutSeconds,
