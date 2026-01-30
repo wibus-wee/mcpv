@@ -362,6 +362,8 @@ func diffChangedFields(diff domain.CatalogDiff) []string {
 		fields = append(fields, "runtime")
 	}
 	return fields
+}
+
 func (m *ReloadManager) handleApplyError(update domain.CatalogUpdate, err error, duration time.Duration) {
 	reloadMode := resolveReloadMode(update.Snapshot.Summary.Runtime.ReloadMode)
 	stage := reloadFailureStage(err)
