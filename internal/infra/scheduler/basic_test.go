@@ -860,6 +860,77 @@ func TestBasicScheduler_SetDesiredMinReady_PanicDoesNotLeakStarting(t *testing.T
 	require.NotNil(t, inst)
 }
 
+func TestBasicScheduler_AcquireSupersededByStopSpec(t *testing.T) {
+	started := make(chan struct{}, 1)
+	release := make(chan struct{})
+	lc := &blockingLifecycle{
+		started: started,
+		release: release,
+	}
+	spec := domain.ServerSpec{
+		Name:            "svc",
+		Cmd:             []string{"./svc"},
+		MaxConcurrent:   1,
+		ProtocolVersion: domain.DefaultProtocolVersion,
+	}
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, Options{})
+	require.NoError(t, err)
+
+	results := make(chan *domain.Instance, 1)
+	errorsCh := make(chan error, 1)
+	go func() {
+		inst, err := s.Acquire(context.Background(), "svc", "")
+		results <- inst
+		errorsCh <- err
+	}()
+
+	<-started
+	require.NoError(t, s.StopSpec(context.Background(), "svc", "test supersede"))
+	close(release)
+
+	require.Nil(t, <-results)
+	require.ErrorIs(t, <-errorsCh, ErrNoCapacity)
+	require.Equal(t, 1, lc.stops())
+}
+
+func TestBasicScheduler_ReleaseClosesDrainDone(t *testing.T) {
+	lc := &blockingLifecycle{}
+	spec := domain.ServerSpec{
+		Name:                "svc",
+		Cmd:                 []string{"./svc"},
+		MaxConcurrent:       1,
+		DrainTimeoutSeconds: 1,
+		ProtocolVersion:     domain.DefaultProtocolVersion,
+	}
+	s, err := NewBasicScheduler(lc, map[string]domain.ServerSpec{"svc": spec}, Options{})
+	require.NoError(t, err)
+
+	inst, err := s.Acquire(context.Background(), "svc", "")
+	require.NoError(t, err)
+
+	require.NoError(t, s.StopSpec(context.Background(), "svc", "drain"))
+
+	state := s.getPool("svc", spec)
+	state.mu.Lock()
+	require.Len(t, state.draining, 1)
+	tracked := state.draining[0]
+	drainDone := tracked.drainDone
+	state.mu.Unlock()
+
+	require.NotNil(t, drainDone)
+	require.NoError(t, s.Release(context.Background(), inst))
+
+	select {
+	case <-drainDone:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("expected drainDone to be closed after release")
+	}
+
+	require.Eventually(t, func() bool {
+		return lc.stops() == 1
+	}, 500*time.Millisecond, 20*time.Millisecond)
+}
+
 type fakeLifecycle struct {
 	counter int
 }
