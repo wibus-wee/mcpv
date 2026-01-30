@@ -3,7 +3,7 @@ import useSWR from 'swr'
 
 const fallbackPath = 'mcpvmcp'
 
-export function usemcpvmcpPath() {
+export function useMcpvmcpPath() {
   const swr = useSWR<string>(
     'mcpvmcp-path',
     () => SystemService.ResolvemcpvmcpPath(),

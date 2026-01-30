@@ -234,10 +234,10 @@ export function ServerEditSheet({
         exposeTools,
         http: data.transport === 'streamable_http'
           ? {
-            endpoint: data.endpoint.trim(),
-            headers: httpHeaders,
-            maxRetries: data.httpMaxRetries,
-          }
+              endpoint: data.endpoint.trim(),
+              headers: httpHeaders,
+              maxRetries: data.httpMaxRetries,
+            }
           : null,
       }
 
@@ -550,17 +550,17 @@ export function ServerEditSheet({
                 ? 'Saving...'
                 : isEdit
                   ? (
-                    <>
-                      <SaveIcon className="mr-2 size-4" />
-                      Save Changes
-                    </>
-                  )
+                      <>
+                        <SaveIcon className="mr-2 size-4" />
+                        Save Changes
+                      </>
+                    )
                   : (
-                    <>
-                      <PlusIcon className="mr-2 size-4" />
-                      Add Server
-                    </>
-                  )}
+                      <>
+                        <PlusIcon className="mr-2 size-4" />
+                        Add Server
+                      </>
+                    )}
           </Button>
         </SheetFooter>
       </SheetContent>

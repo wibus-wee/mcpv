@@ -33,7 +33,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { usemcpvmcpPath } from '@/hooks/use-mcpvmcp-path'
+import { useMcpvmcpPath } from '@/hooks/use-mcpvmcp-path'
 import { useRpcAddress } from '@/hooks/use-rpc-address'
 import type { SelectorMode } from '@/lib/mcpvmcp'
 import { buildClientConfig, buildCliSnippet, buildTomlConfig } from '@/lib/mcpvmcp'
@@ -117,7 +117,7 @@ export function ConnectIdeSheet() {
   const [open, setOpen] = useState(false)
   const [selectorMode, setSelectorMode] = useState<SelectorMode>('server')
   const [selectorValue, setSelectorValue] = useState('')
-  const { path } = usemcpvmcpPath()
+  const { path } = useMcpvmcpPath()
   const { rpcAddress } = useRpcAddress()
   const { data: servers } = useServers()
   const sidebar = useSidebar()
@@ -134,20 +134,23 @@ export function ConnectIdeSheet() {
     return Array.from(set).sort((a, b) => a.localeCompare(b))
   }, [servers])
 
-  const defaultSelectorValue = selectorMode === 'server'
-    ? serverOptions[0] ?? ''
-    : tagOptions[0] ?? ''
+  const defaultSelectorValue = useMemo(() =>
+    selectorMode === 'server'
+      ? serverOptions[0] ?? ''
+      : tagOptions[0] ?? '', [selectorMode, serverOptions, tagOptions])
 
-  const effectiveSelectorValue = selectorValue || defaultSelectorValue
+  const effectiveSelectorValue = useMemo(() =>
+    selectorValue || defaultSelectorValue, [selectorValue, defaultSelectorValue])
 
   const selector = useMemo(() => ({
     mode: selectorMode,
     value: effectiveSelectorValue,
   }), [selectorMode, effectiveSelectorValue])
 
-  const configServerName = selector.mode === 'server'
-    ? selector.value
-    : `mcpv-${selector.value || 'tag'}`
+  const configServerName = useMemo(() =>
+    selector.mode === 'server'
+      ? selector.value
+      : `mcpv-${selector.value || 'tag'}`, [selector])
 
   const configByClient = useMemo<Record<ClientTab, PresetBlock[]>>(
     () => ({
@@ -187,7 +190,8 @@ export function ConnectIdeSheet() {
     [path, selector, rpcAddress],
   )
 
-  const suggestions = selectorMode === 'server' ? serverOptions : tagOptions
+  const suggestions = useMemo(() =>
+    selectorMode === 'server' ? serverOptions : tagOptions, [selectorMode, serverOptions, tagOptions])
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
