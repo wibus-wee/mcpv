@@ -14,7 +14,7 @@ type requestBuilder struct {
 
 func (b *requestBuilder) Build(method string, params any) (json.RawMessage, error) {
 	seq := b.seq.Add(1)
-	id, err := jsonrpc.MakeID(fmt.Sprintf("mcpd-%s-%d", method, seq))
+	id, err := jsonrpc.MakeID(fmt.Sprintf("mcpv-%s-%d", method, seq))
 	if err != nil {
 		return nil, fmt.Errorf("build request id: %w", err)
 	}

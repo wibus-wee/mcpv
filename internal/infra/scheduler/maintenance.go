@@ -6,8 +6,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/telemetry"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/telemetry"
 )
 
 // StartIdleManager begins periodic idle reap respecting idleSeconds/persistent/sticky/minReady.

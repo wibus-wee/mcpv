@@ -1,7 +1,7 @@
 ## M1 设计说明（CLI MVP 骨架）
 
 ### 目标与范围
-- 搭建可编译可运行的 CLI 骨架：`mcpd serve` / `mcpd validate`。
+- 搭建可编译可运行的 CLI 骨架：`mcpv serve` / `mcpv validate`。
 - 实现 catalog 加载与校验（YAML/JSON，支持环境变量覆盖）；校验失败即退出非 0。
 - 提供 stdio transport + initialize/ping stub，贯通实例启动的基本生命周期接口，但不做真实路由闭环。
 - 打通应用装配：app 层串起 catalog → scheduler/router/lifecycle stub（占位实现可返回未实现错误或日志），为 M2 闭环做准备。
@@ -20,7 +20,7 @@
 - 安全：catalog 命令/env 需提醒注入风险；日志需过滤敏感 env。M1 在校验/日志中添加警示，具体过滤逻辑留待实现。
 
 ### 分层与组件责任
-- `cmd/mcpd`: cobra CLI，解析 `--config`，初始化 zap 日志，调用 app。
+- `cmd/mcpv`: cobra CLI，解析 `--config`，初始化 zap 日志，调用 app。
 - `internal/app`: 用例编排，暴露 `Serve(ctx, ServeConfig)` 与 `ValidateConfig(ctx, ValidateConfig)`；装配 catalog loader、transport、lifecycle（stub）、scheduler/router（stub），注入 logger。
 - `internal/domain`: 领域接口与模型（ServerSpec、InstanceState、Transport、Lifecycle、Scheduler、Router、CatalogLoader、HealthProbe）。
 - `internal/infra/catalog`: 读取文件（viper），环境变量覆盖，基础校验（必填、范围、协议版本非空/格式、maxConcurrent>=1、数值非负）。
@@ -36,7 +36,7 @@
   - name 非空；cmd 至少一项；maxConcurrent >=1；idleSeconds >=0；minReady >=0。
   - protocolVersion 非空，匹配 `YYYY-MM-DD` 简单格式（符合 2025-11-25）。
   - env 可为空；cwd 可为空；strategy 为字符串，sessionTTLSeconds 为整数。
-- `mcpd validate`：加载配置并校验，错误打印并 exit 1；成功 exit 0。
+- `mcpv validate`：加载配置并校验，错误打印并 exit 1；成功 exit 0。
 
 ### 数据与接口约定（保持稳定，后续实现填充）
 - `ServerSpec`：与 PRD 对齐字段。
@@ -46,8 +46,8 @@
 - `Router.Route` / `Scheduler.Acquire`：M1 可返回 `errors.New("not implemented")`，但保持签名。
 
 ### 运行流程（M1）
-- `mcpd validate`: 读取 config → 校验 → 日志输出结果 → exit code。
-- `mcpd serve`: 读取 config → 校验 → 初始化 transport/lifecycle/router/scheduler → 通过 stdin 接收 JSON（字段 `serverType`/`routingKey`/`payload`），路由到实例后把响应写回 stdout，直到信号退出。
+- `mcpv validate`: 读取 config → 校验 → 日志输出结果 → exit code。
+- `mcpv serve`: 读取 config → 校验 → 初始化 transport/lifecycle/router/scheduler → 通过 stdin 接收 JSON（字段 `serverType`/`routingKey`/`payload`），路由到实例后把响应写回 stdout，直到信号退出。
 
 ### 日志与错误
 - 使用 zap JSON Production 配置；字段至少含 `msg`、`config` 路径、错误详情。
@@ -60,7 +60,7 @@
 - smoke：`go test ./...` 确保 stub 代码可编译。
 
 ### 交付物
-- 编译通过的 CLI，可执行 `mcpd validate --config sample.yaml`。
+- 编译通过的 CLI，可执行 `mcpv validate --config sample.yaml`。
 - 设计中的接口/目录不再变动，仅在实现中填充逻辑。
 - 文档：本设计 + 依赖/结构/约束已有文档。
 

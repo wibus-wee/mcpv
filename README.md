@@ -1,8 +1,8 @@
 <p align="center">
   <p align="center">
-    <img src="./build/appicon.png" alt="mcpd-logo" width="128" />
+    <img src="./build/appicon.png" alt="mcpv-logo" width="128" />
   </p>
-  <h1 align="center"><b>mcpd</b></h1>
+  <h1 align="center"><b>mcpv</b></h1>
   <p align="center">
     <b>Elastic Control Plane & Runtime for Model Context Protocol (MCP)</b>
     <br />
@@ -18,18 +18,18 @@
 [![Wails](https://img.shields.io/badge/UI-Wails3-red.svg)](https://wails.io)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-## 🚀 What is mcpd?
+## 🚀 What is mcpv?
 
-**mcpd** is a lightweight orchestration control plane for [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) servers. It solves the problems of resource waste, configuration fragmentation, and poor visibility when running multiple MCP servers locally.
+**mcpv** is a lightweight orchestration control plane for [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) servers. It solves the problems of resource waste, configuration fragmentation, and poor visibility when running multiple MCP servers locally.
 
-With `mcpd`, you can manage MCP servers like containers: **On-demand startup, Scale-to-Zero hibernation, and unified routing**, all wrapped in a modern visual interface.
+With `mcpv`, you can manage MCP servers like containers: **On-demand startup, Scale-to-Zero hibernation, and unified routing**, all wrapped in a modern visual interface.
 
 ## ✨ Key Features
 
 - **⚡️ Elastic Runtime**: Automatically launches MCP server instances upon request and shuts them down after idle timeouts, significantly reducing local CPU and memory usage.
-- **🎯 Unified Gateway (`mcpdmcp`)**: Provides a single entry point for all your MCP servers. Supports sticky sessions and concurrency control for high-frequency AI interactions.
+- **🎯 Unified Gateway (`mcpvmcp`)**: Provides a single entry point for all your MCP servers. Supports sticky sessions and concurrency control for high-frequency AI interactions.
 - **🧠 Smart SubAgent**: Built-in intelligent filtering powered by `CloudWeGo/Eino`. The `automatic_mcp` tool dynamically selects relevant tools based on task context, minimizing context window bloat and token costs.
-- **🖼 GUI Support (`mcpdui`)**: A desktop client built with Wails 3. Features real-time log streaming, tool inspection, resource browsing, and intuitive configuration editing.
+- **🖼 GUI Support (`mcpvui`)**: A desktop client built with Wails 3. Features real-time log streaming, tool inspection, resource browsing, and intuitive configuration editing.
 - **📁 Single Config File**: Server-centric configuration with tag-based visibility. Configure MCP servers with optional tags and filter toolsets for clients like VSCode, Cursor, or specific projects based on tag matching.
 - **📊 Observability**: Native Prometheus metrics and structured logging. Includes a pre-configured Grafana dashboard to monitor latency, cold-start times, and error rates.
 
@@ -37,9 +37,9 @@ With `mcpd`, you can manage MCP servers like containers: **On-demand startup, Sc
 
 The project is designed with a three-layer architecture for maximum decoupling:
 
-1.  **Core (`mcpd`)**: The central control plane managing instance lifecycles, scheduling algorithms, and aggregation indexes.
-2.  **Gateway (`mcpdmcp`)**: The protocol bridge. Acts as a standard MCP server to communicate with AI clients (e.g., Claude Desktop, Cursor).
-3.  **App (`mcpdui`)**: The Wails-driven GUI for configuration, real-time monitoring, and core lifecycle hosting.
+1.  **Core (`mcpv`)**: The central control plane managing instance lifecycles, scheduling algorithms, and aggregation indexes.
+2.  **Gateway (`mcpvmcp`)**: The protocol bridge. Acts as a standard MCP server to communicate with AI clients (e.g., Claude Desktop, Cursor).
+3.  **App (`mcpvui`)**: The Wails-driven GUI for configuration, real-time monitoring, and core lifecycle hosting.
 
 ## 🛠 Quick Start
 
@@ -68,7 +68,7 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## ✏️ Author
 
-mcpd © Wibus, Released under MIT. Created on Dec 21, 2025.
+mcpv © Wibus, Released under MIT. Created on Dec 21, 2025.
 
 > [Personal Website](http://wibus.ren/) · [Blog](https://blog.wibus.ren/) · GitHub [@wibus-wee](https://github.com/wibus-wee/) · Telegram [@wibus✪](https://t.me/wibus_wee)
 

@@ -1,4 +1,4 @@
-module mcpd
+module mcpv
 
 go 1.25.0
 

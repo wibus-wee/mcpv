@@ -59,11 +59,11 @@ The server will be available at `http://localhost:3000/mcp` (or your custom port
 - `TRANSPORT_MODE`: Transport mode (`stdio` or `http`, default: `stdio`)
 - `PORT`: HTTP server port (default: `3000`, only used in HTTP mode)
 
-## Integration with mcpd
+## Integration with mcpv
 
 ### STDIO Mode
 
-Configure mcpd to launch the weather server as a subprocess:
+Configure mcpv to launch the weather server as a subprocess:
 
 ```yaml
 servers:
@@ -89,7 +89,7 @@ cd weather-demo-mcp
 TRANSPORT_MODE=http node build/index.js
 ```
 
-Then configure mcpd to connect to the HTTP endpoint:
+Then configure mcpv to connect to the HTTP endpoint:
 
 ```yaml
 servers:

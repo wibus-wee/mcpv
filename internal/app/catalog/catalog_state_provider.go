@@ -3,7 +3,7 @@ package catalog
 import (
 	"context"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 // NewCatalogState loads a catalog state from a provider snapshot.

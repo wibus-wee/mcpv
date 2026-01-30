@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"mcpd/internal/app"
-	"mcpd/internal/app/controlplane"
+	"mcpv/internal/app"
+	"mcpv/internal/app/controlplane"
 )
 
 func TestNewManager(t *testing.T) {
@@ -196,7 +196,7 @@ func TestManager_SetWailsApp(t *testing.T) {
 func TestManager_HandleDeepLink_ValidURL(t *testing.T) {
 	manager := NewManager(nil, &app.App{}, "")
 
-	err := manager.HandleDeepLink("mcpd://servers?tab=overview")
+	err := manager.HandleDeepLink("mcpv://servers?tab=overview")
 	assert.NoError(t, err)
 }
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 func (s *BasicScheduler) applyStartCause(ctx context.Context, inst *domain.Instance, started time.Time) {

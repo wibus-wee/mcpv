@@ -1,9 +1,9 @@
 实施路线（对齐 PRD / INITIAL_DESIGN）**
 - 核心基线（M1）
-  - 完成 catalog loader + 校验：YAML/JSON 解析、必填/范围/协议版本校验、env 覆盖；`mcpd validate` 打通。
+  - 完成 catalog loader + 校验：YAML/JSON 解析、必填/范围/协议版本校验、env 覆盖；`mcpv validate` 打通。
   - 落 stdio transport + initialize 握手 stub，定义超时配置。
-  - 在 app 层串起：加载 catalog → 创建 scheduler/router/lifecycle stub → `mcpd serve` 作为 core gRPC 控制面主循环。
-  - 新增 `mcpd-gateway` 作为 MCP Server 入口，连接 core 并桥接 tools/list/tools/call。
+  - 在 app 层串起：加载 catalog → 创建 scheduler/router/lifecycle stub → `mcpv serve` 作为 core gRPC 控制面主循环。
+  - 新增 `mcpv-gateway` 作为 MCP Server 入口，连接 core 并桥接 tools/list/tools/call。
 - 调度与路由闭环（M2）
   - 实现 Scheduler（实例表 + Acquire/Release 状态机 + Busy 计数 + stateful 绑定）。
   - 实现 Lifecycle.Start/Stop：spawn 子进程、握手、状态迁移；Stop 支持优雅超时+强杀。

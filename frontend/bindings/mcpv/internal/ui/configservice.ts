@@ -18,7 +18,7 @@ import * as $models from "./models.js";
  * GetConfigMode returns configuration mode metadata.
  */
 export function GetConfigMode(): $CancellablePromise<$models.ConfigModeResponse> {
-    return $Call.ByID(2281598782).then(($result: any) => {
+    return $Call.ByID(4132860316).then(($result: any) => {
         return $$createType0($result);
     });
 }
@@ -27,14 +27,14 @@ export function GetConfigMode(): $CancellablePromise<$models.ConfigModeResponse>
  * GetConfigPath returns configuration path.
  */
 export function GetConfigPath(): $CancellablePromise<string> {
-    return $Call.ByID(430178106);
+    return $Call.ByID(289727796);
 }
 
 /**
  * GetRuntimeConfig loads runtime configuration from the config file.
  */
 export function GetRuntimeConfig(): $CancellablePromise<$models.RuntimeConfigDetail> {
-    return $Call.ByID(3662973511).then(($result: any) => {
+    return $Call.ByID(3607584597).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -43,28 +43,28 @@ export function GetRuntimeConfig(): $CancellablePromise<$models.RuntimeConfigDet
  * ImportMcpServers writes imported MCP servers into the config file.
  */
 export function ImportMcpServers(req: $models.ImportMcpServersRequest): $CancellablePromise<void> {
-    return $Call.ByID(1112164916, req);
+    return $Call.ByID(3537283842, req);
 }
 
 /**
  * OpenConfigInEditor opens config path in system editor.
  */
 export function OpenConfigInEditor(): $CancellablePromise<void> {
-    return $Call.ByID(3550689645);
+    return $Call.ByID(2218954059);
 }
 
 /**
  * ReloadConfig triggers a configuration reload in the running Core.
  */
 export function ReloadConfig(): $CancellablePromise<void> {
-    return $Call.ByID(3781415734);
+    return $Call.ByID(3451945896);
 }
 
 /**
  * UpdateRuntimeConfig writes runtime updates into the config file.
  */
 export function UpdateRuntimeConfig(req: $models.UpdateRuntimeConfigRequest): $CancellablePromise<void> {
-    return $Call.ByID(3819242306, req);
+    return $Call.ByID(2487410792, req);
 }
 
 // Private type creation functions

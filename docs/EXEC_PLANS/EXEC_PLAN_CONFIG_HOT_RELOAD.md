@@ -4,7 +4,7 @@
 
 ## Purpose / Big Picture
 
-完成后，Core 可以在不重启的情况下接收配置更新：修改 profile store（`profiles/*.yaml`、`runtime.yaml`、`callers.yaml`）会触发重新加载，新增或变更的 MCP server 会平滑切换到新的 specKey，旧实例进入 draining 并自动退出。运行期如果遇到无效配置，会保留旧配置继续运行并记录清晰的告警，避免服务中断。验证方式是：运行 `mcpd serve` 后修改配置，日志出现 reload 成功或失败的提示，RPC 监听不重建，已连接的客户端继续可用，工具/资源列表能反映最新配置。
+完成后，Core 可以在不重启的情况下接收配置更新：修改 profile store（`profiles/*.yaml`、`runtime.yaml`、`callers.yaml`）会触发重新加载，新增或变更的 MCP server 会平滑切换到新的 specKey，旧实例进入 draining 并自动退出。运行期如果遇到无效配置，会保留旧配置继续运行并记录清晰的告警，避免服务中断。验证方式是：运行 `mcpv serve` 后修改配置，日志出现 reload 成功或失败的提示，RPC 监听不重建，已连接的客户端继续可用，工具/资源列表能反映最新配置。
 
 ## Progress
 
@@ -19,7 +19,7 @@
 - `go test ./internal/...` 在沙箱内需要自定义 `GOCACHE`，否则访问系统缓存失败。
   Evidence: `open /Users/wibus/Library/Caches/go-build/...: operation not permitted`
 
-- `mcpd/internal/infra/lifecycle` 的 `TestManager_StartInstance_DetachesFromCallerContext` 在本次验证中失败。
+- `mcpv/internal/infra/lifecycle` 的 `TestManager_StartInstance_DetachesFromCallerContext` 在本次验证中失败。
   Evidence: `manager_test.go:77: start context should not be canceled when caller context is canceled after startup`
 
 ## Decision Log
@@ -97,7 +97,7 @@
 
 运行期验证流程如下，工作目录为仓库根：
 
-    go run ./cmd/mcpd serve --config ./runtime
+    go run ./cmd/mcpv serve --config ./runtime
 
 修改 `runtime/profiles/default.yaml` 新增一个 server，保存后观察日志出现类似 `config reload applied` 的提示，随后再删除该 server 并观察旧实例进入 draining 的日志。RPC 监听地址保持不变，已连接的 caller 不需要重连即可继续调用。
 

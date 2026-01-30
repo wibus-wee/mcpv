@@ -139,7 +139,7 @@ This document must be maintained in accordance with `.agent/PLANS.md` in the rep
 - Go: `domain.ServerSpec` includes `Disabled bool`.
 - Go: Catalog editing helpers in `internal/infra/catalog` handle read/modify/write without losing unrelated fields.
 - Go: WailsService exports mutation methods listed above.
-- TS: UI uses generated bindings in `@bindings/mcpd/internal/ui/wailsservice` for all mutations.
+- TS: UI uses generated bindings in `@bindings/mcpv/internal/ui/wailsservice` for all mutations.
 
 ---
 

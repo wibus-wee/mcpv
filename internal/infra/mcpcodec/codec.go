@@ -8,7 +8,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 // ToolFromMCP converts an MCP tool to a domain definition.

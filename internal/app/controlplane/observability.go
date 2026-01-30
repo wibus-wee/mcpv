@@ -11,9 +11,9 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/aggregator"
-	"mcpd/internal/infra/telemetry"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/aggregator"
+	"mcpv/internal/infra/telemetry"
 )
 
 const (

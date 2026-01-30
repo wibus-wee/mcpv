@@ -10,8 +10,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/fsutil"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/fsutil"
 )
 
 // EditorErrorKind classifies catalog editor errors.

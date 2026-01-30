@@ -12,7 +12,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 // ServerInitIndex manages server initialization status snapshots with broadcast support.

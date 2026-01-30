@@ -4,8 +4,8 @@ services:
       context: .
       dockerfile: ./dev/Dockerfile.dev
     ports:
-      - "6274:6274"  # Inspector UI
-      - "6277:6277"  # Inspector WebSocket
+      - "6274:6274" # Inspector UI
+      - "6277:6277" # Inspector WebSocket
     environment:
       HOST: "0.0.0.0"
       MCP_AUTO_OPEN_ENABLED: "false"
@@ -23,15 +23,15 @@ services:
     command:
       - "go"
       - "run"
-      - "./cmd/mcpd"
+      - "./cmd/mcpv"
       - "serve"
       - "--config"
       - "/app/dev"
     ports:
-      - "9090:9090"  # Prometheus metrics (from core)
+      - "9090:9090" # Prometheus metrics (from core)
     environment:
-      MCPD_METRICS_ENABLED: "true"
-      MCPD_HEALTHZ_ENABLED: "true"
+      mcpv_METRICS_ENABLED: "true"
+      mcpv_HEALTHZ_ENABLED: "true"
     volumes:
       - ./:/app
       - go-data:/go/pkg/mod
@@ -50,7 +50,7 @@ services:
       - "9500:9500"
     volumes:
       - prometheus-data:/prometheus
-      - ${MCPD_PROM_CONFIG:-./dev/prometheus.yaml}:/etc/prometheus/prometheus.yaml
+      - ${mcpv_PROM_CONFIG:-./dev/prometheus.yaml}:/etc/prometheus/prometheus.yaml
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -63,8 +63,8 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
       - ./dev/grafana.ini:/etc/grafana/grafana.ini
-      - ./dev/datasources.yaml:/etc/grafana/provisioning/datasources/mcpd-datasources.yml
-      - ./dev/dashboards.yaml:/etc/grafana/provisioning/dashboards/mcpd-dashboards.yml
+      - ./dev/datasources.yaml:/etc/grafana/provisioning/datasources/mcpv-datasources.yml
+      - ./dev/dashboards.yaml:/etc/grafana/provisioning/dashboards/mcpv-dashboards.yml
       - ./dev/dashboards:/dashboards
 
 volumes:

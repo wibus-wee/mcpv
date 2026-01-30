@@ -9,7 +9,7 @@ import (
 	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/components/model"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 // initializeModel creates the chat model based on configuration.

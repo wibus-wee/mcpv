@@ -6,11 +6,11 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/aggregator"
-	"mcpd/internal/infra/notifications"
-	"mcpd/internal/infra/router"
-	"mcpd/internal/infra/telemetry"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/aggregator"
+	"mcpv/internal/infra/notifications"
+	"mcpv/internal/infra/router"
+	"mcpv/internal/infra/telemetry"
 )
 
 // State tracks runtime indexes and metadata caches.

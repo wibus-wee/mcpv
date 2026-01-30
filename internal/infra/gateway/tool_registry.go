@@ -7,8 +7,8 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.uber.org/zap"
 
-	"mcpd/internal/infra/mcpcodec"
-	controlv1 "mcpd/pkg/api/control/v1"
+	"mcpv/internal/infra/mcpcodec"
+	controlv1 "mcpv/pkg/api/control/v1"
 )
 
 type toolRegistry struct {

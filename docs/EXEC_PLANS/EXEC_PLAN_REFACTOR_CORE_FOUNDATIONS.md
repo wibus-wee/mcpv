@@ -72,7 +72,7 @@ RPC 映射在 `internal/infra/rpc/mapping.go`，UI 侧转换分散在 `internal/
 
 ## Concrete Steps
 
-在 `/Users/wibus/dev/mcpd` 下工作。
+在 `/Users/wibus/dev/mcpv` 下工作。
 
 1) 引入 aggregator 泛型核心并重构三类索引。
 

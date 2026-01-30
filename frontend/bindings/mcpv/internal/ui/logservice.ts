@@ -14,12 +14,12 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
  * StartLogStream starts log streaming via Wails events.
  */
 export function StartLogStream(minLevel: string): $CancellablePromise<void> {
-    return $Call.ByID(2859473871, minLevel);
+    return $Call.ByID(3015330685, minLevel);
 }
 
 /**
  * StopLogStream stops log streaming.
  */
 export function StopLogStream(): $CancellablePromise<void> {
-    return $Call.ByID(1667981993);
+    return $Call.ByID(151941779);
 }

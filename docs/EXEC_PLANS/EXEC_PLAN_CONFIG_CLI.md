@@ -45,7 +45,7 @@ Date/Author: 2025-12-26 / Codex.
 
 首先用 YAML AST 方式实现环境变量展开：读取配置为 `yaml.Node`，只对标量值节点做 `os.ExpandEnv`，对 plain style 的值尝试按 YAML 标量规则回落成 `int/bool/float/null`，其余保持字符串。展开后再进行 schema 校验与 Viper 解析，以保证包含引号的环境变量不会破坏语法，同时保留通过 env 注入数值的行为。
 
-然后在 `domain.RuntimeConfig` 中加入 observability HTTP 地址配置（例如 `observability.listenAddress`），在 catalog loader 中设置默认值并校验，在 app 启动时将该地址传给 `telemetry.StartHTTPServer`。保留 `MCPD_METRICS_ENABLED` 和 `MCPD_HEALTHZ_ENABLED` 作为开关。
+然后在 `domain.RuntimeConfig` 中加入 observability HTTP 地址配置（例如 `observability.listenAddress`），在 catalog loader 中设置默认值并校验，在 app 启动时将该地址传给 `telemetry.StartHTTPServer`。保留 `mcpv_METRICS_ENABLED` 和 `mcpv_HEALTHZ_ENABLED` 作为开关。
 
 最后在 `domain.RPCConfig` 中加入 `socketMode` 配置，catalog loader 负责解析并校验（支持 `0660`/`0o660` 格式），RPC server 在 unix listen 后执行 `os.Chmod`。更新 schema、示例配置与测试断言。
 
@@ -78,7 +78,7 @@ Date/Author: 2025-12-26 / Codex.
 应在此记录关键测试输出或重要 diff 片段，确保后续排查可复现。
 
     go test ./internal/infra/catalog
-    ok  	mcpd/internal/infra/catalog	0.340s
+    ok  	mcpv/internal/infra/catalog	0.340s
 
 ## Interfaces and Dependencies
 

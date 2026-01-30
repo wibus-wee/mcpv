@@ -1,41 +1,41 @@
 # Custom URL Protocol (Deep Links)
 
-MCPD supports custom URL protocols for deep linking into the application:
-- **Production**: `mcpd://`
-- **Development**: `mcpdev://`
+mcpv supports custom URL protocols for deep linking into the application:
+- **Production**: `mcpv://`
+- **Development**: `mcpvev://`
 
 This separation prevents conflicts between production and development versions running on the same machine.
 
 ## Protocol Scheme
 
-The application registers the `mcpd://` URL scheme, allowing external applications, browser links, and scripts to open MCPD with specific navigation paths.
+The application registers the `mcpv://` URL scheme, allowing external applications, browser links, and scripts to open mcpv with specific navigation paths.
 
 ## URL Format
 
 **Production:**
 ```
-mcpd://<path>?<query-params>
+mcpv://<path>?<query-params>
 ```
 
 **Development:**
 ```
-mcpdev://<path>?<query-params>
+mcpvev://<path>?<query-params>
 ```
 
 ### Examples
 
 **Production:**
-- **Just open the app**: `mcpd://` or `mcpd://open`
-- Open servers page: `mcpd://servers`
-- Open servers with specific tab: `mcpd://servers?tab=overview`
-- Open specific server: `mcpd://servers?server=my-server&tab=config`
-- Open settings: `mcpd://settings`
+- **Just open the app**: `mcpv://` or `mcpv://open`
+- Open servers page: `mcpv://servers`
+- Open servers with specific tab: `mcpv://servers?tab=overview`
+- Open specific server: `mcpv://servers?server=my-server&tab=config`
+- Open settings: `mcpv://settings`
 
 **Development:**
-- **Just open the app**: `mcpdev://` or `mcpdev://open`
-- Open servers page: `mcpdev://servers`
-- Open servers with specific tab: `mcpdev://servers?tab=overview`
-- Open settings: `mcpdev://settings`
+- **Just open the app**: `mcpvev://` or `mcpvev://open`
+- Open servers page: `mcpvev://servers`
+- Open servers with specific tab: `mcpvev://servers?tab=overview`
+- Open settings: `mcpvev://settings`
 
 **Note**: Using the scheme without a path (or with root path `/`) will simply open/focus the application without navigating to any specific page. This is useful for just launching the app from external triggers.
 
@@ -44,7 +44,7 @@ mcpdev://<path>?<query-params>
 ### Backend
 
 1. **URL Parsing** ([internal/ui/deeplink.go](../../internal/ui/deeplink.go))
-   - Validates URL scheme is `mcpd://`
+   - Validates URL scheme is `mcpv://`
    - Normalizes path from host and path segments
    - Extracts query parameters
 
@@ -82,40 +82,40 @@ Test the functionality:
 
 ```bash
 # Production: Just open/focus the app without navigation
-open "mcpd://"
+open "mcpv://"
 
 # Production: Navigate to specific page
-open "mcpd://servers?tab=overview"
+open "mcpv://servers?tab=overview"
 
 # Development: Just open/focus the app without navigation
-open "mcpdev://"
+open "mcpvev://"
 
 # Development: Navigate to specific page
-open "mcpdev://servers?tab=overview"
+open "mcpvev://servers?tab=overview"
 ```
 
 ## Platform Registration
 
 ### macOS
 
-The custom protocol is registered via the app's `Info.plist` during the build process. Once built and installed, the system recognizes `mcpd://` URLs.
+The custom protocol is registered via the app's `Info.plist` during the build process. Once built and installed, the system recognizes `mcpv://` URLs.
 
 Test examples:
 ```bash
 # Production build
-open "mcpd://"
-open "mcpd://servers?tab=overview"
+open "mcpv://"
+open "mcpv://servers?tab=overview"
 
 # Development build
-open "mcpdev://"
-open "mcpdev://servers?tab=overview"
-open "mcpdev://settings"
+open "mcpvev://"
+open "mcpvev://servers?tab=overview"
+open "mcpvev://settings"
 ```
 
 ### Security
 
 - All URLs are validated before processing
-- Only `mcpd://` and `mcpdev://` schemes are accepted
+- Only `mcpv://` and `mcpvev://` schemes are accepted
 - Production and development versions use different schemes to avoid conflicts
 - Query parameters are sanitized
 - Invalid URLs generate error events but don't crash the app

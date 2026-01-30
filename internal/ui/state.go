@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 // SharedState holds cached data and subscription tracking.

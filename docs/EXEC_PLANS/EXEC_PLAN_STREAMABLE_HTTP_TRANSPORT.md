@@ -4,7 +4,7 @@
 
 ## Purpose / Big Picture
 
-让 mcpd 可以通过配置连接外部 Streamable HTTP MCP server（不启动本地 HTTP server），并保持现有实例状态机/调度策略。完成后，用户可在 profile 的 server 配置里声明 `transport: streamable_http` 与 `http.endpoint`，mcpd 会建立会话、完成 initialize 握手、维持 session 状态、按策略路由与回收，并继续对 tools/resources/prompts 做刷新与聚合。
+让 mcpv 可以通过配置连接外部 Streamable HTTP MCP server（不启动本地 HTTP server），并保持现有实例状态机/调度策略。完成后，用户可在 profile 的 server 配置里声明 `transport: streamable_http` 与 `http.endpoint`，mcpv 会建立会话、完成 initialize 握手、维持 session 状态、按策略路由与回收，并继续对 tools/resources/prompts 做刷新与聚合。
 
 ## Progress
 
@@ -15,7 +15,7 @@
 
 ## Surprises & Discoveries
 
-- Observation: go-sdk 的 StreamableClientTransport 依赖 MCP-Protocol-Version 头；默认行为与 mcpd 的 2025-11-25 不兼容，需要为 HTTP transport 单独允许 2025-06-18/2025-03-26/2024-11-05。
+- Observation: go-sdk 的 StreamableClientTransport 依赖 MCP-Protocol-Version 头；默认行为与 mcpv 的 2025-11-25 不兼容，需要为 HTTP transport 单独允许 2025-06-18/2025-03-26/2024-11-05。
   Evidence: go-sdk `mcp/shared.go` 支持的版本列表与 Streamable transport 对协议头的要求。
 
 ## Decision Log
@@ -36,7 +36,7 @@
 
 ## Context and Orientation
 
-mcpd 的核心启动流程位于 `internal/infra/lifecycle/manager.go`，通过 `Launcher` 启动 stdio 子进程并由 `Transport` 建立 JSON-RPC 连接。配置解析在 `internal/infra/catalog/loader.go` 与 `internal/infra/catalog/schema.json`，ServerSpec 定义于 `internal/domain/types.go`。transport 现仅支持 stdio（`internal/infra/transport/mcp_transport.go` + `command_launcher.go`）。
+mcpv 的核心启动流程位于 `internal/infra/lifecycle/manager.go`，通过 `Launcher` 启动 stdio 子进程并由 `Transport` 建立 JSON-RPC 连接。配置解析在 `internal/infra/catalog/loader.go` 与 `internal/infra/catalog/schema.json`，ServerSpec 定义于 `internal/domain/types.go`。transport 现仅支持 stdio（`internal/infra/transport/mcp_transport.go` + `command_launcher.go`）。
 
 ## Plan of Work
 
@@ -58,7 +58,7 @@ mcpd 的核心启动流程位于 `internal/infra/lifecycle/manager.go`，通过 
 - 新增的 streamable_http 测试应证明：
   - transport 可连接 httptest 的 Streamable HTTP server；
   - lifecycle 能启动实例并完成 initialize 握手。
-- 人工验证：配置一个 `transport: streamable_http` 的 server，启动 mcpd 后能正常 tools/list 与路由。
+- 人工验证：配置一个 `transport: streamable_http` 的 server，启动 mcpv 后能正常 tools/list 与路由。
 
 ## Idempotence and Recovery
 

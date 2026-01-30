@@ -3,7 +3,7 @@ package telemetry
 import (
 	"time"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 type NoopMetrics struct{}

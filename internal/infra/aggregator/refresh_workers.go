@@ -1,6 +1,6 @@
 package aggregator
 
-import "mcpd/internal/domain"
+import "mcpv/internal/domain"
 
 func refreshWorkerCount(cfg domain.RuntimeConfig, total int) int {
 	if total <= 0 {

@@ -8,7 +8,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.uber.org/zap"
 
-	controlv1 "mcpd/pkg/api/control/v1"
+	controlv1 "mcpv/pkg/api/control/v1"
 )
 
 type resourceRegistry struct {

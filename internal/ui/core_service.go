@@ -5,7 +5,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 // CoreService exposes core lifecycle APIs.

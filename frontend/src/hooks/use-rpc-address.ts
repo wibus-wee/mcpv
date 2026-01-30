@@ -1,6 +1,6 @@
 import useSWR from 'swr'
 
-import { defaultRpcAddress } from '@/lib/mcpdmcp'
+import { defaultRpcAddress } from '@/lib/mcpvmcp'
 
 export function useRpcAddress() {
   const swr = useSWR<string>(

@@ -8,8 +8,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/hashutil"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/hashutil"
 )
 
 type DiscoveryService struct {

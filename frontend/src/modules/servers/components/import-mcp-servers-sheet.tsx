@@ -2,8 +2,8 @@
 // Output: ImportMcpServersSheet component - JSON import flow for servers
 // Position: Config header action entry
 
-import type { ImportMcpServersRequest } from '@bindings/mcpd/internal/ui'
-import { ConfigService } from '@bindings/mcpd/internal/ui'
+import type { ImportMcpServersRequest } from '@bindings/mcpv/internal/ui'
+import { ConfigService } from '@bindings/mcpv/internal/ui'
 import { AlertCircleIcon, FileUpIcon } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
@@ -80,10 +80,10 @@ export const ImportMcpServersSheet = () => {
   const isWritable = configMode?.isWritable ?? false
   const canApply
     = isWritable
-      && parseErrors.length === 0
-      && servers.length > 0
-      && issues.length === 0
-      && !isApplying
+    && parseErrors.length === 0
+    && servers.length > 0
+    && issues.length === 0
+    && !isApplying
 
   const handleParse = () => {
     const result = parseMcpServersJson(rawInput)

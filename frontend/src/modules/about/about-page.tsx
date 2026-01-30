@@ -2,7 +2,7 @@
 // Output: AboutPage component with animated background, app icon (confetti on long press), name, description, and made by
 // Position: About module page content for the /about route
 
-import { CoreService } from '@bindings/mcpd/internal/ui'
+import { CoreService } from '@bindings/mcpv/internal/ui'
 import { confetti } from '@tsparticles/confetti'
 import { HeartHandshakeIcon } from 'lucide-react'
 import { m } from 'motion/react'
@@ -66,7 +66,7 @@ export function AboutPage() {
           className="flex cursor-pointer select-none items-center justify-center"
           onMouseUp={triggerConfetti}
         >
-          <img src="/appicon.png" alt="mcpd" className="size-24 drop-shadow-lg" draggable={false} />
+          <img src="/appicon.png" alt="mcpv" className="size-24 drop-shadow-lg" draggable={false} />
         </m.div>
 
         {/* App Name + Version */}
@@ -79,7 +79,7 @@ export function AboutPage() {
             <Skeleton className="h-8 w-36" />
           ) : (
             <h1 className="text-2xl font-semibold tracking-tight">
-              MCPD UI
+              mcpv UI
               {appInfo?.version && (
                 <span className="ml-2 text-base font-normal text-muted-foreground">
                   v{appInfo.version}

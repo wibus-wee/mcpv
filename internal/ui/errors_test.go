@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 func TestErrorStringFormatsDetails(t *testing.T) {

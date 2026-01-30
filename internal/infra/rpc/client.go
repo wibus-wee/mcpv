@@ -11,8 +11,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
 
-	"mcpd/internal/domain"
-	controlv1 "mcpd/pkg/api/control/v1"
+	"mcpv/internal/domain"
+	controlv1 "mcpv/pkg/api/control/v1"
 )
 
 type ClientConfig struct {

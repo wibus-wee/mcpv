@@ -7,8 +7,8 @@ import type {
   ServerSummary,
   SubAgentConfigDetail,
   UpdateSubAgentConfigRequest,
-} from '@bindings/mcpd/internal/ui'
-import { ProxyService, SubAgentService } from '@bindings/mcpd/internal/ui'
+} from '@bindings/mcpv/internal/ui'
+import { ProxyService, SubAgentService } from '@bindings/mcpv/internal/ui'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import useSWR from 'swr'

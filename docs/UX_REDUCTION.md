@@ -28,7 +28,7 @@
 
 - App = Host：管理多个下游 MCP server 的生命周期、权限与可观测性。
 - core = Host runtime：执行调度与路由，隐藏 catalog，暴露统一控制面。
-- mcpdmcp/gateway = MCP server：对外提供 MCP tools/list 和 tools/call，会话面向外部 MCP client。
+- mcpvmcp/gateway = MCP server：对外提供 MCP tools/list 和 tools/call，会话面向外部 MCP client。
 
 ## 用户负担的关键来源
 
@@ -40,7 +40,7 @@
 
 - 默认隐藏 catalog，仅暴露“caller profile”这一层。
 - “一键启动”优先于“可配置能力”，高级能力延后在 Pro 模式提供。
-- UI 是唯一入口，mcpdmcp 只作为 MCP 客户端入口和 URL scheme 触发器。
+- UI 是唯一入口，mcpvmcp 只作为 MCP 客户端入口和 URL scheme 触发器。
 - 所有操作都应可解释、可恢复，不把用户置于不可逆的状态。
 
 ## 用户体验路径
@@ -50,16 +50,16 @@
 用户在 MCP 客户端执行：
 
 ```
-mcpdmcp <caller>
+mcpvmcp <caller>
 ```
 
-如果 App 未运行，mcpdmcp 通过 URL scheme 拉起 App：
+如果 App 未运行，mcpvmcp 通过 URL scheme 拉起 App：
 
 ```
-mcpdmcp://start?caller=vscode
+mcpvmcp://start?caller=vscode
 ```
 
-App 启动后根据 caller 选择 profile（未配置则回退到 default），启动 core，并向 mcpdmcp 提供 MCP 会话。
+App 启动后根据 caller 选择 profile（未配置则回退到 default），启动 core，并向 mcpvmcp 提供 MCP 会话。
 
 ### 2. 工具可见性与日志
 
@@ -130,7 +130,7 @@ App 启动后根据 caller 选择 profile（未配置则回退到 default），�
 ## 实施计划（产品角度）
 
 1. P0：一键启动闭环
-   - mcpdmcp + URL scheme 拉起 App
+   - mcpvmcp + URL scheme 拉起 App
    - caller -> default profile fallback
    - tools list + logs UI
 
@@ -154,5 +154,5 @@ App 启动后根据 caller 选择 profile（未配置则回退到 default），�
 ## 预期结果
 
 - 普通用户不需要理解 MCP 协议或 catalog 格式即可使用。
-- MCP 客户端的使用方式保持不变，只替换入口为 `mcpdmcp`。
+- MCP 客户端的使用方式保持不变，只替换入口为 `mcpvmcp`。
 - 在不牺牲可观测性的情况下显著降低上手成本。

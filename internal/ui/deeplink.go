@@ -6,20 +6,20 @@ import (
 	"strings"
 )
 
-// DeepLinkScheme is the custom URL scheme for mcpd.
+// DeepLinkScheme is the custom URL scheme for mcpv.
 const (
-	DeepLinkScheme    = "mcpd"
-	DeepLinkSchemeDev = "mcpdev"
+	DeepLinkScheme    = "mcpv"
+	DeepLinkSchemeDev = "mcpvev"
 )
 
-// DeepLink represents a parsed mcpd:// or mcpdev:// URL.
+// DeepLink represents a parsed mcpv:// or mcpvev:// URL.
 type DeepLink struct {
 	raw    string
 	path   string
 	params map[string]string
 }
 
-// ParseDeepLink parses a mcpd:// or mcpdev:// URL into a DeepLink.
+// ParseDeepLink parses a mcpv:// or mcpvev:// URL into a DeepLink.
 // Returns error if the URL is invalid or uses wrong scheme.
 func ParseDeepLink(rawURL string) (*DeepLink, error) {
 	if rawURL == "" {
@@ -36,8 +36,8 @@ func ParseDeepLink(rawURL string) (*DeepLink, error) {
 	}
 
 	// Build path from host and path segments
-	// mcpd://servers → path = "servers"
-	// mcpd://servers/detail → path = "servers/detail"
+	// mcpv://servers → path = "servers"
+	// mcpv://servers/detail → path = "servers/detail"
 	pathParts := []string{}
 	if parsed.Host != "" {
 		pathParts = append(pathParts, parsed.Host)

@@ -13,9 +13,9 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/hashutil"
-	"mcpd/internal/infra/mcpcodec"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/hashutil"
+	"mcpv/internal/infra/mcpcodec"
 )
 
 // Manager handles the asynchronous bootstrap process for MCP servers.

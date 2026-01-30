@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"mcpd/internal/app/bootstrap"
-	"mcpd/internal/app/runtime"
-	"mcpd/internal/domain"
+	"mcpv/internal/app/bootstrap"
+	"mcpv/internal/app/runtime"
+	"mcpv/internal/domain"
 )
 
 func TestReloadManager_ApplyUpdate_UpdatesRuntimeAndRegistry(t *testing.T) {

@@ -1,5 +1,5 @@
 > 这是最初版的设计，可能已经过时  
-> 当前实现已拆分为 core/gateway：`mcpd` 提供 gRPC 控制面，`mcpd-gateway` 作为 MCP Server 入口。
+> 当前实现已拆分为 core/gateway：`mcpv` 提供 gRPC 控制面，`mcpv-gateway` 作为 MCP Server 入口。
 
 一、目标与定位
 - 目标：为 MCP servers 提供按需启动、自动缩容、scale-to-zero 的弹性运行时，统一入口路由，降低空闲资源浪费，简化配置管理。
@@ -17,7 +17,7 @@
 - Catalog 配置：声明 server types（命令、env、cwd、idleSeconds、maxConcurrent、strategy、sessionTTLSeconds、minReady、activationMode、protocolVersion），启动时加载并校验。
 - 健康与握手：启动后执行 initialize 协商，校验 protocolVersion；支持 ping 探活。
 - 观测：结构化日志；基础 metrics（启动耗时、启动失败计数、活跃实例、回收计数、请求延迟/失败率）。
-- CLI：`mcpd serve`（运行）、`mcpd validate`（校验配置）；输出 JSON 结构化日志。
+- CLI：`mcpv serve`（运行）、`mcpv validate`（校验配置）；输出 JSON 结构化日志。
 - 错误与 backpressure：并发超限可快速失败；启动中可返回“启动中”错误（不排队为 MVP）。
 
 四、超出范围（MVP 后）
@@ -59,8 +59,8 @@
 - 健康端点：可选 `healthz`（检查 goroutine 活性/内部错误）。
 
 7) CLI
-- `mcpd serve --config path`: 加载配置，启动调度器，启动 metrics/health HTTP（可选端口）。
-- `mcpd validate --config path`: 仅校验配置（CUE/JSONSchema），返回 0/1。
+- `mcpv serve --config path`: 加载配置，启动调度器，启动 metrics/health HTTP（可选端口）。
+- `mcpv validate --config path`: 仅校验配置（CUE/JSONSchema），返回 0/1。
 - 输入/输出：路由入口为标准输入的 JSON-RPC 请求（或后续 HTTP 入口，非 MVP）。
 
 8) 错误处理与 backpressure
@@ -76,7 +76,7 @@
 - 安全：MVP 运行在本地；不暴露远端 HTTP 入口；日志不泄漏敏感 env（需显式过滤）。
 
 七、架构与分层
-- cmd/mcpd: CLI 入口。
+- cmd/mcpv: CLI 入口。
 - internal/app: 应用服务编排（装配 scheduler/router/lifecycle/telemetry）。
 - internal/domain: 领域模型与接口（ServerSpec, InstanceState, Transport, Scheduler, Router, Lifecycle, Probe, Logger, Metrics）。
 - internal/infra: 适配器实现
@@ -107,7 +107,7 @@ toolNamespaceStrategy: "prefix"
 observability:
   listenAddress: "0.0.0.0:9090"
 rpc:
-  listenAddress: "unix:///tmp/mcpd.sock"
+  listenAddress: "unix:///tmp/mcpv.sock"
   maxRecvMsgSize: 16777216
   maxSendMsgSize: 16777216
   keepaliveTimeSeconds: 30
@@ -188,7 +188,7 @@ servers:
 - 进程泄漏：StopFn 实现需优雅终止，超时强杀；注册退出钩子。
 
 十五、验收标准（MVP）
-- `mcpd serve --config <profile-store-dir>` 能加载并运行，无 panic；能处理至少一个 serverType 的 JSON-RPC 请求并返回响应。
+- `mcpv serve --config <profile-store-dir>` 能加载并运行，无 panic；能处理至少一个 serverType 的 JSON-RPC 请求并返回响应。
 - idleSeconds 到期自动回收实例（非 persistent/singleton 且 stateful 无有效绑定）。
 - 日志包含关键事件，metrics 能暴露（可选）。
-- `mcpd validate` 对合法配置返回 0，对非法配置输出错误并返回非 0。
+- `mcpv validate` 对合法配置返回 0，对非法配置输出错误并返回非 0。

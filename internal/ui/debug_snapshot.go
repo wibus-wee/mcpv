@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 type debugSnapshot struct {
@@ -129,7 +129,7 @@ func (s *DebugService) ExportDebugSnapshot(ctx context.Context) (DebugSnapshotRe
 		return DebugSnapshotResponse{}, NewErrorWithDetails(ErrCodeInternal, "Failed to create debug directory", err.Error())
 	}
 
-	filename := fmt.Sprintf("mcpd-debug-%s.json", now.Format("20060102-150405"))
+	filename := fmt.Sprintf("mcpv-debug-%s.json", now.Format("20060102-150405"))
 	path := filepath.Join(debugDir, filename)
 	payload, err := json.MarshalIndent(snapshot, "", "  ")
 	if err != nil {

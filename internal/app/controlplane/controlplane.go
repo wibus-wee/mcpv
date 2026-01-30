@@ -6,8 +6,8 @@ import (
 	"errors"
 	"time"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/aggregator"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/aggregator"
 )
 
 // ControlPlane aggregates control plane services behind a facade.

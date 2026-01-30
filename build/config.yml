@@ -6,8 +6,8 @@ version: '3'
 # This information is used to generate the build assets.
 info:
   companyName: "Wibus" # The name of the company
-  productName: "MCPD UI" # The name of the application
-  productIdentifier: "dev.wibus.mcpd" # The unique product identifier
+  productName: "MCPV UI" # The name of the application
+  productIdentifier: "dev.wibus.mcpvui" # The unique product identifier
   description: "A program that does X" # The application description
   copyright: "(c) 2025, Wibus" # Copyright text
   comments: "" # Comments

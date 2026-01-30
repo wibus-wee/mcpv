@@ -1,4 +1,4 @@
-# mcpd 可视化配置系统设计文档
+# mcpv 可视化配置系统设计文档
 
 > **版本**: 1.0.0
 > **创建时间**: 2025-12-28
@@ -23,7 +23,7 @@
 
 ### 目标
 
-为 mcpd Wails 应用提供直观、易用的可视化配置管理界面，让**普通用户**能够在不理解 MCP 协议细节的情况下，轻松查看和理解配置。
+为 mcpv Wails 应用提供直观、易用的可视化配置管理界面，让**普通用户**能够在不理解 MCP 协议细节的情况下，轻松查看和理解配置。
 
 ### 用户画像
 
@@ -393,7 +393,7 @@ export function useProfile(name: string | null) {
     toolNamespaceStrategy: "prefix",
     observability: { listenAddress: "0.0.0.0:9090" },
     rpc: {
-      listenAddress: "unix:///tmp/mcpd.sock",
+      listenAddress: "unix:///tmp/mcpv.sock",
       maxRecvMsgSize: 16777216,
       // ...
     }

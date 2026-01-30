@@ -2,8 +2,8 @@
 // Output: Sheet component for adding/editing server configurations
 // Position: Overlay sheet triggered from server list or config panel
 
-import type { ServerDetail } from '@bindings/mcpd/internal/ui'
-import { ServerService } from '@bindings/mcpd/internal/ui'
+import type { ServerDetail } from '@bindings/mcpv/internal/ui'
+import { ServerService } from '@bindings/mcpv/internal/ui'
 import { PlusIcon, SaveIcon } from 'lucide-react'
 import { m } from 'motion/react'
 import { useCallback, useEffect, useState } from 'react'
@@ -234,10 +234,10 @@ export function ServerEditSheet({
         exposeTools,
         http: data.transport === 'streamable_http'
           ? {
-              endpoint: data.endpoint.trim(),
-              headers: httpHeaders,
-              maxRetries: data.httpMaxRetries,
-            }
+            endpoint: data.endpoint.trim(),
+            headers: httpHeaders,
+            maxRetries: data.httpMaxRetries,
+          }
           : null,
       }
 
@@ -550,17 +550,17 @@ export function ServerEditSheet({
                 ? 'Saving...'
                 : isEdit
                   ? (
-                      <>
-                        <SaveIcon className="mr-2 size-4" />
-                        Save Changes
-                      </>
-                    )
+                    <>
+                      <SaveIcon className="mr-2 size-4" />
+                      Save Changes
+                    </>
+                  )
                   : (
-                      <>
-                        <PlusIcon className="mr-2 size-4" />
-                        Add Server
-                      </>
-                    )}
+                    <>
+                      <PlusIcon className="mr-2 size-4" />
+                      Add Server
+                    </>
+                  )}
           </Button>
         </SheetFooter>
       </SheetContent>

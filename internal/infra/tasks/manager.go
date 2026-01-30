@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 const (

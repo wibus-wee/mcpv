@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 type Loader struct {

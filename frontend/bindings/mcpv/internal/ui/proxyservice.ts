@@ -15,7 +15,7 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 export function Fetch(req: $models.ProxyFetchRequest): $CancellablePromise<$models.ProxyFetchResponse> {
-    return $Call.ByID(1420038289, req).then(($result: any) => {
+    return $Call.ByID(2273597315, req).then(($result: any) => {
         return $$createType0($result);
     });
 }

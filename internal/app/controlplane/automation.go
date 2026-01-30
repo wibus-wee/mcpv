@@ -7,8 +7,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/mcpcodec"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/mcpcodec"
 )
 
 const (

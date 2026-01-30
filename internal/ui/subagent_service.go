@@ -5,7 +5,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpd/internal/infra/catalog"
+	"mcpv/internal/infra/catalog"
 )
 
 // SubAgentService exposes SubAgent configuration APIs.

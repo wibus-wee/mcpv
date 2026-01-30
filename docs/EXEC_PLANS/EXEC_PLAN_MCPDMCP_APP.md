@@ -1,16 +1,16 @@
-# App-managed core with caller profiles and mcpdmcp entry
+# App-managed core with caller profiles and mcpvmcp entry
 
 本 ExecPlan 为可演进文档，必须在实施过程中持续更新 `Progress`、`Surprises & Discoveries`、`Decision Log`、`Outcomes & Retrospective`。本文件需遵循仓库根目录 `.agent/PLANS.md` 的要求。
 
 ## Purpose / Big Picture（目标与大局）
 
-目标是让用户只需运行 `mcpdmcp <caller>` 就能获得可用的 MCP 会话，并在 App 中看到 tools、logs、resources、prompts 的状态与内容。App 成为唯一入口，负责 core 的生命周期与体验；core 负责调度与路由；gateway 负责 MCP 协议会话。完成后可通过启动 App、触发 `mcpdmcp` 与 URL scheme 来验证“零配置启动、工具可见、日志可控、资源与 prompts 可浏览”的端到端体验。
+目标是让用户只需运行 `mcpvmcp <caller>` 就能获得可用的 MCP 会话，并在 App 中看到 tools、logs、resources、prompts 的状态与内容。App 成为唯一入口，负责 core 的生命周期与体验；core 负责调度与路由；gateway 负责 MCP 协议会话。完成后可通过启动 App、触发 `mcpvmcp` 与 URL scheme 来验证“零配置启动、工具可见、日志可控、资源与 prompts 可浏览”的端到端体验。
 
 ## Progress（进度）
 
 - [x] (2025-03-08 12:40Z) 定义 profile store 与 caller 解析，完成 core 的多 profile 装载与默认回退（新增 profile store loader、目录布局校验、default fallback，app/CLI 切换到 profile store 入口）。
 - [x] (2025-03-08 15:30Z) 引入 spec fingerprint 与共享实例池，确保 identical spec 才复用（spec 指纹排除 Name，scheduler 按 specKey 池化实例，新增共享池测试与指标语义调整）。
-- [x] (2025-03-08 18:10Z) 将 control plane 全量引入 caller，新增 mcpdmcp CLI 与 gateway 贯通（proto/cp/gateway caller 贯通，profile 级 tool index，scheduler 使用 specKey 池化）。
+- [x] (2025-03-08 18:10Z) 将 control plane 全量引入 caller，新增 mcpvmcp CLI 与 gateway 贯通（proto/cp/gateway caller 贯通，profile 级 tool index，scheduler 使用 specKey 池化）。
 - [x] (2025-03-08 21:20Z) 增加 resources/prompts 控制面与 gateway 透传，完成分页与 list-changed 语义（资源/提示索引、read/get 路由、分页 cursor、gateway registry 同步）。
 - [x] (2025-03-09 10:30Z) 引入 caller 注册/注销与 ref-count 生命周期，按 profile 启停索引、按 spec 激活与停止实例池，并加入 PID 探活与 gateway 注册流程。
 - [ ] 引入 App 托管 core 的生命周期与 URL scheme，提供最小 UI（tools/logs/resources/prompts）。
@@ -57,7 +57,7 @@
 - Decision: 实例生命周期与指标统一按 specKey 记录，route 仍按 serverType 统计。
   Rationale: 实例池是 spec 维度的资源，避免多个 serverType 共享池时指标误读。
   Date/Author: 2025-03-08 / Codex.
-- Decision: control plane 所有 RPC 均显式携带 caller，gateway/mcpdmcp 负责传递，core 负责 caller->profile fallback。
+- Decision: control plane 所有 RPC 均显式携带 caller，gateway/mcpvmcp 负责传递，core 负责 caller->profile fallback。
   Rationale: 明确调用方语义，避免核心层隐式状态。
   Date/Author: 2025-03-08 / Codex.
 - Decision: scheduler 改为直接以 specKey 作为 pool key，router/ToolIndex 负责 serverType->specKey 映射。
@@ -94,7 +94,7 @@
 
 ## Context and Orientation（上下文与定位）
 
-当前 core 通过 `cmd/mcpd` 启动，编排逻辑在 `internal/app/app.go`，控制面 gRPC 定义在 `proto/mcpd/control/v1/control.proto` 与 `internal/infra/rpc`，gateway 在 `internal/infra/gateway` 且 CLI 入口为 `cmd/mcpd-gateway`。现有 tools 聚合仅覆盖 tools（`internal/infra/aggregator`），resources/prompts 尚无索引。`internal/ui` 为 Wails 预留桥接层，`docs/WAILS_STRUCTURE.md` 描述了 Wails 结构。
+当前 core 通过 `cmd/mcpv` 启动，编排逻辑在 `internal/app/app.go`，控制面 gRPC 定义在 `proto/mcpv/control/v1/control.proto` 与 `internal/infra/rpc`，gateway 在 `internal/infra/gateway` 且 CLI 入口为 `cmd/mcpv-gateway`。现有 tools 聚合仅覆盖 tools（`internal/infra/aggregator`），resources/prompts 尚无索引。`internal/ui` 为 Wails 预留桥接层，`docs/WAILS_STRUCTURE.md` 描述了 Wails 结构。
 
 本计划中的关键术语：caller 指 MCP client 的调用方标识；profile 是内部配置单元，包含一组 ServerSpec 与运行参数；profile store 指 `callers.yaml` 与 `profiles/*.yaml` 的组合；spec fingerprint 是对 ServerSpec 的稳定哈希，用于实例池复用。
 
@@ -104,17 +104,17 @@
 
 第二阶段引入 spec fingerprint 与共享实例池。对 ServerSpec 做稳定归一化后计算 hash，实例池以 fingerprint 作为 key，profile 内 serverType 仅作为展示与工具命名空间。调度器改为“profile 维度路由 + specKey 维度实例池”的两层结构，确保 identical spec 才复用。
 
-第三阶段改造控制面与 gateway。proto 与 domain 全量引入 caller 维度，tools/list、tools/call、watch tools、stream logs 都必须显式携带 caller。新增 `cmd/mcpdmcp` 作为官方 MCP 入口，参数只接受 `<caller>`。gateway 根据 MCP client 的 `logging/setLevel` 调整 StreamLogs 的 `min_level`，并在工具调用时传递 caller。
+第三阶段改造控制面与 gateway。proto 与 domain 全量引入 caller 维度，tools/list、tools/call、watch tools、stream logs 都必须显式携带 caller。新增 `cmd/mcpvmcp` 作为官方 MCP 入口，参数只接受 `<caller>`。gateway 根据 MCP client 的 `logging/setLevel` 调整 StreamLogs 的 `min_level`，并在工具调用时传递 caller。
 
 第四阶段补齐 resources 与 prompts。新增 ResourceIndex 与 PromptIndex（或与 ToolIndex 同级的索引模块），支持 list/get 与 list-changed 订阅，分页逻辑必须稳定并可缓存。gateway 透传 resources/list 与 prompts/list/get，UI 以只读视图呈现并支持分页与刷新提示。
 
-第五阶段接入 Wails。`cmd/mcpd-wails` 负责启动 App，core 以 in-process background service 形式运行；App 关闭时拒绝新请求并等待 in-flight 完成后停止。URL scheme `mcpd://start?caller=<name>` 在 Wails 注册，通过事件回调解析后进入 UI 流程。UI 至少包含 profile 选择、tools 列表、logs 流与 resources/prompts 视图。
+第五阶段接入 Wails。`cmd/mcpv-wails` 负责启动 App，core 以 in-process background service 形式运行；App 关闭时拒绝新请求并等待 in-flight 完成后停止。URL scheme `mcpv://start?caller=<name>` 在 Wails 注册，通过事件回调解析后进入 UI 流程。UI 至少包含 profile 选择、tools 列表、logs 流与 resources/prompts 视图。
 
 文档更新贯穿各阶段，包括 `docs/PRD.md`、`docs/STRUCTURE.md`、`docs/WAILS_STRUCTURE.md` 与 `docs/UX_REDUCTION.md`，确保协议边界与体验路径一致。
 
 ## Concrete Steps（具体步骤）
 
-在 `/Users/wibus/dev/mcpd` 执行。
+在 `/Users/wibus/dev/mcpv` 执行。
 
 完成 profile store 与 CLI 入口改造后，补齐默认配置生成与验证逻辑。profile store 期望结构如下：
 
@@ -131,10 +131,10 @@
     make fmt
     make test
 
-手动验证 mcpdmcp 与 URL scheme：
+手动验证 mcpvmcp 与 URL scheme：
 
-    go run ./cmd/mcpdmcp vscode
-    open "mcpdmcp://start?caller=vscode"
+    go run ./cmd/mcpvmcp vscode
+    open "mcpvmcp://start?caller=vscode"
 
 ## Validation and Acceptance（验证与验收）
 
@@ -142,7 +142,7 @@ Profile store 与 caller 解析完成后，core 能加载多个 profile，并对
 
 Spec fingerprint 与共享实例池完成后，两个 profile 引用相同 ServerSpec 时只产生一套实例池，实例数与复用行为可通过日志与 metrics 验证。
 
-control plane 引入 caller 后，`mcpdmcp <caller>` 的 tools/list 与 tools/call 仅反映对应 profile，日志按 caller 归因；`logging/setLevel` 会改变 MCP 客户端接收的日志等级。
+control plane 引入 caller 后，`mcpvmcp <caller>` 的 tools/list 与 tools/call 仅反映对应 profile，日志按 caller 归因；`logging/setLevel` 会改变 MCP 客户端接收的日志等级。
 
 resources/prompts 补齐后，UI 能分页显示资源与 prompts，list-changed 更新能触发 UI 刷新；prompts/get 返回内容可展示且与参数一致。
 
@@ -211,7 +211,7 @@ domain 控制面接口需要 caller 维度，并新增资源与 prompts 类型�
 
 profile store 定义应集中在 `internal/domain/profile.go`，并由 `internal/infra/catalog/profile_store.go` 负责加载。
 
-Plan Update Note: Marked phase 3 complete with caller-aware control plane and mcpdmcp entry, recorded specKey routing and shared runtime rules, and updated progress to reflect RPC/gateway/app refactor.
+Plan Update Note: Marked phase 3 complete with caller-aware control plane and mcpvmcp entry, recorded specKey routing and shared runtime rules, and updated progress to reflect RPC/gateway/app refactor.
 Plan Update Note: Marked phase 4 complete with resources/prompts control plane + gateway passthrough, added pagination/read/get interfaces, and recorded pagination and naming decisions.
 Plan Update Note: Added caller ref-count lifecycle, PID liveness probing, scheduler activation/stop semantics, and gateway registration flow to align core lifecycle with active callers.
 Plan Update Note: Added scheduler start gate to dedupe concurrent StartInstance when pools are empty.

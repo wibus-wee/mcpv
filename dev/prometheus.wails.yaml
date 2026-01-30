@@ -3,9 +3,9 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: 'mcpd_wails'
+  - job_name: 'mcpv_wails'
     static_configs:
       - targets: ['host.docker.internal:9090']
         labels:
-          service: 'mcpd'
+          service: 'mcpv'
           source: 'wails'

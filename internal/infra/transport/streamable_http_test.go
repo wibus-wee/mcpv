@@ -11,7 +11,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/require"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 func TestStreamableHTTPTransport_ConnectAndPing(t *testing.T) {

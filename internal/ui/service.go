@@ -4,7 +4,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"go.uber.org/zap"
 
-	"mcpd/internal/app"
+	"mcpv/internal/app"
 )
 
 // ServiceRegistry wires all Wails services together.

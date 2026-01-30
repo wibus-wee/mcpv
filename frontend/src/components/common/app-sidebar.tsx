@@ -91,7 +91,7 @@ export function AppSidebar() {
           transition={Spring.smooth(0.4)}
         >
           {/* Evaluation build */}
-          mcpd © 2025. All rights reserved.
+          mcpv © 2025. All rights reserved.
         </m.div>
       </SidebarFooter>
     </Sidebar>

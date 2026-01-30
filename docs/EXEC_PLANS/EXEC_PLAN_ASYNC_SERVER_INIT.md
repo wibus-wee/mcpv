@@ -4,7 +4,7 @@ This ExecPlan is a living document. The sections `Progress`, `Surprises & Discov
 
 ## Purpose / Big Picture
 
-Right now the MCPD Core blocks during startup while every downstream MCP server (defined in the catalog) launches and finishes its `initialize` handshake. A single slow `npx`-based server is enough to keep the whole Core in an "error" state, even though the Core infrastructure (control plane, RPC server, UI bridge) is already operational. After this change the Core will become responsive immediately, while each server is initialized asynchronously in the background. Every server will export its own initialization status (pending, starting, ready, degraded, failed) so operators can see which servers are usable, which are still warming up, and which failed. Core health is no longer tied to any specific MCP server.
+Right now the mcpv Core blocks during startup while every downstream MCP server (defined in the catalog) launches and finishes its `initialize` handshake. A single slow `npx`-based server is enough to keep the whole Core in an "error" state, even though the Core infrastructure (control plane, RPC server, UI bridge) is already operational. After this change the Core will become responsive immediately, while each server is initialized asynchronously in the background. Every server will export its own initialization status (pending, starting, ready, degraded, failed) so operators can see which servers are usable, which are still warming up, and which failed. Core health is no longer tied to any specific MCP server.
 
 ## Progress
 

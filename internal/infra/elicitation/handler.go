@@ -5,7 +5,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 // DefaultHandler returns a conservative response for elicitation requests.

@@ -12,7 +12,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 type clientConn struct {

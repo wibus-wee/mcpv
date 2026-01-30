@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/fsutil"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/fsutil"
 )
 
 func TestProfileStoreLoader_RejectsFilePath(t *testing.T) {

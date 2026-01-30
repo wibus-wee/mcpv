@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 func TestServerInitializationManager_Ready(t *testing.T) {

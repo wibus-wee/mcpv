@@ -22,21 +22,21 @@ import * as $models from "./models.js";
  * CallTool calls a tool.
  */
 export function CallTool(name: string, args: json$0.RawMessage, routingKey: string): $CancellablePromise<json$0.RawMessage> {
-    return $Call.ByID(3426795163, name, args, routingKey);
+    return $Call.ByID(216212321, name, args, routingKey);
 }
 
 /**
  * GetPrompt gets a prompt template.
  */
 export function GetPrompt(name: string, args: json$0.RawMessage): $CancellablePromise<json$0.RawMessage> {
-    return $Call.ByID(4027942701, name, args);
+    return $Call.ByID(260479231, name, args);
 }
 
 /**
  * ListPrompts lists prompt templates.
  */
 export function ListPrompts(cursor: string): $CancellablePromise<$models.PromptPage | null> {
-    return $Call.ByID(3350827028, cursor).then(($result: any) => {
+    return $Call.ByID(1816633378, cursor).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -45,7 +45,7 @@ export function ListPrompts(cursor: string): $CancellablePromise<$models.PromptP
  * ListResources lists resources.
  */
 export function ListResources(cursor: string): $CancellablePromise<$models.ResourcePage | null> {
-    return $Call.ByID(2517142614, cursor).then(($result: any) => {
+    return $Call.ByID(1140104168, cursor).then(($result: any) => {
         return $$createType3($result);
     });
 }
@@ -54,7 +54,7 @@ export function ListResources(cursor: string): $CancellablePromise<$models.Resou
  * ListTools lists all available tools.
  */
 export function ListTools(): $CancellablePromise<$models.ToolEntry[]> {
-    return $Call.ByID(2888763440).then(($result: any) => {
+    return $Call.ByID(3993039598).then(($result: any) => {
         return $$createType5($result);
     });
 }
@@ -63,7 +63,7 @@ export function ListTools(): $CancellablePromise<$models.ToolEntry[]> {
  * ReadResource reads resource content.
  */
 export function ReadResource(uri: string): $CancellablePromise<json$0.RawMessage> {
-    return $Call.ByID(1693549589, uri);
+    return $Call.ByID(2031160199, uri);
 }
 
 // Private type creation functions

@@ -12,7 +12,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpd/internal/app"
+	"mcpv/internal/app"
 )
 
 // SystemService exposes system-level utility APIs.
@@ -76,9 +76,9 @@ func (s *SystemService) Ping(_ context.Context) string {
 	return "pong"
 }
 
-// ResolveMcpdmcpPath resolves the mcpdmcp executable path.
-func (s *SystemService) ResolveMcpdmcpPath() string {
-	name := "mcpdmcp"
+// ResolvemcpvmcpPath resolves the mcpvmcp executable path.
+func (s *SystemService) ResolvemcpvmcpPath() string {
+	name := "mcpvmcp"
 	if runtime.GOOS == "windows" {
 		name += ".exe"
 	}

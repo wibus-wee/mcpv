@@ -2,7 +2,7 @@
 // Output: Data table with sorting, filtering, and row selection
 // Position: Main table component for servers page
 
-import type { ActiveClient, ServerRuntimeStatus, ServerSummary } from '@bindings/mcpd/internal/ui'
+import type { ActiveClient, ServerRuntimeStatus, ServerSummary } from '@bindings/mcpv/internal/ui'
 import type { ColumnDef, ColumnFiltersState, ExpandedState, SortingState } from '@tanstack/react-table'
 import {
   flexRender,
@@ -488,9 +488,9 @@ export function ServersDataTable({
                   {header.isPlaceholder
                     ? null
                     : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )}
+                      header.column.columnDef.header,
+                      header.getContext(),
+                    )}
                 </TableHead>
               ))}
             </TableRow>

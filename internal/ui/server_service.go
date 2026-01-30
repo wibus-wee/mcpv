@@ -8,7 +8,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 // ServerService exposes server configuration APIs.

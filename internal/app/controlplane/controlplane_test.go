@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"mcpd/internal/app/runtime"
-	"mcpd/internal/domain"
+	"mcpv/internal/app/runtime"
+	"mcpv/internal/domain"
 )
 
 func TestControlPlane_RequiresRegistration(t *testing.T) {

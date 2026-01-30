@@ -7,11 +7,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 
-	"mcpd/internal/app/bootstrap"
-	"mcpd/internal/app/controlplane"
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/rpc"
-	"mcpd/internal/infra/telemetry"
+	"mcpv/internal/app/bootstrap"
+	"mcpv/internal/app/controlplane"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/rpc"
+	"mcpv/internal/infra/telemetry"
 )
 
 // Application wires the core runtime and dependencies.
@@ -128,8 +128,8 @@ func (a *Application) Run() error {
 
 	a.controlPlane.StartClientMonitor(a.ctx)
 
-	metricsEnabled := envBool("MCPD_METRICS_ENABLED")
-	healthzEnabled := envBool("MCPD_HEALTHZ_ENABLED")
+	metricsEnabled := envBool("mcpv_METRICS_ENABLED")
+	healthzEnabled := envBool("mcpv_HEALTHZ_ENABLED")
 	if a.observability != nil {
 		if a.observability.MetricsEnabled != nil {
 			metricsEnabled = *a.observability.MetricsEnabled

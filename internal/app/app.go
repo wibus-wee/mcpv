@@ -7,8 +7,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpd/internal/app/controlplane"
-	"mcpd/internal/infra/telemetry"
+	"mcpv/internal/app/controlplane"
+	"mcpv/internal/infra/telemetry"
 )
 
 // App wires core services and provides lifecycle entry points.

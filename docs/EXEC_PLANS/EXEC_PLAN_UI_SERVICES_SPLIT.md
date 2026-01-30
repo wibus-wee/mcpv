@@ -37,7 +37,7 @@ Follow `.agent/PLANS.md` from the repository root while maintaining this plan.
 
 ## Context and Orientation
 
-当前 UI 入口服务为 `internal/ui/service.go`，其中包含了 Wails 前端所需的所有导出方法，文件规模约 965 行，耦合度高。前端 bindings 位于 `frontend/bindings/mcpd/internal/ui/`，并通过 `@bindings/mcpd/internal/ui` 在前端使用。Wails app 入口在仓库根目录的 `app.go`，当前仅注册单个服务。目标是利用 Wails 支持多 service 的能力，将 UI 服务拆分为多个职责明确的服务类型，同时保持 `Manager` 生命周期与事件派发逻辑不变。
+当前 UI 入口服务为 `internal/ui/service.go`，其中包含了 Wails 前端所需的所有导出方法，文件规模约 965 行，耦合度高。前端 bindings 位于 `frontend/bindings/mcpv/internal/ui/`，并通过 `@bindings/mcpv/internal/ui` 在前端使用。Wails app 入口在仓库根目录的 `app.go`，当前仅注册单个服务。目标是利用 Wails 支持多 service 的能力，将 UI 服务拆分为多个职责明确的服务类型，同时保持 `Manager` 生命周期与事件派发逻辑不变。
 
 ## Plan of Work
 
@@ -45,9 +45,9 @@ Follow `.agent/PLANS.md` from the repository root while maintaining this plan.
 
 接着在 `internal/ui/service.go` 中实现 service registry，用于集中创建各 service 实例并返回 `[]application.Service`，供 `app.go` 注册。`app.go` 调整为使用 registry 创建服务并注入 `Manager` 与 Wails app。
 
-随后更新前端 bindings：新增对应服务的 binding 文件，并更新 `frontend/bindings/mcpd/internal/ui/index.ts` 导出新的 service。前端代码中将 `WailsService` 的调用点替换为对应 service（例如 `CoreService`, `ConfigService`, `ProfileService`, `RuntimeService` 等）。
+随后更新前端 bindings：新增对应服务的 binding 文件，并更新 `frontend/bindings/mcpv/internal/ui/index.ts` 导出新的 service。前端代码中将 `WailsService` 的调用点替换为对应 service（例如 `CoreService`, `ConfigService`, `ProfileService`, `RuntimeService` 等）。
 
-最后更新文档（`docs/WAILS_BINDINGS.md`, `docs/CONFIG_VISUALIZATION_DESIGN.md`, `cmd/mcpd-wails/README.md`）以反映多 service 注册与新的 API 入口，并记录验证步骤。
+最后更新文档（`docs/WAILS_BINDINGS.md`, `docs/CONFIG_VISUALIZATION_DESIGN.md`, `cmd/mcpv-wails/README.md`）以反映多 service 注册与新的 API 入口，并记录验证步骤。
 
 ## Concrete Steps
 
@@ -56,13 +56,13 @@ Follow `.agent/PLANS.md` from the repository root while maintaining this plan.
 1) 新增 ExecPlan 文件并填充内容。
 2) 读取 `internal/ui/service.go`，按职责拆分为多个文件，新增 `internal/ui/service_deps.go` 并将 registry 保持在 `internal/ui/service.go`。
 3) 更新 `app.go` 使用 registry 注册多个 service。
-4) 更新 `frontend/bindings/mcpd/internal/ui/` 目录下的 bindings 文件与 `index.ts`。
+4) 更新 `frontend/bindings/mcpv/internal/ui/` 目录下的 bindings 文件与 `index.ts`。
 5) 更新前端 `frontend/src` 内所有 `WailsService` 调用点。
 6) 更新文档与说明。
 
 示例命令（不在此处实际执行）：
 
-    cd /Users/wibus/conductor/workspaces/mcpd/tianjin
+    cd /Users/wibus/conductor/workspaces/mcpv/tianjin
     make wails-bindings
     make test
     pnpm -C frontend typecheck
@@ -82,7 +82,7 @@ Follow `.agent/PLANS.md` from the repository root while maintaining this plan.
 关键文件与目录：
 - `internal/ui/*.go`
 - `app.go`
-- `frontend/bindings/mcpd/internal/ui/`
+- `frontend/bindings/mcpv/internal/ui/`
 - `frontend/src/**`
 - `docs/WAILS_BINDINGS.md`
 

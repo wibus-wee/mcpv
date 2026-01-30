@@ -50,7 +50,7 @@
 
 ## Concrete Steps
 
-在 `/Users/wibus/dev/mcpd` 下工作。
+在 `/Users/wibus/dev/mcpv` 下工作。
 
 1) 修复 `server_init_manager.go` 的定时器使用与 caller registry 的锁内排序。
 

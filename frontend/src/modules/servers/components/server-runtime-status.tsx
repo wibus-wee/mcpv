@@ -2,8 +2,8 @@
 // Output: Runtime status summary and instance detail components
 // Position: Runtime status display component for server instances
 
-import type { ServerInitStatus, ServerRuntimeStatus } from '@bindings/mcpd/internal/ui'
-import { RuntimeService } from '@bindings/mcpd/internal/ui'
+import type { ServerInitStatus, ServerRuntimeStatus } from '@bindings/mcpv/internal/ui'
+import { RuntimeService } from '@bindings/mcpv/internal/ui'
 import { useState } from 'react'
 
 import { ServerStateBadge, ServerStateCountBadge } from '@/components/custom/status-badge'
@@ -117,12 +117,12 @@ export function ServerRuntimeDetails({
   const showInitBadge = Boolean(initStatus) && !showInitDetails
   const stateCount
     = stats.ready
-      + stats.busy
-      + stats.starting
-      + stats.initializing
-      + stats.handshaking
-      + stats.draining
-      + stats.failed
+    + stats.busy
+    + stats.starting
+    + stats.initializing
+    + stats.handshaking
+    + stats.draining
+    + stats.failed
 
   return (
     <div className={cn('space-y-3', className)}>

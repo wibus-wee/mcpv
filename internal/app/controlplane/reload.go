@@ -7,11 +7,11 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpd/internal/app/bootstrap"
-	appRuntime "mcpd/internal/app/runtime"
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/notifications"
-	"mcpd/internal/infra/telemetry"
+	"mcpv/internal/app/bootstrap"
+	appRuntime "mcpv/internal/app/runtime"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/notifications"
+	"mcpv/internal/infra/telemetry"
 )
 
 // ReloadManager coordinates catalog reloads and applies updates.

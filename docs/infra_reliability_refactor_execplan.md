@@ -4,7 +4,7 @@ This ExecPlan is a living document governed by `.agent/PLANS.md`; every section 
 
 ## Purpose / Big Picture
 
-完成后，mcpd 的基础设施层将具备更稳定的并发行为、符合 JSON-RPC 标准的错误响应、明确且可关闭的订阅通道生命周期，以及更完整的 Prometheus 指标。这会直接降低死锁/空指针风险，避免客户端收到不规范错误，并让运维侧能区分成功/失败与耗时。可以通过运行单测、检查新增指标名、以及手动触发订阅/工具调用路径观察行为来验证。
+完成后，mcpv 的基础设施层将具备更稳定的并发行为、符合 JSON-RPC 标准的错误响应、明确且可关闭的订阅通道生命周期，以及更完整的 Prometheus 指标。这会直接降低死锁/空指针风险，避免客户端收到不规范错误，并让运维侧能区分成功/失败与耗时。可以通过运行单测、检查新增指标名、以及手动触发订阅/工具调用路径观察行为来验证。
 
 ## Progress
 
@@ -86,9 +86,9 @@ Expected JSON-RPC wire error shape for unsupported methods:
 
 Expected new metric names to appear during tests:
 
-  mcpd_instance_start_duration_seconds
-  mcpd_instance_start_result_total
-  mcpd_instance_stop_result_total
+  mcpv_instance_start_duration_seconds
+  mcpv_instance_start_result_total
+  mcpv_instance_stop_result_total
 
 ## Interfaces and Dependencies
 

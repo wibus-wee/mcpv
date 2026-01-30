@@ -9,7 +9,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 type ProfileUpdate struct {

@@ -4,8 +4,8 @@
 
 ## 架构
 
-- **dev**：MCP Inspector + Go 环境（Inspector 会启动 mcpdmcp）
-- **core**：mcpd 控制面（gRPC + metrics）
+- **dev**：MCP Inspector + Go 环境（Inspector 会启动 mcpvmcp）
+- **core**：mcpv 控制面（gRPC + metrics）
 - **prometheus**：指标收集（可观测 core 容器或 Wails 启动的 core）
 - **grafana**：仪表盘 (http://localhost:4000)
 
@@ -28,9 +28,9 @@ make obs
 ### MCP Inspector（dev 服务）
 - **UI**: http://localhost:6274
 - **WebSocket**: ws://localhost:6277
-- **用途**: 调试 MCP 协议、启动 mcpdmcp
+- **用途**: 调试 MCP 协议、启动 mcpvmcp
 
-### mcpd-core（core 服务）
+### mcpv-core（core 服务）
 - **Metrics**: http://localhost:9090/metrics
 - **用途**: 控制面 + 编排
 
@@ -49,21 +49,21 @@ make obs
 3) 在 Inspector 里配置启动命令：
 
 ```bash
-go run /app/cmd/mcpdmcp inspector --rpc core:9091
+go run /app/cmd/mcpvmcp inspector --rpc core:9091
 ```
 
-4) 点击 Connect，Inspector 会连接到 mcpdmcp
+4) 点击 Connect，Inspector 会连接到 mcpvmcp
 5) Inspector 会展示 MCP 交互日志
 
 ## 指标查看
 
 1) 确保 core 已运行
 2) 打开 Prometheus：http://localhost:9500
-3) 查询 mcpd 指标：
-   - `mcpd_route_duration_seconds`
-   - `mcpd_instance_starts_total`
-   - `mcpd_instance_stops_total`
-   - `mcpd_active_instances`
+3) 查询 mcpv 指标：
+   - `mcpv_route_duration_seconds`
+   - `mcpv_instance_starts_total`
+   - `mcpv_instance_stops_total`
+   - `mcpv_active_instances`
 
 ## Wails 可观测模式
 
@@ -78,7 +78,7 @@ Prometheus 默认使用 `dev/prometheus.wails.yaml`，通过 `host.docker.intern
 如果需要手动指定配置：
 
 ```bash
-MCPD_PROM_CONFIG=./dev/prometheus.wails.yaml docker compose up -d prometheus grafana
+mcpv_PROM_CONFIG=./dev/prometheus.wails.yaml docker compose up -d prometheus grafana
 ```
 
 ## 配置文件
@@ -94,14 +94,14 @@ MCPD_PROM_CONFIG=./dev/prometheus.wails.yaml docker compose up -d prometheus gra
 
 - `6274`: MCP Inspector UI
 - `6277`: MCP Inspector WebSocket
-- `9090`: mcpd-core metrics
+- `9090`: mcpv-core metrics
 - `9500`: Prometheus UI
 - `4000`: Grafana UI
 
 ## 排障
 
-**Inspector 无法连接 mcpdmcp：**
-- 确认命令路径：`/app/cmd/mcpdmcp`
+**Inspector 无法连接 mcpvmcp：**
+- 确认命令路径：`/app/cmd/mcpvmcp`
 - 确认 core 正在运行：`docker compose ps core`
 - 确认 RPC 地址：`--rpc core:9091`
 

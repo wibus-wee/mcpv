@@ -6,7 +6,7 @@ This document must be maintained in accordance with .agent/PLANS.md from the rep
 
 ## Purpose / Big Picture
 
-完成本次变更后，mcpd 作为控制面核心服务（core）只负责编排、调度与路由，并通过 gRPC 暴露稳定的控制面 API；新增独立二进制 mcpd-gateway，作为唯一 MCP Server 入口，通过 RPC 与 core 交互，桥接 MCP 协议。用户将通过 stdio 连接 mcpd-gateway 调用 tools/list 与 tools/call，工具列表来自 core 的聚合结果，工具调用由 core 路由到下游 MCP servers。验证方式为运行单测与一个最小端到端示例，确认 gateway 能列出工具并成功调用，且 core 不再直接运行 MCP Server。
+完成本次变更后，mcpv 作为控制面核心服务（core）只负责编排、调度与路由，并通过 gRPC 暴露稳定的控制面 API；新增独立二进制 mcpv-gateway，作为唯一 MCP Server 入口，通过 RPC 与 core 交互，桥接 MCP 协议。用户将通过 stdio 连接 mcpv-gateway 调用 tools/list 与 tools/call，工具列表来自 core 的聚合结果，工具调用由 core 路由到下游 MCP servers。验证方式为运行单测与一个最小端到端示例，确认 gateway 能列出工具并成功调用，且 core 不再直接运行 MCP Server。
 
 ## Progress
 
@@ -23,7 +23,7 @@ This document must be maintained in accordance with .agent/PLANS.md from the rep
 
 ## Decision Log
 
-- Decision: 采用独立二进制 mcpd-gateway，并以 gRPC 作为 core 与 gateway 间 RPC 传输。
+- Decision: 采用独立二进制 mcpv-gateway，并以 gRPC 作为 core 与 gateway 间 RPC 传输。
   Rationale: 彻底解耦 MCP 协议与控制面逻辑，便于演进与多入口复用，同时 gRPC 提供流式能力与标准化健康检查。
   Date/Author: 2025-12-25 / Codex.
 
@@ -37,7 +37,7 @@ This document must be maintained in accordance with .agent/PLANS.md from the rep
 
 ## Context and Orientation
 
-当前 mcpd 入口为 `cmd/mcpd/main.go`，`internal/app/app.go` 负责加载 catalog、初始化 lifecycle/scheduler/router/tool index，并启动 gRPC 控制面服务。`internal/infra/gateway` 提供 MCP Server 入口（stdio），通过 gRPC 与 core 通讯并维护 tool registry。日志通过 core 内部 log broadcaster 出站，再由 gateway 发送 MCP logging 通知。
+当前 mcpv 入口为 `cmd/mcpv/main.go`，`internal/app/app.go` 负责加载 catalog、初始化 lifecycle/scheduler/router/tool index，并启动 gRPC 控制面服务。`internal/infra/gateway` 提供 MCP Server 入口（stdio），通过 gRPC 与 core 通讯并维护 tool registry。日志通过 core 内部 log broadcaster 出站，再由 gateway 发送 MCP logging 通知。
 
 本次改造需要引入“core / gateway”分层：
 
@@ -55,11 +55,11 @@ This document must be maintained in accordance with .agent/PLANS.md from the rep
 
 先定义 gRPC API 与配置结构，确保 core 与 gateway 的通信契约稳定。为保持类型安全与演进能力，新增 proto 文件并引入 gRPC 与 Protobuf 依赖，同时在 Makefile 中加入 proto 生成命令。随后重构 tool 聚合器，使其成为 core 内的纯工具索引（不再直接依赖 MCP Server），并提供快照与订阅能力。再重构日志管道，替换现有 MCPLogSink，使 core 将日志事件输出为可订阅流，供 gRPC 服务流式传输。
 
-完成核心抽象后，实现 gRPC server（core 端）与 gRPC client（gateway 端），提供工具快照、工具调用与日志流式传输。随后新增 `cmd/mcpd-gateway` 作为独立进程，并将原有 MCP Server 逻辑迁移至 gateway 包中。最后更新文档与示例，并补齐覆盖 core/gateway 交互的测试，确保新的分层与接口具备工程完备性。
+完成核心抽象后，实现 gRPC server（core 端）与 gRPC client（gateway 端），提供工具快照、工具调用与日志流式传输。随后新增 `cmd/mcpv-gateway` 作为独立进程，并将原有 MCP Server 逻辑迁移至 gateway 包中。最后更新文档与示例，并补齐覆盖 core/gateway 交互的测试，确保新的分层与接口具备工程完备性。
 
 ## Concrete Steps
 
-在 /Users/wibus/dev/mcpd 执行以下命令并观察输出。
+在 /Users/wibus/dev/mcpv 执行以下命令并观察输出。
 
 1) 阅读与定位现有 MCP Server 入口与 tool 聚合逻辑。
     rg -n "mcp_server|server.Run|ToolAggregator" internal docs
@@ -73,8 +73,8 @@ This document must be maintained in accordance with .agent/PLANS.md from the rep
     make test
 
 4) 运行最小端到端示例（core + gateway），观察 MCP tools/list 与 tools/call 成功。
-    go run ./cmd/mcpd serve --config docs/catalog.example.yaml
-    go run ./cmd/mcpd-gateway --rpc unix:///tmp/mcpd.sock
+    go run ./cmd/mcpv serve --config docs/catalog.example.yaml
+    go run ./cmd/mcpv-gateway --rpc unix:///tmp/mcpv.sock
 
 预期：gateway 启动后可通过 MCP 客户端看到聚合工具列表，并能成功调用其中任意工具。
 
@@ -82,8 +82,8 @@ This document must be maintained in accordance with .agent/PLANS.md from the rep
 
 验收标准：
 
-1) `cmd/mcpd` 启动后仅提供 gRPC 控制面，不再直接运行 MCP Server。
-2) `cmd/mcpd-gateway` 能通过 gRPC 拉取工具列表并注册为 MCP tools。
+1) `cmd/mcpv` 启动后仅提供 gRPC 控制面，不再直接运行 MCP Server。
+2) `cmd/mcpv-gateway` 能通过 gRPC 拉取工具列表并注册为 MCP tools。
 3) `tools/list` 返回的工具集合与 core 聚合结果一致（命名策略与过滤策略生效）。
 4) `tools/call` 通过 gateway 调用能正确路由到下游并返回结果，错误遵循 MCP 语义（tool error vs protocol error）。
 5) 日志桥接可用：core 产生日志后，gateway 能向 MCP session 发送 logging 通知（遵循 client 设置的 level）。
@@ -97,8 +97,8 @@ This document must be maintained in accordance with .agent/PLANS.md from the rep
 
 示例 proto 结构（仅用于理解，真实内容以仓库文件为准）：
     syntax = "proto3";
-    package mcpd.control.v1;
-    option go_package = "mcpd/pkg/api/control/v1;controlv1";
+    package mcpv.control.v1;
+    option go_package = "mcpv/pkg/api/control/v1;controlv1";
 
     service ControlPlaneService {
       rpc GetInfo(GetInfoRequest) returns (GetInfoResponse);
@@ -187,7 +187,7 @@ message LogEntry {
 配置扩展（示例）：
 
 - 在 `internal/domain/types.go` 的 `RuntimeConfig` 增加 `RPC` 子结构，包含：
-  - ListenAddress (string, 默认 unix:///tmp/mcpd.sock)
+  - ListenAddress (string, 默认 unix:///tmp/mcpv.sock)
   - TLS (enabled, certFile, keyFile, caFile, clientAuth)
   - MaxRecvMsgSize / MaxSendMsgSize
   - Keepalive 参数
@@ -196,7 +196,7 @@ message LogEntry {
 
 - 删除或弃用 `internal/infra/server/mcp_server.go`，其职责迁移到 gateway。
 - `internal/app/app.go` 不再调用 `server.Run`，改为启动 gRPC server。
-- 新增 `cmd/mcpd-gateway/main.go`，仅负责 MCP Server + gRPC client 桥接。
+- 新增 `cmd/mcpv-gateway/main.go`，仅负责 MCP Server + gRPC client 桥接。
 - 更新 `docs/STRUCTURE.md`、`docs/INITIAL_DESIGN.md`、`docs/DRAFT_PLAN.md` 与 `docs/catalog.example.yaml` 以反映新入口与配置。
 
 Plan Update Note: 记录 core/gateway 拆分实施进度、接口变更与文档同步（完成 gRPC 与 tool index 落地，待补齐测试与 e2e）。

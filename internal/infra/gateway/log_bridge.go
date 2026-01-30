@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	controlv1 "mcpd/pkg/api/control/v1"
+	controlv1 "mcpv/pkg/api/control/v1"
 )
 
 type logBridge struct {

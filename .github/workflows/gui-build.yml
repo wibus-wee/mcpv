@@ -77,4 +77,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: gui-${{ matrix.os }}-${{ contains(matrix.platform, 'arm64') && 'arm64' || 'amd64' }}
-          path: ./bin/mcpdui.app
+          path: ./bin/mcpvui.app

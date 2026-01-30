@@ -10,7 +10,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 // StreamableHTTPTransport connects to MCP servers over streamable HTTP.

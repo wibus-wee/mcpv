@@ -99,7 +99,7 @@ WARNING [warn] /Users/.../app.go:37:43: undefined: Assets
 ```bash
 $ make wails-bindings
 INFO  Processed: <N> Packages, <M> Services, <K> Methods, <E> Enums, <T> Models, <X> Events
-INFO  Output directory: /Users/wibus/conductor/workspaces/mcpd/tianjin/frontend/bindings
+INFO  Output directory: /Users/wibus/conductor/workspaces/mcpv/tianjin/frontend/bindings
 ```
 
 **解读**：
@@ -111,7 +111,7 @@ INFO  Output directory: /Users/wibus/conductor/workspaces/mcpd/tianjin/frontend/
 frontend/bindings/
 ├── index.ts
 ├── models.ts
-└── mcpd/internal/ui/
+└── mcpv/internal/ui/
     ├── coreservice.ts
     ├── configservice.ts
     ├── debugservice.ts
@@ -126,7 +126,7 @@ frontend/bindings/
 ## 前端使用
 
 ```typescript
-import { CoreService, SystemService } from '@bindings/mcpd/internal/ui'
+import { CoreService, SystemService } from '@bindings/mcpv/internal/ui'
 
 const version = await SystemService.GetVersion()
 const state = await CoreService.GetCoreState()

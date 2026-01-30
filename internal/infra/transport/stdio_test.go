@@ -10,8 +10,8 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/telemetry"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/telemetry"
 )
 
 func TestCommandLauncher_StartAndRoundTrip(t *testing.T) {

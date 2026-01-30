@@ -16,9 +16,9 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/fsutil"
-	controlv1 "mcpd/pkg/api/control/v1"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/fsutil"
+	controlv1 "mcpv/pkg/api/control/v1"
 )
 
 // Server hosts the gRPC control plane and health endpoints.

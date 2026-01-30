@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 func resolveSocketMode(value string) (os.FileMode, error) {

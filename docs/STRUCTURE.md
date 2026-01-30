@@ -2,9 +2,9 @@
 
 ```
 cmd/
-  mcpd/             # Core CLI 入口（cobra）
-  mcpd-gateway/     # MCP Gateway 入口（cobra）
-  mcpd-wails/       # Wails GUI 入口
+  mcpv/             # Core CLI 入口（cobra）
+  mcpv-gateway/     # MCP Gateway 入口（cobra）
+  mcpv-wails/       # Wails GUI 入口
 internal/
   app/              # 应用编排层，供 CLI/Wails 复用
   domain/           # 领域模型与接口
@@ -20,9 +20,9 @@ go.mod
 Makefile
 ```
 
-- `cmd/mcpd`：只做参数解析与日志初始化，启动 core 控制面 RPC。
-- `cmd/mcpd-gateway`：只做参数解析与日志初始化，启动 MCP gateway 并连接 core。
-- `cmd/mcpd-wails`：Wails 应用入口，通过 `internal/ui` 桥接核心功能。
+- `cmd/mcpv`：只做参数解析与日志初始化，启动 core 控制面 RPC。
+- `cmd/mcpv-gateway`：只做参数解析与日志初始化，启动 MCP gateway 并连接 core。
+- `cmd/mcpv-wails`：Wails 应用入口，通过 `internal/ui` 桥接核心功能。
 - `internal/app`：组合 catalog/scheduler/router/lifecycle/telemetry，用例编排。
 - `internal/domain`：ServerSpec、Instance、Transport、Scheduler 等接口与状态机常量。
 - `internal/infra`：具体实现按子目录分布（catalog loader、stdio transport、router、scheduler、lifecycle、probe、telemetry、rpc、gateway）。

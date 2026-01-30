@@ -6,7 +6,7 @@ This document must be maintained in accordance with .agent/PLANS.md from the rep
 
 ## Purpose / Big Picture
 
-完成本次变更后，mcpd 作为 MCP Server 对外暴露统一的工具视图，并具备稳定性、健康检查与能力白名单。用户可以通过 stdio 连接 mcpd，调用 tools/list 获取聚合后的工具集合，调用 tools/call 触发下游工具，同时路由会按照下游 initialize 能力进行方法过滤，超时和健康检查参数可配置。验证方式是运行测试与一个最小端到端示例，观察 tools/list 与 tools/call 的返回符合预期。
+完成本次变更后，mcpv 作为 MCP Server 对外暴露统一的工具视图，并具备稳定性、健康检查与能力白名单。用户可以通过 stdio 连接 mcpv，调用 tools/list 获取聚合后的工具集合，调用 tools/call 触发下游工具，同时路由会按照下游 initialize 能力进行方法过滤，超时和健康检查参数可配置。验证方式是运行测试与一个最小端到端示例，观察 tools/list 与 tools/call 的返回符合预期。
 
 ## Progress
 
@@ -46,7 +46,7 @@ This document must be maintained in accordance with .agent/PLANS.md from the rep
 
 当前入口位于 internal/app/app.go，负责加载 catalog、初始化 lifecycle/scheduler/router，并调用 internal/infra/server/mcp_server.go 启动 MCP Server。现有 MCP Server 仅注册 route 工具并转发 JSON-RPC payload。Router 位于 internal/infra/router/router.go，固定 10 秒超时且能力白名单为 noop。Scheduler 位于 internal/infra/scheduler/basic.go，支持 idle 回收但缺少健康探测与并发安全。Lifecycle 位于 internal/infra/lifecycle/manager.go，会发送 initialize 并校验协议版本，但不会持久化 capability 结果。
 
-术语说明：能力白名单指依据 initialize 返回的 capabilities 决定允许转发的方法；工具聚合指从下游 tools/list 拉取工具并暴露为 mcpd 的工具集合；ping 探测指周期性向下游发送 JSON-RPC ping 以检测失败实例。
+术语说明：能力白名单指依据 initialize 返回的 capabilities 决定允许转发的方法；工具聚合指从下游 tools/list 拉取工具并暴露为 mcpv 的工具集合；ping 探测指周期性向下游发送 JSON-RPC ping 以检测失败实例。
 
 ## Plan of Work
 
@@ -54,7 +54,7 @@ This document must be maintained in accordance with .agent/PLANS.md from the rep
 
 ## Concrete Steps
 
-在 /Users/wibus/dev/mcpd 执行以下命令并观察输出。
+在 /Users/wibus/dev/mcpv 执行以下命令并观察输出。
 
 1) 查找 catalog 与 app 入口变更点。
     rg -n "Load\(" internal
@@ -77,7 +77,7 @@ This document must be maintained in accordance with .agent/PLANS.md from the rep
 
 ## Validation and Acceptance
 
-验收标准：启动 mcpd 后，tools/list 返回聚合工具（默认前缀命名），tools/call 可以正确转发到下游，并在下游不支持的能力上返回 method not allowed。通过 go test ./... 与一个最小集成测试验证聚合工具列表与调用结果匹配。
+验收标准：启动 mcpv 后，tools/list 返回聚合工具（默认前缀命名），tools/call 可以正确转发到下游，并在下游不支持的能力上返回 method not allowed。通过 go test ./... 与一个最小集成测试验证聚合工具列表与调用结果匹配。
 
 ## Idempotence and Recovery
 

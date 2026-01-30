@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 func TestNewPrometheusMetrics(t *testing.T) {
@@ -67,23 +67,23 @@ func TestNewPrometheusMetrics_UsesProvidedRegistry(t *testing.T) {
 		names = append(names, m.GetName())
 	}
 
-	assert.Contains(t, names, "mcpd_route_duration_seconds")
-	assert.Contains(t, names, "mcpd_inflight_routes")
-	assert.Contains(t, names, "mcpd_pool_wait_seconds")
-	assert.Contains(t, names, "mcpd_instance_starts_total")
-	assert.Contains(t, names, "mcpd_instance_stops_total")
-	assert.Contains(t, names, "mcpd_instance_start_duration_seconds")
-	assert.Contains(t, names, "mcpd_instance_start_result_total")
-	assert.Contains(t, names, "mcpd_instance_start_cause_total")
-	assert.Contains(t, names, "mcpd_instance_stop_result_total")
-	assert.Contains(t, names, "mcpd_instance_starting")
-	assert.Contains(t, names, "mcpd_active_instances")
-	assert.Contains(t, names, "mcpd_pool_capacity_ratio")
-	assert.Contains(t, names, "mcpd_pool_waiters")
-	assert.Contains(t, names, "mcpd_pool_acquire_fail_total")
-	assert.Contains(t, names, "mcpd_subagent_tokens_total")
-	assert.Contains(t, names, "mcpd_subagent_latency_seconds")
-	assert.Contains(t, names, "mcpd_subagent_filter_precision")
+	assert.Contains(t, names, "mcpv_route_duration_seconds")
+	assert.Contains(t, names, "mcpv_inflight_routes")
+	assert.Contains(t, names, "mcpv_pool_wait_seconds")
+	assert.Contains(t, names, "mcpv_instance_starts_total")
+	assert.Contains(t, names, "mcpv_instance_stops_total")
+	assert.Contains(t, names, "mcpv_instance_start_duration_seconds")
+	assert.Contains(t, names, "mcpv_instance_start_result_total")
+	assert.Contains(t, names, "mcpv_instance_start_cause_total")
+	assert.Contains(t, names, "mcpv_instance_stop_result_total")
+	assert.Contains(t, names, "mcpv_instance_starting")
+	assert.Contains(t, names, "mcpv_active_instances")
+	assert.Contains(t, names, "mcpv_pool_capacity_ratio")
+	assert.Contains(t, names, "mcpv_pool_waiters")
+	assert.Contains(t, names, "mcpv_pool_acquire_fail_total")
+	assert.Contains(t, names, "mcpv_subagent_tokens_total")
+	assert.Contains(t, names, "mcpv_subagent_latency_seconds")
+	assert.Contains(t, names, "mcpv_subagent_filter_precision")
 }
 
 func TestPrometheusMetrics_ImplementsInterface(t *testing.T) {

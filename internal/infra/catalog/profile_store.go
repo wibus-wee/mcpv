@@ -11,8 +11,8 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/fsutil"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/fsutil"
 )
 
 const (

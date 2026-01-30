@@ -8,8 +8,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/mcpcodec"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/mcpcodec"
 )
 
 // ToolETag returns an ETag for a tool list and logs on failure.

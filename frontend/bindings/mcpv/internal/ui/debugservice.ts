@@ -18,7 +18,7 @@ import * as $models from "./models.js";
  * ExportDebugSnapshot writes a debug snapshot to disk and returns its location.
  */
 export function ExportDebugSnapshot(): $CancellablePromise<$models.DebugSnapshotResponse> {
-    return $Call.ByID(675425637).then(($result: any) => {
+    return $Call.ByID(368167991).then(($result: any) => {
         return $$createType0($result);
     });
 }

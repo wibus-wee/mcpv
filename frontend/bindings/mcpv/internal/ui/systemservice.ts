@@ -14,26 +14,26 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
  * GetVersion returns app version.
  */
 export function GetVersion(): $CancellablePromise<string> {
-    return $Call.ByID(1530545722);
+    return $Call.ByID(2865931044);
 }
 
 /**
  * HandleURLScheme handles URL Scheme invocations.
  */
 export function HandleURLScheme(rawURL: string): $CancellablePromise<void> {
-    return $Call.ByID(3412451802, rawURL);
+    return $Call.ByID(1311417232, rawURL);
 }
 
 /**
  * Ping responds with pong.
  */
 export function Ping(): $CancellablePromise<string> {
-    return $Call.ByID(436844050);
+    return $Call.ByID(399080868);
 }
 
 /**
- * ResolveMcpdmcpPath resolves the mcpdmcp executable path.
+ * ResolvemcpvmcpPath resolves the mcpvmcp executable path.
  */
-export function ResolveMcpdmcpPath(): $CancellablePromise<string> {
-    return $Call.ByID(1439007697);
+export function ResolvemcpvmcpPath(): $CancellablePromise<string> {
+    return $Call.ByID(4220615561);
 }

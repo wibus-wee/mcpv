@@ -6,7 +6,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpd/internal/infra/rpc"
+	"mcpv/internal/infra/rpc"
 )
 
 type clientManager struct {

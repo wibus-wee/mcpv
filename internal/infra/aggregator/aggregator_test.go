@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/mcpcodec"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/mcpcodec"
 )
 
 func TestToolIndex_SnapshotPrefixedTool(t *testing.T) {

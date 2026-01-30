@@ -1,10 +1,10 @@
 # Simplify automatic_mcp Output and automatic_eval Validation
 
-This ExecPlan is a living document governed by `.agent/PLANS.md`; every section below must be kept up to date as work progresses. It describes simplifying the `mcpd.automatic_mcp` response to return raw MCP tool definitions, switching schema deduplication to a session identifier instead of client-provided hashes, and adding argument validation for `mcpd.automatic_eval` that returns tool schemas on errors.
+This ExecPlan is a living document governed by `.agent/PLANS.md`; every section below must be kept up to date as work progresses. It describes simplifying the `mcpv.automatic_mcp` response to return raw MCP tool definitions, switching schema deduplication to a session identifier instead of client-provided hashes, and adding argument validation for `mcpv.automatic_eval` that returns tool schemas on errors.
 
 ## Purpose / Big Picture
 
-完成后，客户端调用 `mcpd.automatic_mcp` 会得到与 MCP Server `tools/list` 同形的工具定义 JSON，而不再包含 `schema_hash`、`spec_key`、`full_schema` 等自定义字段，同时通过 `sessionId` 在服务端做去重与记忆。对于 `mcpd.automatic_eval`，当工具参数不符合工具输入 schema 时，会返回带有错误信息和该工具 schema 的 error 结果，方便 AI 自行修正参数。可以通过调用 `automatic_mcp` 两次观察第二次返回的工具列表缩减，以及用错误参数调用 `automatic_eval` 看见 error payload 中包含工具 schema 来验证。
+完成后，客户端调用 `mcpv.automatic_mcp` 会得到与 MCP Server `tools/list` 同形的工具定义 JSON，而不再包含 `schema_hash`、`spec_key`、`full_schema` 等自定义字段，同时通过 `sessionId` 在服务端做去重与记忆。对于 `mcpv.automatic_eval`，当工具参数不符合工具输入 schema 时，会返回带有错误信息和该工具 schema 的 error 结果，方便 AI 自行修正参数。可以通过调用 `automatic_mcp` 两次观察第二次返回的工具列表缩减，以及用错误参数调用 `automatic_eval` 看见 error payload 中包含工具 schema 来验证。
 
 ## Progress
 
@@ -12,12 +12,12 @@ This ExecPlan is a living document governed by `.agent/PLANS.md`; every section 
 - [x] (2025-12-30 05:41Z) Update domain/proto/tool schemas to use sessionId and raw tool JSON payloads, regenerate protobufs, and adjust gateway serialization.
 - [x] (2025-12-30 05:41Z) Implement session-based deduplication in SubAgent and fallback paths, returning only raw tool definitions to clients.
 - [x] (2025-12-30 05:41Z) Add automatic_eval argument validation and error payload containing tool schema, plus focused unit tests.
-- [x] (2025-12-30 05:46Z) Run `GOCACHE=/Users/wibus/dev/mcpd/.go-cache go test ./...` and capture linker warnings for `internal/ui` on macOS version mismatch.
+- [x] (2025-12-30 05:46Z) Run `GOCACHE=/Users/wibus/dev/mcpv/.go-cache go test ./...` and capture linker warnings for `internal/ui` on macOS version mismatch.
 
 ## Surprises & Discoveries
 
 - Observation: `go test ./...` emits `ld: warning: object file ... was built for newer 'macOS' version (26.0) than being linked (11.0)` when building `internal/ui`.
-  Evidence: Warnings captured in the test output for `mcpd/internal/ui`.
+  Evidence: Warnings captured in the test output for `mcpv/internal/ui`.
 
 ## Decision Log
 
@@ -34,7 +34,7 @@ This ExecPlan is a living document governed by `.agent/PLANS.md`; every section 
 
 ## Context and Orientation
 
-`internal/app/control_plane.go` contains the core orchestration for `AutomaticMCP` and `AutomaticEval`. `internal/infra/subagent/subagent.go` implements the LLM-based filtering and deduplication. `internal/infra/gateway/gateway.go` exposes `mcpd.automatic_mcp` and `mcpd.automatic_eval` to MCP clients, serializing responses into `mcp.CallToolResult`. Protobuf contracts live in `proto/mcpd/control/v1/control.proto`, with generated files in `pkg/api/control/v1/`. Tool definitions are stored as `json.RawMessage` in `internal/domain.ToolDefinition` and already mirror MCP `tools/list` payloads.
+`internal/app/control_plane.go` contains the core orchestration for `AutomaticMCP` and `AutomaticEval`. `internal/infra/subagent/subagent.go` implements the LLM-based filtering and deduplication. `internal/infra/gateway/gateway.go` exposes `mcpv.automatic_mcp` and `mcpv.automatic_eval` to MCP clients, serializing responses into `mcp.CallToolResult`. Protobuf contracts live in `proto/mcpv/control/v1/control.proto`, with generated files in `pkg/api/control/v1/`. Tool definitions are stored as `json.RawMessage` in `internal/domain.ToolDefinition` and already mirror MCP `tools/list` payloads.
 
 ## Plan of Work
 
@@ -49,7 +49,7 @@ Finally, add unit tests for the argument validation/error payload, update any ex
 ## Concrete Steps
 
 1. Edit `internal/domain/subagent.go` and `internal/domain/controlplane.go` to replace `knownSchemaHashes` with `sessionId`, and to update `AutomaticMCP` results to carry raw tool JSON arrays.
-2. Update `proto/mcpd/control/v1/control.proto` for the new request/response fields; run `make proto` in the repo root to regenerate `pkg/api/control/v1/control.pb.go` and `pkg/api/control/v1/control_grpc.pb.go`.
+2. Update `proto/mcpv/control/v1/control.proto` for the new request/response fields; run `make proto` in the repo root to regenerate `pkg/api/control/v1/control.pb.go` and `pkg/api/control/v1/control_grpc.pb.go`.
 3. Update `internal/infra/gateway/gateway.go` to parse the new request fields and build a JSON response that embeds tool schemas as raw objects (using `json.RawMessage`).
 4. Update `internal/infra/subagent/subagent.go` (and any cache helpers) to use session-based deduplication and return only tool JSON objects for tools that need resending.
 5. Update `internal/app/control_plane.go` to adjust `AutomaticMCP` fallback behavior and implement argument validation for `AutomaticEval`, returning structured error payloads with tool schemas.
@@ -58,11 +58,11 @@ Finally, add unit tests for the argument validation/error payload, update any ex
 
 ## Validation and Acceptance
 
-Run `make proto` and then `go test ./...` in the repository root. Expect all tests to pass. Validate manually by calling `mcpd.automatic_mcp` twice with the same `sessionId` and verifying that the second response contains fewer tool objects when no tool schemas changed. Then call `mcpd.automatic_eval` with a valid tool name but invalid arguments; expect a JSON error payload where `toolSchema` matches the tool definition returned by `automatic_mcp`.
+Run `make proto` and then `go test ./...` in the repository root. Expect all tests to pass. Validate manually by calling `mcpv.automatic_mcp` twice with the same `sessionId` and verifying that the second response contains fewer tool objects when no tool schemas changed. Then call `mcpv.automatic_eval` with a valid tool name but invalid arguments; expect a JSON error payload where `toolSchema` matches the tool definition returned by `automatic_mcp`.
 
 ## Idempotence and Recovery
 
-Edits are additive and can be repeated. If protobuf regeneration fails, revert changes to `proto/mcpd/control/v1/control.proto` and the generated files, then rerun `make proto`. If `automatic_eval` validation causes unexpected regressions, revert the validation helper and keep the structured error response generator isolated to allow quick rollback.
+Edits are additive and can be repeated. If protobuf regeneration fails, revert changes to `proto/mcpv/control/v1/control.proto` and the generated files, then rerun `make proto`. If `automatic_eval` validation causes unexpected regressions, revert the validation helper and keep the structured error response generator isolated to allow quick rollback.
 
 ## Artifacts and Notes
 

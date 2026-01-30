@@ -1,4 +1,4 @@
-# Implement Full MCP Sampling, Elicitation, and Tasks Support in mcpd Core
+# Implement Full MCP Sampling, Elicitation, and Tasks Support in mcpv Core
 
 This ExecPlan is a living document. The sections `Progress`, `Surprises & Discoveries`, `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
@@ -6,7 +6,7 @@ This plan must be maintained in accordance with `.agent/PLANS.md` at the reposit
 
 ## Purpose / Big Picture
 
-After this change, mcpd will honor the MCP protocol requirements for sampling and elicitation when acting as a client to downstream MCP servers. Servers can request model sampling from mcpd via `sampling/createMessage`, and can request structured user input via `elicitation/create`. These behaviors are observable through JSON-RPC traffic routed to downstream MCP servers.
+After this change, mcpv will honor the MCP protocol requirements for sampling and elicitation when acting as a client to downstream MCP servers. Servers can request model sampling from mcpv via `sampling/createMessage`, and can request structured user input via `elicitation/create`. These behaviors are observable through JSON-RPC traffic routed to downstream MCP servers.
 
 Scope update (2026-01-27): Task support is deferred. The task-related APIs are left as TODO placeholders returning unimplemented errors until upstream MCP protocol support is available in go-sdk.
 
@@ -32,16 +32,16 @@ Scope update (2026-01-27): Task support is deferred. The task-related APIs are l
 ## Decision Log
 
 - Decision: Implement sampling/elicitation handlers at the transport client connection layer instead of replacing the existing router with go-sdk Client.
-  Rationale: mcpd currently uses raw JSON-RPC routing, and replacing it would require large refactors of routing, scheduler, and aggregator logic. A handler interface preserves current architecture while enabling new protocol methods.
+  Rationale: mcpv currently uses raw JSON-RPC routing, and replacing it would require large refactors of routing, scheduler, and aggregator logic. A handler interface preserves current architecture while enabling new protocol methods.
   Date/Author: 2026-01-27 / Codex
-- Decision: Implement tasks in mcpd core via a dedicated TaskManager and new control plane APIs, and route task-related JSON-RPC methods to downstream servers using existing router facilities.
+- Decision: Implement tasks in mcpv core via a dedicated TaskManager and new control plane APIs, and route task-related JSON-RPC methods to downstream servers using existing router facilities.
   Rationale: Tasks are not supported in the current go-sdk MCP server used by the gateway, so the most stable path is to add task support to core routing and control-plane APIs first, while keeping the gateway unchanged.
   Date/Author: 2026-01-27 / Codex
 - Decision: Propagate URL elicitation errors as protocol-level errors instead of converting them into tool results.
   Rationale: The MCP spec defines `URL_ELICITATION_REQUIRED` as a JSON-RPC error (-32042) with structured data that clients must receive and act on.
   Date/Author: 2026-01-27 / Codex
 - Decision: Defer tasks implementation to TODO placeholders.
-  Rationale: go-sdk v1.2.0 does not expose MCP tasks methods or capabilities, so wiring full task support into mcpd would be misleading. Keep unimplemented stubs until upstream support lands.
+  Rationale: go-sdk v1.2.0 does not expose MCP tasks methods or capabilities, so wiring full task support into mcpv would be misleading. Keep unimplemented stubs until upstream support lands.
   Date/Author: 2026-01-27 / Codex
 
 ## Outcomes & Retrospective
@@ -50,7 +50,7 @@ Not started.
 
 ## Context and Orientation
 
-mcpd is a daemon that starts and routes requests to downstream MCP servers. Core request routing occurs in `internal/infra/router/router.go` (methods are validated via `internal/domain/methods.go`) and transport connections are built in `internal/infra/transport`. The MCP client initialization and capability negotiation is performed in `internal/infra/lifecycle/manager.go`. Tool calls are aggregated and routed by `internal/infra/aggregator/aggregator.go` and exposed through the control plane in `internal/app/control_plane.go` and `internal/infra/rpc`.
+mcpv is a daemon that starts and routes requests to downstream MCP servers. Core request routing occurs in `internal/infra/router/router.go` (methods are validated via `internal/domain/methods.go`) and transport connections are built in `internal/infra/transport`. The MCP client initialization and capability negotiation is performed in `internal/infra/lifecycle/manager.go`. Tool calls are aggregated and routed by `internal/infra/aggregator/aggregator.go` and exposed through the control plane in `internal/app/control_plane.go` and `internal/infra/rpc`.
 
 Key files for this change:
 
@@ -58,18 +58,18 @@ Key files for this change:
 - `internal/infra/transport/connection.go`: reads JSON-RPC messages and handles server-initiated requests.
 - `internal/domain/methods.go`: validates which methods are allowed by server capabilities.
 - `internal/infra/aggregator/aggregator.go`: builds tool calls, decodes responses, and maps errors.
-- `proto/mcpd/control/v1/control.proto`: control plane gRPC API.
+- `proto/mcpv/control/v1/control.proto`: control plane gRPC API.
 
 Terms used in this plan:
 
-- “Downstream MCP server”: the MCP server that mcpd connects to and routes requests to.
+- “Downstream MCP server”: the MCP server that mcpv connects to and routes requests to.
 - “Sampling”: server-to-client request `sampling/createMessage` for LLM generation.
 - “Elicitation”: server-to-client request `elicitation/create` for structured user input.
 - “Task-augmented tool call”: a `tools/call` request with a `task` field in params, which returns a task handle instead of immediate tool output.
 
 ## Plan of Work
 
-First, define protocol-facing types and handler interfaces in `internal/domain` so that sampling, elicitation, and tasks have explicit, testable contracts. Then wire sampling and elicitation into the transport layer so that when a downstream MCP server sends server-initiated requests, mcpd can respond correctly. Update lifecycle initialization to advertise only the capabilities that are actually supported.
+First, define protocol-facing types and handler interfaces in `internal/domain` so that sampling, elicitation, and tasks have explicit, testable contracts. Then wire sampling and elicitation into the transport layer so that when a downstream MCP server sends server-initiated requests, mcpv can respond correctly. Update lifecycle initialization to advertise only the capabilities that are actually supported.
 
 Next, defer task support until the upstream MCP protocol supports it in go-sdk. For now, expose TODO placeholders that return unimplemented errors.
 
@@ -134,7 +134,7 @@ Finally, adjust error handling so protocol-level errors like `URL_ELICITATION_RE
 
    Update control plane and RPC:
 
-   - Extend `proto/mcpd/control/v1/control.proto` with new RPC methods:
+   - Extend `proto/mcpv/control/v1/control.proto` with new RPC methods:
      - `CreateTaskToolCall` (or `CallToolTask`) to request task-augmented tool calls.
      - `TasksGet`, `TasksList`, `TasksResult`, `TasksCancel`.
    - Regenerate `pkg/api/control/v1` using `protoc`.
@@ -169,14 +169,14 @@ Run tests and verify observable behaviors:
 
 - Unit tests:
 
-    (workdir: /Users/wibus/dev/mcpd)
+    (workdir: /Users/wibus/dev/mcpv)
     make test
 
   Expected: all existing tests pass, and new task/sampling/elicitation tests pass.
 
 - Manual validation for sampling and elicitation:
 
-  Run a mocked downstream MCP server that sends `sampling/createMessage` and `elicitation/create`. Confirm mcpd replies with valid JSON-RPC responses.
+  Run a mocked downstream MCP server that sends `sampling/createMessage` and `elicitation/create`. Confirm mcpv replies with valid JSON-RPC responses.
 
 - Task-augmented tool call flow:
 
@@ -189,7 +189,7 @@ Run tests and verify observable behaviors:
 
 - URL elicitation error propagation:
 
-  Simulate downstream server returning JSON-RPC error code `-32042`. Confirm mcpd surfaces the error as a protocol error rather than embedding it in a tool result.
+  Simulate downstream server returning JSON-RPC error code `-32042`. Confirm mcpv surfaces the error as a protocol error rather than embedding it in a tool result.
 
 ## Idempotence and Recovery
 

@@ -1,6 +1,6 @@
 # MCP 协议要点（2025-11-25）
 
-本文汇总 Model Context Protocol（MCP）2025-11-25 版的实现要点，聚焦 `mcpd` MVP（Go、stdio transport 子进程、JSON-RPC 2.0）。正文中文，代码块内为 English。
+本文汇总 Model Context Protocol（MCP）2025-11-25 版的实现要点，聚焦 `mcpv` MVP（Go、stdio transport 子进程、JSON-RPC 2.0）。正文中文，代码块内为 English。
 
 ## 基础与版本
 - 目标协议版本：`2025-11-25`，`initialize` 协商时需拒绝其他版本。
@@ -24,9 +24,9 @@
 - Server: `prompts`、`resources`（subscribe/listChanged）、`tools`（listChanged）、`logging`、`completions`、`tasks`（list/cancel/requests.tools.call）、`experimental`
 
 ## 传输与会话
-- `mcpd` MVP 使用 stdio 子进程：建议逐行（`\n`）分隔 JSON-RPC 消息，启动后立即发送 `initialize`。
+- `mcpv` MVP 使用 stdio 子进程：建议逐行（`\n`）分隔 JSON-RPC 消息，启动后立即发送 `initialize`。
 - HTTP 规范：新版本为 Streamable HTTP（可 SSE 下行、POST 上行，支持会话 ID `MCP-Session-Id`）；老版 HTTP+SSE 兼容策略可忽略。
-- `mcpd` 现支持连接外部 Streamable HTTP MCP server（不负责启动本地 HTTP server），以 `transport: streamable_http` + `http.endpoint` 配置。
+- `mcpv` 现支持连接外部 Streamable HTTP MCP server（不负责启动本地 HTTP server），以 `transport: streamable_http` + `http.endpoint` 配置。
 - 会话 ID 规则（仅 HTTP 相关）：服务器可在 `initialize` 响应头返回 `MCP-Session-Id`，后续请求需回传；服务器终止会话后返回 404。
 
 ## 资源（Resources）
@@ -91,7 +91,7 @@
 - 配置/启动命令可能被注入恶意指令（示例含 `curl` 外传、`sudo rm -rf`）；加载 catalog 时需显式限制可执行命令来源与环境变量。
 - 日志需过滤敏感 env/密钥；资源订阅/工具调用返回的数据默认可信度有限。
 
-## 实现勾子（对 mcpd）
+## 实现勾子（对 mcpv）
 - 子进程启动后：发送 `initialize`（带客户端能力、版本），等待成功响应后才进入路由阶段。
 - 路由层：仅允许声明过的 method（prompts/resources/tools/tasks/elicitation/sampling/completion/logging）；未声明能力直接返回 `-32601`。
 - 缩容/重建：若 `initialize` 或后续 `ping`（可用 `tools/call` 健康探针或自定义资源读取）失败，标记实例 Failed 并清理。

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 // GetPoolStatus returns a snapshot of all pool states for status queries.

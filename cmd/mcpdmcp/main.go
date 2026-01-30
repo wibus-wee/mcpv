@@ -14,9 +14,9 @@ import (
 	"github.com/spf13/pflag"
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/gateway"
-	"mcpd/internal/infra/rpc"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/gateway"
+	"mcpv/internal/infra/rpc"
 )
 
 type gatewayOptions struct {
@@ -48,7 +48,7 @@ func main() {
 	}
 
 	root := &cobra.Command{
-		Use:   "mcpdmcp [server]",
+		Use:   "mcpvmcp [server]",
 		Short: "MCP gateway entrypoint bound to a server or tags",
 		Args:  cobra.MaximumNArgs(1),
 		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
@@ -101,18 +101,18 @@ func main() {
 			gw := gateway.NewGateway(clientCfg, opts.caller, opts.tags, opts.server, opts.logger)
 			err := gw.Run(ctx)
 			if err != nil && opts.launchUIOnFail && isConnectionError(err) {
-				opts.logger.Info("failed to connect to mcpd, attempting to launch UI", zap.Error(err))
-				if launchErr := launchMCPDUI(opts.urlScheme, opts.logger); launchErr != nil {
+				opts.logger.Info("failed to connect to mcpv, attempting to launch UI", zap.Error(err))
+				if launchErr := launchmcpvUI(opts.urlScheme, opts.logger); launchErr != nil {
 					opts.logger.Error("failed to launch UI", zap.Error(launchErr))
 					return err // return original error
 				}
-				opts.logger.Info("UI launch triggered, please start mcpd and retry")
+				opts.logger.Info("UI launch triggered, please start mcpv and retry")
 			}
 			return err
 		},
 	}
 
-	root.PersistentFlags().StringVar(&opts.rpcAddress, "rpc", opts.rpcAddress, "rpc address for core (unix:///tmp/mcpd.sock or host:port)")
+	root.PersistentFlags().StringVar(&opts.rpcAddress, "rpc", opts.rpcAddress, "rpc address for core (unix:///tmp/mcpv.sock or host:port)")
 	root.PersistentFlags().IntVar(&opts.rpcMaxRecvMsgSize, "rpc-max-recv", opts.rpcMaxRecvMsgSize, "max gRPC receive message size in bytes")
 	root.PersistentFlags().IntVar(&opts.rpcMaxSendMsgSize, "rpc-max-send", opts.rpcMaxSendMsgSize, "max gRPC send message size in bytes")
 	root.PersistentFlags().IntVar(&opts.rpcKeepaliveTime, "rpc-keepalive-time", opts.rpcKeepaliveTime, "gRPC keepalive time in seconds")
@@ -124,8 +124,8 @@ func main() {
 	root.PersistentFlags().StringVar(&opts.caller, "caller", "", "explicit caller name (optional)")
 	root.PersistentFlags().StringVar(&opts.server, "server", "", "server name for single-server mode")
 	root.PersistentFlags().StringArrayVar(&opts.tags, "tag", nil, "tag for server visibility (repeatable)")
-	root.PersistentFlags().BoolVar(&opts.launchUIOnFail, "launch-ui-on-fail", false, "attempt to launch MCPD UI if connection fails")
-	root.PersistentFlags().StringVar(&opts.urlScheme, "url-scheme", "mcpd", "URL scheme to use for launching UI (mcpd or mcpdev)")
+	root.PersistentFlags().BoolVar(&opts.launchUIOnFail, "launch-ui-on-fail", false, "attempt to launch mcpv UI if connection fails")
+	root.PersistentFlags().StringVar(&opts.urlScheme, "url-scheme", "mcpv", "URL scheme to use for launching UI (mcpv or mcpvev)")
 
 	if err := root.Execute(); err != nil {
 		opts.logger.Fatal("command failed", zap.Error(err))
@@ -168,7 +168,7 @@ func applyGatewayFlagBindings(flags *pflag.FlagSet, opts *gatewayOptions) {
 }
 
 func deriveCallerName(server string, tags []string) string {
-	base := "mcpdmcp"
+	base := "mcpvmcp"
 	if server != "" {
 		base = server
 	} else if len(tags) > 0 {
@@ -210,18 +210,18 @@ func isConnectionError(err error) bool {
 		strings.Contains(msg, "Unavailable")
 }
 
-func launchMCPDUI(scheme string, logger *zap.Logger) error {
+func launchmcpvUI(scheme string, logger *zap.Logger) error {
 	if scheme == "" {
-		scheme = "mcpd"
+		scheme = "mcpv"
 	}
 
 	// Validate scheme
-	if scheme != "mcpd" && scheme != "mcpdev" {
-		return fmt.Errorf("invalid URL scheme: %s (must be mcpd or mcpdev)", scheme)
+	if scheme != "mcpv" && scheme != "mcpvev" {
+		return fmt.Errorf("invalid URL scheme: %s (must be mcpv or mcpvev)", scheme)
 	}
 
 	url := fmt.Sprintf("%s://", scheme)
-	logger.Info("launching MCPD UI", zap.String("url", url))
+	logger.Info("launching mcpv UI", zap.String("url", url))
 
 	// Use 'open' command on macOS, 'xdg-open' on Linux, 'start' on Windows
 	var cmd *exec.Cmd

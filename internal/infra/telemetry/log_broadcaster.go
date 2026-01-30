@@ -7,7 +7,7 @@ import (
 
 	"go.uber.org/zap/zapcore"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 type LogBroadcaster struct {
@@ -99,7 +99,7 @@ func (c *logBroadcasterCore) loggerName(entryName string) string {
 	if entryName != "" {
 		return entryName
 	}
-	return "mcpd"
+	return "mcpv"
 }
 
 func (c *logBroadcasterCore) buildData(entry zapcore.Entry, fields []zapcore.Field) map[string]any {

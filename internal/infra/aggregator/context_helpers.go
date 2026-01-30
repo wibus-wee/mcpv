@@ -3,7 +3,7 @@ package aggregator
 import (
 	"context"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 func withRefreshTimeout(ctx context.Context, cfg domain.RuntimeConfig) (context.Context, context.CancelFunc) {

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 // Acquire obtains an instance for the given spec and routing key.

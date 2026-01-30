@@ -5,8 +5,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/catalog"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/catalog"
 )
 
 // ValidateConfig validates the configuration at the provided path.

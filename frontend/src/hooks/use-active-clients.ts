@@ -2,8 +2,8 @@
 // Output: Active clients hook
 // Position: Shared hook for realtime client activity
 
-import type { ActiveClient } from '@bindings/mcpd/internal/ui'
-import { RuntimeService } from '@bindings/mcpd/internal/ui'
+import type { ActiveClient } from '@bindings/mcpv/internal/ui'
+import { RuntimeService } from '@bindings/mcpv/internal/ui'
 import useSWR from 'swr'
 
 import { withSWRPreset } from '@/lib/swr-config'

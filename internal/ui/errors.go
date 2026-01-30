@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 // Error represents a frontend-friendly error with a code.

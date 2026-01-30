@@ -7,9 +7,9 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"go.uber.org/zap"
 
-	"mcpd/internal/app"
-	"mcpd/internal/app/controlplane"
-	"mcpd/internal/infra/catalog"
+	"mcpv/internal/app"
+	"mcpv/internal/app/controlplane"
+	"mcpv/internal/infra/catalog"
 )
 
 // ServiceDeps holds shared dependencies for Wails services.

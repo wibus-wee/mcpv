@@ -1,6 +1,6 @@
 package rpc
 
-import "mcpd/internal/domain"
+import "mcpv/internal/domain"
 
 type ControlPlaneAPI interface {
 	domain.ControlPlaneCoreAPI

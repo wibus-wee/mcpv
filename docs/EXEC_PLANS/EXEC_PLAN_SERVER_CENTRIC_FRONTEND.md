@@ -77,7 +77,7 @@ Finally, adjust labels, copy, and navigation. Update `frontend/src/components/co
 
 ## Concrete Steps
 
-From the repository root (`/Users/wibus/dev/mcpd`), update the bindings and then refactor UI modules in order: config → topology → dashboard → tools → settings → shared components. Use `rg -n "profile|profiles|caller|callers"` to find and replace stale terms. After each module change, run the app and validate the corresponding page manually.
+From the repository root (`/Users/wibus/dev/mcpv`), update the bindings and then refactor UI modules in order: config → topology → dashboard → tools → settings → shared components. Use `rg -n "profile|profiles|caller|callers"` to find and replace stale terms. After each module change, run the app and validate the corresponding page manually.
 
 Suggested commands during implementation:
 

@@ -5,7 +5,7 @@ CONFIG ?= .
 WAILS ?= wails3
 VERSION ?= dev
 BUILD ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-LDFLAGS := -X mcpd/internal/app.Version=$(VERSION) -X mcpd/internal/app.Build=$(BUILD)
+LDFLAGS := -X mcpv/internal/app.Version=$(VERSION) -X mcpv/internal/app.Build=$(BUILD)
 BIN_DIR ?= $(CURDIR)/bin
 WIRE := $(BIN_DIR)/wire
 
@@ -45,9 +45,9 @@ proto:
 	$(PROTOC) -I proto \
 		--go_out=. \
 		--go-grpc_out=. \
-		--go_opt=module=mcpd \
-		--go-grpc_opt=module=mcpd \
-		proto/mcpd/control/v1/control.proto
+		--go_opt=module=mcpv \
+		--go-grpc_opt=module=mcpv \
+		proto/mcpv/control/v1/control.proto
 
 tools: $(WIRE)
 
@@ -62,7 +62,7 @@ dev:
 	docker compose up -d
 
 obs:
-	MCPD_PROM_CONFIG=./dev/prometheus.wails.yaml docker compose up -d prometheus grafana
+	mcpv_PROM_CONFIG=./dev/prometheus.wails.yaml docker compose up -d prometheus grafana
 
 down:
 	docker compose down

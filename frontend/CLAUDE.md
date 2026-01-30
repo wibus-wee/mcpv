@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is the frontend for the mcpd Wails application, a cross-platform GUI for the MCP (Model Context Protocol) server orchestration core. The frontend is built as a modern React SPA that interfaces with the Go backend through Wails v3 bindings.
+This is the frontend for the mcpv Wails application, a cross-platform GUI for the MCP (Model Context Protocol) server orchestration core. The frontend is built as a modern React SPA that interfaces with the Go backend through Wails v3 bindings.
 
 ## Tech Stack
 

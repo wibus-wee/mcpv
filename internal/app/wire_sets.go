@@ -6,11 +6,11 @@ package app
 import (
 	"github.com/google/wire"
 
-	"mcpd/internal/app/bootstrap"
-	appCatalog "mcpd/internal/app/catalog"
-	"mcpd/internal/app/controlplane"
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/rpc"
+	"mcpv/internal/app/bootstrap"
+	appCatalog "mcpv/internal/app/catalog"
+	"mcpv/internal/app/controlplane"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/rpc"
 )
 
 // CatalogProviderSet wires catalog providers for dependency injection.

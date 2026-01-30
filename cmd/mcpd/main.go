@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/pflag"
 	"go.uber.org/zap"
 
-	"mcpd/internal/app"
+	"mcpv/internal/app"
 )
 
 type serveOptions struct {
@@ -27,7 +27,7 @@ func main() {
 	}
 
 	root := &cobra.Command{
-		Use:   "mcpd",
+		Use:   "mcpv",
 		Short: "Elastic MCP control plane with scale-to-zero runtime",
 		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 			// if !opts.logStderr {

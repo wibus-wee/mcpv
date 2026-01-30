@@ -3,7 +3,7 @@ package scheduler
 import (
 	"context"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 // ApplyCatalogDiff updates scheduler state after catalog changes.

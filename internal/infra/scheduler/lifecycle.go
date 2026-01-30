@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 // SetDesiredMinReady ensures a minimum ready instance count for the spec.

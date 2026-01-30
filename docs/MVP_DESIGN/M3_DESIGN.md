@@ -1,11 +1,11 @@
 ## M3 技术设计（稳定性 + 能力管控 + 健康 + Tool 聚合）
 
-> 注：当前实现已拆分为 core/gateway，MCP Server 入口由 mcpd-gateway 提供，本文中涉及的 MCP Server 逻辑现已迁移到 gateway。
+> 注：当前实现已拆分为 core/gateway，MCP Server 入口由 mcpv-gateway 提供，本文中涉及的 MCP Server 逻辑现已迁移到 gateway。
 
 ### 目标
 - 增强稳定性与协议正确性：能力白名单、生效的超时配置、健康探测。
 - 提升运行态弹性：完善 idle/minReady/stateful/persistent/singleton 回收策略和状态管理。
-- Tool 聚合：动态抓取下游 MCP servers 的 tool list，暴露统一的 mcpd tool 视图。
+- Tool 聚合：动态抓取下游 MCP servers 的 tool list，暴露统一的 mcpv tool 视图。
 - 运维/退出：优雅清理、可观测性基础（日志字段规范、metrics 钩子）。
 
 ### 范围与拆分
@@ -56,7 +56,7 @@
   - 优雅退出：StopAll/StopIdleManager 调用，goroutine 可退出。
 - 集成：
   - 假 MCP server 返回 capabilities/tools，客户端通过 go-sdk Client 调用聚合工具成功。
-  - 可选：本地 weather MCP server（通过 `MCPD_E2E_MCP_SERVER_CMD` 指定命令）用于 tools/list 聚合验证。
+  - 可选：本地 weather MCP server（通过 `mcpv_E2E_MCP_SERVER_CMD` 指定命令）用于 tools/list 聚合验证。
   - 健康探测失败 → 实例回收/重建（如实现重建）。
   - 超时：下游阻塞时 Router 返回超时错误。
 

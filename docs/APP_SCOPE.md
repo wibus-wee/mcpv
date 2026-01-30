@@ -8,7 +8,7 @@ App 作为 MCP Host 的唯一入口，负责下游 server 的生命周期、权�
 
 - App：产品入口与策略中心，承接 UI 与运行控制。
 - Core：运行时编排，负责路由、调度、实例池与日志聚合。
-- Gateway (mcpdmcp)：对外 MCP server，连接 MCP client 并转发到 core。
+- Gateway (mcpvmcp)：对外 MCP server，连接 MCP client 并转发到 core。
 
 ## 功能模块拆分
 

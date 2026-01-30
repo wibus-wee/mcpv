@@ -1,12 +1,12 @@
-import { SystemService } from '@bindings/mcpd/internal/ui'
+import { SystemService } from '@bindings/mcpv/internal/ui'
 import useSWR from 'swr'
 
-const fallbackPath = 'mcpdmcp'
+const fallbackPath = 'mcpvmcp'
 
-export function useMcpdmcpPath() {
+export function usemcpvmcpPath() {
   const swr = useSWR<string>(
-    'mcpdmcp-path',
-    () => SystemService.ResolveMcpdmcpPath(),
+    'mcpvmcp-path',
+    () => SystemService.ResolvemcpvmcpPath(),
     {
       revalidateOnFocus: false,
     },

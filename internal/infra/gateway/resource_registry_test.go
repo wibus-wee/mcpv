@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"mcpd/internal/app"
-	controlv1 "mcpd/pkg/api/control/v1"
+	"mcpv/internal/app"
+	controlv1 "mcpv/pkg/api/control/v1"
 )
 
 func TestResourceRegistry_ApplySnapshotRegistersAndRemovesResources(t *testing.T) {

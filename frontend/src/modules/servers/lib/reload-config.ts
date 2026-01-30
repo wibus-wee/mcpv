@@ -1,4 +1,4 @@
-import { ConfigService } from '@bindings/mcpd/internal/ui'
+import { ConfigService } from '@bindings/mcpv/internal/ui'
 
 export type ReloadOutcome
   = | { ok: true }

@@ -1,5 +1,5 @@
 // Shared server statistics aggregation utilities
-import type { ServerInitStatus, ServerRuntimeStatus } from '@bindings/mcpd/internal/ui'
+import type { ServerInitStatus, ServerRuntimeStatus } from '@bindings/mcpv/internal/ui'
 
 import { formatDuration, formatLatency, getElapsedMs } from './time'
 

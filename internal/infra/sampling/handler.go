@@ -11,7 +11,7 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 // Handler processes sampling/createMessage requests.

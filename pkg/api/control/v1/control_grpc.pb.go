@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v6.33.4
-// source: mcpd/control/v1/control.proto
+// source: mcpv/control/v1/control.proto
 
 package controlv1
 
@@ -19,29 +19,29 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ControlPlaneService_GetInfo_FullMethodName               = "/mcpd.control.v1.ControlPlaneService/GetInfo"
-	ControlPlaneService_RegisterCaller_FullMethodName        = "/mcpd.control.v1.ControlPlaneService/RegisterCaller"
-	ControlPlaneService_UnregisterCaller_FullMethodName      = "/mcpd.control.v1.ControlPlaneService/UnregisterCaller"
-	ControlPlaneService_ListTools_FullMethodName             = "/mcpd.control.v1.ControlPlaneService/ListTools"
-	ControlPlaneService_WatchTools_FullMethodName            = "/mcpd.control.v1.ControlPlaneService/WatchTools"
-	ControlPlaneService_CallTool_FullMethodName              = "/mcpd.control.v1.ControlPlaneService/CallTool"
-	ControlPlaneService_CallToolTask_FullMethodName          = "/mcpd.control.v1.ControlPlaneService/CallToolTask"
-	ControlPlaneService_TasksGet_FullMethodName              = "/mcpd.control.v1.ControlPlaneService/TasksGet"
-	ControlPlaneService_TasksList_FullMethodName             = "/mcpd.control.v1.ControlPlaneService/TasksList"
-	ControlPlaneService_TasksResult_FullMethodName           = "/mcpd.control.v1.ControlPlaneService/TasksResult"
-	ControlPlaneService_TasksCancel_FullMethodName           = "/mcpd.control.v1.ControlPlaneService/TasksCancel"
-	ControlPlaneService_ListResources_FullMethodName         = "/mcpd.control.v1.ControlPlaneService/ListResources"
-	ControlPlaneService_WatchResources_FullMethodName        = "/mcpd.control.v1.ControlPlaneService/WatchResources"
-	ControlPlaneService_ReadResource_FullMethodName          = "/mcpd.control.v1.ControlPlaneService/ReadResource"
-	ControlPlaneService_ListPrompts_FullMethodName           = "/mcpd.control.v1.ControlPlaneService/ListPrompts"
-	ControlPlaneService_WatchPrompts_FullMethodName          = "/mcpd.control.v1.ControlPlaneService/WatchPrompts"
-	ControlPlaneService_GetPrompt_FullMethodName             = "/mcpd.control.v1.ControlPlaneService/GetPrompt"
-	ControlPlaneService_StreamLogs_FullMethodName            = "/mcpd.control.v1.ControlPlaneService/StreamLogs"
-	ControlPlaneService_WatchRuntimeStatus_FullMethodName    = "/mcpd.control.v1.ControlPlaneService/WatchRuntimeStatus"
-	ControlPlaneService_WatchServerInitStatus_FullMethodName = "/mcpd.control.v1.ControlPlaneService/WatchServerInitStatus"
-	ControlPlaneService_AutomaticMCP_FullMethodName          = "/mcpd.control.v1.ControlPlaneService/AutomaticMCP"
-	ControlPlaneService_AutomaticEval_FullMethodName         = "/mcpd.control.v1.ControlPlaneService/AutomaticEval"
-	ControlPlaneService_IsSubAgentEnabled_FullMethodName     = "/mcpd.control.v1.ControlPlaneService/IsSubAgentEnabled"
+	ControlPlaneService_GetInfo_FullMethodName               = "/mcpv.control.v1.ControlPlaneService/GetInfo"
+	ControlPlaneService_RegisterCaller_FullMethodName        = "/mcpv.control.v1.ControlPlaneService/RegisterCaller"
+	ControlPlaneService_UnregisterCaller_FullMethodName      = "/mcpv.control.v1.ControlPlaneService/UnregisterCaller"
+	ControlPlaneService_ListTools_FullMethodName             = "/mcpv.control.v1.ControlPlaneService/ListTools"
+	ControlPlaneService_WatchTools_FullMethodName            = "/mcpv.control.v1.ControlPlaneService/WatchTools"
+	ControlPlaneService_CallTool_FullMethodName              = "/mcpv.control.v1.ControlPlaneService/CallTool"
+	ControlPlaneService_CallToolTask_FullMethodName          = "/mcpv.control.v1.ControlPlaneService/CallToolTask"
+	ControlPlaneService_TasksGet_FullMethodName              = "/mcpv.control.v1.ControlPlaneService/TasksGet"
+	ControlPlaneService_TasksList_FullMethodName             = "/mcpv.control.v1.ControlPlaneService/TasksList"
+	ControlPlaneService_TasksResult_FullMethodName           = "/mcpv.control.v1.ControlPlaneService/TasksResult"
+	ControlPlaneService_TasksCancel_FullMethodName           = "/mcpv.control.v1.ControlPlaneService/TasksCancel"
+	ControlPlaneService_ListResources_FullMethodName         = "/mcpv.control.v1.ControlPlaneService/ListResources"
+	ControlPlaneService_WatchResources_FullMethodName        = "/mcpv.control.v1.ControlPlaneService/WatchResources"
+	ControlPlaneService_ReadResource_FullMethodName          = "/mcpv.control.v1.ControlPlaneService/ReadResource"
+	ControlPlaneService_ListPrompts_FullMethodName           = "/mcpv.control.v1.ControlPlaneService/ListPrompts"
+	ControlPlaneService_WatchPrompts_FullMethodName          = "/mcpv.control.v1.ControlPlaneService/WatchPrompts"
+	ControlPlaneService_GetPrompt_FullMethodName             = "/mcpv.control.v1.ControlPlaneService/GetPrompt"
+	ControlPlaneService_StreamLogs_FullMethodName            = "/mcpv.control.v1.ControlPlaneService/StreamLogs"
+	ControlPlaneService_WatchRuntimeStatus_FullMethodName    = "/mcpv.control.v1.ControlPlaneService/WatchRuntimeStatus"
+	ControlPlaneService_WatchServerInitStatus_FullMethodName = "/mcpv.control.v1.ControlPlaneService/WatchServerInitStatus"
+	ControlPlaneService_AutomaticMCP_FullMethodName          = "/mcpv.control.v1.ControlPlaneService/AutomaticMCP"
+	ControlPlaneService_AutomaticEval_FullMethodName         = "/mcpv.control.v1.ControlPlaneService/AutomaticEval"
+	ControlPlaneService_IsSubAgentEnabled_FullMethodName     = "/mcpv.control.v1.ControlPlaneService/IsSubAgentEnabled"
 )
 
 // ControlPlaneServiceClient is the client API for ControlPlaneService service.
@@ -870,7 +870,7 @@ func _ControlPlaneService_IsSubAgentEnabled_Handler(srv interface{}, ctx context
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ControlPlaneService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "mcpd.control.v1.ControlPlaneService",
+	ServiceName: "mcpv.control.v1.ControlPlaneService",
 	HandlerType: (*ControlPlaneServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -974,5 +974,5 @@ var ControlPlaneService_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "mcpd/control/v1/control.proto",
+	Metadata: "mcpv/control/v1/control.proto",
 }

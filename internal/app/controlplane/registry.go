@@ -10,8 +10,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpd/internal/app/bootstrap"
-	"mcpd/internal/domain"
+	"mcpv/internal/app/bootstrap"
+	"mcpv/internal/domain"
 )
 
 type ClientRegistry struct {

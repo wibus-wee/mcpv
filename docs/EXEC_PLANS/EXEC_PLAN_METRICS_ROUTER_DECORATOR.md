@@ -6,7 +6,7 @@ Repository root contains `.agent/PLANS.md`; this document must be maintained in 
 
 ## Purpose / Big Picture
 
-After this change, routing metrics are recorded by a decorator rather than embedded in business logic, and route metrics include caller/profile dimensions plus a clearer failure reason label. The scheduler also emits a pool capacity ratio metric (mcpd_pool_capacity_ratio) so local operators can see when a server is running hot. Success is visible in Prometheus metrics output and in passing tests.
+After this change, routing metrics are recorded by a decorator rather than embedded in business logic, and route metrics include caller/profile dimensions plus a clearer failure reason label. The scheduler also emits a pool capacity ratio metric (mcpv_pool_capacity_ratio) so local operators can see when a server is running hot. Success is visible in Prometheus metrics output and in passing tests.
 
 ## Progress
 
@@ -18,7 +18,7 @@ After this change, routing metrics are recorded by a decorator rather than embed
 ## Surprises & Discoveries
 
 - Observation: macOS linker warnings about object files built for newer versions appear during tests.
-  Evidence: go test output includes ld warnings when linking mcpd/internal/ui.test.
+  Evidence: go test output includes ld warnings when linking mcpv/internal/ui.test.
 
 ## Decision Log
 
@@ -50,7 +50,7 @@ Start by defining route context and route error staging in domain, then extend t
 
 ## Concrete Steps
 
-Work from `/Users/wibus/dev/mcpd`.
+Work from `/Users/wibus/dev/mcpv`.
 
 1) Define route context, route error staging, and route metric structure.
 
@@ -67,18 +67,18 @@ Work from `/Users/wibus/dev/mcpd`.
 
 3) Extend metrics and scheduler pool capacity ratio.
 
-   - Update `internal/infra/telemetry/prometheus.go` to add mcpd_pool_capacity_ratio and expanded route labels.
+   - Update `internal/infra/telemetry/prometheus.go` to add mcpv_pool_capacity_ratio and expanded route labels.
    - Update `internal/infra/scheduler/basic.go` to compute busy/total capacity ratio and call `SetPoolCapacityRatio`.
    - Update `internal/infra/telemetry/prometheus_test.go` for the new labels and gauge.
 
 4) Validate and backfill.
 
-   - Run `GOCACHE=/Users/wibus/dev/mcpd/.gocache go test ./...`.
+   - Run `GOCACHE=/Users/wibus/dev/mcpv/.gocache go test ./...`.
    - Update Progress, Decision Log, Outcomes, and Artifacts with the results.
 
 ## Validation and Acceptance
 
-Run `GOCACHE=/Users/wibus/dev/mcpd/.gocache go test ./...` and expect a passing test suite. Prometheus metrics should include `mcpd_route_duration_seconds` with caller/profile/status/reason labels and `mcpd_pool_capacity_ratio`. Route failures should map to reasons like timeout_cold_start, timeout_execution, and conn_closed.
+Run `GOCACHE=/Users/wibus/dev/mcpv/.gocache go test ./...` and expect a passing test suite. Prometheus metrics should include `mcpv_route_duration_seconds` with caller/profile/status/reason labels and `mcpv_pool_capacity_ratio`. Route failures should map to reasons like timeout_cold_start, timeout_execution, and conn_closed.
 
 ## Idempotence and Recovery
 

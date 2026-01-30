@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"mcpd/internal/infra/fsutil"
+	"mcpv/internal/infra/fsutil"
 )
 
 const defaultConfigFileName = "runtime.yaml"
@@ -36,7 +36,7 @@ func defaultConfigPath() string {
 	if base == "" {
 		base = "."
 	}
-	return filepath.Join(base, "mcpd", defaultConfigFileName)
+	return filepath.Join(base, "mcpv", defaultConfigFileName)
 }
 
 func ensureConfigFile(path string) error {

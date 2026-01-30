@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 func TestManagerCreateAndResult(t *testing.T) {

@@ -6,8 +6,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
-	infraCatalog "mcpd/internal/infra/catalog"
+	"mcpv/internal/domain"
+	infraCatalog "mcpv/internal/infra/catalog"
 )
 
 // StaticCatalogProvider serves an immutable catalog snapshot.

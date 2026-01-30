@@ -13,10 +13,10 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"mcpd/internal/app"
-	"mcpd/internal/infra/rpc"
-	"mcpd/internal/infra/subagent"
-	controlv1 "mcpd/pkg/api/control/v1"
+	"mcpv/internal/app"
+	"mcpv/internal/infra/rpc"
+	"mcpv/internal/infra/subagent"
+	controlv1 "mcpv/pkg/api/control/v1"
 )
 
 type Gateway struct {
@@ -67,7 +67,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	defer cancel()
 
 	g.server = mcp.NewServer(&mcp.Implementation{
-		Name:    "mcpd-mcp",
+		Name:    "mcpv-mcp",
 		Version: app.Version,
 	}, &mcp.ServerOptions{
 		HasTools:     true,
@@ -640,18 +640,18 @@ func (g *Gateway) checkAndSetupSubAgent(ctx context.Context) error {
 	return nil
 }
 
-// registerSubAgentTools registers the mcpd.automatic_mcp and mcpd.automatic_eval tools.
+// registerSubAgentTools registers the mcpv.automatic_mcp and mcpv.automatic_eval tools.
 func (g *Gateway) registerSubAgentTools() {
-	// Register mcpd.automatic_mcp
+	// Register mcpv.automatic_mcp
 	automaticMCPTool := subagent.AutomaticMCPTool()
 	g.server.AddTool(&automaticMCPTool, g.automaticMCPHandler())
 
-	// Register mcpd.automatic_eval
+	// Register mcpv.automatic_eval
 	automaticEvalTool := subagent.AutomaticEvalTool()
 	g.server.AddTool(&automaticEvalTool, g.automaticEvalHandler())
 }
 
-// automaticMCPHandler handles the mcpd.automatic_mcp tool call.
+// automaticMCPHandler handles the mcpv.automatic_mcp tool call.
 func (g *Gateway) automaticMCPHandler() mcp.ToolHandler {
 	return func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Parse arguments
@@ -726,7 +726,7 @@ func (g *Gateway) automaticMCPHandler() mcp.ToolHandler {
 	}
 }
 
-// automaticEvalHandler handles the mcpd.automatic_eval tool call.
+// automaticEvalHandler handles the mcpv.automatic_eval tool call.
 func (g *Gateway) automaticEvalHandler() mcp.ToolHandler {
 	return func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Parse arguments

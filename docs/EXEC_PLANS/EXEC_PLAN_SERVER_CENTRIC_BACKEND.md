@@ -6,7 +6,7 @@ This plan must be maintained in accordance with `.agent/PLANS.md` in the reposit
 
 ## Purpose / Big Picture
 
-After this change, mcpd loads a single configuration file (via `--config <file>`), treats MCP servers as the primary data unit, and filters tool/resource/prompt visibility by client tags instead of profiles/caller mappings. A client registers with tags (for example, `--tag vscode --tag chat`) and sees servers when either the server has no tags, the client has no tags, or the tag intersection is non-empty. SubAgent no longer depends on profiles; it is globally configured and only enabled for clients whose tags match the configured allowed tags. This should be observable by starting mcpd with a single config file, registering two clients with different tags, and confirming each client only lists tools for the matching servers. `mcpd validate --config <file>` must validate the new single-file schema.
+After this change, mcpv loads a single configuration file (via `--config <file>`), treats MCP servers as the primary data unit, and filters tool/resource/prompt visibility by client tags instead of profiles/caller mappings. A client registers with tags (for example, `--tag vscode --tag chat`) and sees servers when either the server has no tags, the client has no tags, or the tag intersection is non-empty. SubAgent no longer depends on profiles; it is globally configured and only enabled for clients whose tags match the configured allowed tags. This should be observable by starting mcpv with a single config file, registering two clients with different tags, and confirming each client only lists tools for the matching servers. `mcpv validate --config <file>` must validate the new single-file schema.
 
 ## Progress
 
@@ -61,29 +61,29 @@ TBD. This section will summarize outcomes once implementation reaches a stable c
 
 ## Context and Orientation
 
-The current backend loads a profile store directory (`runtime.yaml`, `profiles/*.yaml`, `callers.yaml`) through `internal/infra/catalog/profile_store.go` and constructs per-profile indexes in `internal/app/control_plane_state.go`. Client visibility is resolved by caller-to-profile mapping in `internal/app/control_plane_registry.go`. Tools, resources, and prompts are listed from per-profile indexes in `internal/app/control_plane_discovery.go`. RPC and gateway APIs carry a `caller` string in `proto/mcpd/control/v1/control.proto` and `internal/infra/rpc/control_service.go`.
+The current backend loads a profile store directory (`runtime.yaml`, `profiles/*.yaml`, `callers.yaml`) through `internal/infra/catalog/profile_store.go` and constructs per-profile indexes in `internal/app/control_plane_state.go`. Client visibility is resolved by caller-to-profile mapping in `internal/app/control_plane_registry.go`. Tools, resources, and prompts are listed from per-profile indexes in `internal/app/control_plane_discovery.go`. RPC and gateway APIs carry a `caller` string in `proto/mcpv/control/v1/control.proto` and `internal/infra/rpc/control_service.go`.
 
 In the new model, a “client” is a connected MCP consumer (previously “caller”) that registers a name, pid, and `tags` list. A “tag” is a lowercase string used to match a client to servers. A “server catalog” is a single config file containing runtime settings and a list of server specs with optional tags. There are no profiles or caller mappings. Server visibility uses union matching: a server with no tags is visible to all clients, a client with no tags sees all servers, otherwise tags must intersect.
 
-Key files to modify include `internal/infra/catalog/loader.go`, `internal/infra/catalog/schema.json`, `internal/app/catalog_provider_dynamic.go`, `internal/app/control_plane_state.go`, `internal/app/control_plane_registry.go`, `internal/app/control_plane_discovery.go`, `internal/app/control_plane_automation.go`, `internal/domain/controlplane.go`, `internal/domain/catalog_state.go`, `internal/domain/catalog_diff.go`, `internal/domain/types.go`, `internal/infra/rpc/control_service.go`, `internal/infra/gateway/gateway.go`, `internal/ui/*.go`, and `proto/mcpd/control/v1/control.proto`.
+Key files to modify include `internal/infra/catalog/loader.go`, `internal/infra/catalog/schema.json`, `internal/app/catalog_provider_dynamic.go`, `internal/app/control_plane_state.go`, `internal/app/control_plane_registry.go`, `internal/app/control_plane_discovery.go`, `internal/app/control_plane_automation.go`, `internal/domain/controlplane.go`, `internal/domain/catalog_state.go`, `internal/domain/catalog_diff.go`, `internal/domain/types.go`, `internal/infra/rpc/control_service.go`, `internal/infra/gateway/gateway.go`, `internal/ui/*.go`, and `proto/mcpv/control/v1/control.proto`.
 
 ## Milestones
 
-Milestone 1: Single-file config schema and tag normalization. Update `internal/domain/types.go`, `internal/domain/subagent.go`, `internal/domain/spec_fingerprint.go`, `internal/infra/catalog/schema.json`, and `internal/infra/catalog/loader.go` to add server tags, normalize them, and add `subAgent.enabledTags`. Update `internal/ui/config_service.go` to report file-based config mode. Run `go test ./internal/infra/catalog` and expect an `ok` line such as `ok mcpd/internal/infra/catalog`.
+Milestone 1: Single-file config schema and tag normalization. Update `internal/domain/types.go`, `internal/domain/subagent.go`, `internal/domain/spec_fingerprint.go`, `internal/infra/catalog/schema.json`, and `internal/infra/catalog/loader.go` to add server tags, normalize them, and add `subAgent.enabledTags`. Update `internal/ui/config_service.go` to report file-based config mode. Run `go test ./internal/infra/catalog` and expect an `ok` line such as `ok mcpv/internal/infra/catalog`.
 
-Milestone 2: Single-file catalog provider and diffing. Update `internal/app/catalog_provider_dynamic.go`, `internal/app/catalog_provider_static.go`, `internal/domain/catalog_state.go`, `internal/domain/catalog_diff.go`, and `internal/app/reload_manager.go` to load from a file path and detect tag-only changes. Update `cmd/mcpd/main.go` to describe `--config` as a file path. Run `go test ./internal/app` and expect `ok mcpd/internal/app`.
+Milestone 2: Single-file catalog provider and diffing. Update `internal/app/catalog_provider_dynamic.go`, `internal/app/catalog_provider_static.go`, `internal/domain/catalog_state.go`, `internal/domain/catalog_diff.go`, and `internal/app/reload_manager.go` to load from a file path and detect tag-only changes. Update `cmd/mcpv/main.go` to describe `--config` as a file path. Run `go test ./internal/app` and expect `ok mcpv/internal/app`.
 
-Milestone 3: Control plane refactor for clients and tags. Update `internal/domain/controlplane.go`, `internal/app/control_plane_state.go`, `internal/app/control_plane_registry.go`, `internal/app/control_plane_discovery.go`, and `internal/app/control_plane_observability.go` to replace profiles with a global runtime and to filter by client tags. Add a tag-change notification path so tool/resource/prompt watchers re-emit snapshots when only tags change. Run `go test ./internal/app` and expect `ok mcpd/internal/app`.
+Milestone 3: Control plane refactor for clients and tags. Update `internal/domain/controlplane.go`, `internal/app/control_plane_state.go`, `internal/app/control_plane_registry.go`, `internal/app/control_plane_discovery.go`, and `internal/app/control_plane_observability.go` to replace profiles with a global runtime and to filter by client tags. Add a tag-change notification path so tool/resource/prompt watchers re-emit snapshots when only tags change. Run `go test ./internal/app` and expect `ok mcpv/internal/app`.
 
-Milestone 4: RPC and gateway rename to clients, add tags. Update `proto/mcpd/control/v1/control.proto`, regenerate with `make proto`, and update `internal/infra/rpc/control_service.go`, `internal/infra/gateway/gateway.go`, and `internal/infra/gateway/log_bridge.go` plus tests. Run `go test ./internal/infra/rpc` and expect `ok mcpd/internal/infra/rpc`.
+Milestone 4: RPC and gateway rename to clients, add tags. Update `proto/mcpv/control/v1/control.proto`, regenerate with `make proto`, and update `internal/infra/rpc/control_service.go`, `internal/infra/gateway/gateway.go`, and `internal/infra/gateway/log_bridge.go` plus tests. Run `go test ./internal/infra/rpc` and expect `ok mcpv/internal/infra/rpc`.
 
-Milestone 5: UI services, events, and docs. Replace `internal/ui/profile_service.go` with server/client services, update `internal/ui/types.go`, `internal/ui/events.go`, and docs/config examples under `docs/`. Run `go test ./internal/ui`, then run `go run ./cmd/mcpd validate --config ./docs/catalog.server-centric.yaml` and expect the command to exit cleanly with no validation errors.
+Milestone 5: UI services, events, and docs. Replace `internal/ui/profile_service.go` with server/client services, update `internal/ui/types.go`, `internal/ui/events.go`, and docs/config examples under `docs/`. Run `go test ./internal/ui`, then run `go run ./cmd/mcpv validate --config ./docs/catalog.server-centric.yaml` and expect the command to exit cleanly with no validation errors.
 
 ## Plan of Work
 
 First, convert the configuration model to a single catalog file. Update `internal/domain/types.go` to add `Tags []string` on `ServerSpec` and adjust `internal/domain/spec_fingerprint.go` so tags do not affect spec fingerprints. Extend `internal/infra/catalog/schema.json` and `internal/infra/catalog/loader.go` to parse, normalize, and validate `servers[].tags` (trim, lowercase, dedupe, stable sort). Introduce a new `subAgent.enabledTags` field in the runtime config to drive SubAgent activation by client tags; remove per-profile SubAgent config from `domain.Catalog` and schema. Keep runtime settings at the top level (no new `runtime` object) to minimize config churn while still supporting a single file.
 
-Second, replace the profile-store catalog providers with a single-file catalog provider. Modify `internal/app/catalog_provider_dynamic.go` and `internal/app/catalog_provider_static.go` to load `domain.Catalog` from a file path, watch the file’s parent directory for atomic writes, and reject runtime changes that require restart. Replace `domain.CatalogState` to store a single catalog plus a computed spec registry and runtime, then update `domain.CatalogDiff` to drop profile/client fields and focus on spec-key changes and runtime changes. Add explicit detection for tag-only changes (for example, a `TagsChanged` boolean or a list of servers whose tags changed). Update `internal/app/reload_manager.go` to use the new diff shape. Update CLI help text in `cmd/mcpd/main.go` so `--config` explicitly expects a file path.
+Second, replace the profile-store catalog providers with a single-file catalog provider. Modify `internal/app/catalog_provider_dynamic.go` and `internal/app/catalog_provider_static.go` to load `domain.Catalog` from a file path, watch the file’s parent directory for atomic writes, and reject runtime changes that require restart. Replace `domain.CatalogState` to store a single catalog plus a computed spec registry and runtime, then update `domain.CatalogDiff` to drop profile/client fields and focus on spec-key changes and runtime changes. Add explicit detection for tag-only changes (for example, a `TagsChanged` boolean or a list of servers whose tags changed). Update `internal/app/reload_manager.go` to use the new diff shape. Update CLI help text in `cmd/mcpv/main.go` so `--config` explicitly expects a file path.
 
 Alongside the single-file switch, update config UI metadata. `internal/ui/config_service.go` should return `ConfigModeResponse.Mode = "file"` (instead of `"directory"`) and `OpenConfigInEditor` should open the file path. Any editor/inspector helpers in `internal/infra/catalog` should be updated to handle a single file instead of a directory.
 
@@ -93,13 +93,13 @@ Observability updates: update `StreamLogs`, `WatchRuntimeStatus`, and `WatchServ
 
 Fourth, update SubAgent enablement to follow client tags. Replace `ProfileSubAgentConfig` usage in `internal/domain/subagent.go` and `internal/app/control_plane_automation.go` with a `SubAgentConfig.EnabledTags []string` check. If `enabledTags` is empty, SubAgent is enabled for all clients; otherwise it is enabled only when the client’s tag set intersects `enabledTags`. SubAgent should operate on the tool snapshot already filtered by tag visibility.
 
-Fifth, rename RPC/gateway APIs from caller to client, and pass tags during registration. Update `proto/mcpd/control/v1/control.proto` to use `RegisterClient`, `UnregisterClient`, and `client` fields instead of `caller`, adding `repeated string tags` to `RegisterClientRequest`. Add `visible_server_count` and `tags` to `RegisterClientResponse` for logging. Regenerate protobuf bindings and update `internal/infra/rpc/control_service.go`, `internal/infra/gateway/gateway.go`, and related tests to use the new names and tag propagation. Reserve the old method and field numbers in the proto file to make the break explicit.
+Fifth, rename RPC/gateway APIs from caller to client, and pass tags during registration. Update `proto/mcpv/control/v1/control.proto` to use `RegisterClient`, `UnregisterClient`, and `client` fields instead of `caller`, adding `repeated string tags` to `RegisterClientRequest`. Add `visible_server_count` and `tags` to `RegisterClientResponse` for logging. Regenerate protobuf bindings and update `internal/infra/rpc/control_service.go`, `internal/infra/gateway/gateway.go`, and related tests to use the new names and tag propagation. Reserve the old method and field numbers in the proto file to make the break explicit.
 
 Finally, update backend UI services to expose server-centric data to the frontend. Replace `internal/ui/profile_service.go` with `ServerService` and `ClientService` that return server lists/details and active clients. Update `internal/ui/types.go` to define `ServerSummary`, `ServerDetail`, and `ActiveClient` (with tags), and update `internal/ui/events.go` to emit `clients:active` (instead of `callers:active`). Replace or update the config editor in `internal/infra/catalog` to support single-file edits for runtime updates, server imports, disable toggles, and deletions. Update backend docs and sample config under `docs/` and repository root to reflect the single-file schema and tag behavior.
 
 ## Concrete Steps
 
-From the repository root (`/Users/wibus/dev/mcpd`), implement the config-model and control-plane changes first, then RPC/gateway updates, then UI services. Use `rg -n` to find remaining “caller” and “profile” references and rename them as you go. After each subsystem change, run focused tests to avoid large breakage.
+From the repository root (`/Users/wibus/dev/mcpv`), implement the config-model and control-plane changes first, then RPC/gateway updates, then UI services. Use `rg -n` to find remaining “caller” and “profile” references and rename them as you go. After each subsystem change, run focused tests to avoid large breakage.
 
 Suggested commands during implementation:
 
@@ -116,12 +116,12 @@ If protobuf changes are made, regenerate bindings and ensure `go test ./...` sti
 
 Run `go test ./...` and expect all tests to pass. Start the server with a single config file:
 
-    go run ./cmd/mcpd serve --config ./docs/catalog.server-centric.yaml
+    go run ./cmd/mcpv serve --config ./docs/catalog.server-centric.yaml
 
 Then register two clients (for example via `grpcurl`) with different tags:
 
-    grpcurl -plaintext -d '{"client":"vscode","pid":1234,"tags":["vscode"]}' 127.0.0.1:7090 mcpd.control.v1.ControlPlaneService.RegisterClient
-    grpcurl -plaintext -d '{"client":"chat","pid":1235,"tags":["chat"]}' 127.0.0.1:7090 mcpd.control.v1.ControlPlaneService.RegisterClient
+    grpcurl -plaintext -d '{"client":"vscode","pid":1234,"tags":["vscode"]}' 127.0.0.1:7090 mcpv.control.v1.ControlPlaneService.RegisterClient
+    grpcurl -plaintext -d '{"client":"chat","pid":1235,"tags":["chat"]}' 127.0.0.1:7090 mcpv.control.v1.ControlPlaneService.RegisterClient
 
 Expect a response containing `tags` and `visible_server_count`, for example:
 
@@ -129,10 +129,10 @@ Expect a response containing `tags` and `visible_server_count`, for example:
 
 Then verify tool visibility:
 
-    grpcurl -plaintext -d '{"client":"vscode"}' 127.0.0.1:7090 mcpd.control.v1.ControlPlaneService.ListTools
-    grpcurl -plaintext -d '{"client":"chat"}' 127.0.0.1:7090 mcpd.control.v1.ControlPlaneService.ListTools
+    grpcurl -plaintext -d '{"client":"vscode"}' 127.0.0.1:7090 mcpv.control.v1.ControlPlaneService.ListTools
+    grpcurl -plaintext -d '{"client":"chat"}' 127.0.0.1:7090 mcpv.control.v1.ControlPlaneService.ListTools
 
-Confirm that the tool lists differ according to server tags, and that servers with empty tags appear in both lists. Confirm SubAgent enablement only when client tags intersect `subAgent.enabledTags` by invoking `IsSubAgentEnabled` and observing `false` for non-matching tags. Confirm `mcpd validate --config <file>` validates the new single-file schema.
+Confirm that the tool lists differ according to server tags, and that servers with empty tags appear in both lists. Confirm SubAgent enablement only when client tags intersect `subAgent.enabledTags` by invoking `IsSubAgentEnabled` and observing `false` for non-matching tags. Confirm `mcpv validate --config <file>` validates the new single-file schema.
 
 ## Idempotence and Recovery
 
@@ -215,7 +215,7 @@ Update the following Go types and interfaces to exist after this plan:
             WatchServerInitStatusAllServers(ctx context.Context) (<-chan ServerInitStatusSnapshot, error)
         }
 
-    In proto/mcpd/control/v1/control.proto:
+    In proto/mcpv/control/v1/control.proto:
         message RegisterClientRequest { string client = 1; int64 pid = 2; repeated string tags = 3; }
         message RegisterClientResponse { repeated string tags = 1; int32 visible_server_count = 2; }
 

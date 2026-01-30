@@ -1,7 +1,7 @@
 export type ClientTarget = 'cursor' | 'claude' | 'vscode' | 'codex'
 export type SelectorMode = 'server' | 'tag'
 
-export const defaultRpcAddress = 'unix:///tmp/mcpd.sock'
+export const defaultRpcAddress = 'unix:///tmp/mcpv.sock'
 
 export type SelectorConfig = {
   mode: SelectorMode
@@ -36,7 +36,7 @@ export function buildClientConfig(
 
   const serverName = selector.mode === 'server'
     ? selector.value
-    : `mcpd-${selector.value}`
+    : `mcpv-${selector.value}`
 
   const payload = {
     mcpServers: {
@@ -55,9 +55,9 @@ export function buildCliSnippet(
 ) {
   const args = buildArgs(selector, rpc).map(arg => (arg.includes(' ') ? `"${arg}"` : arg)).join(' ')
   if (tool === 'claude') {
-    return `claude mcp add --transport stdio mcpd -- ${path} ${args}`
+    return `claude mcp add --transport stdio mcpv -- ${path} ${args}`
   }
-  return `codex mcp add mcpd -- ${path} ${args}`
+  return `codex mcp add mcpv -- ${path} ${args}`
 }
 
 export function buildTomlConfig(path: string, selector: SelectorConfig, rpc = defaultRpcAddress) {
@@ -65,7 +65,7 @@ export function buildTomlConfig(path: string, selector: SelectorConfig, rpc = de
   const argsArray = `args = ${JSON.stringify(args)}`
   const serverName = selector.mode === 'server'
     ? selector.value
-    : `mcpd-${selector.value}`
+    : `mcpv-${selector.value}`
   return [
     `[mcp_servers.${serverName}]`,
     `command = "${path}"`,

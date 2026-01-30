@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 func (s *poolState) acquireReadyLocked(routingKey string) (*domain.Instance, error) {

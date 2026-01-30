@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/transport"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/transport"
 )
 
 func TestManager_StartInstance_StreamableHTTP(t *testing.T) {

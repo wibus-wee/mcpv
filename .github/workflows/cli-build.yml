@@ -6,7 +6,7 @@ on:
 
 jobs:
   build-cli:
-    name: Build CLI (mcpd & mcpdmcp)
+    name: Build CLI (mcpv & mcpvmcp)
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -57,9 +57,9 @@ jobs:
           set -euo pipefail
           mkdir -p bin
           BUILD=$(git rev-parse --short HEAD)
-          LDFLAGS="-X mcpd/internal/app.Version=${VERSION} -X mcpd/internal/app.Build=${BUILD}"
-          go build -ldflags "$LDFLAGS" -o bin/mcpd-${GOOS}-${GOARCH} ./cmd/mcpd
-          go build -ldflags "$LDFLAGS" -o bin/mcpdmcp-${GOOS}-${GOARCH} ./cmd/mcpdmcp
+          LDFLAGS="-X mcpv/internal/app.Version=${VERSION} -X mcpv/internal/app.Build=${BUILD}"
+          go build -ldflags "$LDFLAGS" -o bin/mcpv-${GOOS}-${GOARCH} ./cmd/mcpv
+          go build -ldflags "$LDFLAGS" -o bin/mcpvmcp-${GOOS}-${GOARCH} ./cmd/mcpvmcp
         shell: bash
 
       - name: Upload CLI artifacts
@@ -67,5 +67,5 @@ jobs:
         with:
           name: cli-${{ matrix.goos }}-${{ matrix.goarch }}
           path: |
-            bin/mcpd-${{ matrix.goos }}-${{ matrix.goarch }}
-            bin/mcpdmcp-${{ matrix.goos }}-${{ matrix.goarch }}
+            bin/mcpv-${{ matrix.goos }}-${{ matrix.goarch }}
+            bin/mcpvmcp-${{ matrix.goos }}-${{ matrix.goarch }}

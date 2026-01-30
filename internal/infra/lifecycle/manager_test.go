@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 func TestManager_StartInstance_Success(t *testing.T) {
@@ -20,7 +20,7 @@ func TestManager_StartInstance_Success(t *testing.T) {
 	launcher := &fakeLauncher{streams: streams, stop: stop}
 	transport := &fakeTransport{
 		conn: &fakeConn{
-			resp: json.RawMessage(`{"jsonrpc":"2.0","id":"mcpd-init","result":{"protocolVersion":"2025-11-25","serverInfo":{"name":"srv"},"capabilities":{}}}`),
+			resp: json.RawMessage(`{"jsonrpc":"2.0","id":"mcpv-init","result":{"protocolVersion":"2025-11-25","serverInfo":{"name":"srv"},"capabilities":{}}}`),
 		},
 	}
 	mgr := NewManager(context.Background(), launcher, transport, zap.NewNop())
@@ -51,7 +51,7 @@ func TestManager_StartInstance_DetachesFromCallerContext(t *testing.T) {
 	launcher := &fakeLauncher{streams: streams, stop: stop}
 	transport := &fakeTransport{
 		conn: &fakeConn{
-			resp: json.RawMessage(`{"jsonrpc":"2.0","id":"mcpd-init","result":{"protocolVersion":"2025-11-25","serverInfo":{"name":"srv"},"capabilities":{}}}`),
+			resp: json.RawMessage(`{"jsonrpc":"2.0","id":"mcpv-init","result":{"protocolVersion":"2025-11-25","serverInfo":{"name":"srv"},"capabilities":{}}}`),
 		},
 	}
 	mgr := NewManager(context.Background(), launcher, transport, zap.NewNop())
@@ -85,7 +85,7 @@ func TestManager_StartInstance_ProtocolMismatch(t *testing.T) {
 	launcher := &fakeLauncher{streams: streams, stop: stop}
 	transport := &fakeTransport{
 		conn: &fakeConn{
-			resp: json.RawMessage(`{"jsonrpc":"2.0","id":"mcpd-init","result":{"protocolVersion":"2024-01-01","serverInfo":{"name":"srv"},"capabilities":{}}}`),
+			resp: json.RawMessage(`{"jsonrpc":"2.0","id":"mcpv-init","result":{"protocolVersion":"2024-01-01","serverInfo":{"name":"srv"},"capabilities":{}}}`),
 		},
 	}
 	mgr := NewManager(context.Background(), launcher, transport, zap.NewNop())
@@ -172,7 +172,7 @@ func TestManager_StopInstance_Success(t *testing.T) {
 	launcher := &fakeLauncher{streams: streams, stop: stop}
 	transport := &fakeTransport{
 		conn: &fakeConn{
-			resp: json.RawMessage(`{"jsonrpc":"2.0","id":"mcpd-init","result":{"protocolVersion":"2025-11-25","serverInfo":{"name":"srv"},"capabilities":{}}}`),
+			resp: json.RawMessage(`{"jsonrpc":"2.0","id":"mcpv-init","result":{"protocolVersion":"2025-11-25","serverInfo":{"name":"srv"},"capabilities":{}}}`),
 		},
 	}
 	mgr := NewManager(context.Background(), launcher, transport, zap.NewNop())
@@ -214,7 +214,7 @@ func TestManager_InitializeMissingCapabilities(t *testing.T) {
 	launcher := &fakeLauncher{streams: streams, stop: stop}
 	transport := &fakeTransport{
 		conn: &fakeConn{
-			resp: json.RawMessage(`{"jsonrpc":"2.0","id":"mcpd-init","result":{"protocolVersion":"2025-11-25","serverInfo":{"name":"srv"}}}`),
+			resp: json.RawMessage(`{"jsonrpc":"2.0","id":"mcpv-init","result":{"protocolVersion":"2025-11-25","serverInfo":{"name":"srv"}}}`),
 		},
 	}
 	mgr := NewManager(context.Background(), launcher, transport, zap.NewNop())
@@ -278,7 +278,7 @@ func (r *retryConn) Call(_ context.Context, _ json.RawMessage) (json.RawMessage,
 	if r.callCount <= initializeRetryCount {
 		return nil, errors.New("call fail")
 	}
-	return json.RawMessage(`{"jsonrpc":"2.0","id":"mcpd-init","result":{"protocolVersion":"2025-11-25","serverInfo":{"name":"srv"},"capabilities":{}}}`), nil
+	return json.RawMessage(`{"jsonrpc":"2.0","id":"mcpv-init","result":{"protocolVersion":"2025-11-25","serverInfo":{"name":"srv"},"capabilities":{}}}`), nil
 }
 
 func (r *retryConn) Close() error { return nil }

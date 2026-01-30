@@ -36,7 +36,7 @@ const (
 	// DefaultObservabilityListenAddress is the default observability listen address.
 	DefaultObservabilityListenAddress = "0.0.0.0:9090"
 	// DefaultRPCListenAddress is the default RPC listen address.
-	DefaultRPCListenAddress = "unix:///tmp/mcpd.sock"
+	DefaultRPCListenAddress = "unix:///tmp/mcpv.sock"
 	// DefaultRPCMaxRecvMsgSize is the default RPC max receive size in bytes.
 	DefaultRPCMaxRecvMsgSize = 16 * 1024 * 1024
 	// DefaultRPCMaxSendMsgSize is the default RPC max send size in bytes.
@@ -50,7 +50,7 @@ const (
 	// DefaultStreamableHTTPMaxRetries is the default max retries for streamable HTTP.
 	DefaultStreamableHTTPMaxRetries = 5
 	// InternalUIClientName is the reserved client name used by the UI runtime.
-	InternalUIClientName = "mcpd-ui-internal"
+	InternalUIClientName = "mcpv-ui-internal"
 
 	// Instance strategy defaults
 	// DefaultStrategy is the default instance strategy.

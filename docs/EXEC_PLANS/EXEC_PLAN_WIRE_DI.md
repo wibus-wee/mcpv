@@ -10,7 +10,7 @@
 
 - [x] (2025-12-30 16:47Z) 编写 ExecPlan 并确认目标依赖图与接口列表。
 - [x] (2025-12-30 17:25Z) 实现配置访问器与配置汇总重构，更新 Application/ControlPlane/ServerInitializationManager 的依赖签名。
-- [x] (2025-12-30 17:25Z) Wire ProviderSet 与注入器落地（含 `cmd/mcpd/wire.go` 与生成文件），并更新 CLI/Wails/UI 的调用链。
+- [x] (2025-12-30 17:25Z) Wire ProviderSet 与注入器落地（含 `cmd/mcpv/wire.go` 与生成文件），并更新 CLI/Wails/UI 的调用链。
 - [ ] 通过编译与测试验证，补齐必要文档或注释。
 
 ## Surprises & Discoveries
@@ -41,9 +41,9 @@
 
 ## Context and Orientation
 
-当前 Core 的组装逻辑集中在 `internal/app/app.go` 的 `Serve` 方法中：它负责加载配置、构建 scheduler/router/aggregator/control-plane/rpc server，并启动 observability 与后台管理协程。`internal/app/control_plane.go` 中的 `NewControlPlane` 还会直接创建内部服务（registry/discovery/observability/automation），属于手写 DI。CLI 入口在 `cmd/mcpd/main.go`，Wails 入口在仓库根目录的 `app.go`，UI 管理器在 `internal/ui/manager.go` 调用 `App.Serve`。
+当前 Core 的组装逻辑集中在 `internal/app/app.go` 的 `Serve` 方法中：它负责加载配置、构建 scheduler/router/aggregator/control-plane/rpc server，并启动 observability 与后台管理协程。`internal/app/control_plane.go` 中的 `NewControlPlane` 还会直接创建内部服务（registry/discovery/observability/automation），属于手写 DI。CLI 入口在 `cmd/mcpv/main.go`，Wails 入口在仓库根目录的 `app.go`，UI 管理器在 `internal/ui/manager.go` 调用 `App.Serve`。
 
-本次改造的核心点是：在 `internal/domain` 定义 `CatalogAccessor` 接口，使用静态实现加载配置，并让应用层的构建流程以访问器为入口；在 Wire 的 ProviderSet 中将 Core 生命周期组件与配置生命周期组件区分为 `CoreInfraSet` 与 `ReloadableAppSet`，并在 `cmd/mcpd/wire.go` 提供 `InitializeApp` 注入器。
+本次改造的核心点是：在 `internal/domain` 定义 `CatalogAccessor` 接口，使用静态实现加载配置，并让应用层的构建流程以访问器为入口；在 Wire 的 ProviderSet 中将 Core 生命周期组件与配置生命周期组件区分为 `CoreInfraSet` 与 `ReloadableAppSet`，并在 `cmd/mcpv/wire.go` 提供 `InitializeApp` 注入器。
 
 关键文件与模块：
 
@@ -51,7 +51,7 @@
 - `internal/app/control_plane.go`: `NewControlPlane` 负责创建内部服务。
 - `internal/app/server_init_manager.go`: `NewServerInitializationManager` 依赖配置值。
 - `internal/infra/*`: scheduler/router/transport/lifecycle/telemetry 等基础设施实现。
-- `cmd/mcpd/main.go`: CLI 入口，将改为调用 `InitializeApp`。
+- `cmd/mcpv/main.go`: CLI 入口，将改为调用 `InitializeApp`。
 - `app.go`: Wails 入口，仍通过 `App` 入口启动 Core。
 
 ## Plan of Work
@@ -68,8 +68,8 @@
 
 在仓库根目录执行如下命令进行编辑与验证：
 
-    rg -n "Serve\\(|NewControlPlane|ServerInitializationManager" internal/app cmd/mcpd
-    rg -n "ServeConfig|ValidateConfig" internal/ui cmd/mcpd
+    rg -n "Serve\\(|NewControlPlane|ServerInitializationManager" internal/app cmd/mcpv
+    rg -n "ServeConfig|ValidateConfig" internal/ui cmd/mcpv
 
 创建与编辑文件：
 
@@ -86,7 +86,7 @@
 
 验证方式以行为为准：
 
-- CLI: 运行 `go run ./cmd/mcpd serve --config .`，应看到与改造前一致的配置加载日志，并能正常启动 RPC 服务。
+- CLI: 运行 `go run ./cmd/mcpv serve --config .`，应看到与改造前一致的配置加载日志，并能正常启动 RPC 服务。
 - UI: 运行 Wails 入口（若已有运行方式），`Start`/`Stop` 流程仍可驱动 Core。
 - 测试: 运行 `make test` 或 `go test ./...`，预期全绿；若无法运行测试，需在 PR 说明中标注。
 

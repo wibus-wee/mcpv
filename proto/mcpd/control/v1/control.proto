@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package mcpd.control.v1;
+package mcpv.control.v1;
 
-option go_package = "mcpd/pkg/api/control/v1;controlv1";
+option go_package = "mcpv/pkg/api/control/v1;controlv1";
 
 service ControlPlaneService {
   rpc GetInfo(GetInfoRequest) returns (GetInfoResponse);

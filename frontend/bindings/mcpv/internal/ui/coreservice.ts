@@ -18,7 +18,7 @@ import * as $models from "./models.js";
  * GetBootstrapProgress returns bootstrap progress.
  */
 export function GetBootstrapProgress(): $CancellablePromise<$models.BootstrapProgressResponse> {
-    return $Call.ByID(2470627769).then(($result: any) => {
+    return $Call.ByID(761839127).then(($result: any) => {
         return $$createType0($result);
     });
 }
@@ -27,7 +27,7 @@ export function GetBootstrapProgress(): $CancellablePromise<$models.BootstrapPro
  * GetCoreState returns current core state.
  */
 export function GetCoreState(): $CancellablePromise<$models.CoreStateResponse> {
-    return $Call.ByID(620198224).then(($result: any) => {
+    return $Call.ByID(2636817874).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -36,7 +36,7 @@ export function GetCoreState(): $CancellablePromise<$models.CoreStateResponse> {
  * GetInfo returns control plane info.
  */
 export function GetInfo(): $CancellablePromise<$models.InfoResponse> {
-    return $Call.ByID(3148170924).then(($result: any) => {
+    return $Call.ByID(434743070).then(($result: any) => {
         return $$createType2($result);
     });
 }
@@ -45,28 +45,28 @@ export function GetInfo(): $CancellablePromise<$models.InfoResponse> {
  * RestartCore restarts the core.
  */
 export function RestartCore(): $CancellablePromise<void> {
-    return $Call.ByID(2631306004);
+    return $Call.ByID(2154985038);
 }
 
 /**
  * StartCore starts the core.
  */
 export function StartCore(): $CancellablePromise<void> {
-    return $Call.ByID(262848791);
+    return $Call.ByID(1548021549);
 }
 
 /**
  * StartCoreWithOptions starts the core with explicit options.
  */
 export function StartCoreWithOptions(opts: $models.StartCoreOptions): $CancellablePromise<void> {
-    return $Call.ByID(447675163, opts);
+    return $Call.ByID(1713032553, opts);
 }
 
 /**
  * StopCore stops the core.
  */
 export function StopCore(): $CancellablePromise<void> {
-    return $Call.ByID(3055852507);
+    return $Call.ByID(258354701);
 }
 
 // Private type creation functions

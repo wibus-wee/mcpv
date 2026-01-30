@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/mapping"
-	"mcpd/internal/infra/mcpcodec"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/mapping"
+	"mcpv/internal/infra/mcpcodec"
 )
 
 func mapToolCatalogEntries(snapshot domain.ToolCatalogSnapshot) ([]ToolEntry, error) {

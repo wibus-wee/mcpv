@@ -4,7 +4,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"mcpd/internal/infra/telemetry"
+	"mcpv/internal/infra/telemetry"
 )
 
 // LoggingConfig configures logging wiring.

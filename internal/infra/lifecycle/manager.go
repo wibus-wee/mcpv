@@ -14,8 +14,8 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/telemetry"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/telemetry"
 )
 
 type Manager struct {
@@ -285,7 +285,7 @@ func (m *Manager) initialize(ctx context.Context, conn domain.Conn, protocolVers
 	initParams := &mcp.InitializeParams{
 		ProtocolVersion: protocolVersion,
 		ClientInfo: &mcp.Implementation{
-			Name:    "mcpd",
+			Name:    "mcpv",
 			Version: "0.1.0",
 		},
 		Capabilities: &mcp.ClientCapabilities{},
@@ -297,7 +297,7 @@ func (m *Manager) initialize(ctx context.Context, conn domain.Conn, protocolVers
 		initParams.Capabilities.Elicitation = &mcp.ElicitationCapabilities{}
 	}
 
-	id, err := jsonrpc.MakeID("mcpd-init")
+	id, err := jsonrpc.MakeID("mcpv-init")
 	if err != nil {
 		return domain.ServerCapabilities{}, fmt.Errorf("build initialize id: %w", err)
 	}

@@ -1,6 +1,6 @@
-## M2.5 设计：mcpd 作为标准 MCP Server 暴露
+## M2.5 设计：mcpv 作为标准 MCP Server 暴露
 
-> 该设计已被 core/gateway 拆分方案替代：mcpd 仅提供 gRPC 控制面，MCP Server 入口迁移至 mcpd-gateway。
+> 该设计已被 core/gateway 拆分方案替代：mcpv 仅提供 gRPC 控制面，MCP Server 入口迁移至 mcpv-gateway。
 
 ### 目标
 - 将当前路由器（stdin JSON-RPC `route`）改为标准 MCP Server，实现 MCP initialize/ping/方法调用，由 go-sdk 管理会话与协议，客户端（MCP Client）可直接连接。
@@ -43,11 +43,11 @@
 2) 在 infra 层添加 MCP handler 适配器，将 tools/call 代理到 Router.Route。
 3) 初始化时加载 catalog，创建 Scheduler/Lifecycle/Router，注册 handler 后运行 server.Run(ctx, transport)。
 4) 关闭时 StopIdleManager + StopAll。
-5) 调整文档/示例，指导 MCP Client 直接连接 mcpd。
+5) 调整文档/示例，指导 MCP Client 直接连接 mcpv。
 
 ### 测试计划
 - 单元：handler 转发参数解析正确；无权限方法返回 `-32601`。
-- 集成：使用假 MCP server（cat echo），客户端通过 go-sdk Client 连接 mcpd，调用工具成功返回 echo；会话关闭后实例被 StopAll。
+- 集成：使用假 MCP server（cat echo），客户端通过 go-sdk Client 连接 mcpv，调用工具成功返回 echo；会话关闭后实例被 StopAll。
 
 ### 注意事项（后续合并工具列表）
-- 需要支持动态抓取下游 MCP Server 的 `tools/list`，合并到 mcpd 自身的 tool list（通过 go-sdk Server 注册工具）。合并时要处理命名冲突（可加前缀或命名空间）、权限过滤，以及缓存/过期策略以避免每次调用都广播。
+- 需要支持动态抓取下游 MCP Server 的 `tools/list`，合并到 mcpv 自身的 tool list（通过 go-sdk Server 注册工具）。合并时要处理命名冲突（可加前缀或命名空间）、权限过滤，以及缓存/过期策略以避免每次调用都广播。

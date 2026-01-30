@@ -18,21 +18,21 @@ import * as $models from "./models.js";
  * CreateServer adds a server to the config file.
  */
 export function CreateServer(req: $models.CreateServerRequest): $CancellablePromise<void> {
-    return $Call.ByID(1049671687, req);
+    return $Call.ByID(1563494409, req);
 }
 
 /**
  * DeleteServer removes a server from the config file.
  */
 export function DeleteServer(req: $models.DeleteServerRequest): $CancellablePromise<void> {
-    return $Call.ByID(556059800, req);
+    return $Call.ByID(2099938258, req);
 }
 
 /**
  * GetServer returns server detail by name.
  */
 export function GetServer(name: string): $CancellablePromise<$models.ServerDetail | null> {
-    return $Call.ByID(3422535455, name).then(($result: any) => {
+    return $Call.ByID(3144206001, name).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -41,7 +41,7 @@ export function GetServer(name: string): $CancellablePromise<$models.ServerDetai
  * ListServerGroups returns aggregated server groups with tool metadata.
  */
 export function ListServerGroups(): $CancellablePromise<$models.ServerGroup[]> {
-    return $Call.ByID(564916667).then(($result: any) => {
+    return $Call.ByID(2649172641).then(($result: any) => {
         return $$createType3($result);
     });
 }
@@ -50,7 +50,7 @@ export function ListServerGroups(): $CancellablePromise<$models.ServerGroup[]> {
  * ListServers returns all configured servers.
  */
 export function ListServers(): $CancellablePromise<$models.ServerSummary[]> {
-    return $Call.ByID(1496030688).then(($result: any) => {
+    return $Call.ByID(1113977478).then(($result: any) => {
         return $$createType5($result);
     });
 }
@@ -59,14 +59,14 @@ export function ListServers(): $CancellablePromise<$models.ServerSummary[]> {
  * SetServerDisabled updates the disabled state for a server.
  */
 export function SetServerDisabled(req: $models.UpdateServerStateRequest): $CancellablePromise<void> {
-    return $Call.ByID(4009478283, req);
+    return $Call.ByID(1341621773, req);
 }
 
 /**
  * UpdateServer updates an existing server in the config file.
  */
 export function UpdateServer(req: $models.UpdateServerRequest): $CancellablePromise<void> {
-    return $Call.ByID(635162854, req);
+    return $Call.ByID(3077400432, req);
 }
 
 // Private type creation functions

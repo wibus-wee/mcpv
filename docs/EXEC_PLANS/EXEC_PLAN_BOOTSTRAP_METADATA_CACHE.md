@@ -23,7 +23,7 @@
 - Observation: 在沙箱环境运行 `go test` 需要写入 `~/Library/Caches/go-build`，当前权限受限导致聚合与 app 包测试无法执行。
   Evidence: `open /Users/wibus/Library/Caches/go-build/...: operation not permitted`。
 - Observation: 使用 `GOCACHE` 指向工作区目录可绕开缓存权限限制并完成局部测试。
-  Evidence: `GOCACHE=/Users/wibus/dev/mcpd/.cache/go-build go test ./internal/domain ./internal/infra/aggregator ./internal/app`。
+  Evidence: `GOCACHE=/Users/wibus/dev/mcpv/.cache/go-build go test ./internal/domain ./internal/infra/aggregator ./internal/app`。
 - Observation: SetBootstrapWaiter 在持有写锁时调用 startBootstrapRefresh 触发同锁 RLock，导致初始化路径死锁。
   Evidence: 栈追踪卡在 `ToolIndex.startBootstrapRefresh` 等读取 bootstrapWaiterMu。
 

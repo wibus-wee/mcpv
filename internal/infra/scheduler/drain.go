@@ -6,7 +6,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpd/internal/infra/telemetry"
+	"mcpv/internal/infra/telemetry"
 )
 
 func (s *BasicScheduler) startDrain(specKey string, inst *trackedInstance, timeout time.Duration, reason string) {

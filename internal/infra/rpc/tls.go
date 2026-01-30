@@ -8,7 +8,7 @@ import (
 
 	"google.golang.org/grpc/credentials"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 func loadServerTLS(cfg domain.RPCTLSConfig) (credentials.TransportCredentials, error) {

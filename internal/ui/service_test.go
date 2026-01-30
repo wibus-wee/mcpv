@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"mcpd/internal/app"
-	"mcpd/internal/app/controlplane"
-	"mcpd/internal/domain"
+	"mcpv/internal/app"
+	"mcpv/internal/app/controlplane"
+	"mcpv/internal/domain"
 )
 
 func testLogger() *zap.Logger {

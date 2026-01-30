@@ -3,7 +3,7 @@ package ui
 import (
 	"errors"
 
-	"mcpd/internal/infra/catalog"
+	"mcpv/internal/infra/catalog"
 )
 
 func mapCatalogError(err error) error {

@@ -11,9 +11,9 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/mcpcodec"
-	"mcpd/internal/infra/telemetry"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/mcpcodec"
+	"mcpv/internal/infra/telemetry"
 )
 
 const (

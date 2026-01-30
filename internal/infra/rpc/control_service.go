@@ -10,10 +10,10 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/mcpcodec"
-	"mcpd/internal/infra/scheduler"
-	controlv1 "mcpd/pkg/api/control/v1"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/mcpcodec"
+	"mcpv/internal/infra/scheduler"
+	controlv1 "mcpv/pkg/api/control/v1"
 )
 
 type ControlService struct {

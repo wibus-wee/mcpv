@@ -18,7 +18,7 @@ import * as $models from "./models.js";
  * GetActiveClients returns active client registrations.
  */
 export function GetActiveClients(): $CancellablePromise<$models.ActiveClient[]> {
-    return $Call.ByID(1366947817).then(($result: any) => {
+    return $Call.ByID(2308819519).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -27,7 +27,7 @@ export function GetActiveClients(): $CancellablePromise<$models.ActiveClient[]> 
  * GetRuntimeStatus returns the runtime status of all server pools.
  */
 export function GetRuntimeStatus(): $CancellablePromise<$models.ServerRuntimeStatus[]> {
-    return $Call.ByID(3809513373).then(($result: any) => {
+    return $Call.ByID(454810127).then(($result: any) => {
         return $$createType3($result);
     });
 }
@@ -36,7 +36,7 @@ export function GetRuntimeStatus(): $CancellablePromise<$models.ServerRuntimeSta
  * GetServerInitStatus returns per-server initialization status.
  */
 export function GetServerInitStatus(): $CancellablePromise<$models.ServerInitStatus[]> {
-    return $Call.ByID(2082060570).then(($result: any) => {
+    return $Call.ByID(2088633420).then(($result: any) => {
         return $$createType5($result);
     });
 }
@@ -45,7 +45,7 @@ export function GetServerInitStatus(): $CancellablePromise<$models.ServerInitSta
  * RetryServerInit triggers a manual retry for a suspended server init.
  */
 export function RetryServerInit(req: $models.RetryServerInitRequest): $CancellablePromise<void> {
-    return $Call.ByID(4137522882, req);
+    return $Call.ByID(458401824, req);
 }
 
 // Private type creation functions

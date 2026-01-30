@@ -84,7 +84,7 @@
 6. 更新 `internal/ui/types.go`、`internal/ui/mapping.go`、`internal/ui/service.go`，并运行 `make wails-bindings` 同步 bindings。
 7. 更新 `frontend/src/modules/settings/settings-page.tsx` 与 `frontend/src/modules/config/components/profile-detail/server-item.tsx`，并同步其目录 README。
 8. 更新 `runtime.yaml` 与 `profiles/*.yaml`，以及 `docs/PRD.md` / `docs/CONSTRAINTS.md` 的字段说明。
-9. 运行 `GOCACHE=/Users/wibus/dev/mcpd/.cache/go-build go test ./...` 与 `pnpm lint`（若环境支持）。
+9. 运行 `GOCACHE=/Users/wibus/dev/mcpv/.cache/go-build go test ./...` 与 `pnpm lint`（若环境支持）。
 
 ## Validation and Acceptance
 

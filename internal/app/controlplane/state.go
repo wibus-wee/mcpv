@@ -7,9 +7,9 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpd/internal/app/bootstrap"
-	"mcpd/internal/app/runtime"
-	"mcpd/internal/domain"
+	"mcpv/internal/app/bootstrap"
+	"mcpv/internal/app/runtime"
+	"mcpv/internal/domain"
 )
 
 type State struct {
@@ -72,7 +72,7 @@ type clientState struct {
 
 func defaultControlPlaneInfo() domain.ControlPlaneInfo {
 	return domain.ControlPlaneInfo{
-		Name:    "mcpd",
+		Name:    "mcpv",
 		Version: Version,
 		Build:   Build,
 	}

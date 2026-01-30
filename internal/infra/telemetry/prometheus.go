@@ -6,7 +6,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 type PrometheusMetrics struct {
@@ -38,7 +38,7 @@ func NewPrometheusMetrics(registerer prometheus.Registerer) *PrometheusMetrics {
 	return &PrometheusMetrics{
 		routeDuration: factory.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "mcpd_route_duration_seconds",
+				Name:    "mcpv_route_duration_seconds",
 				Help:    "Duration of route requests in seconds",
 				Buckets: []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10},
 			},
@@ -46,14 +46,14 @@ func NewPrometheusMetrics(registerer prometheus.Registerer) *PrometheusMetrics {
 		),
 		inflightRoutes: factory.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Name: "mcpd_inflight_routes",
+				Name: "mcpv_inflight_routes",
 				Help: "Number of inflight route requests",
 			},
 			[]string{"server_type"},
 		),
 		poolWaitDuration: factory.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "mcpd_pool_wait_seconds",
+				Name:    "mcpv_pool_wait_seconds",
 				Help:    "Time spent waiting for pool capacity in seconds",
 				Buckets: []float64{.001, .005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10},
 			},
@@ -61,21 +61,21 @@ func NewPrometheusMetrics(registerer prometheus.Registerer) *PrometheusMetrics {
 		),
 		instanceStarts: factory.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "mcpd_instance_starts_total",
+				Name: "mcpv_instance_starts_total",
 				Help: "Total number of instance start attempts",
 			},
 			[]string{"server_type"},
 		),
 		instanceStops: factory.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "mcpd_instance_stops_total",
+				Name: "mcpv_instance_stops_total",
 				Help: "Total number of instance stops",
 			},
 			[]string{"server_type"},
 		),
 		instanceStartDuration: factory.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "mcpd_instance_start_duration_seconds",
+				Name:    "mcpv_instance_start_duration_seconds",
 				Help:    "Duration of instance start attempts in seconds",
 				Buckets: []float64{.1, .25, .5, 1, 2.5, 5, 10, 30},
 			},
@@ -83,70 +83,70 @@ func NewPrometheusMetrics(registerer prometheus.Registerer) *PrometheusMetrics {
 		),
 		instanceStartResults: factory.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "mcpd_instance_start_result_total",
+				Name: "mcpv_instance_start_result_total",
 				Help: "Total number of instance start results",
 			},
 			[]string{"server_type", "result"},
 		),
 		instanceStartCauses: factory.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "mcpd_instance_start_cause_total",
+				Name: "mcpv_instance_start_cause_total",
 				Help: "Total number of instance start causes",
 			},
 			[]string{"server_type", "reason"},
 		),
 		instanceStopResults: factory.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "mcpd_instance_stop_result_total",
+				Name: "mcpv_instance_stop_result_total",
 				Help: "Total number of instance stop results",
 			},
 			[]string{"server_type", "result"},
 		),
 		startingInstances: factory.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Name: "mcpd_instance_starting",
+				Name: "mcpv_instance_starting",
 				Help: "Current number of instances starting",
 			},
 			[]string{"server_type"},
 		),
 		activeInstances: factory.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Name: "mcpd_active_instances",
+				Name: "mcpv_active_instances",
 				Help: "Current number of active instances",
 			},
 			[]string{"server_type"},
 		),
 		poolCapacityRatio: factory.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Name: "mcpd_pool_capacity_ratio",
+				Name: "mcpv_pool_capacity_ratio",
 				Help: "Ratio of busy calls to total pool capacity",
 			},
 			[]string{"server_type"},
 		),
 		poolWaiters: factory.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Name: "mcpd_pool_waiters",
+				Name: "mcpv_pool_waiters",
 				Help: "Number of waiting acquisition requests per pool",
 			},
 			[]string{"server_type"},
 		),
 		poolAcquireFailures: factory.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "mcpd_pool_acquire_fail_total",
+				Name: "mcpv_pool_acquire_fail_total",
 				Help: "Total number of pool acquire failures",
 			},
 			[]string{"server_type", "reason"},
 		),
 		subAgentTokens: factory.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "mcpd_subagent_tokens_total",
+				Name: "mcpv_subagent_tokens_total",
 				Help: "Total number of tokens consumed by SubAgent LLM calls",
 			},
 			[]string{"provider", "model"},
 		),
 		subAgentLatency: factory.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "mcpd_subagent_latency_seconds",
+				Name:    "mcpv_subagent_latency_seconds",
 				Help:    "Latency of SubAgent LLM calls in seconds",
 				Buckets: []float64{.05, .1, .25, .5, 1, 2.5, 5, 10, 30},
 			},
@@ -154,7 +154,7 @@ func NewPrometheusMetrics(registerer prometheus.Registerer) *PrometheusMetrics {
 		),
 		subAgentFilterPrecision: factory.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "mcpd_subagent_filter_precision",
+				Name:    "mcpv_subagent_filter_precision",
 				Help:    "Ratio of tool selection after deduplication in SubAgent",
 				Buckets: []float64{.1, .25, .5, .75, .9, 1},
 			},

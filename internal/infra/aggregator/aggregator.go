@@ -13,10 +13,10 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/hashutil"
-	"mcpd/internal/infra/mcpcodec"
-	"mcpd/internal/infra/telemetry"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/hashutil"
+	"mcpv/internal/infra/mcpcodec"
+	"mcpv/internal/infra/telemetry"
 )
 
 // BootstrapWaiter waits for bootstrap completion using the provided context.

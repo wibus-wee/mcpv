@@ -18,8 +18,8 @@
 
 ```
 cmd/
-  mcpd/                     # CLI entry
-  mcpd-wails/               # Wails entry
+  mcpv/                     # CLI entry
+  mcpv-wails/               # Wails entry
 internal/
   app/                      # App orchestration
   domain/                   # Core domain models
@@ -40,8 +40,8 @@ go.mod
 
 ## 目录职责说明
 
-- `cmd/mcpd`：CLI 入口，负责参数解析、日志与配置加载。
-- `cmd/mcpd-wails`：Wails 入口，负责应用启动、生命周期管理与 UI 绑定注册。
+- `cmd/mcpv`：CLI 入口，负责参数解析、日志与配置加载。
+- `cmd/mcpv-wails`：Wails 入口，负责应用启动、生命周期管理与 UI 绑定注册。
 - `internal/app`：核心编排层，供 CLI/Wails 复用，不直接依赖 UI。
 - `internal/ui`：Wails 适配层，负责把 `internal/app` 封装成可绑定服务与事件流。
 - `frontend`：前端 UI 与构建配置，建议与 Wails 官方默认保持一致。
@@ -56,7 +56,7 @@ go.mod
 
 ## 入口职责建议
 
-- `cmd/mcpd-wails` 只做启动与依赖注入，核心流程仍在 `internal/app`。
+- `cmd/mcpv-wails` 只做启动与依赖注入，核心流程仍在 `internal/app`。
 - 不在入口层堆积业务逻辑，避免未来 CLI 与 Wails 行为分叉。
 
 ## URL Scheme 约定

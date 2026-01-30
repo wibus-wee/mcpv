@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 func TestBasicRouter_RouteSuccess(t *testing.T) {

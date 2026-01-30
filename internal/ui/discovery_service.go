@@ -6,7 +6,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 // DiscoveryService exposes tools/resources/prompts APIs.

@@ -69,7 +69,7 @@ UI 侧数据映射位于 `internal/ui/mapping.go` 与 `internal/ui/events.go`，
 
 ## Concrete Steps
 
-在 `/Users/wibus/dev/mcpd` 下工作。
+在 `/Users/wibus/dev/mcpv` 下工作。
 
 1) 定义领域结构化类型并新增 MCP JSON codec。
 

@@ -1,6 +1,6 @@
 package bootstrap
 
-import "mcpd/internal/domain"
+import "mcpv/internal/domain"
 
 func ResolveActivationMode(runtime domain.RuntimeConfig, spec domain.ServerSpec) domain.ActivationMode {
 	mode := spec.ActivationMode

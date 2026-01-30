@@ -9,7 +9,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"mcpd/internal/infra/fsutil"
+	"mcpv/internal/infra/fsutil"
 )
 
 // RuntimeUpdate describes a serialized runtime config change.

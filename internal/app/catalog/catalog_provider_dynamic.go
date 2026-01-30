@@ -12,8 +12,8 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
-	infraCatalog "mcpd/internal/infra/catalog"
+	"mcpv/internal/domain"
+	infraCatalog "mcpv/internal/infra/catalog"
 )
 
 const defaultReloadDebounce = 200 * time.Millisecond

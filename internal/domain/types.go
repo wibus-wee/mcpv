@@ -323,7 +323,7 @@ var ErrUnsupportedProtocol = errors.New("unsupported protocol version")
 // ErrConnectionClosed indicates the connection was closed.
 var ErrConnectionClosed = errors.New("connection closed")
 
-// BootstrapMode defines whether mcpd prefetches metadata during startup.
+// BootstrapMode defines whether mcpv prefetches metadata during startup.
 type BootstrapMode string
 
 const (

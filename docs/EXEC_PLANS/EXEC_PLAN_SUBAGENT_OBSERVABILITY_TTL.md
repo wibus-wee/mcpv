@@ -17,7 +17,7 @@
 - [x] (2025-03-09T08:40:00Z) Lifecycle initialize 增加静默重试并补齐测试。
 - [x] (2025-03-09T08:40:00Z) 清理 catalog.example 目录与相关引用，更新运行配置示例。
 - [x] (2025-03-09T08:55:00Z) 运行格式化、静态检查与测试，记录结果。
-- [x] (2025-03-09T09:10:00Z) 补充 mcpd-overview 仪表盘中的 SubAgent 指标面板。
+- [x] (2025-03-09T09:10:00Z) 补充 mcpv-overview 仪表盘中的 SubAgent 指标面板。
 
 ## Surprises & Discoveries
 
@@ -29,7 +29,7 @@
 - Decision: 新增 runtime 字段 `callerInactiveSeconds` 作为 TTL 配置，并提供默认值 `300` 秒。
   Rationale: TTL 行为需要可配置与可追溯的默认值，避免硬编码并便于未来调优。
   Date/Author: 2025-03-09 / Codex
-- Decision: `mcpd_subagent_filter_precision` 记录“终选 / 初选”比例，初选为 LLM 选择后的工具列表，终选为去重后实际返回的工具列表。
+- Decision: `mcpv_subagent_filter_precision` 记录“终选 / 初选”比例，初选为 LLM 选择后的工具列表，终选为去重后实际返回的工具列表。
   Rationale: 该比例更能反映 dedup 与限额对输出的压缩程度，符合“初选 vs 终选”的语义。
   Date/Author: 2025-03-09 / Codex
 - Decision: Initialize 重试采用“3 次重试 + 1 次初始尝试”的总计 4 次尝试策略。
@@ -52,7 +52,7 @@ SubAgent 位于 `internal/infra/subagent`，通过 `internal/app/app.go` 初始�
 
 其次，更新 caller 淘汰策略：在 `internal/app/control_plane_registry.go` 的 `reapDeadCallers` 中引入 TTL 判定，优先依据 `CallerInactiveSeconds` 淘汰超时 caller，即便 `pidAlive` 仍返回 true。补齐 `internal/app/control_plane_test.go` 以覆盖 TTL 行为。
 
-然后，为 SubAgent 添加可观测性与新接口：扩展 `internal/domain/metrics.go` 增加 SubAgent 指标采集方法；在 `internal/infra/telemetry/prometheus.go` 中新增计数器与直方图，实现 `mcpd_subagent_tokens_total`、`mcpd_subagent_latency_seconds`、`mcpd_subagent_filter_precision`，并更新 `internal/infra/telemetry/metrics.go` 与 `internal/infra/telemetry/prometheus_test.go`。
+然后，为 SubAgent 添加可观测性与新接口：扩展 `internal/domain/metrics.go` 增加 SubAgent 指标采集方法；在 `internal/infra/telemetry/prometheus.go` 中新增计数器与直方图，实现 `mcpv_subagent_tokens_total`、`mcpv_subagent_latency_seconds`、`mcpv_subagent_filter_precision`，并更新 `internal/infra/telemetry/metrics.go` 与 `internal/infra/telemetry/prometheus_test.go`。
 
 随后切换 SubAgent 模型接口：`internal/infra/subagent/model.go` 返回 `model.ToolCallingChatModel`，`internal/infra/subagent/subagent.go` 改用该接口，避免 deprecated ChatModel 路径。在 `SelectToolsForCaller`/`filterWithLLM` 中记录 token、延迟与过滤比例。Metrics 的 provider/model label 取自 runtime SubAgent 配置。
 
@@ -96,11 +96,11 @@ SubAgent 位于 `internal/infra/subagent`，通过 `internal/app/app.go` 初始�
 ## Validation and Acceptance
 
 - 运行 `make test`，所有测试通过；新增 TTL 测试在改动前失败、改动后通过。
-- 运行 `mcpd serve --config .`，Prometheus `/metrics` 输出包含：
+- 运行 `mcpv serve --config .`，Prometheus `/metrics` 输出包含：
 
-  - `mcpd_subagent_tokens_total{provider="...",model="..."}`
-  - `mcpd_subagent_latency_seconds_bucket{provider="...",model="..."}`
-  - `mcpd_subagent_filter_precision_bucket{provider="...",model="..."}`
+  - `mcpv_subagent_tokens_total{provider="...",model="..."}`
+  - `mcpv_subagent_latency_seconds_bucket{provider="...",model="..."}`
+  - `mcpv_subagent_filter_precision_bucket{provider="...",model="..."}`
 
 - 在 SubAgent 处理一次 `automatic_mcp` 后，指标的计数与直方图有增量。
 
@@ -124,9 +124,9 @@ SubAgent 位于 `internal/infra/subagent`，通过 `internal/app/app.go` 初始�
 - 在 `internal/infra/subagent/model.go` 中返回 `model.ToolCallingChatModel`。
 - 在 `internal/infra/telemetry/prometheus.go` 中新增 Prometheus 指标：
 
-  - mcpd_subagent_tokens_total (CounterVec, labels: provider, model)
-  - mcpd_subagent_latency_seconds (HistogramVec, labels: provider, model)
-  - mcpd_subagent_filter_precision (HistogramVec, labels: provider, model)
+  - mcpv_subagent_tokens_total (CounterVec, labels: provider, model)
+  - mcpv_subagent_latency_seconds (HistogramVec, labels: provider, model)
+  - mcpv_subagent_filter_precision (HistogramVec, labels: provider, model)
 
 Plan Update Note (2025-03-09T00:00:00Z): 初始计划创建。
 Plan Update Note (2025-03-09T08:40:00Z): 记录实现进展与新增决策。

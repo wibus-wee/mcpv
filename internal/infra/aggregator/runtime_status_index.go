@@ -12,7 +12,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 // RuntimeStatusIndex manages server runtime status snapshots with broadcast support.

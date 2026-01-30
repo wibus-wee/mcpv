@@ -6,7 +6,7 @@ import (
 	"errors"
 	"time"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 type MetricRouter struct {

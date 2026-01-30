@@ -6,7 +6,7 @@ This document must be maintained in accordance with .agent/PLANS.md from the rep
 
 ## Purpose / Big Picture
 
-After this change, the core control plane emits structured logs with a consistent set of fields, exposes an optional healthz HTTP endpoint that reports whether background loops are alive, and rejects invalid catalog files using a JSON Schema before the existing semantic checks run. A user can start mcpd, curl /healthz for a quick liveness snapshot, and get clear, schema-based config errors when running mcpd validate. The goal is to make observability and validation reliable without changing the core/gateway split or the MCP protocol surface.
+After this change, the core control plane emits structured logs with a consistent set of fields, exposes an optional healthz HTTP endpoint that reports whether background loops are alive, and rejects invalid catalog files using a JSON Schema before the existing semantic checks run. A user can start mcpv, curl /healthz for a quick liveness snapshot, and get clear, schema-based config errors when running mcpv validate. The goal is to make observability and validation reliable without changing the core/gateway split or the MCP protocol surface.
 
 ## Progress
 
@@ -27,7 +27,7 @@ After this change, the core control plane emits structured logs with a consisten
   Rationale: The module already exists in go.mod, it validates draft 2020-12, and it keeps schema validation deterministic without adding new dependencies.
   Date/Author: 2025-12-25 / Codex.
 
-- Decision: Use env toggles MCPD_METRICS_ENABLED and MCPD_HEALTHZ_ENABLED, with listen address configured in catalog.
+- Decision: Use env toggles mcpv_METRICS_ENABLED and mcpv_HEALTHZ_ENABLED, with listen address configured in catalog.
   Rationale: This enables healthz without changing the env-based toggles while allowing port configuration to avoid conflicts.
   Date/Author: 2025-12-25 / Codex.
 
@@ -45,7 +45,7 @@ Completed M4 observability hardening: schema validation is in place, healthz is 
 
 ## Context and Orientation
 
-The core entry point is cmd/mcpd/main.go, which wires internal/app/app.go. The app layer loads the catalog via internal/infra/catalog/loader.go, starts the scheduler (internal/infra/scheduler/basic.go), router (internal/infra/router/router.go), lifecycle manager (internal/infra/lifecycle/manager.go), tool index (internal/infra/aggregator/aggregator.go), and the gRPC control plane (internal/infra/rpc/server.go). Telemetry currently provides a Prometheus metrics server in internal/infra/telemetry/server.go and a log broadcaster in internal/infra/telemetry/log_broadcaster.go, but there is no healthz endpoint and log fields are inconsistent across subsystems.
+The core entry point is cmd/mcpv/main.go, which wires internal/app/app.go. The app layer loads the catalog via internal/infra/catalog/loader.go, starts the scheduler (internal/infra/scheduler/basic.go), router (internal/infra/router/router.go), lifecycle manager (internal/infra/lifecycle/manager.go), tool index (internal/infra/aggregator/aggregator.go), and the gRPC control plane (internal/infra/rpc/server.go). Telemetry currently provides a Prometheus metrics server in internal/infra/telemetry/server.go and a log broadcaster in internal/infra/telemetry/log_broadcaster.go, but there is no healthz endpoint and log fields are inconsistent across subsystems.
 
 In this plan, “healthz endpoint” means an HTTP endpoint at /healthz that returns HTTP 200 with a JSON body when the background loops (idle manager, ping manager, tool refresh) have emitted a recent heartbeat, and HTTP 503 with details when any loop is stale. “Goroutine liveness” refers to these background loops continuing to tick at their configured intervals.
 
@@ -53,7 +53,7 @@ In this plan, “healthz endpoint” means an HTTP endpoint at /healthz that ret
 
 First, add schema-based config validation to internal/infra/catalog/loader.go. Create a JSON Schema that matches the current catalog shape, embed it in the catalog package, and validate the expanded config content before Viper unmarshalling and the existing semantic checks. Keep the existing validation logic to enforce protocol version and cross-field constraints, but rely on the schema to reject unknown keys and incorrect types early. Update loader tests to cover schema failures without weakening existing assertions.
 
-Next, add a health tracker in internal/infra/telemetry that can register a heartbeat for a named loop and report whether it is stale. Extend the telemetry HTTP server so it can serve /metrics and /healthz from the same mux, and expose a new StartHTTPServer entry point that takes options for which endpoints to enable. Wire this from internal/app/app.go using MCPD_METRICS_ENABLED and MCPD_HEALTHZ_ENABLED so either endpoint can be enabled without changing the catalog file. Add heartbeats in the scheduler idle and ping loops, and in the tool index refresh loop, and unregister them when the loops stop.
+Next, add a health tracker in internal/infra/telemetry that can register a heartbeat for a named loop and report whether it is stale. Extend the telemetry HTTP server so it can serve /metrics and /healthz from the same mux, and expose a new StartHTTPServer entry point that takes options for which endpoints to enable. Wire this from internal/app/app.go using mcpv_METRICS_ENABLED and mcpv_HEALTHZ_ENABLED so either endpoint can be enabled without changing the catalog file. Add heartbeats in the scheduler idle and ping loops, and in the tool index refresh loop, and unregister them when the loops stop.
 
 Then, unify structured logging fields and event names across lifecycle, scheduler, and router. Introduce a small set of field helpers (event, serverType, instanceID, state, duration_ms) in telemetry, and use them in the places where start/stop, ping failures, idle reaps, and route errors are logged. Ensure error logs use zap.Error so the error field remains consistent. The goal is not to add noisy logs, but to make the existing logs uniform and easier to filter.
 
@@ -61,7 +61,7 @@ Finally, update docs and tests. Add tests for schema validation failures, health
 
 ## Concrete Steps
 
-All commands run from /Users/wibus/dev/mcpd.
+All commands run from /Users/wibus/dev/mcpv.
 
 1) Review current catalog loader and telemetry server code to anchor the edits.
     rg -n "Load\(|routeTimeoutSeconds|StartMetricsServer" internal/infra
@@ -81,12 +81,12 @@ All commands run from /Users/wibus/dev/mcpd.
     make test
 
 If the Go build cache is restricted in this environment, set GOCACHE to a writable directory inside the repo, for example:
-    GOCACHE=/Users/wibus/dev/mcpd/.cache/go-build make test
+    GOCACHE=/Users/wibus/dev/mcpv/.cache/go-build make test
 
 ## Validation and Acceptance
 
-- Config validation: running `mcpd validate --config <bad file>` fails with a schema error for unknown keys or wrong types, and still reports semantic errors like protocolVersion mismatch.
-- Healthz endpoint: with MCPD_HEALTHZ_ENABLED=true, starting `mcpd serve --config docs/catalog.example.yaml` exposes http://localhost:9090/healthz (or the address set in `observability.listenAddress`) returning HTTP 200 with a JSON body that lists the registered checks. If a loop is intentionally stalled in a test, /healthz returns HTTP 503 with that check marked stale.
+- Config validation: running `mcpv validate --config <bad file>` fails with a schema error for unknown keys or wrong types, and still reports semantic errors like protocolVersion mismatch.
+- Healthz endpoint: with mcpv_HEALTHZ_ENABLED=true, starting `mcpv serve --config docs/catalog.example.yaml` exposes http://localhost:9090/healthz (or the address set in `observability.listenAddress`) returning HTTP 200 with a JSON body that lists the registered checks. If a loop is intentionally stalled in a test, /healthz returns HTTP 503 with that check marked stale.
 - Logging: lifecycle start/stop, ping failure, idle reap, and route errors include the fields event, serverType, instanceID (when available), state (when available), duration_ms (when available), and error (when applicable).
 - Tests: `go test ./...` (or `make test`) passes, and new tests covering schema validation and healthz behavior are present.
 

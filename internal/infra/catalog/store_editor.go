@@ -9,8 +9,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/fsutil"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/fsutil"
 )
 
 func CreateProfile(storePath string, name string) (string, error) {

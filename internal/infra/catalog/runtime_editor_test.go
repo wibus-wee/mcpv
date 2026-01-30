@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 
-	"mcpd/internal/infra/fsutil"
+	"mcpv/internal/infra/fsutil"
 )
 
 func TestResolveRuntimePath(t *testing.T) {

@@ -1,4 +1,4 @@
-// Input: motion/react, lucide-react icons, UI components, server hooks, mcpdmcp config helpers
+// Input: motion/react, lucide-react icons, UI components, server hooks, mcpvmcp config helpers
 // Output: ConnectIdeSheet component for IDE connection presets
 // Position: Shared UI component for configuring IDE connections in the app
 
@@ -33,10 +33,10 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { useMcpdmcpPath } from '@/hooks/use-mcpdmcp-path'
+import { usemcpvmcpPath } from '@/hooks/use-mcpvmcp-path'
 import { useRpcAddress } from '@/hooks/use-rpc-address'
-import type { SelectorMode } from '@/lib/mcpdmcp'
-import { buildClientConfig, buildCliSnippet, buildTomlConfig } from '@/lib/mcpdmcp'
+import type { SelectorMode } from '@/lib/mcpvmcp'
+import { buildClientConfig, buildCliSnippet, buildTomlConfig } from '@/lib/mcpvmcp'
 import { useServers } from '@/modules/servers/hooks'
 
 import { useSidebar } from '../ui/sidebar'
@@ -117,7 +117,7 @@ export function ConnectIdeSheet() {
   const [open, setOpen] = useState(false)
   const [selectorMode, setSelectorMode] = useState<SelectorMode>('server')
   const [selectorValue, setSelectorValue] = useState('')
-  const { path } = useMcpdmcpPath()
+  const { path } = usemcpvmcpPath()
   const { rpcAddress } = useRpcAddress()
   const { data: servers } = useServers()
   const sidebar = useSidebar()
@@ -128,9 +128,9 @@ export function ConnectIdeSheet() {
   )
   const tagOptions = useMemo(() => {
     const set = new Set<string>()
-    ;(servers ?? []).forEach((server) => {
-      server.tags?.forEach(tag => set.add(tag))
-    })
+      ; (servers ?? []).forEach((server) => {
+        server.tags?.forEach(tag => set.add(tag))
+      })
     return Array.from(set).sort((a, b) => a.localeCompare(b))
   }, [servers])
 
@@ -147,7 +147,7 @@ export function ConnectIdeSheet() {
 
   const configServerName = selector.mode === 'server'
     ? selector.value
-    : `mcpd-${selector.value || 'tag'}`
+    : `mcpv-${selector.value || 'tag'}`
 
   const configByClient = useMemo<Record<ClientTab, PresetBlock[]>>(
     () => ({

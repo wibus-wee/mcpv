@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 func TestDecodeToolResultURLElicitationRequired(t *testing.T) {

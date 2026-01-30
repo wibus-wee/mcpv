@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/mapping"
-	"mcpd/internal/infra/mcpcodec"
-	controlv1 "mcpd/pkg/api/control/v1"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/mapping"
+	"mcpv/internal/infra/mcpcodec"
+	controlv1 "mcpv/pkg/api/control/v1"
 )
 
 func toProtoSnapshot(snapshot domain.ToolSnapshot) (*controlv1.ToolsSnapshot, error) {

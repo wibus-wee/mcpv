@@ -2,7 +2,7 @@
 // Output: DashboardPage component - main dashboard view with insights
 // Position: Main dashboard page in dashboard module
 
-import { DebugService } from '@bindings/mcpd/internal/ui'
+import { DebugService } from '@bindings/mcpv/internal/ui'
 import {
   AlertCircleIcon,
   FileDownIcon,
@@ -44,7 +44,7 @@ function DashboardHeader() {
   const [isExporting, setIsExporting] = useState(false)
   const appLabel = appInfo?.name
     ? `${appInfo.name} · ${appInfo.version === 'dev' ? 'dev' : `v${appInfo.version}`} (${appInfo.build})`
-    : 'mcpd'
+    : 'mcpv'
 
   const handleExportDebug = async () => {
     if (isExporting) {
@@ -90,44 +90,44 @@ function DashboardHeader() {
           </Button>
         ) : coreStatus === 'starting'
           ? (
-              <Button onClick={stopCore} variant="outline" size="sm">
-                <SquareIcon className="size-4" />
-                Cancel
-              </Button>
-            )
+            <Button onClick={stopCore} variant="outline" size="sm">
+              <SquareIcon className="size-4" />
+              Cancel
+            </Button>
+          )
           : coreStatus === 'stopping'
             ? (
-                <Button variant="outline" size="sm" disabled>
-                  <Loader2Icon className="size-4 animate-spin" />
-                  Stopping...
-                </Button>
-              )
+              <Button variant="outline" size="sm" disabled>
+                <Loader2Icon className="size-4 animate-spin" />
+                Stopping...
+              </Button>
+            )
             : coreStatus === 'running'
               ? (
+                <>
+                  <Button onClick={stopCore} variant="outline" size="sm">
+                    <SquareIcon className="size-4" />
+                    Stop
+                  </Button>
+                  <Button onClick={restartCore} variant="outline" size="sm">
+                    <RefreshCwIcon className="size-4" />
+                    Restart
+                  </Button>
+                </>
+              )
+              : coreStatus === 'error'
+                ? (
                   <>
+                    <Button onClick={restartCore} size="sm">
+                      <RefreshCwIcon className="size-4" />
+                      Retry
+                    </Button>
                     <Button onClick={stopCore} variant="outline" size="sm">
                       <SquareIcon className="size-4" />
                       Stop
                     </Button>
-                    <Button onClick={restartCore} variant="outline" size="sm">
-                      <RefreshCwIcon className="size-4" />
-                      Restart
-                    </Button>
                   </>
                 )
-              : coreStatus === 'error'
-                ? (
-                    <>
-                      <Button onClick={restartCore} size="sm">
-                        <RefreshCwIcon className="size-4" />
-                        Retry
-                      </Button>
-                      <Button onClick={stopCore} variant="outline" size="sm">
-                        <SquareIcon className="size-4" />
-                        Stop
-                      </Button>
-                    </>
-                  )
                 : null}
         <Button
           variant="outline"
@@ -203,7 +203,7 @@ function StartingContent() {
       icon={Loader2Icon}
       iconClassName="animate-spin"
       title="Starting Core..."
-      description="Please wait while the mcpd core is initializing."
+      description="Please wait while the mcpv core is initializing."
     />
   )
 }
@@ -220,7 +220,7 @@ export function DashboardPage() {
         <UniversalEmptyState
           icon={ServerIcon}
           title="Core is not running"
-          description="Start the mcpd core to see your dashboard and manage MCP servers."
+          description="Start the mcpv core to see your dashboard and manage MCP servers."
           action={{
             label: 'Start Core',
             onClick: startCore,
@@ -254,7 +254,7 @@ export function DashboardPage() {
             <AlertCircleIcon className="size-4" />
             <AlertTitle>Core Error</AlertTitle>
             <AlertDescription>
-              {coreState?.error || 'The mcpd core encountered an error. Check the logs for details.'}
+              {coreState?.error || 'The mcpv core encountered an error. Check the logs for details.'}
             </AlertDescription>
           </Alert>
         </m.div>

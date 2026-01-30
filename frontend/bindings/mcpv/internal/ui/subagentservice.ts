@@ -18,7 +18,7 @@ import * as $models from "./models.js";
  * GetSubAgentConfig returns the runtime-level SubAgent configuration.
  */
 export function GetSubAgentConfig(): $CancellablePromise<$models.SubAgentConfigDetail> {
-    return $Call.ByID(1084533949).then(($result: any) => {
+    return $Call.ByID(4102583891).then(($result: any) => {
         return $$createType0($result);
     });
 }
@@ -27,14 +27,14 @@ export function GetSubAgentConfig(): $CancellablePromise<$models.SubAgentConfigD
  * IsSubAgentAvailable returns whether SubAgent infrastructure is configured.
  */
 export function IsSubAgentAvailable(): $CancellablePromise<boolean> {
-    return $Call.ByID(2461967930);
+    return $Call.ByID(1162652692);
 }
 
 /**
  * UpdateSubAgentConfig updates the runtime-level SubAgent config.
  */
 export function UpdateSubAgentConfig(req: $models.UpdateSubAgentConfigRequest): $CancellablePromise<void> {
-    return $Call.ByID(1112802088, req);
+    return $Call.ByID(2850813102, req);
 }
 
 // Private type creation functions

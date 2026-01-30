@@ -1,4 +1,4 @@
-# Catalog configuration example for MCPD
+# Catalog configuration example for mcpv
 routeTimeoutSeconds: 10
 pingIntervalSeconds: 30
 toolRefreshSeconds: 60

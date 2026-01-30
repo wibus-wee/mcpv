@@ -10,8 +10,8 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"go.uber.org/zap"
 
-	"mcpd/internal/domain"
-	"mcpd/internal/infra/telemetry"
+	"mcpv/internal/domain"
+	"mcpv/internal/infra/telemetry"
 )
 
 type BasicRouter struct {

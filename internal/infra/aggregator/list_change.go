@@ -3,7 +3,7 @@ package aggregator
 import (
 	"context"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 type listChangeSubscriber interface {

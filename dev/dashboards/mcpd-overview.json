@@ -11,7 +11,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -69,9 +69,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "sum(rate(mcpd_route_duration_seconds_count[$interval]))",
+          "expr": "sum(rate(mcpv_route_duration_seconds_count[$interval]))",
           "refId": "A"
         }
       ],
@@ -81,7 +81,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -141,9 +141,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "sum(rate(mcpd_route_duration_seconds_count{status=\"error\"}[$interval])) / sum(rate(mcpd_route_duration_seconds_count[$interval]))",
+          "expr": "sum(rate(mcpv_route_duration_seconds_count{status=\"error\"}[$interval])) / sum(rate(mcpv_route_duration_seconds_count[$interval]))",
           "refId": "A"
         }
       ],
@@ -153,7 +153,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -202,9 +202,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "sum(mcpd_active_instances)",
+          "expr": "sum(mcpv_active_instances)",
           "refId": "A"
         }
       ],
@@ -214,7 +214,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -274,9 +274,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "avg(mcpd_pool_capacity_ratio)",
+          "expr": "avg(mcpv_pool_capacity_ratio)",
           "refId": "A"
         }
       ],
@@ -286,7 +286,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -343,9 +343,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "sum(mcpd_inflight_routes)",
+          "expr": "sum(mcpv_inflight_routes)",
           "refId": "A"
         }
       ],
@@ -355,7 +355,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -412,9 +412,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "sum(mcpd_pool_waiters)",
+          "expr": "sum(mcpv_pool_waiters)",
           "refId": "A"
         }
       ],
@@ -424,7 +424,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -500,18 +500,18 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "histogram_quantile(0.50, sum by (server_type, le) (rate(mcpd_route_duration_seconds_bucket{status=\"success\"}[$interval])))",
+          "expr": "histogram_quantile(0.50, sum by (server_type, le) (rate(mcpv_route_duration_seconds_bucket{status=\"success\"}[$interval])))",
           "legendFormat": "P50 - {{server_type}}",
           "refId": "A"
         },
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "histogram_quantile(0.95, sum by (server_type, le) (rate(mcpd_route_duration_seconds_bucket{status=\"success\"}[$interval])))",
+          "expr": "histogram_quantile(0.95, sum by (server_type, le) (rate(mcpv_route_duration_seconds_bucket{status=\"success\"}[$interval])))",
           "legendFormat": "P95 - {{server_type}}",
           "refId": "B"
         }
@@ -522,7 +522,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -598,9 +598,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "sum by (server_type) (rate(mcpd_route_duration_seconds_count[$interval]))",
+          "expr": "sum by (server_type) (rate(mcpv_route_duration_seconds_count[$interval]))",
           "legendFormat": "{{server_type}}",
           "refId": "A"
         }
@@ -611,7 +611,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -698,9 +698,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "sum by (server_type) (rate(mcpd_route_duration_seconds_count{status=\"error\"}[$interval])) / sum by (server_type) (rate(mcpd_route_duration_seconds_count[$interval]))",
+          "expr": "sum by (server_type) (rate(mcpv_route_duration_seconds_count{status=\"error\"}[$interval])) / sum by (server_type) (rate(mcpv_route_duration_seconds_count[$interval]))",
           "legendFormat": "{{server_type}}",
           "refId": "A"
         }
@@ -711,7 +711,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -787,9 +787,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "sum by (server_type, reason) (rate(mcpd_route_duration_seconds_count{status=\"error\"}[$interval]))",
+          "expr": "sum by (server_type, reason) (rate(mcpv_route_duration_seconds_count{status=\"error\"}[$interval]))",
           "legendFormat": "{{server_type}}/{{reason}}",
           "refId": "A"
         }
@@ -800,7 +800,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -876,9 +876,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "mcpd_active_instances",
+          "expr": "mcpv_active_instances",
           "legendFormat": "{{server_type}}",
           "refId": "A"
         }
@@ -889,7 +889,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -976,9 +976,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "mcpd_pool_capacity_ratio",
+          "expr": "mcpv_pool_capacity_ratio",
           "legendFormat": "{{server_type}}",
           "refId": "A"
         }
@@ -989,7 +989,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -1065,18 +1065,18 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "histogram_quantile(0.50, sum by (server_type, le) (rate(mcpd_pool_wait_seconds_bucket[$interval])))",
+          "expr": "histogram_quantile(0.50, sum by (server_type, le) (rate(mcpv_pool_wait_seconds_bucket[$interval])))",
           "legendFormat": "P50 - {{server_type}}",
           "refId": "A"
         },
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "histogram_quantile(0.95, sum by (server_type, le) (rate(mcpd_pool_wait_seconds_bucket[$interval])))",
+          "expr": "histogram_quantile(0.95, sum by (server_type, le) (rate(mcpv_pool_wait_seconds_bucket[$interval])))",
           "legendFormat": "P95 - {{server_type}}",
           "refId": "B"
         }
@@ -1087,7 +1087,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -1163,9 +1163,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "mcpd_instance_starting",
+          "expr": "mcpv_instance_starting",
           "legendFormat": "{{server_type}}",
           "refId": "A"
         }
@@ -1176,7 +1176,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -1252,18 +1252,18 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "histogram_quantile(0.50, sum by (server_type, le) (rate(mcpd_instance_start_duration_seconds_bucket{result=\"success\"}[$interval])))",
+          "expr": "histogram_quantile(0.50, sum by (server_type, le) (rate(mcpv_instance_start_duration_seconds_bucket{result=\"success\"}[$interval])))",
           "legendFormat": "P50 - {{server_type}}",
           "refId": "A"
         },
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "histogram_quantile(0.95, sum by (server_type, le) (rate(mcpd_instance_start_duration_seconds_bucket{result=\"success\"}[$interval])))",
+          "expr": "histogram_quantile(0.95, sum by (server_type, le) (rate(mcpv_instance_start_duration_seconds_bucket{result=\"success\"}[$interval])))",
           "legendFormat": "P95 - {{server_type}}",
           "refId": "B"
         }
@@ -1274,7 +1274,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -1361,9 +1361,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "sum by (server_type) (rate(mcpd_instance_start_result_total{result=\"error\"}[$interval])) / sum by (server_type) (rate(mcpd_instance_start_result_total[$interval]))",
+          "expr": "sum by (server_type) (rate(mcpv_instance_start_result_total{result=\"error\"}[$interval])) / sum by (server_type) (rate(mcpv_instance_start_result_total[$interval]))",
           "legendFormat": "{{server_type}}",
           "refId": "A"
         }
@@ -1374,7 +1374,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -1422,9 +1422,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "sum by (reason) (rate(mcpd_instance_start_cause_total[$interval]))",
+          "expr": "sum by (reason) (rate(mcpv_instance_start_cause_total[$interval]))",
           "legendFormat": "{{reason}}",
           "refId": "A"
         }
@@ -1435,7 +1435,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -1483,9 +1483,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "sum by (reason) (rate(mcpd_pool_acquire_fail_total[$interval]))",
+          "expr": "sum by (reason) (rate(mcpv_pool_acquire_fail_total[$interval]))",
           "legendFormat": "{{reason}}",
           "refId": "A"
         }
@@ -1496,7 +1496,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -1573,7 +1573,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
           "expr": "rate(process_cpu_seconds_total[$interval])",
           "legendFormat": "cpu",
@@ -1586,7 +1586,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -1663,7 +1663,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
           "expr": "process_resident_memory_bytes",
           "legendFormat": "rss",
@@ -1676,7 +1676,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -1752,7 +1752,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
           "expr": "go_memstats_heap_inuse_bytes",
           "legendFormat": "heap_inuse",
@@ -1761,7 +1761,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
           "expr": "go_memstats_heap_alloc_bytes",
           "legendFormat": "heap_alloc",
@@ -1774,7 +1774,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -1851,7 +1851,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
           "expr": "histogram_quantile(0.95, rate(go_gc_duration_seconds_bucket[$interval]))",
           "legendFormat": "gc_p95",
@@ -1864,7 +1864,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -1941,7 +1941,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
           "expr": "go_goroutines",
           "legendFormat": "goroutines",
@@ -1954,7 +1954,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -2031,7 +2031,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
           "expr": "go_threads",
           "legendFormat": "threads",
@@ -2044,7 +2044,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -2120,18 +2120,18 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "histogram_quantile(0.50, sum by (provider, model, le) (rate(mcpd_subagent_latency_seconds_bucket[$interval])))",
+          "expr": "histogram_quantile(0.50, sum by (provider, model, le) (rate(mcpv_subagent_latency_seconds_bucket[$interval])))",
           "legendFormat": "P50 - {{provider}}/{{model}}",
           "refId": "A"
         },
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "histogram_quantile(0.95, sum by (provider, model, le) (rate(mcpd_subagent_latency_seconds_bucket[$interval])))",
+          "expr": "histogram_quantile(0.95, sum by (provider, model, le) (rate(mcpv_subagent_latency_seconds_bucket[$interval])))",
           "legendFormat": "P95 - {{provider}}/{{model}}",
           "refId": "B"
         }
@@ -2142,7 +2142,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -2218,9 +2218,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "sum by (provider, model) (rate(mcpd_subagent_tokens_total[$interval]))",
+          "expr": "sum by (provider, model) (rate(mcpv_subagent_tokens_total[$interval]))",
           "legendFormat": "{{provider}}/{{model}}",
           "refId": "A"
         }
@@ -2231,7 +2231,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -2314,18 +2314,18 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "histogram_quantile(0.50, sum by (provider, model, le) (rate(mcpd_subagent_filter_precision_bucket[$interval])))",
+          "expr": "histogram_quantile(0.50, sum by (provider, model, le) (rate(mcpv_subagent_filter_precision_bucket[$interval])))",
           "legendFormat": "P50 - {{provider}}/{{model}}",
           "refId": "A"
         },
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "histogram_quantile(0.95, sum by (provider, model, le) (rate(mcpd_subagent_filter_precision_bucket[$interval])))",
+          "expr": "histogram_quantile(0.95, sum by (provider, model, le) (rate(mcpv_subagent_filter_precision_bucket[$interval])))",
           "legendFormat": "P95 - {{provider}}/{{model}}",
           "refId": "B"
         }
@@ -2336,7 +2336,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "mcpd-default-prometheus"
+        "uid": "mcpv-default-prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -2412,9 +2412,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "mcpd-default-prometheus"
+            "uid": "mcpv-default-prometheus"
           },
-          "expr": "sum by (server_type, profile, caller) (rate(mcpd_route_duration_seconds_count[$interval]))",
+          "expr": "sum by (server_type, profile, caller) (rate(mcpv_route_duration_seconds_count[$interval]))",
           "legendFormat": "{{server_type}}/{{profile}}/{{caller}}",
           "refId": "A"
         }
@@ -2424,7 +2424,9 @@
     }
   ],
   "schemaVersion": 39,
-  "tags": ["mcpd"],
+  "tags": [
+    "mcpv"
+  ],
   "templating": {
     "list": [
       {
@@ -2447,8 +2449,8 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "mcpd Overview",
-  "uid": "mcpd-overview",
+  "title": "mcpv Overview",
+  "uid": "mcpv-overview",
   "version": 4,
   "weekStart": ""
 }

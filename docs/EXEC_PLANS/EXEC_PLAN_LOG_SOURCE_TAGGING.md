@@ -69,7 +69,7 @@ This document must be maintained in accordance with .agent/PLANS.md from the rep
 本次变更的关键输出包括 stderr 镜像测试的 go test 结果。
 
     go test ./internal/infra/transport
-    ok    mcpd/internal/infra/transport  5.608s
+    ok    mcpv/internal/infra/transport  5.608s
 
 ## Interfaces and Dependencies
 

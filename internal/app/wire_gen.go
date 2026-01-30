@@ -8,10 +8,10 @@ package app
 
 import (
 	"context"
-	"mcpd/internal/app/bootstrap"
-	"mcpd/internal/app/catalog"
-	"mcpd/internal/app/controlplane"
-	"mcpd/internal/domain"
+	"mcpv/internal/app/bootstrap"
+	"mcpv/internal/app/catalog"
+	"mcpv/internal/app/controlplane"
+	"mcpv/internal/domain"
 )
 
 // Injectors from wire.go:

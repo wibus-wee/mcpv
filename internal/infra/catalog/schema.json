@@ -1,63 +1,129 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "mcpd catalog",
+  "title": "mcpv catalog",
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "routeTimeoutSeconds": {"type": "integer"},
-    "pingIntervalSeconds": {"type": "integer"},
-    "toolRefreshSeconds": {"type": "integer"},
-    "toolRefreshConcurrency": {"type": "integer"},
-    "clientCheckSeconds": {"type": "integer"},
-    "clientInactiveSeconds": {"type": "integer"},
-    "serverInitRetryBaseSeconds": {"type": "integer"},
-    "serverInitRetryMaxSeconds": {"type": "integer"},
-    "serverInitMaxRetries": {"type": "integer"},
-    "bootstrapMode": {"type": "string"},
-    "bootstrapConcurrency": {"type": "integer"},
-    "bootstrapTimeoutSeconds": {"type": "integer"},
-    "defaultActivationMode": {"type": "string"},
-    "exposeTools": {"type": "boolean"},
-    "toolNamespaceStrategy": {"type": "string"},
-    "observability": {"$ref": "#/$defs/observabilityConfig"},
-    "rpc": {"$ref": "#/$defs/rpcConfig"},
-    "subAgent": {"$ref": "#/$defs/subAgentConfig"},
+    "routeTimeoutSeconds": {
+      "type": "integer"
+    },
+    "pingIntervalSeconds": {
+      "type": "integer"
+    },
+    "toolRefreshSeconds": {
+      "type": "integer"
+    },
+    "toolRefreshConcurrency": {
+      "type": "integer"
+    },
+    "clientCheckSeconds": {
+      "type": "integer"
+    },
+    "clientInactiveSeconds": {
+      "type": "integer"
+    },
+    "serverInitRetryBaseSeconds": {
+      "type": "integer"
+    },
+    "serverInitRetryMaxSeconds": {
+      "type": "integer"
+    },
+    "serverInitMaxRetries": {
+      "type": "integer"
+    },
+    "bootstrapMode": {
+      "type": "string"
+    },
+    "bootstrapConcurrency": {
+      "type": "integer"
+    },
+    "bootstrapTimeoutSeconds": {
+      "type": "integer"
+    },
+    "defaultActivationMode": {
+      "type": "string"
+    },
+    "exposeTools": {
+      "type": "boolean"
+    },
+    "toolNamespaceStrategy": {
+      "type": "string"
+    },
+    "observability": {
+      "$ref": "#/$defs/observabilityConfig"
+    },
+    "rpc": {
+      "$ref": "#/$defs/rpcConfig"
+    },
+    "subAgent": {
+      "$ref": "#/$defs/subAgentConfig"
+    },
     "servers": {
       "type": "array",
-      "items": {"$ref": "#/$defs/serverSpec"}
+      "items": {
+        "$ref": "#/$defs/serverSpec"
+      }
     }
   },
-  "required": ["servers"],
+  "required": [
+    "servers"
+  ],
   "$defs": {
     "rpcConfig": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "listenAddress": {"type": "string"},
-        "maxRecvMsgSize": {"type": "integer"},
-        "maxSendMsgSize": {"type": "integer"},
-        "keepaliveTimeSeconds": {"type": "integer"},
-        "keepaliveTimeoutSeconds": {"type": "integer"},
-        "socketMode": {"type": "string"},
-        "tls": {"$ref": "#/$defs/tlsConfig"}
+        "listenAddress": {
+          "type": "string"
+        },
+        "maxRecvMsgSize": {
+          "type": "integer"
+        },
+        "maxSendMsgSize": {
+          "type": "integer"
+        },
+        "keepaliveTimeSeconds": {
+          "type": "integer"
+        },
+        "keepaliveTimeoutSeconds": {
+          "type": "integer"
+        },
+        "socketMode": {
+          "type": "string"
+        },
+        "tls": {
+          "$ref": "#/$defs/tlsConfig"
+        }
       }
     },
     "observabilityConfig": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "listenAddress": {"type": "string"}
+        "listenAddress": {
+          "type": "string"
+        }
       }
     },
     "tlsConfig": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "enabled": {"type": "boolean"},
-        "certFile": {"type": "string"},
-        "keyFile": {"type": "string"},
-        "caFile": {"type": "string"},
-        "clientAuth": {"type": "boolean"}
+        "enabled": {
+          "type": "boolean"
+        },
+        "certFile": {
+          "type": "string"
+        },
+        "keyFile": {
+          "type": "string"
+        },
+        "caFile": {
+          "type": "string"
+        },
+        "clientAuth": {
+          "type": "boolean"
+        }
       }
     },
     "subAgentConfig": {
@@ -67,68 +133,129 @@
       "properties": {
         "enabledTags": {
           "type": "array",
-          "items": {"type": "string"}
+          "items": {
+            "type": "string"
+          }
         },
-        "model": {"type": "string"},
-        "provider": {"type": "string"},
-        "apiKey": {"type": "string"},
-        "apiKeyEnvVar": {"type": "string"},
-        "baseURL": {"type": "string"},
-        "maxToolsPerRequest": {"type": "integer"},
-        "filterPrompt": {"type": "string"}
+        "model": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "apiKey": {
+          "type": "string"
+        },
+        "apiKeyEnvVar": {
+          "type": "string"
+        },
+        "baseURL": {
+          "type": "string"
+        },
+        "maxToolsPerRequest": {
+          "type": "integer"
+        },
+        "filterPrompt": {
+          "type": "string"
+        }
       }
     },
     "serverSpec": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "name": {"type": "string"},
+        "name": {
+          "type": "string"
+        },
         "transport": {
           "type": "string",
-          "enum": ["stdio", "streamable_http", "streamable-http"]
+          "enum": [
+            "stdio",
+            "streamable_http",
+            "streamable-http"
+          ]
         },
         "cmd": {
           "type": "array",
-          "items": {"type": "string"}
+          "items": {
+            "type": "string"
+          }
         },
         "env": {
           "type": "object",
-          "additionalProperties": {"type": "string"}
+          "additionalProperties": {
+            "type": "string"
+          }
         },
-        "cwd": {"type": "string"},
+        "cwd": {
+          "type": "string"
+        },
         "tags": {
           "type": "array",
-          "items": {"type": "string"}
+          "items": {
+            "type": "string"
+          }
         },
-        "idleSeconds": {"type": "integer"},
-        "maxConcurrent": {"type": "integer"},
+        "idleSeconds": {
+          "type": "integer"
+        },
+        "maxConcurrent": {
+          "type": "integer"
+        },
         "strategy": {
           "type": "string",
-          "enum": ["stateless", "stateful", "persistent", "singleton"]
+          "enum": [
+            "stateless",
+            "stateful",
+            "persistent",
+            "singleton"
+          ]
         },
-        "sessionTTLSeconds": {"type": "integer"},
-        "disabled": {"type": "boolean"},
-        "minReady": {"type": "integer"},
-        "activationMode": {"type": "string"},
-        "drainTimeoutSeconds": {"type": "integer"},
-        "protocolVersion": {"type": "string"},
+        "sessionTTLSeconds": {
+          "type": "integer"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "minReady": {
+          "type": "integer"
+        },
+        "activationMode": {
+          "type": "string"
+        },
+        "drainTimeoutSeconds": {
+          "type": "integer"
+        },
+        "protocolVersion": {
+          "type": "string"
+        },
         "exposeTools": {
           "type": "array",
-          "items": {"type": "string"}
+          "items": {
+            "type": "string"
+          }
         },
-        "http": {"$ref": "#/$defs/streamableHttpConfig"}
+        "http": {
+          "$ref": "#/$defs/streamableHttpConfig"
+        }
       }
     },
     "streamableHttpConfig": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "endpoint": {"type": "string"},
+        "endpoint": {
+          "type": "string"
+        },
         "headers": {
           "type": "object",
-          "additionalProperties": {"type": "string"}
+          "additionalProperties": {
+            "type": "string"
+          }
         },
-        "maxRetries": {"type": "integer"}
+        "maxRetries": {
+          "type": "integer"
+        }
       }
     }
   }

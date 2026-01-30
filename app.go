@@ -9,9 +9,9 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"mcpd/internal/app"
-	"mcpd/internal/infra/telemetry"
-	"mcpd/internal/ui"
+	"mcpv/internal/app"
+	"mcpv/internal/infra/telemetry"
+	"mcpv/internal/ui"
 )
 
 func main() {
@@ -34,7 +34,7 @@ func main() {
 	serviceRegistry.SetManager(manager)
 
 	wailsApp := application.New(application.Options{
-		Name:        "MCPD",
+		Name:        "mcpv",
 		Description: "MCP Server Manager",
 		Services:    serviceRegistry.Services(),
 		Assets: application.AssetOptions{
@@ -54,7 +54,7 @@ func main() {
 	manager.SetWailsApp(wailsApp)
 
 	window := wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:            "mcpd",
+		Title:            "mcpv",
 		Width:            1200,
 		Height:           800,
 		BackgroundColour: application.NewRGB(255, 255, 255),
@@ -83,7 +83,7 @@ func main() {
 		}
 	})
 
-	uiLogger.Info("starting MCPD Wails application")
+	uiLogger.Info("starting mcpv Wails application")
 	if err := wailsApp.Run(); err != nil {
 		logger.Error("wails run failed", zap.Error(err))
 		return

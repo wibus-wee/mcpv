@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 const defaultListChangeBuffer = 4

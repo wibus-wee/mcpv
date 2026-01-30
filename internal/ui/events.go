@@ -6,7 +6,7 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 // Event name constants for Wails event emission.

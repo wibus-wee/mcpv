@@ -10,8 +10,8 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
-	"mcpd/internal/app"
-	"mcpd/internal/app/controlplane"
+	"mcpv/internal/app"
+	"mcpv/internal/app/controlplane"
 )
 
 // CoreState represents the lifecycle state of the Core.

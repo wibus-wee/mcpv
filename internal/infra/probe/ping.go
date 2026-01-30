@@ -10,7 +10,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 
-	"mcpd/internal/domain"
+	"mcpv/internal/domain"
 )
 
 var pingIDSeq atomic.Uint64

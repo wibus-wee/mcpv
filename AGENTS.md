@@ -12,13 +12,13 @@ if there is AGENTS.md/CLAUDE.md in subdirectories, please also follow the guidel
 
 ## Project Overview
 
-**mcpd** is an elastic control plane and runtime for Model Context Protocol (MCP) servers. It provides on-demand startup, scale-to-zero hibernation, unified routing, and intelligent tool filtering for managing multiple MCP servers locally.
+**mcpv** is an elastic control plane and runtime for Model Context Protocol (MCP) servers. It provides on-demand startup, scale-to-zero hibernation, unified routing, and intelligent tool filtering for managing multiple MCP servers locally.
 
 **Key Capabilities**:
 - Elastic runtime with automatic instance lifecycle management
-- Unified gateway (`mcpdmcp`) providing single entry point for all MCP servers
+- Unified gateway (`mcpvmcp`) providing single entry point for all MCP servers
 - Smart SubAgent powered by CloudWeGo/Eino for context-aware tool filtering
-- GUI support (`mcpdui`) built with Wails 3 for configuration and monitoring
+- GUI support (`mcpvui`) built with Wails 3 for configuration and monitoring
 - Profile-based configuration with tag-based visibility
 - Native observability with Prometheus metrics and Grafana dashboards
 
@@ -26,9 +26,9 @@ if there is AGENTS.md/CLAUDE.md in subdirectories, please also follow the guidel
 
 Three-layer architecture for maximum decoupling:
 
-1. **Core (`mcpd`)**: Central control plane managing instance lifecycles, scheduling, and aggregation
-2. **Gateway (`mcpdmcp`)**: Protocol bridge acting as standard MCP server for AI clients
-3. **App (`mcpdui`)**: Wails-driven GUI for configuration, monitoring, and core lifecycle hosting
+1. **Core (`mcpv`)**: Central control plane managing instance lifecycles, scheduling, and aggregation
+2. **Gateway (`mcpvmcp`)**: Protocol bridge acting as standard MCP server for AI clients
+3. **App (`mcpvui`)**: Wails-driven GUI for configuration, monitoring, and core lifecycle hosting
 
 **Internal Structure**:
 - `internal/domain/`: Domain models and interfaces (ServerSpec, Instance, Transport, Scheduler, Router, etc.)
@@ -87,15 +87,15 @@ make tools
 
 ```bash
 # Start core control plane (reads config from current directory)
-go run ./cmd/mcpd serve --config .
+go run ./cmd/mcpv serve --config .
 
 # Start gateway (connects to core via RPC)
-go run ./cmd/mcpdmcp --server weather
+go run ./cmd/mcpvmcp --server weather
 # Or with tags
-go run ./cmd/mcpdmcp --tag chat
+go run ./cmd/mcpvmcp --tag chat
 
 # Validate configuration without running
-go run ./cmd/mcpd validate --config .
+go run ./cmd/mcpv validate --config .
 ```
 
 ### Docker Compose Development
@@ -324,7 +324,7 @@ The aggregator maintains a unified index across all active instances:
 **stdio** (most common):
 - Launches subprocess and communicates via stdin/stdout
 - Suitable for Node.js, Python, and other scripting languages
-- Process lifecycle managed by mcpd
+- Process lifecycle managed by mcpv
 
 **streamable_http**:
 - Connects to HTTP endpoint with Server-Sent Events (SSE) streaming
@@ -365,7 +365,7 @@ The aggregator maintains a unified index across all active instances:
 
 ### Gateway Behavior
 
-The `mcpdmcp` gateway:
+The `mcpvmcp` gateway:
 - Registers with core on startup via gRPC
 - Maintains persistent connection to core
 - Translates MCP JSON-RPC to core's internal protocol
@@ -485,7 +485,7 @@ go test -run TestSchedulerBasic ./internal/infra/scheduler
 
 ### Adding a New RPC Method
 
-1. Define protobuf message and service in `proto/mcpd/control/v1/control.proto`
+1. Define protobuf message and service in `proto/mcpv/control/v1/control.proto`
 2. Run `make proto` to generate Go code
 3. Implement handler in `internal/app/control_plane_api.go`
 4. Add client method in `internal/infra/gateway/gateway.go`
@@ -495,7 +495,7 @@ go test -run TestSchedulerBasic ./internal/infra/scheduler
 1. Update domain types in `internal/domain/types.go`
 2. Update validation in `internal/app/validate.go`
 3. Update example in `docs/catalog.example.yaml`
-4. Run `go run ./cmd/mcpd validate` to test
+4. Run `go run ./cmd/mcpv validate` to test
 
 ### Adding Metrics
 

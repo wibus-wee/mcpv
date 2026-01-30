@@ -9,8 +9,8 @@ import type {
   CoreStateResponse,
   ServerInitStatus,
   ServerRuntimeStatus,
-} from '@bindings/mcpd/internal/ui'
-import { LogService } from '@bindings/mcpd/internal/ui'
+} from '@bindings/mcpv/internal/ui'
+import { LogService } from '@bindings/mcpv/internal/ui'
 import { useRouter } from '@tanstack/react-router'
 import { Events } from '@wailsio/runtime'
 import { Provider, useAtomValue } from 'jotai'

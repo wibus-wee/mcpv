@@ -6,7 +6,7 @@ This plan must be maintained in accordance with `.agent/PLANS.md` in the reposit
 
 ## Purpose / Big Picture
 
-After this change, the MCPD UI can create and update server definitions directly from the Servers page. The backend exposes `CreateServer` and `UpdateServer` APIs that validate and normalize incoming server specs, write them to the single config file, and surface consistent errors. The frontend edit sheet calls these APIs and relies on backend validation, showing a toaster on failure. You can verify success by adding a server in the UI, reloading config, and seeing the server appear in the list.
+After this change, the mcpv UI can create and update server definitions directly from the Servers page. The backend exposes `CreateServer` and `UpdateServer` APIs that validate and normalize incoming server specs, write them to the single config file, and surface consistent errors. The frontend edit sheet calls these APIs and relies on backend validation, showing a toaster on failure. You can verify success by adding a server in the UI, reloading config, and seeing the server appear in the list.
 
 ## Progress
 
@@ -43,7 +43,7 @@ Key files:
 - `internal/ui/types.go`: Wails-exposed request/response types.
 - `internal/ui/server_service.go`: Wails service for server CRUD.
 - `frontend/src/modules/servers/components/server-edit-sheet.tsx`: UI sheet for add/edit.
-- `frontend/bindings/mcpd/internal/ui/*`: generated bindings used by the frontend.
+- `frontend/bindings/mcpv/internal/ui/*`: generated bindings used by the frontend.
 
 ## Plan of Work
 
@@ -51,7 +51,7 @@ First, add Create/Update capability in the catalog editor. Extend `internal/infr
 
 Second, expose the new APIs to the UI layer. Add `CreateServerRequest` and `UpdateServerRequest` in `internal/ui/types.go`, and implement `CreateServer` / `UpdateServer` in `internal/ui/server_service.go` using a new mapping helper that converts `ServerSpecDetail` into `domain.ServerSpec`. Ensure errors map through `mapCatalogError`.
 
-Third, regenerate Wails bindings (or update generated TS if the generator is unavailable). Add the new methods to `frontend/bindings/mcpd/internal/ui/serverservice.ts` and new request types in `frontend/bindings/mcpd/internal/ui/models.ts` so the frontend can call the APIs.
+Third, regenerate Wails bindings (or update generated TS if the generator is unavailable). Add the new methods to `frontend/bindings/mcpv/internal/ui/serverservice.ts` and new request types in `frontend/bindings/mcpv/internal/ui/models.ts` so the frontend can call the APIs.
 
 Fourth, wire the frontend edit sheet. In `frontend/src/modules/servers/components/server-edit-sheet.tsx`, remove local validation and call `ServerService.CreateServer` or `ServerService.UpdateServer` depending on edit mode. Build a full server spec for update by taking the existing server detail and overriding the edited fields. For create, fill required fields from the form and rely on backend defaults for non-exposed fields. On success, call `ReloadConfig` and trigger `onSaved`; on error, show a toaster and return.
 
@@ -59,7 +59,7 @@ Finally, add or extend tests in `internal/infra/catalog/profile_editor_test.go` 
 
 ## Concrete Steps
 
-From the repository root (`/Users/wibus/dev/mcpd`):
+From the repository root (`/Users/wibus/dev/mcpv`):
 
 1) Edit `internal/infra/catalog/profile_editor.go` and `internal/infra/catalog/editor.go` to add create/update logic.
 2) Edit `internal/ui/types.go`, `internal/ui/mapping.go`, and `internal/ui/server_service.go` to expose the new APIs.
