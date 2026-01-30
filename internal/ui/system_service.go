@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"go.uber.org/zap"
+
+	"mcpd/internal/app"
 )
 
 // SystemService exposes system-level utility APIs.
@@ -65,7 +67,7 @@ func (s *SystemService) emitNavigationEvent(action string, query url.Values) {
 
 // GetVersion returns app version.
 func (s *SystemService) GetVersion() string {
-	return "0.1.0" // TODO: read from core or build metadata.
+	return app.Version
 }
 
 // Ping responds with pong.
