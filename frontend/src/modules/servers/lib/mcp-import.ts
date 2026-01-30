@@ -20,6 +20,7 @@ type McpServerEntry = {
   env?: unknown
   cwd?: unknown
   transport?: unknown
+  type?: unknown
   endpoint?: unknown
   url?: unknown
   headers?: unknown
@@ -69,7 +70,7 @@ export function parseMcpServersJson(input: string): ParseResult {
     }
 
     const entry = raw as McpServerEntry
-    const transport = parseTransport(entry.transport, prefix, errors)
+    const transport = parseTransport(entry.transport ?? entry.type, prefix, errors)
     if (!transport) {
       return
     }
@@ -152,7 +153,7 @@ function parseTransport(
   if (normalized === 'stdio') {
     return 'stdio'
   }
-  if (normalized === 'streamable_http' || normalized === 'streamable-http') {
+  if (normalized === 'streamable_http' || normalized === 'streamable-http' || normalized === 'streamablehttp') {
     return 'streamable_http'
   }
   errors.push(`${prefix}: transport must be stdio or streamable_http.`)

@@ -22,17 +22,20 @@ const nodeDimensions = {
   instance: { width: 160, height: 70 },
 }
 
-// ELK layout options
-const elkOptions = {
+const elk = new ELK()
+
+const scaleSpacing = (base: number, scale: number, min: number) =>
+  Math.max(min, Math.round(base * scale)).toString()
+
+const getLayoutOptions = (scale: number) => ({
   'elk.algorithm': 'layered',
   'elk.direction': 'RIGHT',
-  'elk.spacing.nodeNode': '40',
-  'elk.layered.spacing.nodeNodeBetweenLayers': '100',
-  'elk.spacing.edgeNode': '20',
-  'elk.padding': '[top=50,left=50,bottom=50,right=50]',
-}
-
-const elk = new ELK()
+  'elk.layered.considerModelOrder': 'true',
+  'elk.spacing.nodeNode': scaleSpacing(48, scale, 28),
+  'elk.layered.spacing.nodeNodeBetweenLayers': scaleSpacing(140, scale, 80),
+  'elk.spacing.edgeNode': scaleSpacing(26, scale, 16),
+  'elk.padding': '[top=40,left=40,bottom=40,right=40]',
+})
 
 type ServerEntry = {
   specKey: string
@@ -128,6 +131,18 @@ export const buildTopology = async (
   const nodeDataMap = new Map<string, FlowNode['data'] & { type: FlowNode['type'] }>()
   const edgeList: Edge[] = []
 
+  const totalNodeEstimate = activeClients.length
+    + allTags.length
+    + serverEntries.size
+    + runtimeStatus.reduce((sum, status) => sum + status.instances.length, 0)
+
+  const densityScale
+    = totalNodeEstimate > 140
+      ? 0.65
+      : totalNodeEstimate > 90
+        ? 0.8
+        : 1
+
   // Add tag nodes
   allTags.forEach((tag) => {
     const serverCount = Array.from(serverEntries.values()).filter(entry =>
@@ -155,8 +170,23 @@ export const buildTopology = async (
   })
 
   // Add client nodes and edges
-  activeClients.forEach((client) => {
-    const resolved = resolveClientTags(client)
+  const orderedClients = activeClients
+    .map((client) => {
+      const resolved = resolveClientTags(client)
+      const sortKey = resolved.mode === 'server'
+        ? `server:${resolved.serverSpecKey}`
+        : `tag:${resolved.tags.slice().sort((a, b) => a.localeCompare(b)).join(',')}`
+      return { client, resolved, sortKey }
+    })
+    .sort((a, b) => {
+      const keyCompare = a.sortKey.localeCompare(b.sortKey)
+      if (keyCompare !== 0) return keyCompare
+      const nameCompare = a.client.client.localeCompare(b.client.client)
+      if (nameCompare !== 0) return nameCompare
+      return (a.client.pid ?? 0) - (b.client.pid ?? 0)
+    })
+
+  orderedClients.forEach(({ client, resolved }) => {
     const clientId = `client:${client.client}:${client.pid}`
 
     elkNodes.push({
@@ -227,7 +257,9 @@ export const buildTopology = async (
   })
 
   // Add server nodes and edges
-  serverEntries.forEach((entry) => {
+  Array.from(serverEntries.values())
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .forEach((entry) => {
     const serverId = `server:${entry.specKey}`
 
     elkNodes.push({
@@ -266,7 +298,7 @@ export const buildTopology = async (
         },
       })
     })
-  })
+    })
 
   // Add instance nodes and edges
   let instanceCount = 0
@@ -274,13 +306,19 @@ export const buildTopology = async (
     runtimeStatus.map(status => [status.specKey, status]),
   )
 
-  for (const [serverKey, serverStatus] of runtimeStatusBySpecKey.entries()) {
+  const orderedRuntimeStatus = Array.from(runtimeStatusBySpecKey.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+
+  for (const [serverKey, serverStatus] of orderedRuntimeStatus) {
     const serverId = `server:${serverKey}`
     const serverExists = elkNodes.some(n => n.id === serverId)
     if (!serverExists) continue
 
     const { instances } = serverStatus
-    instances.forEach((instance) => {
+    instances
+      .slice()
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .forEach((instance) => {
       instanceCount++
       const nodeId = `instance:${serverKey}:${instance.id}`
 
@@ -322,7 +360,7 @@ export const buildTopology = async (
   // Run ELK layout
   const graph = {
     id: 'root',
-    layoutOptions: elkOptions,
+    layoutOptions: getLayoutOptions(densityScale),
     children: elkNodes,
     edges: elkEdges,
   }
@@ -337,7 +375,6 @@ export const buildTopology = async (
 
     const { type, ...rest } = data
 
-    // ELK returns top-left positions, which matches React Flow
     nodes.push({
       id: node.id,
       type: type as FlowNode['type'],

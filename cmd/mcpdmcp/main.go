@@ -170,9 +170,9 @@ func applyGatewayFlagBindings(flags *pflag.FlagSet, opts *gatewayOptions) {
 func deriveCallerName(server string, tags []string) string {
 	base := "mcpdmcp"
 	if server != "" {
-		base = "server-" + server
+		base = server
 	} else if len(tags) > 0 {
-		base = "tag-" + strings.Join(tags, "+")
+		base = strings.Join(tags, "+")
 	}
 	pid := os.Getpid()
 	if pid > 0 {
