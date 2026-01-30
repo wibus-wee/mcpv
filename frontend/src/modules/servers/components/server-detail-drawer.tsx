@@ -31,7 +31,7 @@ import { toastManager } from '@/components/ui/toast'
 import { Spring } from '@/lib/spring'
 
 import type { ServerTab } from '../constants'
-import { useServer, useServerOperation, useServers, useToolsByServer } from '../hooks'
+import { useServer, useServerOperation, useServers } from '../hooks'
 import { ServerConfigPanel } from './server-config-panel'
 import { ServerOverviewPanel } from './server-overview-panel'
 import { ServerRuntimeIndicator } from './server-runtime-status'
@@ -70,11 +70,11 @@ export function ServerDetailDrawer({
 }: ServerDetailDrawerProps) {
   const { data: server, isLoading, mutate: mutateServer } = useServer(serverName)
   const { mutate: mutateServers } = useServers()
-  const { serverMap } = useToolsByServer()
+  // const { serverMap } = useToolsByServer()
   const [tab, setTab] = useState<ServerTab>('overview')
   const [deleteOpen, setDeleteOpen] = useState(false)
 
-  const toolCount = server ? (serverMap.get(server.specKey)?.tools?.length ?? 0) : 0
+  // const toolCount = server ? (serverMap.get(server.specKey)?.tools?.length ?? 0) : 0
 
   const { isWorking, deleteServer } = useServerOperation(
     true, // canEdit

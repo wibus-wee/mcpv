@@ -80,10 +80,10 @@ export const ImportMcpServersSheet = () => {
   const isWritable = configMode?.isWritable ?? false
   const canApply
     = isWritable
-    && parseErrors.length === 0
-    && servers.length > 0
-    && issues.length === 0
-    && !isApplying
+      && parseErrors.length === 0
+      && servers.length > 0
+      && issues.length === 0
+      && !isApplying
 
   const handleParse = () => {
     const result = parseMcpServersJson(rawInput)

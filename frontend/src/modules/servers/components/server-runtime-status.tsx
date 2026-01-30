@@ -117,12 +117,12 @@ export function ServerRuntimeDetails({
   const showInitBadge = Boolean(initStatus) && !showInitDetails
   const stateCount
     = stats.ready
-    + stats.busy
-    + stats.starting
-    + stats.initializing
-    + stats.handshaking
-    + stats.draining
-    + stats.failed
+      + stats.busy
+      + stats.starting
+      + stats.initializing
+      + stats.handshaking
+      + stats.draining
+      + stats.failed
 
   return (
     <div className={cn('space-y-3', className)}>
