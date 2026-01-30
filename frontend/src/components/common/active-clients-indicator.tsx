@@ -4,6 +4,7 @@
 
 import { MousePointer2Icon } from 'lucide-react'
 
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { useActiveClients } from '@/hooks/use-active-clients'
 import { cn } from '@/lib/utils'
 
@@ -15,9 +16,9 @@ export const ActiveClientsIndicator = ({ className }: { className?: string }) =>
   const hasActive = entries.length > 0
   const visibleClients = entries.slice(0, maxVisibleClients)
   const extraCount = Math.max(entries.length - visibleClients.length, 0)
-  const title = hasActive
-    ? entries.map(entry => `${entry.client} (PID: ${entry.pid})`).join(', ')
-    : 'No active clients'
+  // const title = hasActive
+  //   ? entries.map(entry => `${entry.client} (PID: ${entry.pid})`).join(', ')
+  //   : 'No active clients'
 
   return (
     <div
@@ -25,7 +26,6 @@ export const ActiveClientsIndicator = ({ className }: { className?: string }) =>
         'flex items-center gap-2 rounded-full border border-border/60 bg-muted/30 px-2.5 py-1 text-xs',
         className,
       )}
-      title={title}
     >
       <span
         className={cn(
@@ -47,9 +47,27 @@ export const ActiveClientsIndicator = ({ className }: { className?: string }) =>
             </span>
           ))}
           {extraCount > 0 && (
-            <span className="rounded-full bg-background/70 px-2 py-0.5 text-[0.7rem] text-muted-foreground">
-              +{extraCount}
-            </span>
+            <Tooltip>
+              <TooltipTrigger>
+                <span className="rounded-full bg-background/70 px-2 py-0.5 text-[0.7rem] text-muted-foreground">
+                  +{extraCount}
+                </span>
+              </TooltipTrigger>
+              <TooltipPopup>
+                <div className="space-y-1">
+                  {entries.slice(maxVisibleClients).map(entry => (
+                    <div key={`${entry.client}:${entry.pid}`} className="flex items-center gap-1 text-xs">
+                      <MousePointer2Icon className="size-3 text-info" />
+                      {entry.client}
+                      {' '}
+                      (PID:
+                      {entry.pid}
+                      )
+                    </div>
+                  ))}
+                </div>
+              </TooltipPopup>
+            </Tooltip>
           )}
         </div>
       ) : (

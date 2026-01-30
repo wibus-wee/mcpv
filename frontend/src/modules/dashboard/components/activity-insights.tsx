@@ -18,6 +18,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Spring } from '@/lib/spring'
 import { getToolDisplayName, getToolQualifiedName } from '@/lib/tool-names'
 
+import { useRuntimeStatus } from '../../servers/hooks'
 import { useTools } from '../hooks'
 import { AnimatedNumber, Sparkline } from './sparkline'
 
@@ -155,6 +156,9 @@ function InsightCard({
 
 export function ActivityInsights() {
   const { tools, isLoading: toolsLoading } = useTools()
+  const { data: runtimeStatus, isLoading: runtimeLoading } = useRuntimeStatus()
+
+  const isLoading = toolsLoading || runtimeLoading
 
   const toolsWithUsage = useMemo((): ToolWithUsage[] => {
     return tools.slice(0, 8).map((tool) => {
@@ -193,10 +197,53 @@ export function ActivityInsights() {
     return Math.max(...toolsWithUsage.map(t => t.callCount), 1)
   }, [toolsWithUsage])
 
-  const mockSparkData = useMemo(() =>
-    Array.from({ length: 12 }, () => Math.random() * 100), [])
+  // Calculate actual metrics from runtime status
+  const metrics = useMemo(() => {
+    if (!runtimeStatus || runtimeStatus.length === 0) {
+      return {
+        totalCalls: 0,
+        avgLatency: 0,
+        throughput: 0,
+        sparkData: [],
+      }
+    }
 
-  if (toolsLoading) {
+    const allMetrics = runtimeStatus.map(s => s.metrics)
+    const totalCalls = allMetrics.reduce((sum, m) => sum + m.totalCalls, 0)
+    const totalDuration = allMetrics.reduce((sum, m) => sum + m.totalDurationMs, 0)
+    const avgLatency = totalCalls > 0 ? totalDuration / totalCalls : 0
+
+    // Calculate throughput (calls per minute) - using last call time as approximation
+    const now = Date.now()
+    const recentCalls = allMetrics.filter((m) => {
+      if (!m.lastCallAt) return false
+      const lastCallTime = new Date(m.lastCallAt).getTime()
+      return (now - lastCallTime) < 60000 // within last minute
+    })
+    const throughput = recentCalls.reduce((sum, m) => sum + m.totalCalls, 0)
+
+    // Generate sparkline data from recent activity (simplified)
+    const sparkData = Array.from({ length: 12 }, (_, i) => {
+      const timeOffset = i * 5 * 60 * 1000 // 5 minutes intervals
+      const windowStart = now - timeOffset - 5 * 60 * 1000
+      const windowEnd = now - timeOffset
+      const callsInWindow = allMetrics.reduce((sum, m) => {
+        if (!m.lastCallAt) return sum
+        const callTime = new Date(m.lastCallAt).getTime()
+        return callTime >= windowStart && callTime < windowEnd ? sum + m.totalCalls : sum
+      }, 0)
+      return callsInWindow
+    }).reverse()
+
+    return {
+      totalCalls,
+      avgLatency,
+      throughput,
+      sparkData,
+    }
+  }, [runtimeStatus])
+
+  if (isLoading) {
     return (
       <Card>
         <CardHeader className="pb-3">
@@ -234,19 +281,19 @@ export function ActivityInsights() {
             title="Tools Available"
             value={tools.length}
             icon={WrenchIcon}
-            sparkData={mockSparkData}
+            sparkData={metrics.sparkData}
             delay={0}
           />
           <InsightCard
             title="Throughput"
-            value="—"
+            value={metrics.throughput}
             subtitle="calls/min"
             icon={TrendingUpIcon}
             delay={0.05}
           />
           <InsightCard
             title="Latency p50"
-            value="—"
+            value={Math.round(metrics.avgLatency)}
             subtitle="ms"
             icon={ZapIcon}
             delay={0.1}

@@ -225,16 +225,14 @@ export function StackedBar({ segments, height = 8, className }: StackedBarProps)
       className={cn('flex w-full overflow-hidden rounded-full', className)}
       style={{ height }}
     >
-      {segments.map((segment, i) => {
+      {segments.map((segment) => {
         const width = (segment.value / total) * 100
         if (width === 0) return null
         return (
-          <m.div
+          <div
             key={segment.label}
             className={segment.color}
-            initial={{ width: 0 }}
-            animate={{ width: `${width}%` }}
-            transition={{ duration: 0.5, delay: i * 0.05 }}
+            style={{ width: `${width}%`, height }}
             title={`${segment.label}: ${segment.value}`}
           />
         )

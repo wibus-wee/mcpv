@@ -9,6 +9,7 @@ import {
 import { m } from 'motion/react'
 import { useMemo } from 'react'
 
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -18,26 +19,15 @@ import { useActiveClients } from '@/hooks/use-active-clients'
 import { Spring } from '@/lib/spring'
 import { formatRelativeTime, getElapsedMs } from '@/lib/time'
 
-function generateColor(str: string): string {
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    hash = (str.codePointAt(i) ?? 0) + ((hash << 5) - hash)
-  }
-  const hue = Math.abs(hash % 360)
-  return `hsl(${hue}, 65%, 55%)`
-}
-
 function ClientAvatar({ name }: { name: string }) {
-  const color = generateColor(name)
   const initial = name.charAt(0).toUpperCase()
 
   return (
-    <div
-      className="flex size-8 items-center justify-center rounded-full text-xs font-medium text-white"
-      style={{ backgroundColor: color }}
+    <Avatar
+      className="flex size-8 items-center justify-center rounded-full text-xs font-medium"
     >
-      {initial}
-    </div>
+      <AvatarFallback>{initial}</AvatarFallback>
+    </Avatar>
   )
 }
 
@@ -145,7 +135,7 @@ export function ActiveClientsPanel() {
             <p className="text-sm text-muted-foreground">No active clients</p>
           </m.div>
         ) : (
-          <ScrollArea className="h-48">
+          <ScrollArea className="h-48" scrollFade>
             <div className="space-y-1">
               {activeClients.map((client, i) => (
                 <ClientRow
