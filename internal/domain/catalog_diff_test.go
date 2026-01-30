@@ -41,6 +41,33 @@ func TestDiffCatalogStates_SpecChanges(t *testing.T) {
 	require.Contains(t, diff.AddedSpecKeys, newKeyA)
 	require.Contains(t, diff.ReplacedSpecKeys, oldKeyA)
 	require.Contains(t, diff.UpdatedSpecKeys, keyB)
+	require.Contains(t, diff.RestartRequiredSpecKeys, keyB)
+	require.Empty(t, diff.ToolsOnlySpecKeys)
 	require.False(t, diff.TagsChanged)
 	require.False(t, diff.RuntimeChanged)
+}
+
+func TestClassifySpecDiff(t *testing.T) {
+	base := ServerSpec{
+		Name:        "svc",
+		Cmd:         []string{"echo", "ok"},
+		Tags:        []string{"chat"},
+		ExposeTools: []string{"calc"},
+	}
+
+	onlyTags := base
+	onlyTags.Tags = []string{"chat", "ops"}
+	require.Equal(t, SpecDiffToolsOnly, ClassifySpecDiff(base, onlyTags))
+
+	onlyExpose := base
+	onlyExpose.ExposeTools = []string{"calc", "convert"}
+	require.Equal(t, SpecDiffToolsOnly, ClassifySpecDiff(base, onlyExpose))
+
+	onlyName := base
+	onlyName.Name = "svc-renamed"
+	require.Equal(t, SpecDiffToolsOnly, ClassifySpecDiff(base, onlyName))
+
+	cmdChanged := base
+	cmdChanged.Cmd = []string{"echo", "v2"}
+	require.Equal(t, SpecDiffRestartRequired, ClassifySpecDiff(base, cmdChanged))
 }

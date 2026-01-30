@@ -8,7 +8,7 @@ vars:
   # SIGN_IDENTITY: "Developer ID Application: Your Company (TEAMID)"
   # KEYCHAIN_PROFILE: "my-notarize-profile"
   # ENTITLEMENTS: "build/darwin/entitlements.plist"
-  CLI_NAME: '{{.CLI_NAME | default "mcpdmcp"}}'
+  CLI_NAME: '{{.CLI_NAME | default "mcpvmcp"}}'
 
   # Docker image for cross-compilation (used when building on non-macOS)
   CROSS_IMAGE: wails-cross
@@ -17,7 +17,7 @@ vars:
   VERSION: '{{.VERSION | default "dev"}}'
   BUILD:
     sh: git log -n 1 --format=%h
-  VERSION_LDFLAGS: '-X mcpd/internal/app.Version={{.VERSION}} -X mcpd/internal/app.Build={{.BUILD}}'
+  VERSION_LDFLAGS: '-X mcpv/internal/app.Version={{.VERSION}} -X mcpv/internal/app.Build={{.BUILD}}'
 
 tasks:
   build:

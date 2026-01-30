@@ -1,7 +1,7 @@
 version: '3'
 
 vars:
-  CLI_NAME: '{{.CLI_NAME | default "mcpdmcp"}}'
+  CLI_NAME: '{{.CLI_NAME | default "mcpvmcp"}}'
   BIN_DIR: '{{.BIN_DIR | default "bin"}}'
 
 tasks:
@@ -10,7 +10,7 @@ tasks:
     deps:
       - task: go:mod:tidy
     cmds:
-      - go build {{.BUILD_FLAGS}} -o {{.OUTPUT}} ./cmd/mcpdmcp
+      - go build {{.BUILD_FLAGS}} -o {{.OUTPUT}} ./cmd/mcpvmcp
     vars:
       BUILD_FLAGS: '-trimpath -buildvcs=false {{if .LDFLAGS}}-ldflags="{{.LDFLAGS}}"{{end}}'
       OUTPUT: '{{.OUTPUT | default (printf "%s/%s%s" .BIN_DIR .CLI_NAME .CLI_EXT)}}'

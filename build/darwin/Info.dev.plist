@@ -4,15 +4,15 @@
         <key>CFBundlePackageType</key>
             <string>APPL</string>
         <key>CFBundleName</key>
-            <string>MCPD UI</string>
+            <string>MCPV UI</string>
         <key>CFBundleExecutable</key>
-            <string>mcpdui</string>
+            <string>mcpvui</string>
         <key>CFBundleIdentifier</key>
-            <string>dev.wibus.mcpdui</string>
+            <string>dev.wibus.mcpvui</string>
         <key>CFBundleVersion</key>
             <string>0.1.0</string>
         <key>CFBundleGetInfoString</key>
-            <string>mcpd gui</string>
+            <string>mcpv gui</string>
         <key>CFBundleShortVersionString</key>
             <string>0.1.0</string>
         <key>CFBundleIconFile</key>
@@ -27,10 +27,10 @@
         <array>
             <dict>
                 <key>CFBundleURLName</key>
-                <string>mcpd application protocol</string>
+                <string>mcpv application protocol</string>
                 <key>CFBundleURLSchemes</key>
                 <array>
-                    <string>mcpdev</string>
+                    <string>mcpvev</string>
                 </array>
                 <key>CFBundleTypeRole</key>
                 <string>Editor</string>

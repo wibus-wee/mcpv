@@ -129,8 +129,8 @@ export function ConnectIdeSheet() {
   const tagOptions = useMemo(() => {
     const set = new Set<string>()
       ; (servers ?? []).forEach((server) => {
-        server.tags?.forEach(tag => set.add(tag))
-      })
+      server.tags?.forEach(tag => set.add(tag))
+    })
     return Array.from(set).sort((a, b) => a.localeCompare(b))
   }, [servers])
 

@@ -52,6 +52,16 @@ We believe the control plane should be transparent.
 - **Dashboard**: After running `make dev`, visit `http://localhost:4000` for a Grafana dashboard visualizing success rates and cold-start latency.
 - **Health**: Check internal loop status at `http://localhost:9090/healthz`.
 
+## 🔄 Hot Reload Behavior
+
+When the config file changes, mcpv classifies updates and applies the smallest safe action:
+
+- **Runtime-only**: Changes only to runtime settings (timeouts, refresh intervals, etc.) update the in-memory runtime configuration without restarting instances.
+- **Tools-only**: Changes only to tool visibility fields (`name`, `tags`, `exposeTools`) refresh tool/resource/prompt indexes and visibility without restarting instances.
+- **Restart-required**: Any other server spec change triggers a drain of existing instances so they restart on demand with the new spec.
+
+If multiple categories change in one update, mcpv combines the actions (for example, runtime updates plus a restart-required drain).
+
 ## 🚧 Roadmap (WIP)
 
 The project is under active development:

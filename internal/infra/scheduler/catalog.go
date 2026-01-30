@@ -36,6 +36,13 @@ func (s *BasicScheduler) ApplyCatalogDiff(ctx context.Context, diff domain.Catal
 			s.tryRemovePool(specKey, state)
 		}
 	}
+	for _, specKey := range diff.RestartRequiredSpecKeys {
+		if state := s.poolByKey(specKey); state != nil {
+			if err := s.StopSpec(ctx, specKey, "catalog restart"); err != nil {
+				return err
+			}
+		}
+	}
 	for _, specKey := range diff.UpdatedSpecKeys {
 		if spec, ok := specs[specKey]; ok {
 			s.getPool(specKey, spec)
