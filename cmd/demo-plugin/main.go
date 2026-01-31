@@ -22,7 +22,7 @@ import (
 	pluginv1 "mcpv/pkg/api/plugin/v1"
 )
 
-// Demo plugin categories
+// Demo plugin categories.
 const (
 	CategoryObservability  = "observability"
 	CategoryAuthentication = "authentication"
@@ -91,7 +91,7 @@ func (p *DemoPlugin) GetMetadata(ctx context.Context, _ *emptypb.Empty) (*plugin
 }
 
 func (p *DemoPlugin) Configure(ctx context.Context, req *pluginv1.PluginConfigureRequest) (*pluginv1.PluginConfigureResponse, error) {
-	log.Printf("[%s] Configure called with config: %s", p.name, string(req.ConfigJson))
+	log.Printf("[%s] Configure called with config: %s", p.name, string(req.GetConfigJson()))
 	return &pluginv1.PluginConfigureResponse{}, nil
 }
 
@@ -104,17 +104,17 @@ func (p *DemoPlugin) Shutdown(ctx context.Context, _ *emptypb.Empty) (*emptypb.E
 	return &emptypb.Empty{}, nil
 }
 
-func (p *DemoPlugin) handleObservability(ctx context.Context, req *pluginv1.PluginHandleRequest) (*pluginv1.PluginHandleResponse, error) {
+func (p *DemoPlugin) handleObservability(_ context.Context, req *pluginv1.PluginHandleRequest) (*pluginv1.PluginHandleResponse, error) {
 	// Log request metadata
-	log.Printf("[observability] Request: method=%s, tool=%s", req.Method, req.ToolName)
+	log.Printf("[observability] Request: method=%s, tool=%s", req.GetMethod(), req.GetToolName())
 	return &pluginv1.PluginHandleResponse{
 		Continue: true,
 	}, nil
 }
 
-func (p *DemoPlugin) handleAuthentication(ctx context.Context, req *pluginv1.PluginHandleRequest) (*pluginv1.PluginHandleResponse, error) {
+func (p *DemoPlugin) handleAuthentication(_ context.Context, req *pluginv1.PluginHandleRequest) (*pluginv1.PluginHandleResponse, error) {
 	// Check for demo token
-	token, ok := req.Metadata["authorization"]
+	token, ok := req.GetMetadata()["authorization"]
 	if !ok {
 		// Allow unauthenticated for demo
 		log.Printf("[authentication] No token provided, allowing for demo")
@@ -137,15 +137,15 @@ func (p *DemoPlugin) handleAuthentication(ctx context.Context, req *pluginv1.Plu
 	}, nil
 }
 
-func (p *DemoPlugin) handleAuthorization(ctx context.Context, req *pluginv1.PluginHandleRequest) (*pluginv1.PluginHandleResponse, error) {
+func (p *DemoPlugin) handleAuthorization(_ context.Context, req *pluginv1.PluginHandleRequest) (*pluginv1.PluginHandleResponse, error) {
 	// Check for demo role
-	role, ok := req.Metadata["x-role"]
+	role, ok := req.GetMetadata()["x-role"]
 	if !ok {
 		role = "user" // Default role
 	}
 
 	// Demo: block "guest" role from admin tools
-	if role == "guest" && strings.HasPrefix(req.ToolName, "admin_") {
+	if role == "guest" && strings.HasPrefix(req.GetToolName(), "admin_") {
 		log.Printf("[authorization] Blocking guest from admin tool")
 		return &pluginv1.PluginHandleResponse{
 			Continue:      false,
@@ -154,17 +154,17 @@ func (p *DemoPlugin) handleAuthorization(ctx context.Context, req *pluginv1.Plug
 		}, nil
 	}
 
-	log.Printf("[authorization] Role '%s' authorized for %s", role, req.ToolName)
+	log.Printf("[authorization] Role '%s' authorized for %s", role, req.GetToolName())
 	return &pluginv1.PluginHandleResponse{
 		Continue: true,
 	}, nil
 }
 
-func (p *DemoPlugin) handleRateLimiting(ctx context.Context, req *pluginv1.PluginHandleRequest) (*pluginv1.PluginHandleResponse, error) {
+func (p *DemoPlugin) handleRateLimiting(_ context.Context, req *pluginv1.PluginHandleRequest) (*pluginv1.PluginHandleResponse, error) {
 	// Demo: simple in-memory rate limiting (resets on restart)
 	// In production, use distributed rate limiting (Redis, etc.)
 
-	clientID := req.Metadata["x-client-id"]
+	clientID := req.GetMetadata()["x-client-id"]
 	if clientID == "" {
 		clientID = "anonymous"
 	}
@@ -176,16 +176,16 @@ func (p *DemoPlugin) handleRateLimiting(ctx context.Context, req *pluginv1.Plugi
 	}, nil
 }
 
-func (p *DemoPlugin) handleValidation(ctx context.Context, req *pluginv1.PluginHandleRequest) (*pluginv1.PluginHandleResponse, error) {
+func (p *DemoPlugin) handleValidation(_ context.Context, req *pluginv1.PluginHandleRequest) (*pluginv1.PluginHandleResponse, error) {
 	// Demo: validate request payload
-	if len(req.RequestJson) == 0 {
+	if len(req.GetRequestJson()) == 0 {
 		log.Printf("[validation] No payload to validate")
 		return &pluginv1.PluginHandleResponse{Continue: true}, nil
 	}
 
 	// Check if payload is valid JSON
 	var payload interface{}
-	if err := json.Unmarshal(req.RequestJson, &payload); err != nil {
+	if err := json.Unmarshal(req.GetRequestJson(), &payload); err != nil {
 		log.Printf("[validation] Invalid JSON: %v", err)
 		return &pluginv1.PluginHandleResponse{
 			Continue:      false,
@@ -200,11 +200,11 @@ func (p *DemoPlugin) handleValidation(ctx context.Context, req *pluginv1.PluginH
 	}, nil
 }
 
-func (p *DemoPlugin) handleContent(ctx context.Context, req *pluginv1.PluginHandleRequest) (*pluginv1.PluginHandleResponse, error) {
+func (p *DemoPlugin) handleContent(_ context.Context, req *pluginv1.PluginHandleRequest) (*pluginv1.PluginHandleResponse, error) {
 	// Demo: content transformation
 	// Could redact sensitive data, add prefixes, etc.
 
-	log.Printf("[content] Processing content (length: %d)", len(req.RequestJson))
+	log.Printf("[content] Processing content (length: %d)", len(req.GetRequestJson()))
 
 	// Demo: just pass through, but we could modify the payload
 	return &pluginv1.PluginHandleResponse{
@@ -212,13 +212,13 @@ func (p *DemoPlugin) handleContent(ctx context.Context, req *pluginv1.PluginHand
 	}, nil
 }
 
-func (p *DemoPlugin) handleAudit(ctx context.Context, req *pluginv1.PluginHandleRequest) (*pluginv1.PluginHandleResponse, error) {
+func (p *DemoPlugin) handleAudit(_ context.Context, req *pluginv1.PluginHandleRequest) (*pluginv1.PluginHandleResponse, error) {
 	// Demo: audit logging
 	auditEntry := map[string]interface{}{
 		"timestamp": time.Now().Format(time.RFC3339),
-		"method":    req.Method,
-		"tool":      req.ToolName,
-		"client_id": req.Metadata["x-client-id"],
+		"method":    req.GetMethod(),
+		"tool":      req.GetToolName(),
+		"client_id": req.GetMetadata()["x-client-id"],
 		"plugin":    p.name,
 	}
 

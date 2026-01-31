@@ -441,6 +441,16 @@ export class PluginListEntry {
     "flows": string[];
     "required": boolean;
     "enabled": boolean;
+
+    /**
+     * "running", "stopped", "error"
+     */
+    "status": string;
+
+    /**
+     * Error message if status is "error"
+     */
+    "statusError"?: string;
     "commitHash"?: string;
     "timeoutMs": number;
     "latestMetrics": PluginMetrics;
@@ -462,6 +472,9 @@ export class PluginListEntry {
         if (!("enabled" in $$source)) {
             this["enabled"] = false;
         }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
         if (!("timeoutMs" in $$source)) {
             this["timeoutMs"] = 0;
         }
@@ -477,13 +490,13 @@ export class PluginListEntry {
      */
     static createFrom($$source: any = {}): PluginListEntry {
         const $$createField2_0 = $$createType0;
-        const $$createField7_0 = $$createType9;
+        const $$createField9_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("flows" in $$parsedSource) {
             $$parsedSource["flows"] = $$createField2_0($$parsedSource["flows"]);
         }
         if ("latestMetrics" in $$parsedSource) {
-            $$parsedSource["latestMetrics"] = $$createField7_0($$parsedSource["latestMetrics"]);
+            $$parsedSource["latestMetrics"] = $$createField9_0($$parsedSource["latestMetrics"]);
         }
         return new PluginListEntry($$parsedSource as Partial<PluginListEntry>);
     }

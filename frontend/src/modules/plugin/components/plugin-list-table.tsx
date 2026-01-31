@@ -1,5 +1,5 @@
 import type { PluginListEntry } from '@bindings/mcpv/internal/ui'
-import { PencilIcon } from 'lucide-react'
+import { AlertCircleIcon, CheckCircleIcon, MinusCircleIcon, PencilIcon } from 'lucide-react'
 import { m } from 'motion/react'
 import { useCallback, useState } from 'react'
 
@@ -16,6 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { toastManager } from '@/components/ui/toast'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 import { useTogglePlugin } from '../hooks'
@@ -86,6 +87,7 @@ export function PluginListTable({ plugins, isLoading, onEditPlugin }: PluginList
         <TableRow>
           <TableHead>Name</TableHead>
           <TableHead>Category</TableHead>
+          <TableHead>Status</TableHead>
           <TableHead>Flows</TableHead>
           <TableHead className="text-right">Calls</TableHead>
           <TableHead className="text-right">Rejections</TableHead>
@@ -124,6 +126,9 @@ export function PluginListTable({ plugins, isLoading, onEditPlugin }: PluginList
                 <PluginCategoryBadge category={plugin.category} />
               </TableCell>
               <TableCell>
+                <PluginStatusBadge status={plugin.status} error={plugin.statusError} />
+              </TableCell>
+              <TableCell>
                 <div className="flex gap-1">
                   {plugin.flows.map(flow => (
                     <Badge
@@ -143,33 +148,33 @@ export function PluginListTable({ plugins, isLoading, onEditPlugin }: PluginList
               <TableCell className="text-right font-mono text-sm tabular-nums">
                 {plugin.latestMetrics.rejectionCount > 0
                   ? (
-                      <span className="text-warning-foreground">
-                        {plugin.latestMetrics.rejectionCount.toLocaleString()}
-                      </span>
-                    )
+                    <span className="text-warning-foreground">
+                      {plugin.latestMetrics.rejectionCount.toLocaleString()}
+                    </span>
+                  )
                   : (
-                      <span className="text-muted-foreground">0</span>
-                    )}
+                    <span className="text-muted-foreground">0</span>
+                  )}
               </TableCell>
               <TableCell className="text-right font-mono text-sm tabular-nums">
                 {plugin.latestMetrics.avgLatencyMs > 0
                   ? plugin.latestMetrics.avgLatencyMs.toFixed(2)
                   : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
+                    <span className="text-muted-foreground">—</span>
+                  )}
               </TableCell>
               <TableCell className="text-center">
                 {plugin.required
                   ? (
-                      <Badge variant="error" size="sm">
-                        Required
-                      </Badge>
-                    )
+                    <Badge variant="error" size="sm">
+                      Required
+                    </Badge>
+                  )
                   : (
-                      <Badge variant="outline" size="sm">
-                        Optional
-                      </Badge>
-                    )}
+                    <Badge variant="outline" size="sm">
+                      Optional
+                    </Badge>
+                  )}
               </TableCell>
               <TableCell className="text-center">
                 <div className="flex items-center justify-center gap-2">
@@ -195,5 +200,57 @@ export function PluginListTable({ plugins, isLoading, onEditPlugin }: PluginList
         })}
       </TableBody>
     </Table>
+  )
+}
+
+// PluginStatusBadge displays the runtime status of a plugin
+function PluginStatusBadge({ status, error }: { status: string, error?: string }) {
+  const statusConfig = {
+    running: {
+      icon: CheckCircleIcon,
+      label: 'Running',
+      variant: 'success' as const,
+      className: 'text-success-foreground',
+    },
+    stopped: {
+      icon: MinusCircleIcon,
+      label: 'Stopped',
+      variant: 'secondary' as const,
+      className: 'text-muted-foreground',
+    },
+    error: {
+      icon: AlertCircleIcon,
+      label: 'Error',
+      variant: 'error' as const,
+      className: 'text-error-foreground',
+    },
+  }
+
+  const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.stopped
+  const Icon = config.icon
+
+  if (status === 'error' && error) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger>
+            <Badge variant={config.variant} size="sm" className="cursor-help gap-1">
+              <Icon className="size-3" />
+              {config.label}
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="max-w-xs text-xs">{error}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
+  }
+
+  return (
+    <Badge variant={config.variant} size="sm" className="gap-1">
+      <Icon className="size-3" />
+      {config.label}
+    </Badge>
   )
 }
