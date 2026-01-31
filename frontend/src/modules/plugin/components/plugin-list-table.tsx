@@ -1,8 +1,10 @@
 import type { PluginListEntry } from '@bindings/mcpv/internal/ui'
+import { PencilIcon } from 'lucide-react'
 import { m } from 'motion/react'
 import { useCallback, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import {
@@ -22,9 +24,10 @@ import { PluginCategoryBadge } from './plugin-category-badge'
 interface PluginListTableProps {
   plugins: PluginListEntry[]
   isLoading?: boolean
+  onEditPlugin?: (plugin: PluginListEntry) => void
 }
 
-export function PluginListTable({ plugins, isLoading }: PluginListTableProps) {
+export function PluginListTable({ plugins, isLoading, onEditPlugin }: PluginListTableProps) {
   const [togglingPlugins, setTogglingPlugins] = useState<Set<string>>(() => new Set())
   const togglePlugin = useTogglePlugin()
 
@@ -89,6 +92,7 @@ export function PluginListTable({ plugins, isLoading }: PluginListTableProps) {
           <TableHead className="text-right">Latency (ms)</TableHead>
           <TableHead className="text-center">Required</TableHead>
           <TableHead className="text-center">Enabled</TableHead>
+          <TableHead className="w-15" />
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -139,33 +143,33 @@ export function PluginListTable({ plugins, isLoading }: PluginListTableProps) {
               <TableCell className="text-right font-mono text-sm tabular-nums">
                 {plugin.latestMetrics.rejectionCount > 0
                   ? (
-                    <span className="text-warning-foreground">
-                      {plugin.latestMetrics.rejectionCount.toLocaleString()}
-                    </span>
-                  )
+                      <span className="text-warning-foreground">
+                        {plugin.latestMetrics.rejectionCount.toLocaleString()}
+                      </span>
+                    )
                   : (
-                    <span className="text-muted-foreground">0</span>
-                  )}
+                      <span className="text-muted-foreground">0</span>
+                    )}
               </TableCell>
               <TableCell className="text-right font-mono text-sm tabular-nums">
                 {plugin.latestMetrics.avgLatencyMs > 0
                   ? plugin.latestMetrics.avgLatencyMs.toFixed(2)
                   : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
+                      <span className="text-muted-foreground">—</span>
+                    )}
               </TableCell>
               <TableCell className="text-center">
                 {plugin.required
                   ? (
-                    <Badge variant="error" size="sm">
-                      Required
-                    </Badge>
-                  )
+                      <Badge variant="error" size="sm">
+                        Required
+                      </Badge>
+                    )
                   : (
-                    <Badge variant="outline" size="sm">
-                      Optional
-                    </Badge>
-                  )}
+                      <Badge variant="outline" size="sm">
+                        Optional
+                      </Badge>
+                    )}
               </TableCell>
               <TableCell className="text-center">
                 <div className="flex items-center justify-center gap-2">
@@ -176,6 +180,15 @@ export function PluginListTable({ plugins, isLoading }: PluginListTableProps) {
                     disabled={isToggling}
                   />
                 </div>
+              </TableCell>
+              <TableCell>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onEditPlugin?.(plugin)}
+                >
+                  <PencilIcon className="size-4" />
+                </Button>
               </TableCell>
             </m.tr>
           )
