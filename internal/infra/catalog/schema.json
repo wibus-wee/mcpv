@@ -63,6 +63,12 @@
       "items": {
         "$ref": "#/$defs/serverSpec"
       }
+    },
+    "plugins": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/pluginSpec"
+      }
     }
   },
   "required": [
@@ -255,6 +261,65 @@
         },
         "maxRetries": {
           "type": "integer"
+        }
+      }
+    },
+    "pluginSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "observability",
+            "authentication",
+            "authorization",
+            "rate_limiting",
+            "validation",
+            "content",
+            "audit"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "cmd": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "cwd": {
+          "type": "string"
+        },
+        "commitHash": {
+          "type": "string"
+        },
+        "timeoutMs": {
+          "type": "integer"
+        },
+        "flows": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "request",
+              "response"
+            ]
+          }
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": true
         }
       }
     }

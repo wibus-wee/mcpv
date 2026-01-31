@@ -6,6 +6,7 @@ import * as CoreService from "./coreservice.js";
 import * as DebugService from "./debugservice.js";
 import * as DiscoveryService from "./discoveryservice.js";
 import * as LogService from "./logservice.js";
+import * as PluginService from "./pluginservice.js";
 import * as ProxyService from "./proxyservice.js";
 import * as RuntimeService from "./runtimeservice.js";
 import * as ServerService from "./serverservice.js";
@@ -17,6 +18,7 @@ export {
     DebugService,
     DiscoveryService,
     LogService,
+    PluginService,
     ProxyService,
     RuntimeService,
     ServerService,
@@ -37,6 +39,8 @@ export {
     InfoResponse,
     InstanceStatus,
     ObservabilityConfigDetail,
+    PluginListEntry,
+    PluginMetrics,
     PoolMetrics,
     PoolStats,
     PromptEntry,
@@ -60,6 +64,7 @@ export {
     StartCoreOptions,
     StreamableHTTPConfigDetail,
     SubAgentConfigDetail,
+    TogglePluginRequest,
     ToolEntry,
     UpdateRuntimeConfigRequest,
     UpdateServerRequest,

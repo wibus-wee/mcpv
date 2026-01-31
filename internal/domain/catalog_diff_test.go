@@ -71,3 +71,33 @@ func TestClassifySpecDiff(t *testing.T) {
 	cmdChanged.Cmd = []string{"echo", "v2"}
 	require.Equal(t, SpecDiffRestartRequired, ClassifySpecDiff(base, cmdChanged))
 }
+
+func TestDiffCatalogStates_PluginChanges(t *testing.T) {
+	baseRuntime := RuntimeConfig{
+		RouteTimeoutSeconds: 1,
+	}
+	prevCatalog := Catalog{
+		Specs:   map[string]ServerSpec{"svc": {Name: "svc", Cmd: []string{"echo", "ok"}}},
+		Plugins: []PluginSpec{{Name: "auth", Category: PluginCategoryAuthentication, Required: true, Cmd: []string{"auth"}}},
+		Runtime: baseRuntime,
+	}
+	nextCatalog := Catalog{
+		Specs: map[string]ServerSpec{"svc": {Name: "svc", Cmd: []string{"echo", "ok"}}},
+		Plugins: []PluginSpec{
+			{Name: "auth", Category: PluginCategoryAuthentication, Required: true, Cmd: []string{"auth", "v2"}},
+			{Name: "audit", Category: PluginCategoryAudit, Required: false, Cmd: []string{"audit"}},
+		},
+		Runtime: baseRuntime,
+	}
+
+	prevState, err := NewCatalogState(prevCatalog, 1, time.Now())
+	require.NoError(t, err)
+	nextState, err := NewCatalogState(nextCatalog, 2, time.Now())
+	require.NoError(t, err)
+
+	diff := DiffCatalogStates(prevState, nextState)
+	require.True(t, diff.PluginsChanged)
+	require.Contains(t, diff.UpdatedPlugins, "auth")
+	require.Contains(t, diff.AddedPlugins, "audit")
+	require.Empty(t, diff.RemovedPlugins)
+}

@@ -32,6 +32,8 @@ type PrometheusMetrics struct {
 	reloadRestarts          *prometheus.CounterVec
 	reloadApplyTotal        *prometheus.CounterVec
 	reloadApplyDuration     *prometheus.HistogramVec
+	governanceOutcome       *prometheus.HistogramVec
+	governanceRejections    *prometheus.CounterVec
 }
 
 func NewPrometheusMetrics(registerer prometheus.Registerer) *PrometheusMetrics {
@@ -201,6 +203,21 @@ func NewPrometheusMetrics(registerer prometheus.Registerer) *PrometheusMetrics {
 			},
 			[]string{"mode", "result"},
 		),
+		governanceOutcome: factory.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    "mcpv_governance_call_duration_seconds",
+				Help:    "Duration of governance plugin calls",
+				Buckets: []float64{.001, .005, .01, .025, .05, .1, .25, .5, 1, 2.5},
+			},
+			[]string{"category", "plugin", "flow", "outcome"},
+		),
+		governanceRejections: factory.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "mcpv_governance_rejections_total",
+				Help: "Total number of governance plugin rejections",
+			},
+			[]string{"category", "plugin", "flow", "code"},
+		),
 	}
 }
 
@@ -306,6 +323,46 @@ func (p *PrometheusMetrics) ObserveReloadApply(metric domain.ReloadApplyMetric) 
 	}
 	p.reloadApplyTotal.WithLabelValues(mode, result, summary).Inc()
 	p.reloadApplyDuration.WithLabelValues(mode, result).Observe(metric.Duration.Seconds())
+}
+
+func (p *PrometheusMetrics) RecordGovernanceOutcome(metric domain.GovernanceOutcomeMetric) {
+	if p.governanceOutcome == nil {
+		return
+	}
+	plugin := metric.Plugin
+	if plugin == "" {
+		plugin = "unnamed"
+	}
+	outcome := string(metric.Outcome)
+	if outcome == "" {
+		outcome = string(domain.GovernanceOutcomeContinue)
+	}
+	p.governanceOutcome.WithLabelValues(
+		string(metric.Category),
+		plugin,
+		string(metric.Flow),
+		outcome,
+	).Observe(metric.Duration.Seconds())
+}
+
+func (p *PrometheusMetrics) RecordGovernanceRejection(metric domain.GovernanceRejectionMetric) {
+	if p.governanceRejections == nil {
+		return
+	}
+	plugin := metric.Plugin
+	if plugin == "" {
+		plugin = "unnamed"
+	}
+	code := metric.Code
+	if code == "" {
+		code = "rejected"
+	}
+	p.governanceRejections.WithLabelValues(
+		string(metric.Category),
+		plugin,
+		string(metric.Flow),
+		code,
+	).Inc()
 }
 
 var _ domain.Metrics = (*PrometheusMetrics)(nil)

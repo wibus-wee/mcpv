@@ -10,6 +10,7 @@ import (
 	"mcpv/internal/app/bootstrap"
 	"mcpv/internal/app/controlplane"
 	"mcpv/internal/domain"
+	"mcpv/internal/infra/plugin"
 	"mcpv/internal/infra/rpc"
 	"mcpv/internal/infra/telemetry"
 )
@@ -33,6 +34,7 @@ type Application struct {
 	controlPlane     *controlplane.ControlPlane
 	rpcServer        *rpc.Server
 	reloadManager    *controlplane.ReloadManager
+	pluginManager    *plugin.Manager
 }
 
 // ApplicationOptions captures dependencies and settings for Application.
@@ -51,6 +53,7 @@ type ApplicationOptions struct {
 	ControlPlane      *controlplane.ControlPlane
 	RPCServer         *rpc.Server
 	ReloadManager     *controlplane.ReloadManager
+	PluginManager     *plugin.Manager
 }
 
 // NewApplication constructs the core application runtime.
@@ -80,6 +83,7 @@ func NewApplication(opts ApplicationOptions) *Application {
 		controlPlane:     opts.ControlPlane,
 		rpcServer:        opts.RPCServer,
 		reloadManager:    opts.ReloadManager,
+		pluginManager:    opts.PluginManager,
 	}
 }
 
@@ -159,6 +163,9 @@ func (a *Application) Run() error {
 		a.scheduler.StartPingManager(interval)
 	}
 	defer func() {
+		if a.pluginManager != nil {
+			a.pluginManager.Stop(context.Background())
+		}
 		if a.state != nil {
 			if runtime := a.state.RuntimeState(); runtime != nil {
 				runtime.Deactivate()
@@ -179,4 +186,20 @@ func (a *Application) Run() error {
 	}()
 
 	return a.rpcServer.Run(a.ctx)
+}
+
+// GetPluginStatus returns the runtime status of all configured plugins.
+func (a *Application) GetPluginStatus() []plugin.Status {
+	if a.pluginManager == nil {
+		return nil
+	}
+	return a.pluginManager.GetStatus(a.summary.Plugins)
+}
+
+// IsPluginRunning checks if a specific plugin is currently running.
+func (a *Application) IsPluginRunning(name string) bool {
+	if a.pluginManager == nil {
+		return false
+	}
+	return a.pluginManager.IsRunning(name)
 }

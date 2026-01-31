@@ -49,6 +49,10 @@ const (
 	DefaultRPCSocketMode = "0660"
 	// DefaultStreamableHTTPMaxRetries is the default max retries for streamable HTTP.
 	DefaultStreamableHTTPMaxRetries = 5
+	// DefaultPluginHandshakeTimeoutSeconds is the default plugin handshake timeout in seconds.
+	DefaultPluginHandshakeTimeoutSeconds = 10
+	// DefaultPluginCallTimeoutMs is the default plugin call timeout in milliseconds.
+	DefaultPluginCallTimeoutMs = 3000
 	// InternalUIClientName is the reserved client name used by the UI runtime.
 	InternalUIClientName = "mcpv-ui-internal"
 

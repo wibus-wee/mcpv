@@ -12,8 +12,11 @@ import (
 	"mcpv/internal/app/runtime"
 	"mcpv/internal/domain"
 	"mcpv/internal/infra/elicitation"
+	"mcpv/internal/infra/governance"
 	"mcpv/internal/infra/lifecycle"
 	"mcpv/internal/infra/notifications"
+	"mcpv/internal/infra/pipeline"
+	"mcpv/internal/infra/plugin"
 	"mcpv/internal/infra/probe"
 	"mcpv/internal/infra/rpc"
 	"mcpv/internal/infra/sampling"
@@ -81,6 +84,29 @@ func NewLifecycleManager(ctx context.Context, launcher domain.Launcher, transpor
 	manager.SetSamplingHandler(samplingHandler)
 	manager.SetElicitationHandler(elicitationHandler)
 	return manager
+}
+
+// NewPluginManager constructs the governance plugin manager.
+func NewPluginManager(logger *zap.Logger) (*plugin.Manager, error) {
+	return plugin.NewManager(plugin.ManagerOptions{Logger: logger})
+}
+
+// NewPipelineEngine constructs the governance pipeline engine and applies initial specs.
+func NewPipelineEngine(state *domain.CatalogState, manager *plugin.Manager, metrics domain.Metrics, logger *zap.Logger) (*pipeline.Engine, error) {
+	engine := pipeline.NewEngine(manager, logger, metrics)
+	if state == nil || manager == nil {
+		return engine, nil
+	}
+	if err := manager.Apply(context.Background(), state.Summary.Plugins); err != nil {
+		return nil, err
+	}
+	engine.Update(state.Summary.Plugins)
+	return engine, nil
+}
+
+// NewGovernanceExecutor constructs the governance executor.
+func NewGovernanceExecutor(engine *pipeline.Engine) *governance.Executor {
+	return governance.NewExecutor(engine)
 }
 
 // NewSamplingHandler builds a sampling handler using the SubAgent config.
@@ -206,6 +232,6 @@ func provideControlPlaneState(
 }
 
 // NewRPCServer constructs the RPC server.
-func NewRPCServer(control rpc.ControlPlaneAPI, state *domain.CatalogState, logger *zap.Logger) *rpc.Server {
-	return rpc.NewServer(control, state.Summary.Runtime.RPC, logger)
+func NewRPCServer(control rpc.ControlPlaneAPI, executor *governance.Executor, state *domain.CatalogState, logger *zap.Logger) *rpc.Server {
+	return rpc.NewServer(control, executor, state.Summary.Runtime.RPC, logger)
 }

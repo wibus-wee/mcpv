@@ -463,6 +463,13 @@ func (m *Manager) GetConfigPath() string {
 	return m.configPath
 }
 
+// GetCoreApp returns the core application instance.
+func (m *Manager) GetCoreApp() *app.App {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.coreApp
+}
+
 func (m *Manager) ReloadConfig(ctx context.Context) error {
 	m.mu.RLock()
 	state := m.coreState

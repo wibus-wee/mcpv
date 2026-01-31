@@ -97,3 +97,15 @@ func (d *ServiceDeps) catalogEditor() (*catalog.Editor, error) {
 	}
 	return catalog.NewEditor(path, d.loggerNamed("catalog-editor")), nil
 }
+
+func (d *ServiceDeps) getCoreApp() (*app.App, error) {
+	manager := d.manager()
+	if manager == nil {
+		return nil, NewError(ErrCodeInternal, "Manager not initialized")
+	}
+	coreApp := manager.GetCoreApp()
+	if coreApp == nil {
+		return nil, NewError(ErrCodeInternal, "Core app not initialized")
+	}
+	return coreApp, nil
+}

@@ -2,15 +2,20 @@ package rpc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	"mcpv/internal/domain"
+	"mcpv/internal/infra/governance"
 	"mcpv/internal/infra/mcpcodec"
 	"mcpv/internal/infra/scheduler"
 	controlv1 "mcpv/pkg/api/control/v1"
@@ -18,17 +23,19 @@ import (
 
 type ControlService struct {
 	controlv1.UnimplementedControlPlaneServiceServer
-	control ControlPlaneAPI
-	logger  *zap.Logger
+	control  ControlPlaneAPI
+	executor *governance.Executor
+	logger   *zap.Logger
 }
 
-func NewControlService(control ControlPlaneAPI, logger *zap.Logger) *ControlService {
+func NewControlService(control ControlPlaneAPI, executor *governance.Executor, logger *zap.Logger) *ControlService {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 	return &ControlService{
-		control: control,
-		logger:  logger.Named("rpc_control"),
+		control:  control,
+		executor: executor,
+		logger:   logger.Named("rpc_control"),
 	}
 }
 
@@ -80,6 +87,16 @@ func (s *ControlService) UnregisterCaller(ctx context.Context, req *controlv1.Un
 
 func (s *ControlService) ListTools(ctx context.Context, req *controlv1.ListToolsRequest) (*controlv1.ListToolsResponse, error) {
 	client := req.GetCaller()
+	decision, err := s.requestDecision(ctx, domain.GovernanceRequest{
+		Method: "tools/list",
+		Caller: client,
+	})
+	if err != nil {
+		return nil, mapGovernanceError(err)
+	}
+	if !decision.Continue {
+		return nil, mapGovernanceDecision(decision)
+	}
 	snapshot, err := s.control.ListTools(ctx, client)
 	if err != nil {
 		return nil, mapClientError("list tools", err)
@@ -87,6 +104,25 @@ func (s *ControlService) ListTools(ctx context.Context, req *controlv1.ListTools
 	protoSnapshot, err := toProtoSnapshot(snapshot)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "list tools: %v", err)
+	}
+	if s.executor != nil {
+		raw, err := protojson.Marshal(protoSnapshot)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "list tools: response encode failed: %v", err)
+		}
+		respDecision, err := s.responseDecision(ctx, domain.GovernanceRequest{
+			Method: "tools/list",
+			Caller: client,
+		}, raw)
+		if err != nil {
+			return nil, mapGovernanceError(err)
+		}
+		if !respDecision.Continue {
+			return nil, mapGovernanceDecision(respDecision)
+		}
+		if err := applyProtoMutation(protoSnapshot, respDecision.ResponseJSON); err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "list tools: response mutation invalid: %v", err)
+		}
 	}
 	return &controlv1.ListToolsResponse{
 		Snapshot: protoSnapshot,
@@ -96,6 +132,17 @@ func (s *ControlService) ListTools(ctx context.Context, req *controlv1.ListTools
 func (s *ControlService) WatchTools(req *controlv1.WatchToolsRequest, stream controlv1.ControlPlaneService_WatchToolsServer) error {
 	ctx := stream.Context()
 	client := req.GetCaller()
+
+	decision, err := s.requestDecision(ctx, domain.GovernanceRequest{
+		Method: "tools/list",
+		Caller: client,
+	})
+	if err != nil {
+		return mapGovernanceError(err)
+	}
+	if !decision.Continue {
+		return mapGovernanceDecision(decision)
+	}
 
 	// WatchTools atomically subscribes and returns the initial snapshot,
 	// eliminating the race condition between ListTools and subscription.
@@ -123,6 +170,25 @@ func (s *ControlService) WatchTools(req *controlv1.WatchToolsRequest, stream con
 			if err != nil {
 				return status.Errorf(codes.Internal, "watch tools: %v", err)
 			}
+			if s.executor != nil {
+				raw, err := protojson.Marshal(protoSnapshot)
+				if err != nil {
+					return status.Errorf(codes.Internal, "watch tools: response encode failed: %v", err)
+				}
+				respDecision, err := s.responseDecision(ctx, domain.GovernanceRequest{
+					Method: "tools/list",
+					Caller: client,
+				}, raw)
+				if err != nil {
+					return mapGovernanceError(err)
+				}
+				if !respDecision.Continue {
+					return mapGovernanceDecision(respDecision)
+				}
+				if err := applyProtoMutation(protoSnapshot, respDecision.ResponseJSON); err != nil {
+					return status.Errorf(codes.InvalidArgument, "watch tools: response mutation invalid: %v", err)
+				}
+			}
 			if err := stream.Send(protoSnapshot); err != nil {
 				return err
 			}
@@ -136,9 +202,32 @@ func (s *ControlService) CallTool(ctx context.Context, req *controlv1.CallToolRe
 		return nil, status.Error(codes.InvalidArgument, "name is required")
 	}
 	client := req.GetCaller()
-	result, err := s.control.CallTool(ctx, client, req.GetName(), req.GetArgumentsJson(), req.GetRoutingKey())
+	toolName := req.GetName()
+	var result json.RawMessage
+	var err error
+	if s.executor != nil {
+		result, err = s.executor.Execute(ctx, domain.GovernanceRequest{
+			Method:      "tools/call",
+			Caller:      client,
+			ToolName:    toolName,
+			RoutingKey:  req.GetRoutingKey(),
+			RequestJSON: req.GetArgumentsJson(),
+		}, func(nextCtx context.Context, govReq domain.GovernanceRequest) (json.RawMessage, error) {
+			args := govReq.RequestJSON
+			if len(args) == 0 {
+				args = req.GetArgumentsJson()
+			}
+			return s.control.CallTool(nextCtx, client, toolName, args, req.GetRoutingKey())
+		})
+	} else {
+		result, err = s.control.CallTool(ctx, client, toolName, req.GetArgumentsJson(), req.GetRoutingKey())
+	}
 	if err != nil {
-		return nil, mapCallToolError(req.GetName(), err)
+		var rej domain.GovernanceRejection
+		if errors.As(err, &rej) {
+			return nil, mapGovernanceError(err)
+		}
+		return nil, mapCallToolError(toolName, err)
 	}
 	if len(result) == 0 {
 		return nil, status.Error(codes.Internal, "call tool: empty result")
@@ -223,13 +312,53 @@ func (s *ControlService) TasksCancel(ctx context.Context, req *controlv1.TasksCa
 
 func (s *ControlService) ListResources(ctx context.Context, req *controlv1.ListResourcesRequest) (*controlv1.ListResourcesResponse, error) {
 	client := req.GetCaller()
-	page, err := s.control.ListResources(ctx, client, req.GetCursor())
+	cursor := req.GetCursor()
+	decision, err := s.requestDecision(ctx, domain.GovernanceRequest{
+		Method:      "resources/list",
+		Caller:      client,
+		RequestJSON: mustMarshalJSON(map[string]string{"cursor": cursor}),
+	})
+	if err != nil {
+		return nil, mapGovernanceError(err)
+	}
+	if !decision.Continue {
+		return nil, mapGovernanceDecision(decision)
+	}
+	if len(decision.RequestJSON) > 0 {
+		var params struct {
+			Cursor string `json:"cursor"`
+		}
+		if err := json.Unmarshal(decision.RequestJSON, &params); err != nil {
+			return nil, status.Error(codes.InvalidArgument, "list resources: invalid request mutation")
+		}
+		cursor = params.Cursor
+	}
+	page, err := s.control.ListResources(ctx, client, cursor)
 	if err != nil {
 		return nil, mapListError("list resources", err)
 	}
 	resourcesSnapshot, err := toProtoResourcesSnapshot(page.Snapshot)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "list resources: %v", err)
+	}
+	if s.executor != nil {
+		raw, err := protojson.Marshal(resourcesSnapshot)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "list resources: response encode failed: %v", err)
+		}
+		respDecision, err := s.responseDecision(ctx, domain.GovernanceRequest{
+			Method: "resources/list",
+			Caller: client,
+		}, raw)
+		if err != nil {
+			return nil, mapGovernanceError(err)
+		}
+		if !respDecision.Continue {
+			return nil, mapGovernanceDecision(respDecision)
+		}
+		if err := applyProtoMutation(resourcesSnapshot, respDecision.ResponseJSON); err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "list resources: response mutation invalid: %v", err)
+		}
 	}
 	return &controlv1.ListResourcesResponse{
 		Snapshot:   resourcesSnapshot,
@@ -242,6 +371,16 @@ func (s *ControlService) WatchResources(req *controlv1.WatchResourcesRequest, st
 	lastETag := req.GetLastEtag()
 
 	client := req.GetCaller()
+	decision, err := s.requestDecision(ctx, domain.GovernanceRequest{
+		Method: "resources/list",
+		Caller: client,
+	})
+	if err != nil {
+		return mapGovernanceError(err)
+	}
+	if !decision.Continue {
+		return mapGovernanceDecision(decision)
+	}
 	updates, err := s.control.WatchResources(ctx, client)
 	if err != nil {
 		return mapClientError("watch resources", err)
@@ -262,6 +401,25 @@ func (s *ControlService) WatchResources(req *controlv1.WatchResourcesRequest, st
 			if err != nil {
 				return status.Errorf(codes.Internal, "watch resources: %v", err)
 			}
+			if s.executor != nil {
+				raw, err := protojson.Marshal(protoSnapshot)
+				if err != nil {
+					return status.Errorf(codes.Internal, "watch resources: response encode failed: %v", err)
+				}
+				respDecision, err := s.responseDecision(ctx, domain.GovernanceRequest{
+					Method: "resources/list",
+					Caller: client,
+				}, raw)
+				if err != nil {
+					return mapGovernanceError(err)
+				}
+				if !respDecision.Continue {
+					return mapGovernanceDecision(respDecision)
+				}
+				if err := applyProtoMutation(protoSnapshot, respDecision.ResponseJSON); err != nil {
+					return status.Errorf(codes.InvalidArgument, "watch resources: response mutation invalid: %v", err)
+				}
+			}
 			if err := stream.Send(protoSnapshot); err != nil {
 				return err
 			}
@@ -275,9 +433,37 @@ func (s *ControlService) ReadResource(ctx context.Context, req *controlv1.ReadRe
 		return nil, status.Error(codes.InvalidArgument, "uri is required")
 	}
 	client := req.GetCaller()
-	result, err := s.control.ReadResource(ctx, client, req.GetUri())
+	uri := req.GetUri()
+	var result json.RawMessage
+	var err error
+	if s.executor != nil {
+		result, err = s.executor.Execute(ctx, domain.GovernanceRequest{
+			Method:      "resources/read",
+			Caller:      client,
+			ResourceURI: uri,
+			RequestJSON: mustMarshalJSON(map[string]string{"uri": uri}),
+		}, func(nextCtx context.Context, govReq domain.GovernanceRequest) (json.RawMessage, error) {
+			target := uri
+			if len(govReq.RequestJSON) > 0 {
+				var params struct {
+					URI string `json:"uri"`
+				}
+				if err := json.Unmarshal(govReq.RequestJSON, &params); err != nil || strings.TrimSpace(params.URI) == "" {
+					return nil, domain.ErrInvalidRequest
+				}
+				target = params.URI
+			}
+			return s.control.ReadResource(nextCtx, client, target)
+		})
+	} else {
+		result, err = s.control.ReadResource(ctx, client, uri)
+	}
 	if err != nil {
-		return nil, mapReadResourceError(req.GetUri(), err)
+		var rej domain.GovernanceRejection
+		if errors.As(err, &rej) {
+			return nil, mapGovernanceError(err)
+		}
+		return nil, mapReadResourceError(uri, err)
 	}
 	if len(result) == 0 {
 		return nil, status.Error(codes.Internal, "read resource: empty result")
@@ -289,13 +475,53 @@ func (s *ControlService) ReadResource(ctx context.Context, req *controlv1.ReadRe
 
 func (s *ControlService) ListPrompts(ctx context.Context, req *controlv1.ListPromptsRequest) (*controlv1.ListPromptsResponse, error) {
 	client := req.GetCaller()
-	page, err := s.control.ListPrompts(ctx, client, req.GetCursor())
+	cursor := req.GetCursor()
+	decision, err := s.requestDecision(ctx, domain.GovernanceRequest{
+		Method:      "prompts/list",
+		Caller:      client,
+		RequestJSON: mustMarshalJSON(map[string]string{"cursor": cursor}),
+	})
+	if err != nil {
+		return nil, mapGovernanceError(err)
+	}
+	if !decision.Continue {
+		return nil, mapGovernanceDecision(decision)
+	}
+	if len(decision.RequestJSON) > 0 {
+		var params struct {
+			Cursor string `json:"cursor"`
+		}
+		if err := json.Unmarshal(decision.RequestJSON, &params); err != nil {
+			return nil, status.Error(codes.InvalidArgument, "list prompts: invalid request mutation")
+		}
+		cursor = params.Cursor
+	}
+	page, err := s.control.ListPrompts(ctx, client, cursor)
 	if err != nil {
 		return nil, mapListError("list prompts", err)
 	}
 	promptsSnapshot, err := toProtoPromptsSnapshot(page.Snapshot)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "list prompts: %v", err)
+	}
+	if s.executor != nil {
+		raw, err := protojson.Marshal(promptsSnapshot)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "list prompts: response encode failed: %v", err)
+		}
+		respDecision, err := s.responseDecision(ctx, domain.GovernanceRequest{
+			Method: "prompts/list",
+			Caller: client,
+		}, raw)
+		if err != nil {
+			return nil, mapGovernanceError(err)
+		}
+		if !respDecision.Continue {
+			return nil, mapGovernanceDecision(respDecision)
+		}
+		if err := applyProtoMutation(promptsSnapshot, respDecision.ResponseJSON); err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "list prompts: response mutation invalid: %v", err)
+		}
 	}
 	return &controlv1.ListPromptsResponse{
 		Snapshot:   promptsSnapshot,
@@ -308,6 +534,16 @@ func (s *ControlService) WatchPrompts(req *controlv1.WatchPromptsRequest, stream
 	lastETag := req.GetLastEtag()
 
 	client := req.GetCaller()
+	decision, err := s.requestDecision(ctx, domain.GovernanceRequest{
+		Method: "prompts/list",
+		Caller: client,
+	})
+	if err != nil {
+		return mapGovernanceError(err)
+	}
+	if !decision.Continue {
+		return mapGovernanceDecision(decision)
+	}
 	updates, err := s.control.WatchPrompts(ctx, client)
 	if err != nil {
 		return mapClientError("watch prompts", err)
@@ -328,6 +564,25 @@ func (s *ControlService) WatchPrompts(req *controlv1.WatchPromptsRequest, stream
 			if err != nil {
 				return status.Errorf(codes.Internal, "watch prompts: %v", err)
 			}
+			if s.executor != nil {
+				raw, err := protojson.Marshal(protoSnapshot)
+				if err != nil {
+					return status.Errorf(codes.Internal, "watch prompts: response encode failed: %v", err)
+				}
+				respDecision, err := s.responseDecision(ctx, domain.GovernanceRequest{
+					Method: "prompts/list",
+					Caller: client,
+				}, raw)
+				if err != nil {
+					return mapGovernanceError(err)
+				}
+				if !respDecision.Continue {
+					return mapGovernanceDecision(respDecision)
+				}
+				if err := applyProtoMutation(protoSnapshot, respDecision.ResponseJSON); err != nil {
+					return status.Errorf(codes.InvalidArgument, "watch prompts: response mutation invalid: %v", err)
+				}
+			}
 			if err := stream.Send(protoSnapshot); err != nil {
 				return err
 			}
@@ -341,9 +596,31 @@ func (s *ControlService) GetPrompt(ctx context.Context, req *controlv1.GetPrompt
 		return nil, status.Error(codes.InvalidArgument, "name is required")
 	}
 	client := req.GetCaller()
-	result, err := s.control.GetPrompt(ctx, client, req.GetName(), req.GetArgumentsJson())
+	promptName := req.GetName()
+	var result json.RawMessage
+	var err error
+	if s.executor != nil {
+		result, err = s.executor.Execute(ctx, domain.GovernanceRequest{
+			Method:      "prompts/get",
+			Caller:      client,
+			PromptName:  promptName,
+			RequestJSON: req.GetArgumentsJson(),
+		}, func(nextCtx context.Context, govReq domain.GovernanceRequest) (json.RawMessage, error) {
+			args := govReq.RequestJSON
+			if len(args) == 0 {
+				args = req.GetArgumentsJson()
+			}
+			return s.control.GetPrompt(nextCtx, client, promptName, args)
+		})
+	} else {
+		result, err = s.control.GetPrompt(ctx, client, promptName, req.GetArgumentsJson())
+	}
 	if err != nil {
-		return nil, mapGetPromptError(req.GetName(), err)
+		var rej domain.GovernanceRejection
+		if errors.As(err, &rej) {
+			return nil, mapGovernanceError(err)
+		}
+		return nil, mapGetPromptError(promptName, err)
 	}
 	if len(result) == 0 {
 		return nil, status.Error(codes.Internal, "get prompt: empty result")
@@ -420,6 +697,87 @@ func mapGetPromptError(name string, err error) error {
 	}
 }
 
+func mapGovernanceError(err error) error {
+	if err == nil {
+		return nil
+	}
+	var rej domain.GovernanceRejection
+	if errors.As(err, &rej) {
+		return mapGovernanceRejection(rej.Code, rej.Message, rej.Category, rej.Plugin)
+	}
+	return status.Errorf(codes.Unavailable, "governance failure: %v", err)
+}
+
+func mapGovernanceDecision(decision domain.GovernanceDecision) error {
+	if decision.Continue {
+		return nil
+	}
+	return mapGovernanceRejection(decision.RejectCode, decision.RejectMessage, decision.Category, decision.Plugin)
+}
+
+func mapGovernanceRejection(code, message string, category domain.PluginCategory, pluginName string) error {
+	grpcCode := governanceCode(code)
+	msg := strings.TrimSpace(message)
+	if msg == "" {
+		msg = "request rejected"
+	}
+	if category != "" {
+		if pluginName != "" {
+			msg = fmt.Sprintf("governance rejected by %s/%s: %s", category, pluginName, msg)
+		} else {
+			msg = fmt.Sprintf("governance rejected by %s: %s", category, msg)
+		}
+	}
+	return status.Error(grpcCode, msg)
+}
+
+func governanceCode(code string) codes.Code {
+	switch strings.ToLower(strings.TrimSpace(code)) {
+	case "unauthenticated":
+		return codes.Unauthenticated
+	case "unauthorized":
+		return codes.PermissionDenied
+	case "rate_limited":
+		return codes.ResourceExhausted
+	case "invalid_request":
+		return codes.InvalidArgument
+	default:
+		return codes.PermissionDenied
+	}
+}
+func (s *ControlService) requestDecision(ctx context.Context, req domain.GovernanceRequest) (domain.GovernanceDecision, error) {
+	if s.executor == nil {
+		return domain.GovernanceDecision{Continue: true}, nil
+	}
+	return s.executor.Request(ctx, req)
+}
+
+func (s *ControlService) responseDecision(ctx context.Context, req domain.GovernanceRequest, responseJSON []byte) (domain.GovernanceDecision, error) {
+	if s.executor == nil {
+		return domain.GovernanceDecision{Continue: true}, nil
+	}
+	req.ResponseJSON = responseJSON
+	return s.executor.Response(ctx, req)
+}
+
+func applyProtoMutation(target proto.Message, raw []byte) error {
+	if len(raw) == 0 || target == nil {
+		return nil
+	}
+	return protojson.UnmarshalOptions{DiscardUnknown: true}.Unmarshal(raw, target)
+}
+
+func mustMarshalJSON(value any) json.RawMessage {
+	if value == nil {
+		return nil
+	}
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return nil
+	}
+	return raw
+}
+
 func mapListError(op string, err error) error {
 	if errors.Is(err, domain.ErrClientNotRegistered) {
 		return status.Errorf(codes.FailedPrecondition, "%s: client not registered", op)
@@ -494,6 +852,17 @@ func (s *ControlService) StreamLogs(req *controlv1.StreamLogsRequest, stream con
 	ctx := stream.Context()
 	minLevel := fromProtoLogLevel(req.GetMinLevel())
 	client := req.GetCaller()
+	decision, err := s.requestDecision(ctx, domain.GovernanceRequest{
+		Method:      "logging/subscribe",
+		Caller:      client,
+		RequestJSON: mustMarshalJSON(map[string]any{"minLevel": string(minLevel)}),
+	})
+	if err != nil {
+		return mapGovernanceError(err)
+	}
+	if !decision.Continue {
+		return mapGovernanceDecision(decision)
+	}
 	entries, err := s.control.StreamLogs(ctx, client, minLevel)
 	if err != nil {
 		return mapClientError("stream logs", err)
@@ -507,7 +876,30 @@ func (s *ControlService) StreamLogs(req *controlv1.StreamLogsRequest, stream con
 			if !ok {
 				return nil
 			}
-			if err := stream.Send(toProtoLogEntry(entry)); err != nil {
+			protoEntry := toProtoLogEntry(entry)
+			// TODO：Maybe implement governance for log streaming later
+			// Skip plugin processing for log streaming to avoid infinite loops
+			// Plugins should not process logging operations
+			// if s.executor != nil {
+			// 	raw, err := protojson.Marshal(protoEntry)
+			// 	if err != nil {
+			// 		return status.Errorf(codes.Internal, "stream logs: response encode failed: %v", err)
+			// 	}
+			// 	respDecision, err := s.responseDecision(ctx, domain.GovernanceRequest{
+			// 		Method: "logging/subscribe",
+			// 		Caller: client,
+			// 	}, raw)
+			// 	if err != nil {
+			// 		return mapGovernanceError(err)
+			// 	}
+			// 	if !respDecision.Continue {
+			// 		return mapGovernanceDecision(respDecision)
+			// 	}
+			// 	if err := applyProtoMutation(protoEntry, respDecision.ResponseJSON); err != nil {
+			// 		return status.Errorf(codes.InvalidArgument, "stream logs: response mutation invalid: %v", err)
+			// 	}
+			// }
+			if err := stream.Send(protoEntry); err != nil {
 				return err
 			}
 		}
@@ -526,6 +918,16 @@ func (s *ControlService) WatchRuntimeStatus(req *controlv1.WatchRuntimeStatusReq
 	lastETag := req.GetLastEtag()
 
 	client := req.GetCaller()
+	decision, err := s.requestDecision(ctx, domain.GovernanceRequest{
+		Method: "mcpv/runtime/watch",
+		Caller: client,
+	})
+	if err != nil {
+		return mapGovernanceError(err)
+	}
+	if !decision.Continue {
+		return mapGovernanceDecision(decision)
+	}
 	updates, err := s.control.WatchRuntimeStatus(ctx, client)
 	if err != nil {
 		return mapClientError("watch runtime status", err)
@@ -542,7 +944,27 @@ func (s *ControlService) WatchRuntimeStatus(req *controlv1.WatchRuntimeStatusReq
 			if lastETag == snapshot.ETag {
 				continue
 			}
-			if err := stream.Send(toProtoRuntimeStatusSnapshot(snapshot)); err != nil {
+			protoSnapshot := toProtoRuntimeStatusSnapshot(snapshot)
+			if s.executor != nil {
+				raw, err := protojson.Marshal(protoSnapshot)
+				if err != nil {
+					return status.Errorf(codes.Internal, "watch runtime status: response encode failed: %v", err)
+				}
+				respDecision, err := s.responseDecision(ctx, domain.GovernanceRequest{
+					Method: "mcpv/runtime/watch",
+					Caller: client,
+				}, raw)
+				if err != nil {
+					return mapGovernanceError(err)
+				}
+				if !respDecision.Continue {
+					return mapGovernanceDecision(respDecision)
+				}
+				if err := applyProtoMutation(protoSnapshot, respDecision.ResponseJSON); err != nil {
+					return status.Errorf(codes.InvalidArgument, "watch runtime status: response mutation invalid: %v", err)
+				}
+			}
+			if err := stream.Send(protoSnapshot); err != nil {
 				return err
 			}
 			lastETag = snapshot.ETag
@@ -554,6 +976,16 @@ func (s *ControlService) WatchServerInitStatus(req *controlv1.WatchServerInitSta
 	ctx := stream.Context()
 
 	client := req.GetCaller()
+	decision, err := s.requestDecision(ctx, domain.GovernanceRequest{
+		Method: "mcpv/server_init/watch",
+		Caller: client,
+	})
+	if err != nil {
+		return mapGovernanceError(err)
+	}
+	if !decision.Continue {
+		return mapGovernanceDecision(decision)
+	}
 	updates, err := s.control.WatchServerInitStatus(ctx, client)
 	if err != nil {
 		return mapClientError("watch server init status", err)
@@ -567,7 +999,27 @@ func (s *ControlService) WatchServerInitStatus(req *controlv1.WatchServerInitSta
 			if !ok {
 				return nil
 			}
-			if err := stream.Send(toProtoServerInitStatusSnapshot(snapshot)); err != nil {
+			protoSnapshot := toProtoServerInitStatusSnapshot(snapshot)
+			if s.executor != nil {
+				raw, err := protojson.Marshal(protoSnapshot)
+				if err != nil {
+					return status.Errorf(codes.Internal, "watch server init status: response encode failed: %v", err)
+				}
+				respDecision, err := s.responseDecision(ctx, domain.GovernanceRequest{
+					Method: "mcpv/server_init/watch",
+					Caller: client,
+				}, raw)
+				if err != nil {
+					return mapGovernanceError(err)
+				}
+				if !respDecision.Continue {
+					return mapGovernanceDecision(respDecision)
+				}
+				if err := applyProtoMutation(protoSnapshot, respDecision.ResponseJSON); err != nil {
+					return status.Errorf(codes.InvalidArgument, "watch server init status: response mutation invalid: %v", err)
+				}
+			}
+			if err := stream.Send(protoSnapshot); err != nil {
 				return err
 			}
 		}
@@ -576,13 +1028,34 @@ func (s *ControlService) WatchServerInitStatus(req *controlv1.WatchServerInitSta
 
 // AutomaticMCP handles the automatic_mcp tool call for SubAgent.
 func (s *ControlService) AutomaticMCP(ctx context.Context, req *controlv1.AutomaticMCPRequest) (*controlv1.AutomaticMCPResponse, error) {
+	client := req.GetCaller()
 	params := domain.AutomaticMCPParams{
 		Query:        req.GetQuery(),
 		SessionID:    req.GetSessionId(),
 		ForceRefresh: req.GetForceRefresh(),
 	}
 
-	result, err := s.control.AutomaticMCP(ctx, req.GetCaller(), params)
+	if s.executor != nil {
+		decision, err := s.requestDecision(ctx, domain.GovernanceRequest{
+			Method:      "tools/call",
+			Caller:      client,
+			ToolName:    "mcpv.automatic_mcp",
+			RequestJSON: mustMarshalJSON(params),
+		})
+		if err != nil {
+			return nil, mapGovernanceError(err)
+		}
+		if !decision.Continue {
+			return nil, mapGovernanceDecision(decision)
+		}
+		if len(decision.RequestJSON) > 0 {
+			if err := json.Unmarshal(decision.RequestJSON, &params); err != nil {
+				return nil, status.Error(codes.InvalidArgument, "automatic_mcp: invalid request mutation")
+			}
+		}
+	}
+
+	result, err := s.control.AutomaticMCP(ctx, client, params)
 	if err != nil {
 		return nil, mapClientError("automatic_mcp", err)
 	}
@@ -590,6 +1063,26 @@ func (s *ControlService) AutomaticMCP(ctx context.Context, req *controlv1.Automa
 	resp, err := toProtoAutomaticMCPResponse(result)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "automatic_mcp: %v", err)
+	}
+	if s.executor != nil {
+		raw, err := protojson.Marshal(resp)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "automatic_mcp: response encode failed: %v", err)
+		}
+		respDecision, err := s.responseDecision(ctx, domain.GovernanceRequest{
+			Method:   "tools/call",
+			Caller:   client,
+			ToolName: "mcpv.automatic_mcp",
+		}, raw)
+		if err != nil {
+			return nil, mapGovernanceError(err)
+		}
+		if !respDecision.Continue {
+			return nil, mapGovernanceDecision(respDecision)
+		}
+		if err := applyProtoMutation(resp, respDecision.ResponseJSON); err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "automatic_mcp: response mutation invalid: %v", err)
+		}
 	}
 	return resp, nil
 }
@@ -607,8 +1100,32 @@ func (s *ControlService) AutomaticEval(ctx context.Context, req *controlv1.Autom
 	}
 
 	client := req.GetCaller()
-	result, err := s.control.AutomaticEval(ctx, client, params)
+	var result json.RawMessage
+	var err error
+	if s.executor != nil {
+		result, err = s.executor.Execute(ctx, domain.GovernanceRequest{
+			Method:      "tools/call",
+			Caller:      client,
+			ToolName:    "mcpv.automatic_eval",
+			RoutingKey:  params.RoutingKey,
+			RequestJSON: mustMarshalJSON(params),
+		}, func(nextCtx context.Context, govReq domain.GovernanceRequest) (json.RawMessage, error) {
+			evalParams := params
+			if len(govReq.RequestJSON) > 0 {
+				if err := json.Unmarshal(govReq.RequestJSON, &evalParams); err != nil {
+					return nil, domain.ErrInvalidRequest
+				}
+			}
+			return s.control.AutomaticEval(nextCtx, client, evalParams)
+		})
+	} else {
+		result, err = s.control.AutomaticEval(ctx, client, params)
+	}
 	if err != nil {
+		var rej domain.GovernanceRejection
+		if errors.As(err, &rej) {
+			return nil, mapGovernanceError(err)
+		}
 		return nil, mapCallToolError(req.GetToolName(), err)
 	}
 

@@ -64,3 +64,105 @@ servers:
       endpoint: http://localhost:3000/mcp
       maxRetries: 3
 
+# Plugin governance pipeline configuration
+plugins:
+  # Demo plugin showcasing all 7 governance categories
+  - name: "demo-observability"
+    category: "observability"
+    required: false
+    cmd:
+      - ./bin/demo-plugin
+      - --category
+      - observability
+      - --name
+      - demo-observability
+    timeoutMs: 5000
+    flows: ["request", "response"]
+    config:
+      logLevel: debug
+
+  - name: "demo-authentication"
+    category: "authentication"
+    required: false
+    cmd:
+      - ./bin/demo-plugin
+      - --category
+      - authentication
+      - --name
+      - demo-authentication
+    timeoutMs: 5000
+    flows: ["request"]
+    config:
+      tokenHeader: Authorization
+
+  - name: "demo-authorization"
+    category: "authorization"
+    required: false
+    cmd:
+      - ./bin/demo-plugin
+      - --category
+      - authorization
+      - --name
+      - demo-authorization
+    timeoutMs: 5000
+    flows: ["request"]
+    config:
+      requiredRole: user
+
+  - name: "demo-rate-limiting"
+    category: "rate_limiting"
+    required: false
+    cmd:
+      - ./bin/demo-plugin
+      - --category
+      - rate_limiting
+      - --name
+      - demo-rate-limiting
+    timeoutMs: 5000
+    flows: ["request"]
+    config:
+      maxRequests: 100
+      windowSeconds: 60
+
+  - name: "demo-validation"
+    category: "validation"
+    required: false
+    cmd:
+      - ./bin/demo-plugin
+      - --category
+      - validation
+      - --name
+      - demo-validation
+    timeoutMs: 5000
+    flows: ["request"]
+    config:
+      strictMode: true
+
+  - name: "demo-content"
+    category: "content"
+    required: false
+    cmd:
+      - ./bin/demo-plugin
+      - --category
+      - content
+      - --name
+      - demo-content
+    timeoutMs: 5000
+    flows: ["request", "response"]
+    config:
+      addTimestamp: true
+
+  - name: "demo-audit"
+    category: "audit"
+    required: false
+    cmd:
+      - ./bin/demo-plugin
+      - --category
+      - audit
+      - --name
+      - demo-audit
+    timeoutMs: 5000
+    flows: ["request", "response"]
+    config:
+      logDestination: stdout
+

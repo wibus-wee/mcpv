@@ -46,5 +46,7 @@ func (n *NoopMetrics) RecordReloadFailure(_ domain.CatalogUpdateSource, _ domain
 
 func (n *NoopMetrics) RecordReloadRestart(_ domain.CatalogUpdateSource, _ domain.ReloadAction) {}
 func (n *NoopMetrics) ObserveReloadApply(_ domain.ReloadApplyMetric)                           {}
+func (n *NoopMetrics) RecordGovernanceOutcome(_ domain.GovernanceOutcomeMetric)                {}
+func (n *NoopMetrics) RecordGovernanceRejection(_ domain.GovernanceRejectionMetric)            {}
 
 var _ domain.Metrics = (*NoopMetrics)(nil)

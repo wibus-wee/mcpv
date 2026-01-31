@@ -103,6 +103,32 @@ type ReloadApplyMetric struct {
 	Duration time.Duration
 }
 
+// GovernanceOutcome describes the result of a plugin invocation.
+type GovernanceOutcome string
+
+const (
+	GovernanceOutcomeContinue    GovernanceOutcome = "continue"
+	GovernanceOutcomeRejected    GovernanceOutcome = "rejected"
+	GovernanceOutcomePluginError GovernanceOutcome = "plugin_error"
+)
+
+// GovernanceOutcomeMetric captures latency and outcome for a governance plugin call.
+type GovernanceOutcomeMetric struct {
+	Category PluginCategory
+	Plugin   string
+	Flow     PluginFlow
+	Outcome  GovernanceOutcome
+	Duration time.Duration
+}
+
+// GovernanceRejectionMetric records the rejection details emitted by the pipeline.
+type GovernanceRejectionMetric struct {
+	Category PluginCategory
+	Plugin   string
+	Flow     PluginFlow
+	Code     string
+}
+
 // Metrics records operational metrics for routing and instances.
 type Metrics interface {
 	ObserveRoute(metric RouteMetric)
@@ -123,4 +149,6 @@ type Metrics interface {
 	RecordReloadFailure(source CatalogUpdateSource, action ReloadAction)
 	RecordReloadRestart(source CatalogUpdateSource, action ReloadAction)
 	ObserveReloadApply(metric ReloadApplyMetric)
+	RecordGovernanceOutcome(metric GovernanceOutcomeMetric)
+	RecordGovernanceRejection(metric GovernanceRejectionMetric)
 }

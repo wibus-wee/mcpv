@@ -48,7 +48,7 @@ func TestReloadManager_ApplyUpdate_UpdatesRuntimeAndRegistry(t *testing.T) {
 	require.NoError(t, err)
 	scheduler.minReadyCalls = nil
 
-	manager := NewReloadManager(nil, state, registry, scheduler, initManager, nil, nil, nil, nil, zap.NewNop())
+	manager := NewReloadManager(nil, state, registry, scheduler, initManager, nil, nil, nil, nil, nil, nil, zap.NewNop())
 	update := domain.CatalogUpdate{
 		Snapshot: nextState,
 		Diff:     domain.DiffCatalogStates(prevState, nextState),
@@ -97,7 +97,7 @@ func TestReloadManager_ApplyUpdate_RemovesServer(t *testing.T) {
 	require.NoError(t, err)
 	scheduler.stopCalls = nil
 
-	manager := NewReloadManager(nil, state, registry, scheduler, nil, nil, nil, nil, nil, zap.NewNop())
+	manager := NewReloadManager(nil, state, registry, scheduler, nil, nil, nil, nil, nil, nil, nil, zap.NewNop())
 	update := domain.CatalogUpdate{
 		Snapshot: nextState,
 		Diff:     domain.DiffCatalogStates(prevState, nextState),

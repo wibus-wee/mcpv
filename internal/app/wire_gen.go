@@ -54,8 +54,17 @@ func InitializeApplication(ctx context.Context, cfg ServeConfig, logging Logging
 	observabilityService := controlplane.NewObservabilityService(controlplaneState, clientRegistry, logBroadcaster)
 	automationService := controlplane.NewAutomationService(controlplaneState, clientRegistry, discoveryService)
 	controlPlane := controlplane.NewControlPlane(controlplaneState, clientRegistry, discoveryService, observabilityService, automationService)
-	server := NewRPCServer(controlPlane, catalogState, logger)
-	reloadManager := controlplane.NewReloadManager(dynamicCatalogProvider, controlplaneState, clientRegistry, scheduler, serverInitializationManager, metrics, healthTracker, metadataCache, listChangeHub, logger)
+	pluginManager, err := NewPluginManager(logger)
+	if err != nil {
+		return nil, err
+	}
+	engine, err := NewPipelineEngine(catalogState, pluginManager, metrics, logger)
+	if err != nil {
+		return nil, err
+	}
+	executor := NewGovernanceExecutor(engine)
+	server := NewRPCServer(controlPlane, executor, catalogState, logger)
+	reloadManager := controlplane.NewReloadManager(dynamicCatalogProvider, controlplaneState, clientRegistry, scheduler, serverInitializationManager, pluginManager, engine, metrics, healthTracker, metadataCache, listChangeHub, logger)
 	applicationOptions := ApplicationOptions{
 		Context:           ctx,
 		ServeConfig:       cfg,
@@ -71,6 +80,7 @@ func InitializeApplication(ctx context.Context, cfg ServeConfig, logging Logging
 		ControlPlane:      controlPlane,
 		RPCServer:         server,
 		ReloadManager:     reloadManager,
+		PluginManager:     pluginManager,
 	}
 	application := NewApplication(applicationOptions)
 	return application, nil

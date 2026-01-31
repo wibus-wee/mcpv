@@ -6,6 +6,8 @@ type CatalogSummary struct {
 	ServerSpecKeys map[string]string
 	TotalServers   int
 	Runtime        RuntimeConfig
+	Plugins        []PluginSpec
+	PluginIndex    map[string]PluginSpec
 }
 
 // BuildCatalogSummary computes a summary view of the catalog.
@@ -15,6 +17,8 @@ func BuildCatalogSummary(catalog Catalog) (CatalogSummary, error) {
 		ServerSpecKeys: make(map[string]string),
 		TotalServers:   0,
 		Runtime:        catalog.Runtime,
+		Plugins:        nil,
+		PluginIndex:    make(map[string]PluginSpec),
 	}
 
 	for name, spec := range catalog.Specs {
@@ -27,6 +31,16 @@ func BuildCatalogSummary(catalog Catalog) (CatalogSummary, error) {
 			summary.SpecRegistry[specKey] = spec
 		}
 		summary.TotalServers++
+	}
+
+	if len(catalog.Plugins) > 0 {
+		summary.Plugins = append([]PluginSpec(nil), catalog.Plugins...)
+		for _, plugin := range catalog.Plugins {
+			if plugin.Name == "" {
+				continue
+			}
+			summary.PluginIndex[plugin.Name] = plugin
+		}
 	}
 
 	return summary, nil

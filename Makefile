@@ -47,7 +47,8 @@ proto:
 		--go-grpc_out=. \
 		--go_opt=module=mcpv \
 		--go-grpc_opt=module=mcpv \
-		proto/mcpv/control/v1/control.proto
+		proto/mcpv/control/v1/control.proto \
+		proto/mcpv/plugin/v1/plugin.proto
 
 tools: $(WIRE)
 

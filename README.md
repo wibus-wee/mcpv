@@ -72,6 +72,11 @@ The project is under active development:
 - [x] Hot Reload
 - [ ] **Auto-discovery & Config Import - Planned**
 
+## 🔗 References
+
+- [Model Context Protocol (MCP)](https://modelcontextprotocol.io/)
+- [mozilla-ai/mcpd](https://github.com/mozilla-ai/mcpd)
+
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).

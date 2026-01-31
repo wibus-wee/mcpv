@@ -18,7 +18,7 @@ import (
 func TestControlService_CallToolNotFound(t *testing.T) {
 	svc := NewControlService(&fakeControlPlane{
 		callToolErr: domain.ErrToolNotFound,
-	}, nil)
+	}, nil, nil)
 
 	_, err := svc.CallTool(context.Background(), &controlv1.CallToolRequest{
 		Caller:        "caller",
@@ -30,7 +30,7 @@ func TestControlService_CallToolNotFound(t *testing.T) {
 }
 
 func TestControlService_CallToolMissingName(t *testing.T) {
-	svc := NewControlService(&fakeControlPlane{}, nil)
+	svc := NewControlService(&fakeControlPlane{}, nil, nil)
 
 	_, err := svc.CallTool(context.Background(), &controlv1.CallToolRequest{})
 	require.Error(t, err)
@@ -38,7 +38,7 @@ func TestControlService_CallToolMissingName(t *testing.T) {
 }
 
 func TestControlService_GetPromptMissingName(t *testing.T) {
-	svc := NewControlService(&fakeControlPlane{}, nil)
+	svc := NewControlService(&fakeControlPlane{}, nil, nil)
 
 	_, err := svc.GetPrompt(context.Background(), &controlv1.GetPromptRequest{})
 	require.Error(t, err)
@@ -46,7 +46,7 @@ func TestControlService_GetPromptMissingName(t *testing.T) {
 }
 
 func TestControlService_ReadResourceMissingURI(t *testing.T) {
-	svc := NewControlService(&fakeControlPlane{}, nil)
+	svc := NewControlService(&fakeControlPlane{}, nil, nil)
 
 	_, err := svc.ReadResource(context.Background(), &controlv1.ReadResourceRequest{})
 	require.Error(t, err)
@@ -56,7 +56,7 @@ func TestControlService_ReadResourceMissingURI(t *testing.T) {
 func TestControlService_CallToolDeadlineExceeded(t *testing.T) {
 	svc := NewControlService(&fakeControlPlane{
 		callToolErr: context.DeadlineExceeded,
-	}, nil)
+	}, nil, nil)
 
 	_, err := svc.CallTool(context.Background(), &controlv1.CallToolRequest{
 		Caller:        "caller",
@@ -70,7 +70,7 @@ func TestControlService_CallToolDeadlineExceeded(t *testing.T) {
 func TestControlService_CallToolUnavailable(t *testing.T) {
 	svc := NewControlService(&fakeControlPlane{
 		callToolErr: scheduler.ErrNoCapacity,
-	}, nil)
+	}, nil, nil)
 
 	_, err := svc.CallTool(context.Background(), &controlv1.CallToolRequest{
 		Caller:        "caller",
@@ -84,7 +84,7 @@ func TestControlService_CallToolUnavailable(t *testing.T) {
 func TestControlService_CallToolInvalidArgument(t *testing.T) {
 	svc := NewControlService(&fakeControlPlane{
 		callToolErr: domain.ErrInvalidRequest,
-	}, nil)
+	}, nil, nil)
 
 	_, err := svc.CallTool(context.Background(), &controlv1.CallToolRequest{
 		Caller:        "caller",
@@ -103,7 +103,7 @@ func TestControlService_ListTools(t *testing.T) {
 				{Name: "echo.echo", InputSchema: map[string]any{"type": "object"}},
 			},
 		},
-	}, nil)
+	}, nil, nil)
 
 	resp, err := svc.ListTools(context.Background(), &controlv1.ListToolsRequest{Caller: "caller"})
 	require.NoError(t, err)
@@ -117,7 +117,7 @@ func TestControlService_ListTools(t *testing.T) {
 func TestControlService_RegisterCaller(t *testing.T) {
 	svc := NewControlService(&fakeControlPlane{
 		registerRegistration: domain.ClientRegistration{Client: "caller"},
-	}, nil)
+	}, nil, nil)
 
 	resp, err := svc.RegisterCaller(context.Background(), &controlv1.RegisterCallerRequest{
 		Caller: "caller",
@@ -130,7 +130,7 @@ func TestControlService_RegisterCaller(t *testing.T) {
 func TestControlService_ListToolsRequiresCaller(t *testing.T) {
 	svc := NewControlService(&fakeControlPlane{
 		listToolsErr: domain.ErrClientNotRegistered,
-	}, nil)
+	}, nil, nil)
 
 	_, err := svc.ListTools(context.Background(), &controlv1.ListToolsRequest{Caller: "caller"})
 	require.Error(t, err)
@@ -161,7 +161,7 @@ func TestControlService_WatchToolsInitialSnapshot(t *testing.T) {
 
 	svc := NewControlService(&fakeControlPlane{
 		watchToolsCh: watchCh,
-	}, nil)
+	}, nil, nil)
 
 	stream := &fakeWatchToolsStream{
 		ctx:       context.Background(),
@@ -192,7 +192,7 @@ func TestControlService_WatchToolsSkipsDuplicateETag(t *testing.T) {
 
 	svc := NewControlService(&fakeControlPlane{
 		watchToolsCh: watchCh,
-	}, nil)
+	}, nil, nil)
 
 	stream := &fakeWatchToolsStream{
 		ctx:       context.Background(),
