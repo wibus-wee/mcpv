@@ -35,6 +35,17 @@ func (s *PluginService) GetPluginList(_ context.Context) ([]PluginListEntry, err
 		return []PluginListEntry{}, nil
 	}
 
+	// Get plugin runtime status from coreApp
+	var statusMap map[string]bool
+	coreApp, coreErr := s.deps.getCoreApp()
+	if coreErr == nil && coreApp != nil {
+		statusList := coreApp.GetPluginStatus()
+		statusMap = make(map[string]bool, len(statusList))
+		for _, st := range statusList {
+			statusMap[st.Name] = st.Running
+		}
+	}
+
 	plugins := make([]PluginListEntry, 0, len(catalog.Plugins))
 	for _, spec := range catalog.Plugins {
 		// Get latest metrics from telemetry (placeholder - implement when telemetry exposes plugin metrics)
@@ -44,12 +55,26 @@ func (s *PluginService) GetPluginList(_ context.Context) ([]PluginListEntry, err
 			AvgLatencyMs:   0.0,
 		}
 
+		// Determine status
+		status := "stopped"
+		statusError := ""
+		if statusMap != nil {
+			if running, ok := statusMap[spec.Name]; ok && running {
+				status = "running"
+			} else {
+				status = "error"
+				statusError = "Plugin failed to start or is not running"
+			}
+		}
+
 		entry := PluginListEntry{
 			Name:          spec.Name,
 			Category:      string(spec.Category),
 			Flows:         mapPluginFlows(spec.Flows),
 			Required:      spec.Required,
 			Enabled:       true, // TODO: track enabled state in catalog or separate store
+			Status:        status,
+			StatusError:   statusError,
 			CommitHash:    spec.CommitHash,
 			TimeoutMs:     spec.TimeoutMs,
 			LatestMetrics: metrics,

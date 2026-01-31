@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"mcpv/internal/app/controlplane"
+	"mcpv/internal/infra/plugin"
 	"mcpv/internal/infra/telemetry"
 )
 
@@ -17,6 +18,7 @@ type App struct {
 	logBroadcaster *telemetry.LogBroadcaster
 	mu             sync.RWMutex
 	reloadManager  *controlplane.ReloadManager
+	application    *Application
 }
 
 // ServeConfig describes how to start the core application.
@@ -70,8 +72,8 @@ func (a *App) Serve(ctx context.Context, cfg ServeConfig) error {
 		return err
 	}
 	a.logger.Info("core initialization complete")
-	a.setReloadManager(application.reloadManager)
-	defer a.setReloadManager(nil)
+	a.setApplication(application)
+	defer a.setApplication(nil)
 	return application.Run()
 }
 
@@ -86,8 +88,36 @@ func (a *App) ReloadConfig(ctx context.Context) error {
 	return manager.Reload(ctx)
 }
 
-func (a *App) setReloadManager(manager *controlplane.ReloadManager) {
+func (a *App) setApplication(application *Application) {
 	a.mu.Lock()
-	a.reloadManager = manager
+	if application != nil {
+		a.reloadManager = application.reloadManager
+		a.application = application
+	} else {
+		a.reloadManager = nil
+		a.application = nil
+	}
 	a.mu.Unlock()
+}
+
+// GetPluginStatus returns the runtime status of all configured plugins.
+func (a *App) GetPluginStatus() []plugin.PluginStatus {
+	a.mu.RLock()
+	application := a.application
+	a.mu.RUnlock()
+	if application == nil {
+		return nil
+	}
+	return application.GetPluginStatus()
+}
+
+// IsPluginRunning checks if a specific plugin is currently running.
+func (a *App) IsPluginRunning(name string) bool {
+	a.mu.RLock()
+	application := a.application
+	a.mu.RUnlock()
+	if application == nil {
+		return false
+	}
+	return application.IsPluginRunning(name)
 }

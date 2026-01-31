@@ -187,3 +187,19 @@ func (a *Application) Run() error {
 
 	return a.rpcServer.Run(a.ctx)
 }
+
+// GetPluginStatus returns the runtime status of all configured plugins.
+func (a *Application) GetPluginStatus() []plugin.PluginStatus {
+	if a.pluginManager == nil {
+		return nil
+	}
+	return a.pluginManager.GetStatus(a.summary.Plugins)
+}
+
+// IsPluginRunning checks if a specific plugin is currently running.
+func (a *Application) IsPluginRunning(name string) bool {
+	if a.pluginManager == nil {
+		return false
+	}
+	return a.pluginManager.IsRunning(name)
+}

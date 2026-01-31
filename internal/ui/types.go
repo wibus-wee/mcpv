@@ -390,6 +390,8 @@ type PluginListEntry struct {
 	Flows         []string      `json:"flows"`
 	Required      bool          `json:"required"`
 	Enabled       bool          `json:"enabled"`
+	Status        string        `json:"status"`                // "running", "stopped", "error"
+	StatusError   string        `json:"statusError,omitempty"` // Error message if status is "error"
 	CommitHash    string        `json:"commitHash,omitempty"`
 	TimeoutMs     int           `json:"timeoutMs"`
 	LatestMetrics PluginMetrics `json:"latestMetrics"`

@@ -877,25 +877,28 @@ func (s *ControlService) StreamLogs(req *controlv1.StreamLogsRequest, stream con
 				return nil
 			}
 			protoEntry := toProtoLogEntry(entry)
-			if s.executor != nil {
-				raw, err := protojson.Marshal(protoEntry)
-				if err != nil {
-					return status.Errorf(codes.Internal, "stream logs: response encode failed: %v", err)
-				}
-				respDecision, err := s.responseDecision(ctx, domain.GovernanceRequest{
-					Method: "logging/subscribe",
-					Caller: client,
-				}, raw)
-				if err != nil {
-					return mapGovernanceError(err)
-				}
-				if !respDecision.Continue {
-					return mapGovernanceDecision(respDecision)
-				}
-				if err := applyProtoMutation(protoEntry, respDecision.ResponseJSON); err != nil {
-					return status.Errorf(codes.InvalidArgument, "stream logs: response mutation invalid: %v", err)
-				}
-			}
+			// TODO：Maybe implement governance for log streaming later
+			// Skip plugin processing for log streaming to avoid infinite loops
+			// Plugins should not process logging operations
+			// if s.executor != nil {
+			// 	raw, err := protojson.Marshal(protoEntry)
+			// 	if err != nil {
+			// 		return status.Errorf(codes.Internal, "stream logs: response encode failed: %v", err)
+			// 	}
+			// 	respDecision, err := s.responseDecision(ctx, domain.GovernanceRequest{
+			// 		Method: "logging/subscribe",
+			// 		Caller: client,
+			// 	}, raw)
+			// 	if err != nil {
+			// 		return mapGovernanceError(err)
+			// 	}
+			// 	if !respDecision.Continue {
+			// 		return mapGovernanceDecision(respDecision)
+			// 	}
+			// 	if err := applyProtoMutation(protoEntry, respDecision.ResponseJSON); err != nil {
+			// 		return status.Errorf(codes.InvalidArgument, "stream logs: response mutation invalid: %v", err)
+			// 	}
+			// }
 			if err := stream.Send(protoEntry); err != nil {
 				return err
 			}
