@@ -17,6 +17,7 @@ import (
 type State struct {
 	specKeys      map[string]string
 	metadataCache *domain.MetadataCache
+	baseRouter    *router.BasicRouter
 	tools         *aggregator.ToolIndex
 	resources     *aggregator.ResourceIndex
 	prompts       *aggregator.PromptIndex
@@ -50,6 +51,7 @@ func NewState(
 	return &State{
 		specKeys:      copySpecKeyMap(state.Summary.ServerSpecKeys),
 		metadataCache: metadataCache,
+		baseRouter:    baseRouter,
 		tools:         toolIndex,
 		resources:     resourceIndex,
 		prompts:       promptIndex,
@@ -128,6 +130,26 @@ func (r *State) UpdateCatalog(catalog domain.Catalog, specKeys map[string]string
 	if r.prompts != nil {
 		r.prompts.UpdateSpecs(catalog.Specs, specKeys, runtime)
 	}
+}
+
+// ApplyRuntimeConfig updates runtime-dependent settings without rebuilding indexes.
+func (r *State) ApplyRuntimeConfig(_ context.Context, prev, next domain.RuntimeConfig) error {
+	if r == nil {
+		return nil
+	}
+	if r.baseRouter != nil && prev.RouteTimeoutSeconds != next.RouteTimeoutSeconds {
+		r.baseRouter.SetTimeout(next.RouteTimeout())
+	}
+	if r.tools != nil {
+		r.tools.ApplyRuntimeConfig(next)
+	}
+	if r.resources != nil {
+		r.resources.ApplyRuntimeConfig(next)
+	}
+	if r.prompts != nil {
+		r.prompts.ApplyRuntimeConfig(next)
+	}
+	return nil
 }
 
 // SetBootstrapWaiter attaches a bootstrap waiter to indexes.

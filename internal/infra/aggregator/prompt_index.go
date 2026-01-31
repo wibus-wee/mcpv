@@ -276,6 +276,25 @@ func (a *PromptIndex) UpdateSpecs(specs map[string]domain.ServerSpec, specKeys m
 	a.index.UpdateSpecs(specsCopy, cfg)
 }
 
+// ApplyRuntimeConfig updates runtime configuration and refresh scheduling.
+func (a *PromptIndex) ApplyRuntimeConfig(cfg domain.RuntimeConfig) {
+	a.specsMu.Lock()
+	prevCfg := a.cfg
+	specsCopy := copyServerSpecs(a.specs)
+	a.cfg = cfg
+	a.specsMu.Unlock()
+	a.index.UpdateSpecs(specsCopy, cfg)
+
+	baseCtx := a.baseContext()
+	if baseCtx == nil {
+		return
+	}
+	if prevCfg.ToolRefreshInterval() != cfg.ToolRefreshInterval() {
+		a.index.Stop()
+		a.index.Start(baseCtx)
+	}
+}
+
 func (a *PromptIndex) startListChangeListener(ctx context.Context) {
 	if a.listChanges == nil {
 		return

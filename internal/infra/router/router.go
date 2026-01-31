@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
@@ -16,7 +17,7 @@ import (
 
 type BasicRouter struct {
 	scheduler domain.Scheduler
-	timeout   time.Duration
+	timeout   atomic.Int64
 	logger    *zap.Logger
 }
 
@@ -34,11 +35,20 @@ func NewBasicRouter(scheduler domain.Scheduler, opts Options) *BasicRouter {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
-	return &BasicRouter{
+	router := &BasicRouter{
 		scheduler: scheduler,
-		timeout:   timeout,
 		logger:    logger.Named("router"),
 	}
+	router.timeout.Store(int64(timeout))
+	return router
+}
+
+// SetTimeout updates the route timeout duration.
+func (r *BasicRouter) SetTimeout(timeout time.Duration) {
+	if timeout <= 0 {
+		timeout = time.Duration(domain.DefaultRouteTimeoutSeconds) * time.Second
+	}
+	r.timeout.Store(int64(timeout))
 }
 
 func (r *BasicRouter) Route(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage) (json.RawMessage, error) {
@@ -89,7 +99,7 @@ func (r *BasicRouter) RouteWithOptions(ctx context.Context, serverType, specKey,
 		return nil, routeErr
 	}
 
-	callCtx, cancel := context.WithTimeout(ctx, r.timeout)
+	callCtx, cancel := context.WithTimeout(ctx, r.timeoutDuration())
 	defer cancel()
 
 	callStarted := time.Now()
@@ -103,6 +113,10 @@ func (r *BasicRouter) RouteWithOptions(ctx context.Context, serverType, specKey,
 	}
 
 	return resp, nil
+}
+
+func (r *BasicRouter) timeoutDuration() time.Duration {
+	return time.Duration(r.timeout.Load())
 }
 
 func (r *BasicRouter) logRouteError(serverType, method string, inst *domain.Instance, start time.Time, err error) {

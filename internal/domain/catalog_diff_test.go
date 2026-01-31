@@ -41,7 +41,8 @@ func TestDiffCatalogStates_SpecChanges(t *testing.T) {
 	require.Contains(t, diff.AddedSpecKeys, newKeyA)
 	require.Contains(t, diff.ReplacedSpecKeys, oldKeyA)
 	require.Contains(t, diff.UpdatedSpecKeys, keyB)
-	require.Contains(t, diff.RestartRequiredSpecKeys, keyB)
+	require.Contains(t, diff.RuntimeBehaviorSpecKeys, keyB)
+	require.Empty(t, diff.RestartRequiredSpecKeys)
 	require.Empty(t, diff.ToolsOnlySpecKeys)
 	require.False(t, diff.TagsChanged)
 	require.False(t, diff.RuntimeChanged)
@@ -66,6 +67,10 @@ func TestClassifySpecDiff(t *testing.T) {
 	onlyName := base
 	onlyName.Name = "svc-renamed"
 	require.Equal(t, SpecDiffToolsOnly, ClassifySpecDiff(base, onlyName))
+
+	idleChanged := base
+	idleChanged.IdleSeconds = 10
+	require.Equal(t, SpecDiffRuntimeBehavior, ClassifySpecDiff(base, idleChanged))
 
 	cmdChanged := base
 	cmdChanged.Cmd = []string{"echo", "v2"}

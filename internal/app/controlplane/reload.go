@@ -168,39 +168,38 @@ func (m *ReloadManager) run(ctx context.Context, updates <-chan domain.CatalogUp
 	}
 }
 
+type reloadStep struct {
+	name     string
+	apply    func(context.Context) error
+	rollback func(context.Context) error
+}
+
 func (m *ReloadManager) applyUpdate(ctx context.Context, update domain.CatalogUpdate) error {
 	started := time.Now()
-	prevCatalog := m.state.Catalog()
-	addedServers := serverNamesForSpecKeys(update.Snapshot.Catalog, update.Diff.AddedSpecKeys)
-	removedServers := serverNamesForSpecKeys(prevCatalog, update.Diff.RemovedSpecKeys)
-	updatedServers := serverNamesForSpecKeys(update.Snapshot.Catalog, update.Diff.UpdatedSpecKeys)
-	replacedServers := serverNamesForSpecKeys(prevCatalog, update.Diff.ReplacedSpecKeys)
-	changedFields := diffChangedFields(update.Diff)
+	prevSnapshot, err := m.currentSnapshot()
+	if err != nil {
+		return err
+	}
 	diff := update.Diff
+	if diff.RuntimeDiff.RequiresRestart() {
+		m.recordReloadRestart(update.Source, domain.ReloadActionEntry)
+		return reloadApplyError{stage: "restart_required", err: domain.ErrReloadRestartRequired}
+	}
+
+	addedServers := serverNamesForSpecKeys(update.Snapshot.Catalog, diff.AddedSpecKeys)
+	removedServers := serverNamesForSpecKeys(prevSnapshot.Catalog, diff.RemovedSpecKeys)
+	updatedServers := serverNamesForSpecKeys(update.Snapshot.Catalog, diff.UpdatedSpecKeys)
+	replacedServers := serverNamesForSpecKeys(prevSnapshot.Catalog, diff.ReplacedSpecKeys)
+	changedFields := diffChangedFields(diff)
 	runtimeOnly := diff.IsRuntimeOnly()
-	runtime := m.state.RuntimeState()
-	if runtime == nil {
-		runtime = appRuntime.NewState(&update.Snapshot, m.scheduler, m.metrics, m.health, m.metadataCache, m.listChanges, m.coreLogger)
-	} else if diff.RuntimeChanged || diff.HasSpecChanges() {
-		runtime.UpdateCatalog(update.Snapshot.Catalog, update.Snapshot.Summary.ServerSpecKeys, update.Snapshot.Summary.Runtime)
+
+	steps := m.buildReloadSteps(prevSnapshot, update)
+	reloadMode := resolveReloadMode(update.Snapshot.Summary.Runtime.ReloadMode)
+	if err := m.applyTransaction(ctx, steps, reloadMode); err != nil {
+		return err
 	}
 
-	if !runtimeOnly {
-		if err := m.scheduler.ApplyCatalogDiff(ctx, diff, update.Snapshot.Summary.SpecRegistry); err != nil {
-			return err
-		}
-	}
-	if m.initManager != nil {
-		m.initManager.ApplyCatalogState(&update.Snapshot)
-	}
-
-	m.state.UpdateCatalog(&update.Snapshot, runtime)
-
-	if err := m.registry.ApplyCatalogUpdate(ctx, update); err != nil {
-		return reloadApplyError{stage: "registry_update", err: err}
-	}
-
-	m.refreshRuntime(ctx, update, runtime)
+	m.refreshRuntime(ctx, update, m.state.RuntimeState())
 
 	m.recordReloadSuccess(update.Source, domain.ReloadActionEntry)
 	for range update.Diff.AddedSpecKeys {
@@ -231,12 +230,208 @@ func (m *ReloadManager) applyUpdate(ctx context.Context, update domain.CatalogUp
 		zap.Strings("servers_replaced", replacedServers),
 		zap.Strings("changed_fields", changedFields),
 		zap.Int("tools_only", len(update.Diff.ToolsOnlySpecKeys)),
+		zap.Int("runtime_behavior", len(update.Diff.RuntimeBehaviorSpecKeys)),
 		zap.Int("restart_required", len(update.Diff.RestartRequiredSpecKeys)),
 		zap.Bool("runtime_only", runtimeOnly),
 		zap.Duration("latency", time.Since(started)),
 	)
 	m.appliedRev.Store(update.Snapshot.Revision)
 	return nil
+}
+
+func (m *ReloadManager) buildReloadSteps(prev domain.CatalogState, update domain.CatalogUpdate) []reloadStep {
+	diff := update.Diff
+	runtimeOnly := diff.IsRuntimeOnly()
+	reverseDiff := domain.DiffCatalogStates(update.Snapshot, prev)
+
+	steps := make([]reloadStep, 0, 2)
+	if !runtimeOnly || m.initManager != nil {
+		steps = append(steps, reloadStep{
+			name: "scheduler_apply",
+			apply: func(ctx context.Context) error {
+				if !runtimeOnly && m.scheduler != nil {
+					if err := m.scheduler.ApplyCatalogDiff(ctx, diff, update.Snapshot.Summary.SpecRegistry); err != nil {
+						if rollbackErr := m.scheduler.ApplyCatalogDiff(ctx, reverseDiff, prev.Summary.SpecRegistry); rollbackErr != nil {
+							return errors.Join(err, rollbackErr)
+						}
+						return err
+					}
+				}
+				if m.initManager != nil {
+					m.initManager.ApplyCatalogState(&update.Snapshot)
+				}
+				return nil
+			},
+			rollback: func(ctx context.Context) error {
+				var rollbackErr error
+				if !runtimeOnly && m.scheduler != nil {
+					if err := m.scheduler.ApplyCatalogDiff(ctx, reverseDiff, prev.Summary.SpecRegistry); err != nil {
+						rollbackErr = err
+					}
+				}
+				if m.initManager != nil {
+					m.initManager.ApplyCatalogState(&prev)
+				}
+				return rollbackErr
+			},
+		})
+	}
+
+	steps = append(steps, m.buildStateRegistryStep(prev, update, reverseDiff))
+	if diff.RuntimeChanged {
+		steps = append(steps, m.buildRuntimeConfigStep(prev.Summary.Runtime, update.Snapshot.Summary.Runtime))
+	}
+	return steps
+}
+
+func (m *ReloadManager) buildStateRegistryStep(prev domain.CatalogState, update domain.CatalogUpdate, reverseDiff domain.CatalogDiff) reloadStep {
+	diff := update.Diff
+	prevRuntime := m.state.RuntimeState()
+	runtime := prevRuntime
+	runtimeCreated := false
+	if runtime == nil {
+		runtime = appRuntime.NewState(&update.Snapshot, m.scheduler, m.metrics, m.health, m.metadataCache, m.listChanges, m.coreLogger)
+		runtimeCreated = true
+	}
+	shouldUpdateRuntime := !runtimeCreated && (diff.RuntimeChanged || diff.HasSpecChanges())
+	rollbackUpdate := domain.CatalogUpdate{
+		Snapshot: prev,
+		Diff:     reverseDiff,
+		Source:   update.Source,
+	}
+
+	return reloadStep{
+		name: "state_registry",
+		apply: func(ctx context.Context) error {
+			if shouldUpdateRuntime {
+				runtime.UpdateCatalog(update.Snapshot.Catalog, update.Snapshot.Summary.ServerSpecKeys, update.Snapshot.Summary.Runtime)
+			}
+			m.state.UpdateCatalog(&update.Snapshot, runtime)
+			if m.registry == nil {
+				return nil
+			}
+			if err := m.registry.ApplyCatalogUpdate(ctx, update); err != nil {
+				if shouldUpdateRuntime {
+					runtime.UpdateCatalog(prev.Catalog, prev.Summary.ServerSpecKeys, prev.Summary.Runtime)
+				}
+				m.state.UpdateCatalog(&prev, prevRuntime)
+				if rollbackErr := m.registry.ApplyCatalogUpdate(ctx, rollbackUpdate); rollbackErr != nil {
+					return errors.Join(err, rollbackErr)
+				}
+				return err
+			}
+			return nil
+		},
+		rollback: func(ctx context.Context) error {
+			var rollbackErr error
+			if shouldUpdateRuntime {
+				runtime.UpdateCatalog(prev.Catalog, prev.Summary.ServerSpecKeys, prev.Summary.Runtime)
+			}
+			m.state.UpdateCatalog(&prev, prevRuntime)
+			if m.registry != nil {
+				if err := m.registry.ApplyCatalogUpdate(ctx, rollbackUpdate); err != nil {
+					rollbackErr = err
+				}
+			}
+			return rollbackErr
+		},
+	}
+}
+
+func (m *ReloadManager) buildRuntimeConfigStep(prev, next domain.RuntimeConfig) reloadStep {
+	return reloadStep{
+		name: "runtime_config",
+		apply: func(ctx context.Context) error {
+			return m.applyRuntimeConfig(ctx, prev, next)
+		},
+		rollback: func(ctx context.Context) error {
+			return m.applyRuntimeConfig(ctx, next, prev)
+		},
+	}
+}
+
+func (m *ReloadManager) applyRuntimeConfig(ctx context.Context, prev, next domain.RuntimeConfig) error {
+	runtime := m.state.RuntimeState()
+	if runtime != nil {
+		if err := runtime.ApplyRuntimeConfig(ctx, prev, next); err != nil {
+			return err
+		}
+	}
+	if m.registry != nil && prev.ClientCheckInterval() != next.ClientCheckInterval() {
+		if err := m.registry.UpdateRuntimeConfig(ctx, prev, next); err != nil {
+			return err
+		}
+	}
+	if m.scheduler != nil && prev.PingIntervalSeconds != next.PingIntervalSeconds {
+		m.scheduler.StopPingManager()
+		if nextInterval := next.PingInterval(); nextInterval > 0 {
+			m.scheduler.StartPingManager(nextInterval)
+		}
+	}
+	return nil
+}
+
+func (m *ReloadManager) applyTransaction(ctx context.Context, steps []reloadStep, mode domain.ReloadMode) error {
+	applied := make([]reloadStep, 0, len(steps))
+	for _, step := range steps {
+		if err := step.apply(ctx); err != nil {
+			applyErr := wrapReloadStage(step.name, err)
+			rollbackStart := time.Now()
+			if rollbackErr := m.rollbackSteps(ctx, applied); rollbackErr != nil {
+				rollbackDuration := time.Since(rollbackStart)
+				m.observeReloadRollback(mode, domain.ReloadRollbackResultFailure, step.name, rollbackDuration)
+				m.logger.Warn("config reload rollback failed",
+					zap.String("failure_stage", step.name),
+					zap.Duration("latency", rollbackDuration),
+					zap.Error(rollbackErr),
+				)
+				return errors.Join(applyErr, wrapReloadStage("rollback", rollbackErr))
+			}
+			rollbackDuration := time.Since(rollbackStart)
+			m.observeReloadRollback(mode, domain.ReloadRollbackResultSuccess, step.name, rollbackDuration)
+			m.logger.Info("config reload rolled back",
+				zap.String("failure_stage", step.name),
+				zap.Duration("latency", rollbackDuration),
+			)
+			return applyErr
+		}
+		applied = append(applied, step)
+	}
+	return nil
+}
+
+func (m *ReloadManager) rollbackSteps(ctx context.Context, steps []reloadStep) error {
+	if len(steps) == 0 {
+		return nil
+	}
+	var rollbackErr error
+	for i := len(steps) - 1; i >= 0; i-- {
+		step := steps[i]
+		if step.rollback == nil {
+			continue
+		}
+		if err := step.rollback(ctx); err != nil {
+			rollbackErr = errors.Join(rollbackErr, err)
+		}
+	}
+	return rollbackErr
+}
+
+func (m *ReloadManager) currentSnapshot() (domain.CatalogState, error) {
+	catalog := m.state.Catalog()
+	revision := m.appliedRev.Load()
+	return domain.NewCatalogState(catalog, revision, time.Now())
+}
+
+func wrapReloadStage(stage string, err error) error {
+	if err == nil {
+		return nil
+	}
+	var applyErr reloadApplyError
+	if errors.As(err, &applyErr) {
+		return err
+	}
+	return reloadApplyError{stage: stage, err: err}
 }
 
 func (m *ReloadManager) refreshRuntime(ctx context.Context, update domain.CatalogUpdate, runtime *appRuntime.State) {
@@ -391,6 +586,18 @@ func (m *ReloadManager) observeReloadApply(mode domain.ReloadMode, result domain
 		return
 	}
 	m.metrics.ObserveReloadApply(domain.ReloadApplyMetric{
+		Mode:     mode,
+		Result:   result,
+		Summary:  summary,
+		Duration: duration,
+	})
+}
+
+func (m *ReloadManager) observeReloadRollback(mode domain.ReloadMode, result domain.ReloadRollbackResult, summary string, duration time.Duration) {
+	if m.metrics == nil {
+		return
+	}
+	m.metrics.ObserveReloadRollback(domain.ReloadRollbackMetric{
 		Mode:     mode,
 		Result:   result,
 		Summary:  summary,

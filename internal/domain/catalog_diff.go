@@ -12,9 +12,11 @@ type CatalogDiff struct {
 	ReplacedSpecKeys        []string
 	UpdatedSpecKeys         []string
 	ToolsOnlySpecKeys       []string
+	RuntimeBehaviorSpecKeys []string
 	RestartRequiredSpecKeys []string
 	TagsChanged             bool
 	RuntimeChanged          bool
+	RuntimeDiff             RuntimeDiff
 }
 
 // IsEmpty reports whether the diff contains any changes.
@@ -24,9 +26,11 @@ func (d CatalogDiff) IsEmpty() bool {
 		len(d.ReplacedSpecKeys) == 0 &&
 		len(d.UpdatedSpecKeys) == 0 &&
 		len(d.ToolsOnlySpecKeys) == 0 &&
+		len(d.RuntimeBehaviorSpecKeys) == 0 &&
 		len(d.RestartRequiredSpecKeys) == 0 &&
 		!d.TagsChanged &&
-		!d.RuntimeChanged
+		!d.RuntimeChanged &&
+		d.RuntimeDiff.IsEmpty()
 }
 
 // HasSpecChanges reports whether any spec keys changed.
@@ -48,6 +52,7 @@ type SpecDiffClassification string
 const (
 	SpecDiffNone            SpecDiffClassification = "none"
 	SpecDiffToolsOnly       SpecDiffClassification = "tools_only"
+	SpecDiffRuntimeBehavior SpecDiffClassification = "runtime_behavior"
 	SpecDiffRestartRequired SpecDiffClassification = "restart_required"
 )
 
@@ -59,13 +64,17 @@ func ClassifySpecDiff(prevSpec, nextSpec ServerSpec) SpecDiffClassification {
 	if nonToolSpecEquals(prevSpec, nextSpec) {
 		return SpecDiffToolsOnly
 	}
+	if runtimeBehaviorSpecEquals(prevSpec, nextSpec) {
+		return SpecDiffRuntimeBehavior
+	}
 	return SpecDiffRestartRequired
 }
 
 // DiffCatalogStates computes a diff between two catalog states.
 func DiffCatalogStates(prev CatalogState, next CatalogState) CatalogDiff {
 	diff := CatalogDiff{}
-	diff.RuntimeChanged = !reflect.DeepEqual(prev.Summary.Runtime, next.Summary.Runtime)
+	diff.RuntimeDiff = DiffRuntimeConfig(prev.Summary.Runtime, next.Summary.Runtime)
+	diff.RuntimeChanged = !diff.RuntimeDiff.IsEmpty()
 
 	prevSpecs := prev.Summary.SpecRegistry
 	nextSpecs := next.Summary.SpecRegistry
@@ -81,6 +90,8 @@ func DiffCatalogStates(prev CatalogState, next CatalogState) CatalogDiff {
 			switch ClassifySpecDiff(prevSpec, nextSpec) {
 			case SpecDiffToolsOnly:
 				diff.ToolsOnlySpecKeys = append(diff.ToolsOnlySpecKeys, specKey)
+			case SpecDiffRuntimeBehavior:
+				diff.RuntimeBehaviorSpecKeys = append(diff.RuntimeBehaviorSpecKeys, specKey)
 			case SpecDiffRestartRequired:
 				diff.RestartRequiredSpecKeys = append(diff.RestartRequiredSpecKeys, specKey)
 			case SpecDiffNone:
@@ -116,6 +127,7 @@ func DiffCatalogStates(prev CatalogState, next CatalogState) CatalogDiff {
 	sort.Strings(diff.ReplacedSpecKeys)
 	sort.Strings(diff.UpdatedSpecKeys)
 	sort.Strings(diff.ToolsOnlySpecKeys)
+	sort.Strings(diff.RuntimeBehaviorSpecKeys)
 	sort.Strings(diff.RestartRequiredSpecKeys)
 
 	return diff
@@ -139,10 +151,26 @@ func nonToolSpecEquals(a ServerSpec, b ServerSpec) bool {
 	return reflect.DeepEqual(a, b)
 }
 
+func runtimeBehaviorSpecEquals(a ServerSpec, b ServerSpec) bool {
+	a = stripRuntimeBehaviorFields(stripToolSpecFields(a))
+	b = stripRuntimeBehaviorFields(stripToolSpecFields(b))
+	return reflect.DeepEqual(a, b)
+}
+
 func stripToolSpecFields(spec ServerSpec) ServerSpec {
 	spec.Name = ""
 	spec.Tags = nil
 	spec.ExposeTools = nil
+	return spec
+}
+
+func stripRuntimeBehaviorFields(spec ServerSpec) ServerSpec {
+	spec.IdleSeconds = 0
+	spec.MaxConcurrent = 0
+	spec.MinReady = 0
+	spec.DrainTimeoutSeconds = 0
+	spec.ActivationMode = ""
+	spec.SessionTTLSeconds = 0
 	return spec
 }
 

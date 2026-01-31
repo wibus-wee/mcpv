@@ -32,6 +32,8 @@ type PrometheusMetrics struct {
 	reloadRestarts          *prometheus.CounterVec
 	reloadApplyTotal        *prometheus.CounterVec
 	reloadApplyDuration     *prometheus.HistogramVec
+	reloadRollbackTotal     *prometheus.CounterVec
+	reloadRollbackDuration  *prometheus.HistogramVec
 }
 
 func NewPrometheusMetrics(registerer prometheus.Registerer) *PrometheusMetrics {
@@ -201,6 +203,21 @@ func NewPrometheusMetrics(registerer prometheus.Registerer) *PrometheusMetrics {
 			},
 			[]string{"mode", "result"},
 		),
+		reloadRollbackTotal: factory.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "mcpv_reload_rollback_total",
+				Help: "Total number of reload rollback attempts",
+			},
+			[]string{"mode", "result", "summary"},
+		),
+		reloadRollbackDuration: factory.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    "mcpv_reload_rollback_duration_seconds",
+				Help:    "Duration of reload rollback attempts in seconds",
+				Buckets: []float64{.01, .05, .1, .25, .5, 1, 2.5, 5, 10},
+			},
+			[]string{"mode", "result"},
+		),
 	}
 }
 
@@ -306,6 +323,23 @@ func (p *PrometheusMetrics) ObserveReloadApply(metric domain.ReloadApplyMetric) 
 	}
 	p.reloadApplyTotal.WithLabelValues(mode, result, summary).Inc()
 	p.reloadApplyDuration.WithLabelValues(mode, result).Observe(metric.Duration.Seconds())
+}
+
+func (p *PrometheusMetrics) ObserveReloadRollback(metric domain.ReloadRollbackMetric) {
+	mode := string(metric.Mode)
+	if mode == "" {
+		mode = string(domain.DefaultReloadMode)
+	}
+	result := string(metric.Result)
+	if result == "" {
+		result = string(domain.ReloadRollbackResultSuccess)
+	}
+	summary := metric.Summary
+	if summary == "" {
+		summary = "none"
+	}
+	p.reloadRollbackTotal.WithLabelValues(mode, result, summary).Inc()
+	p.reloadRollbackDuration.WithLabelValues(mode, result).Observe(metric.Duration.Seconds())
 }
 
 var _ domain.Metrics = (*PrometheusMetrics)(nil)

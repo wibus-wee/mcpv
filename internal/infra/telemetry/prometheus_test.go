@@ -34,6 +34,8 @@ func TestNewPrometheusMetrics(t *testing.T) {
 	assert.NotNil(t, m.reloadSuccesses)
 	assert.NotNil(t, m.reloadFailures)
 	assert.NotNil(t, m.reloadRestarts)
+	assert.NotNil(t, m.reloadRollbackTotal)
+	assert.NotNil(t, m.reloadRollbackDuration)
 }
 
 func TestNewPrometheusMetrics_UsesProvidedRegistry(t *testing.T) {
@@ -64,6 +66,18 @@ func TestNewPrometheusMetrics_UsesProvidedRegistry(t *testing.T) {
 	m.RecordReloadSuccess(domain.CatalogUpdateSourceManual, domain.ReloadActionEntry)
 	m.RecordReloadFailure(domain.CatalogUpdateSourceManual, domain.ReloadActionEntry)
 	m.RecordReloadRestart(domain.CatalogUpdateSourceManual, domain.ReloadActionEntry)
+	m.ObserveReloadApply(domain.ReloadApplyMetric{
+		Mode:     domain.ReloadModeLenient,
+		Result:   domain.ReloadApplyResultSuccess,
+		Summary:  "ok",
+		Duration: 10 * time.Millisecond,
+	})
+	m.ObserveReloadRollback(domain.ReloadRollbackMetric{
+		Mode:     domain.ReloadModeLenient,
+		Result:   domain.ReloadRollbackResultSuccess,
+		Summary:  "ok",
+		Duration: 10 * time.Millisecond,
+	})
 
 	metrics, err := registry.Gather()
 	require.NoError(t, err)
@@ -93,6 +107,8 @@ func TestNewPrometheusMetrics_UsesProvidedRegistry(t *testing.T) {
 	assert.Contains(t, names, "mcpv_reload_success_total")
 	assert.Contains(t, names, "mcpv_reload_failure_total")
 	assert.Contains(t, names, "mcpv_reload_restart_total")
+	assert.Contains(t, names, "mcpv_reload_rollback_total")
+	assert.Contains(t, names, "mcpv_reload_rollback_duration_seconds")
 }
 
 func TestPrometheusMetrics_ImplementsInterface(t *testing.T) {

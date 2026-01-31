@@ -2,11 +2,13 @@ package controlplane
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"mcpv/internal/app/bootstrap"
 	"mcpv/internal/app/runtime"
@@ -109,17 +111,136 @@ func TestReloadManager_ApplyUpdate_RemovesServer(t *testing.T) {
 	require.Equal(t, 1, scheduler.applyCalls)
 }
 
+func TestReloadManager_ApplyUpdate_SchedulerErrorDoesNotAdvanceState(t *testing.T) {
+	prevSpec := serverSpec("svc", []string{"run"}, 1)
+	nextSpec := serverSpec("svc", []string{"run", "v2"}, 1)
+
+	prevCatalog := domain.Catalog{
+		Specs:   map[string]domain.ServerSpec{"svc": prevSpec},
+		Runtime: domain.RuntimeConfig{},
+	}
+	nextCatalog := domain.Catalog{
+		Specs:   map[string]domain.ServerSpec{"svc": nextSpec},
+		Runtime: domain.RuntimeConfig{},
+	}
+
+	prevState := newCatalogState(t, prevCatalog)
+	nextState := newCatalogState(t, nextCatalog)
+
+	scheduler := &schedulerStub{applyErr: errors.New("apply failed")}
+	runtimeState := runtime.NewStateFromSpecKeys(prevState.Summary.ServerSpecKeys)
+	state := NewState(context.Background(), runtimeState, scheduler, nil, nil, &prevState, zap.NewNop())
+	registry := NewClientRegistry(state)
+
+	manager := NewReloadManager(nil, state, registry, scheduler, nil, nil, nil, nil, nil, zap.NewNop())
+	update := domain.CatalogUpdate{
+		Snapshot: nextState,
+		Diff:     domain.DiffCatalogStates(prevState, nextState),
+		Source:   domain.CatalogUpdateSourceManual,
+	}
+
+	err := manager.applyUpdate(context.Background(), update)
+	require.Error(t, err)
+	require.Equal(t, prevCatalog, state.Catalog())
+}
+
+func TestReloadManager_ApplyUpdate_RegistryErrorRollsBackState(t *testing.T) {
+	prevSpec := serverSpec("svc", []string{"run"}, 1)
+	nextSpec := serverSpec("svc", []string{"run", "v2"}, 1)
+
+	prevCatalog := domain.Catalog{
+		Specs:   map[string]domain.ServerSpec{"svc": prevSpec},
+		Runtime: domain.RuntimeConfig{},
+	}
+	nextCatalog := domain.Catalog{
+		Specs:   map[string]domain.ServerSpec{"svc": nextSpec},
+		Runtime: domain.RuntimeConfig{},
+	}
+
+	prevState := newCatalogState(t, prevCatalog)
+	nextState := newCatalogState(t, nextCatalog)
+
+	scheduler := &schedulerStub{}
+	runtimeState := runtime.NewStateFromSpecKeys(prevState.Summary.ServerSpecKeys)
+	state := NewState(context.Background(), runtimeState, scheduler, nil, nil, &prevState, zap.NewNop())
+	registry := NewClientRegistry(state)
+
+	_, err := registry.RegisterClient(context.Background(), "client-1", 1, nil, "")
+	require.NoError(t, err)
+	scheduler.setMinReadyErr = errors.New("min ready failed")
+
+	manager := NewReloadManager(nil, state, registry, scheduler, nil, nil, nil, nil, nil, zap.NewNop())
+	update := domain.CatalogUpdate{
+		Snapshot: nextState,
+		Diff:     domain.DiffCatalogStates(prevState, nextState),
+		Source:   domain.CatalogUpdateSourceManual,
+	}
+
+	err = manager.applyUpdate(context.Background(), update)
+	require.Error(t, err)
+	require.Equal(t, prevCatalog, state.Catalog())
+	require.Equal(t, 2, scheduler.applyCalls)
+}
+
+func TestReloadManager_HandleApplyError_StrictPanics(t *testing.T) {
+	runtimeCfg := domain.RuntimeConfig{ReloadMode: domain.ReloadModeStrict}
+	catalog := domain.Catalog{
+		Specs:   map[string]domain.ServerSpec{},
+		Runtime: runtimeCfg,
+	}
+	state := newCatalogState(t, catalog)
+
+	update := domain.CatalogUpdate{
+		Snapshot: state,
+		Diff:     domain.CatalogDiff{},
+		Source:   domain.CatalogUpdateSourceManual,
+	}
+
+	logger := zap.New(zapcore.NewNopCore(), zap.WithFatalHook(zapcore.WriteThenPanic))
+	manager := NewReloadManager(nil, nil, nil, nil, nil, nil, nil, nil, nil, zap.NewNop())
+	manager.coreLogger = logger
+
+	require.Panics(t, func() {
+		manager.handleApplyError(update, errors.New("apply failed"), 10*time.Millisecond)
+	})
+}
+
+func TestReloadManager_HandleApplyError_LenientDoesNotPanic(t *testing.T) {
+	runtimeCfg := domain.RuntimeConfig{ReloadMode: domain.ReloadModeLenient}
+	catalog := domain.Catalog{
+		Specs:   map[string]domain.ServerSpec{},
+		Runtime: runtimeCfg,
+	}
+	state := newCatalogState(t, catalog)
+
+	update := domain.CatalogUpdate{
+		Snapshot: state,
+		Diff:     domain.CatalogDiff{},
+		Source:   domain.CatalogUpdateSourceManual,
+	}
+
+	logger := zap.New(zapcore.NewNopCore(), zap.WithFatalHook(zapcore.WriteThenPanic))
+	manager := NewReloadManager(nil, nil, nil, nil, nil, nil, nil, nil, nil, zap.NewNop())
+	manager.coreLogger = logger
+
+	require.NotPanics(t, func() {
+		manager.handleApplyError(update, errors.New("apply failed"), 10*time.Millisecond)
+	})
+}
+
 type reloadMinReadyCall struct {
 	specKey  string
 	minReady int
 }
 
 type schedulerStub struct {
-	applyCalls    int
-	lastDiff      domain.CatalogDiff
-	lastRegistry  map[string]domain.ServerSpec
-	minReadyCalls []reloadMinReadyCall
-	stopCalls     []string
+	applyCalls     int
+	lastDiff       domain.CatalogDiff
+	lastRegistry   map[string]domain.ServerSpec
+	minReadyCalls  []reloadMinReadyCall
+	stopCalls      []string
+	applyErr       error
+	setMinReadyErr error
 }
 
 func (s *schedulerStub) Acquire(_ context.Context, _, _ string) (*domain.Instance, error) {
@@ -135,6 +256,9 @@ func (s *schedulerStub) Release(_ context.Context, _ *domain.Instance) error {
 }
 
 func (s *schedulerStub) SetDesiredMinReady(_ context.Context, specKey string, minReady int) error {
+	if s.setMinReadyErr != nil {
+		return s.setMinReadyErr
+	}
 	s.minReadyCalls = append(s.minReadyCalls, reloadMinReadyCall{specKey: specKey, minReady: minReady})
 	return nil
 }
@@ -148,6 +272,9 @@ func (s *schedulerStub) ApplyCatalogDiff(_ context.Context, diff domain.CatalogD
 	s.applyCalls++
 	s.lastDiff = diff
 	s.lastRegistry = copySpecRegistry(registry)
+	if s.applyErr != nil {
+		return s.applyErr
+	}
 	return nil
 }
 

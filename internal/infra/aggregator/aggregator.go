@@ -295,6 +295,28 @@ func (a *ToolIndex) UpdateSpecs(specs map[string]domain.ServerSpec, specKeys map
 	a.index.UpdateSpecs(specsCopy, cfg)
 }
 
+// ApplyRuntimeConfig updates runtime configuration and refresh scheduling.
+func (a *ToolIndex) ApplyRuntimeConfig(cfg domain.RuntimeConfig) {
+	a.specsMu.Lock()
+	prevCfg := a.cfg
+	specsCopy := copyServerSpecs(a.specs)
+	a.cfg = cfg
+	a.specsMu.Unlock()
+	a.index.UpdateSpecs(specsCopy, cfg)
+
+	baseCtx := a.baseContext()
+	if baseCtx == nil {
+		return
+	}
+	if prevCfg.ToolRefreshInterval() != cfg.ToolRefreshInterval() || prevCfg.ExposeTools != cfg.ExposeTools {
+		a.index.Stop()
+		a.index.Start(baseCtx)
+	}
+	if !prevCfg.ExposeTools && cfg.ExposeTools {
+		a.startListChangeListener(baseCtx)
+	}
+}
+
 func (a *ToolIndex) refresh(ctx context.Context) error {
 	return a.index.Refresh(ctx)
 }
@@ -320,9 +342,13 @@ func (a *ToolIndex) startListChangeListener(ctx context.Context) {
 					return
 				}
 				a.specsMu.RLock()
+				exposeTools := a.cfg.ExposeTools
 				specs := a.specs
 				specKeySet := a.specKeySet
 				a.specsMu.RUnlock()
+				if !exposeTools {
+					continue
+				}
 				if !listChangeApplies(specs, specKeySet, event) {
 					continue
 				}

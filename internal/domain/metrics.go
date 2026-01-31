@@ -103,6 +103,24 @@ type ReloadApplyMetric struct {
 	Duration time.Duration
 }
 
+// ReloadRollbackResult describes the outcome of a reload rollback.
+type ReloadRollbackResult string
+
+const (
+	// ReloadRollbackResultSuccess indicates reload rollback succeeded.
+	ReloadRollbackResultSuccess ReloadRollbackResult = "success"
+	// ReloadRollbackResultFailure indicates reload rollback failed.
+	ReloadRollbackResultFailure ReloadRollbackResult = "failure"
+)
+
+// ReloadRollbackMetric captures metrics for reload rollback attempts.
+type ReloadRollbackMetric struct {
+	Mode     ReloadMode
+	Result   ReloadRollbackResult
+	Summary  string
+	Duration time.Duration
+}
+
 // Metrics records operational metrics for routing and instances.
 type Metrics interface {
 	ObserveRoute(metric RouteMetric)
@@ -123,4 +141,5 @@ type Metrics interface {
 	RecordReloadFailure(source CatalogUpdateSource, action ReloadAction)
 	RecordReloadRestart(source CatalogUpdateSource, action ReloadAction)
 	ObserveReloadApply(metric ReloadApplyMetric)
+	ObserveReloadRollback(metric ReloadRollbackMetric)
 }

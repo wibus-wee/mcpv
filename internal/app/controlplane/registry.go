@@ -23,6 +23,7 @@ type ClientRegistry struct {
 	clientChangeSubs map[chan ClientChangeEvent]struct{}
 	specCounts       map[string]int
 	monitorStarted   bool
+	monitorCancel    context.CancelFunc
 }
 
 type ClientChangeEvent struct {
@@ -68,18 +69,47 @@ func (r *ClientRegistry) StartMonitor(ctx context.Context) {
 		ctx = context.Background()
 	}
 
+	monitorCtx, cancel := context.WithCancel(ctx)
+	r.mu.Lock()
+	r.monitorCancel = cancel
+	r.mu.Unlock()
+
 	ticker := time.NewTicker(interval)
 	go func() {
 		defer ticker.Stop()
 		for {
 			select {
-			case <-ctx.Done():
+			case <-monitorCtx.Done():
 				return
 			case <-ticker.C:
-				r.reapDeadClients(ctx)
+				r.reapDeadClients(monitorCtx)
 			}
 		}
 	}()
+}
+
+// UpdateRuntimeConfig updates runtime settings for client monitoring.
+func (r *ClientRegistry) UpdateRuntimeConfig(ctx context.Context, prev, next domain.RuntimeConfig) error {
+	prevInterval := prev.ClientCheckInterval()
+	nextInterval := next.ClientCheckInterval()
+	if prevInterval == nextInterval {
+		return nil
+	}
+
+	r.mu.Lock()
+	cancel := r.monitorCancel
+	r.monitorCancel = nil
+	r.monitorStarted = false
+	r.mu.Unlock()
+
+	if cancel != nil {
+		cancel()
+	}
+	if nextInterval <= 0 {
+		return nil
+	}
+	r.StartMonitor(ctx)
+	return nil
 }
 
 // RegisterClient registers a client and returns registration metadata.
