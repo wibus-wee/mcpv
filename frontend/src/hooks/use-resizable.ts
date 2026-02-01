@@ -1,3 +1,7 @@
+// Input: React state/effects, DOM mouse events, optional localStorage
+// Output: useResizable hook with size state and resize handle props
+// Position: Shared hook for resizable panels across the app
+
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 type ResizeDirection = 'horizontal' | 'vertical'
@@ -144,7 +148,9 @@ export function useResizable({
 
   // Generate className for resize handle based on direction and handle position
   const getHandleClassName = useCallback(() => {
-    const baseClasses = 'absolute cursor-col-resize group transition-colors'
+    const baseClasses = direction === 'horizontal'
+      ? 'absolute cursor-col-resize group transition-colors'
+      : 'absolute cursor-row-resize group transition-colors'
     const hoverClasses = 'hover:bg-border'
     const activeClasses = isDragging ? 'bg-border' : ''
 

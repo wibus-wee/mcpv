@@ -8,4 +8,4 @@
 
 ## Files
 
-- **root-provider.tsx**: 根级 Provider 组合与 Wails 事件桥接，负责更新 SWR 缓存、解析日志事件并支持日志流重启触发
+- **root-provider.tsx**: 根级 Provider 组合与 Wails 事件桥接，负责批量更新日志流、解析事件并支持日志流重启触发

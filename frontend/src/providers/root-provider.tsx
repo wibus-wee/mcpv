@@ -1,5 +1,5 @@
 // Input: Wails runtime events, SWR cache, theme/motion providers
-// Output: RootProvider component with Wails event bridge
+// Output: RootProvider component with buffered log stream bridge
 // Position: App-level providers and core/log/status event integration
 
 'use client'
@@ -16,7 +16,7 @@ import { Events } from '@wailsio/runtime'
 import { Provider, useAtomValue } from 'jotai'
 import { LazyMotion, MotionConfig } from 'motion/react'
 import { ThemeProvider } from 'next-themes'
-import { useEffect, useRef } from 'react'
+import { startTransition, useCallback, useEffect, useRef } from 'react'
 import { useSWRConfig } from 'swr'
 
 import { logStreamTokenAtom } from '@/atoms/logs'
@@ -84,6 +84,33 @@ function WailsEventsBridge() {
   const stopRef = useRef<(() => void) | null>(null)
   const logStreamToken = useAtomValue(logStreamTokenAtom)
   const router = useRouter()
+  const logQueueRef = useRef<LogEntry[]>([])
+  const logFlushTimerRef = useRef<number | null>(null)
+
+  const flushLogQueue = useCallback(() => {
+    if (logQueueRef.current.length === 0) return
+    const batch = logQueueRef.current
+    logQueueRef.current = []
+
+    startTransition(() => {
+      mutate(
+        logsKey,
+        (current?: LogEntry[]) => {
+          const next = [...batch, ...(current ?? [])]
+          return next.slice(0, maxLogEntries)
+        },
+        { revalidate: false },
+      )
+    })
+  }, [mutate])
+
+  const scheduleLogFlush = useCallback(() => {
+    if (logFlushTimerRef.current !== null) return
+    logFlushTimerRef.current = window.setTimeout(() => {
+      logFlushTimerRef.current = null
+      flushLogQueue()
+    }, 80)
+  }, [flushLogQueue])
 
   // Listen for deep link events from backend
   useEffect(() => {
@@ -204,27 +231,18 @@ function WailsEventsBridge() {
           ? logEntry.logger
           : undefined
 
-        mutate(
-          logsKey,
-          (current?: LogEntry[]) => {
-            const next = [
-              {
-                id: crypto.randomUUID(),
-                timestamp,
-                level: normalizeLogLevel(logEntry?.level),
-                message,
-                source,
-                fields,
-                logger,
-                serverType,
-                stream,
-              },
-              ...(current ?? []),
-            ]
-            return next.slice(0, maxLogEntries)
-          },
-          { revalidate: false },
-        )
+        logQueueRef.current.unshift({
+          id: crypto.randomUUID(),
+          timestamp,
+          level: normalizeLogLevel(logEntry?.level),
+          message,
+          source,
+          fields,
+          logger,
+          serverType,
+          stream,
+        })
+        scheduleLogFlush()
       })
 
       stopRef.current = () => {
@@ -239,9 +257,14 @@ function WailsEventsBridge() {
 
     return () => {
       cancelled = true
+      if (logFlushTimerRef.current !== null) {
+        window.clearTimeout(logFlushTimerRef.current)
+        logFlushTimerRef.current = null
+      }
+      flushLogQueue()
       stopRef.current?.()
     }
-  }, [level, logStreamToken, mutate])
+  }, [level, logStreamToken, flushLogQueue, scheduleLogFlush])
 
   return null
 }
