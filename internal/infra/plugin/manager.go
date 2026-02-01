@@ -346,8 +346,8 @@ func (m *Manager) startInstance(ctx context.Context, spec domain.PluginSpec) (*I
 
 func (m *Manager) connectAndHandshake(ctx context.Context, spec domain.PluginSpec, socketPath string) (*grpc.ClientConn, pluginv1.PluginServiceClient, *pluginv1.PluginMetadata, error) {
 	deadline := time.Duration(domain.DefaultPluginHandshakeTimeoutSeconds) * time.Second
-	if spec.TimeoutMs > 0 {
-		deadline = time.Duration(spec.TimeoutMs) * time.Millisecond
+	if spec.HandshakeTimeoutMs > 0 {
+		deadline = time.Duration(spec.HandshakeTimeoutMs) * time.Millisecond
 	}
 	if deadline <= 0 {
 		deadline = time.Duration(domain.DefaultPluginHandshakeTimeoutSeconds) * time.Second

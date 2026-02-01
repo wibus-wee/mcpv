@@ -11,6 +11,7 @@ import (
 	"mcpv/internal/app/bootstrap"
 	"mcpv/internal/app/runtime"
 	"mcpv/internal/domain"
+	"mcpv/internal/infra/plugin"
 )
 
 func TestReloadManager_ApplyUpdate_UpdatesRuntimeAndRegistry(t *testing.T) {
@@ -107,6 +108,49 @@ func TestReloadManager_ApplyUpdate_RemovesServer(t *testing.T) {
 	require.NoError(t, manager.applyUpdate(context.Background(), update))
 	require.Contains(t, scheduler.stopCalls, removedSpecKey)
 	require.Equal(t, 1, scheduler.applyCalls)
+}
+
+func TestReloadManager_ApplyUpdate_PluginApplyFailureRetainsState(t *testing.T) {
+	runtimeCfg := domain.RuntimeConfig{}
+	prevSpec := serverSpec("svc", []string{"run"}, 1)
+
+	prevCatalog := domain.Catalog{
+		Specs:   map[string]domain.ServerSpec{"svc": prevSpec},
+		Runtime: runtimeCfg,
+	}
+	brokenPlugin := domain.PluginSpec{
+		Name:     "broken-plugin",
+		Category: domain.PluginCategoryAuthentication,
+		Required: true,
+		Cmd:      []string{"/does-not-exist"},
+	}
+	nextCatalog := domain.Catalog{
+		Specs:   prevCatalog.Specs,
+		Plugins: []domain.PluginSpec{brokenPlugin},
+		Runtime: runtimeCfg,
+	}
+
+	prevState := newCatalogState(t, prevCatalog)
+	nextState := newCatalogState(t, nextCatalog)
+
+	scheduler := &schedulerStub{}
+	state := NewState(context.Background(), runtime.NewStateFromSpecKeys(prevState.Summary.ServerSpecKeys), scheduler, nil, nil, &prevState, zap.NewNop())
+	registry := NewClientRegistry(state)
+
+	pluginManager, err := plugin.NewManager(plugin.ManagerOptions{Logger: zap.NewNop(), RootDir: t.TempDir()})
+	require.NoError(t, err)
+	t.Cleanup(func() { pluginManager.Stop(context.Background()) })
+
+	manager := NewReloadManager(nil, state, registry, scheduler, nil, pluginManager, nil, nil, nil, nil, nil, zap.NewNop())
+	update := domain.CatalogUpdate{
+		Snapshot: nextState,
+		Diff:     domain.DiffCatalogStates(prevState, nextState),
+		Source:   domain.CatalogUpdateSourceManual,
+	}
+
+	err = manager.applyUpdate(context.Background(), update)
+	require.Error(t, err)
+	require.Equal(t, prevCatalog, manager.state.Catalog())
 }
 
 type reloadMinReadyCall struct {

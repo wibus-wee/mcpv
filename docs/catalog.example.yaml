@@ -47,6 +47,7 @@ plugins:
       - -c
       - ./plugins/auth-guard
     timeoutMs: 300
+    handshakeTimeoutMs: 12000
     flows: ["request"]
     config:
       header: "authorization"

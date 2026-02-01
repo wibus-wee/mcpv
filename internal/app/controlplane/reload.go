@@ -205,8 +205,6 @@ func (m *ReloadManager) applyUpdate(ctx context.Context, update domain.CatalogUp
 		m.initManager.ApplyCatalogState(&update.Snapshot)
 	}
 
-	m.state.UpdateCatalog(&update.Snapshot, runtime)
-
 	if m.pluginManager != nil && update.Diff.PluginsChanged {
 		if err := m.pluginManager.Apply(ctx, update.Snapshot.Summary.Plugins); err != nil {
 			return reloadApplyError{stage: "plugins", err: err}
@@ -215,6 +213,8 @@ func (m *ReloadManager) applyUpdate(ctx context.Context, update domain.CatalogUp
 	if m.pipeline != nil && update.Diff.PluginsChanged {
 		m.pipeline.Update(update.Snapshot.Summary.Plugins)
 	}
+
+	m.state.UpdateCatalog(&update.Snapshot, runtime)
 
 	if err := m.registry.ApplyCatalogUpdate(ctx, update); err != nil {
 		return reloadApplyError{stage: "registry_update", err: err}

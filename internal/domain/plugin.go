@@ -29,16 +29,17 @@ const (
 
 // PluginSpec defines a governance plugin process.
 type PluginSpec struct {
-	Name       string            `json:"name"`
-	Category   PluginCategory    `json:"category"`
-	Required   bool              `json:"required"`
-	Cmd        []string          `json:"cmd"`
-	Env        map[string]string `json:"env,omitempty"`
-	Cwd        string            `json:"cwd,omitempty"`
-	CommitHash string            `json:"commitHash,omitempty"`
-	TimeoutMs  int               `json:"timeoutMs"`
-	ConfigJSON json.RawMessage   `json:"configJson,omitempty"`
-	Flows      []PluginFlow      `json:"flows,omitempty"`
+	Name               string            `json:"name"`
+	Category           PluginCategory    `json:"category"`
+	Required           bool              `json:"required"`
+	Cmd                []string          `json:"cmd"`
+	Env                map[string]string `json:"env,omitempty"`
+	Cwd                string            `json:"cwd,omitempty"`
+	CommitHash         string            `json:"commitHash,omitempty"`
+	TimeoutMs          int               `json:"timeoutMs"`
+	HandshakeTimeoutMs int               `json:"handshakeTimeoutMs"`
+	ConfigJSON         json.RawMessage   `json:"configJson,omitempty"`
+	Flows              []PluginFlow      `json:"flows,omitempty"`
 }
 
 // GovernanceRequest describes a single MCP request/response in the pipeline.

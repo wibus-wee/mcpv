@@ -320,6 +320,9 @@
         "config": {
           "type": "object",
           "additionalProperties": true
+        },
+        "handshakeTimeoutMs": {
+          "type": "integer"
         }
       }
     }

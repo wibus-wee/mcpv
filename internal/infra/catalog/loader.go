@@ -82,16 +82,17 @@ type rawServerSpec struct {
 }
 
 type rawPluginSpec struct {
-	Name       string            `mapstructure:"name"`
-	Category   string            `mapstructure:"category"`
-	Required   *bool             `mapstructure:"required"`
-	Cmd        []string          `mapstructure:"cmd"`
-	Env        map[string]string `mapstructure:"env"`
-	Cwd        string            `mapstructure:"cwd"`
-	CommitHash string            `mapstructure:"commitHash"`
-	TimeoutMs  *int              `mapstructure:"timeoutMs"`
-	Config     map[string]any    `mapstructure:"config"`
-	Flows      []string          `mapstructure:"flows"`
+	Name               string            `mapstructure:"name"`
+	Category           string            `mapstructure:"category"`
+	Required           *bool             `mapstructure:"required"`
+	Cmd                []string          `mapstructure:"cmd"`
+	Env                map[string]string `mapstructure:"env"`
+	Cwd                string            `mapstructure:"cwd"`
+	CommitHash         string            `mapstructure:"commitHash"`
+	TimeoutMs          *int              `mapstructure:"timeoutMs"`
+	HandshakeTimeoutMs *int              `mapstructure:"handshakeTimeoutMs"`
+	Config             map[string]any    `mapstructure:"config"`
+	Flows              []string          `mapstructure:"flows"`
 }
 
 type rawStreamableHTTPConfig struct {
@@ -418,6 +419,14 @@ func normalizePluginSpec(raw rawPluginSpec, index int) (domain.PluginSpec, []str
 		errs = append(errs, fmt.Sprintf("plugins[%d]: timeoutMs must be >= 0", index))
 	}
 
+	handshakeTimeoutMs := 0
+	if raw.HandshakeTimeoutMs != nil {
+		handshakeTimeoutMs = *raw.HandshakeTimeoutMs
+	}
+	if handshakeTimeoutMs < 0 {
+		errs = append(errs, fmt.Sprintf("plugins[%d]: handshakeTimeoutMs must be >= 0", index))
+	}
+
 	cmd := raw.Cmd
 	if len(cmd) == 0 {
 		errs = append(errs, fmt.Sprintf("plugins[%d]: cmd is required", index))
@@ -438,16 +447,17 @@ func normalizePluginSpec(raw rawPluginSpec, index int) (domain.PluginSpec, []str
 	}
 
 	return domain.PluginSpec{
-		Name:       name,
-		Category:   category,
-		Required:   required,
-		Cmd:        cmd,
-		Env:        normalizeImportEnv(raw.Env),
-		Cwd:        strings.TrimSpace(raw.Cwd),
-		CommitHash: strings.TrimSpace(raw.CommitHash),
-		TimeoutMs:  timeoutMs,
-		ConfigJSON: configJSON,
-		Flows:      flows,
+		Name:               name,
+		Category:           category,
+		Required:           required,
+		Cmd:                cmd,
+		Env:                normalizeImportEnv(raw.Env),
+		Cwd:                strings.TrimSpace(raw.Cwd),
+		CommitHash:         strings.TrimSpace(raw.CommitHash),
+		TimeoutMs:          timeoutMs,
+		HandshakeTimeoutMs: handshakeTimeoutMs,
+		ConfigJSON:         configJSON,
+		Flows:              flows,
 	}, nil
 }
 
