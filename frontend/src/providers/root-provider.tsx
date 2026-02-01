@@ -197,18 +197,38 @@ function WailsEventsBridge() {
     let unbind: (() => void) | undefined
 
     const start = async () => {
-      try {
-        await LogService.StartLogStream(level)
+      let streamStarted = false
+      const maxRetries = 3
+      const retryDelay = 1000 // 1 second
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          await LogService.StartLogStream(level)
+          streamStarted = true
+          break
+        }
+        catch (err) {
+          console.error(`[WailsEvents] Failed to start log stream (attempt ${attempt}/${maxRetries})`, err)
+          if (attempt < maxRetries) {
+            await new Promise((resolve) => {
+              const timeoutId = window.setTimeout(resolve, retryDelay)
+              if (cancelled) {
+                window.clearTimeout(timeoutId)
+              }
+            })
+          }
+        }
       }
-      catch (err) {
-        console.error('[WailsEvents] Failed to start log stream', err)
-        return
-      }
+
       if (cancelled) {
-        await LogService.StopLogStream().catch(() => { })
+        if (streamStarted) {
+          await LogService.StopLogStream().catch(() => { })
+        }
         return
       }
 
+      // Always set up the event listener, even if StartLogStream failed
+      // The backend might still send logs via other mechanisms
       unbind = Events.On('logs:entry', (event) => {
         const logEntry = event?.data as {
           logger?: string
@@ -249,7 +269,9 @@ function WailsEventsBridge() {
         unbind?.()
         unbind = undefined
         stopRef.current = null
-        LogService.StopLogStream().catch(() => { })
+        if (streamStarted) {
+          LogService.StopLogStream().catch(() => { })
+        }
       }
     }
 

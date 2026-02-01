@@ -32,9 +32,10 @@ export function useServers() {
   return useSWR<ServerSummary[]>(
     swrKeys.servers,
     () => ServerService.ListServers(),
-    {
+    withSWRPreset('cached', {
       revalidateOnMount: true,
-    },
+      revalidateIfStale: true,
+    }),
   )
 }
 

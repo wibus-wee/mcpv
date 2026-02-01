@@ -36,12 +36,12 @@ export function LogsBottomPanel({
 }: LogsBottomPanelProps) {
   const hasError = log?.level === 'error'
   const hasWarning = log?.level === 'warn'
-  const shouldShow = hasError || hasWarning
+  // const shouldShow = hasError || hasWarning
 
-  // Auto show/hide based on log level
-  if (!shouldShow && isOpen) {
-    onOpenChange(false)
-  }
+  // // Auto show/hide based on log level
+  // if (isOpen) {
+  //   onOpenChange(false)
+  // }
 
   return (
     <div

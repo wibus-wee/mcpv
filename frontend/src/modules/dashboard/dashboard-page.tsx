@@ -27,7 +27,6 @@ import { Spring } from '@/lib/spring'
 import { ActiveClientsPanel } from './components/active-clients-panel'
 import { ActivityInsights } from './components/activity-insights'
 import { BootstrapProgressPanel } from './components/bootstrap-progress'
-import { LogsPanel } from './components/logs-panel'
 import { ServerHealthOverview } from './components/server-health-overview'
 import { StatusCards } from './components/status-cards'
 import { useAppInfo, useBootstrapProgress } from './hooks'
@@ -90,44 +89,44 @@ function DashboardHeader() {
           </Button>
         ) : coreStatus === 'starting'
           ? (
-              <Button onClick={stopCore} variant="outline" size="sm">
-                <SquareIcon className="size-4" />
-                Cancel
-              </Button>
-            )
+            <Button onClick={stopCore} variant="outline" size="sm">
+              <SquareIcon className="size-4" />
+              Cancel
+            </Button>
+          )
           : coreStatus === 'stopping'
             ? (
-                <Button variant="outline" size="sm" disabled>
-                  <Loader2Icon className="size-4 animate-spin" />
-                  Stopping...
-                </Button>
-              )
+              <Button variant="outline" size="sm" disabled>
+                <Loader2Icon className="size-4 animate-spin" />
+                Stopping...
+              </Button>
+            )
             : coreStatus === 'running'
               ? (
+                <>
+                  <Button onClick={stopCore} variant="outline" size="sm">
+                    <SquareIcon className="size-4" />
+                    Stop
+                  </Button>
+                  <Button onClick={restartCore} variant="outline" size="sm">
+                    <RefreshCwIcon className="size-4" />
+                    Restart
+                  </Button>
+                </>
+              )
+              : coreStatus === 'error'
+                ? (
                   <>
+                    <Button onClick={restartCore} size="sm">
+                      <RefreshCwIcon className="size-4" />
+                      Retry
+                    </Button>
                     <Button onClick={stopCore} variant="outline" size="sm">
                       <SquareIcon className="size-4" />
                       Stop
                     </Button>
-                    <Button onClick={restartCore} variant="outline" size="sm">
-                      <RefreshCwIcon className="size-4" />
-                      Restart
-                    </Button>
                   </>
                 )
-              : coreStatus === 'error'
-                ? (
-                    <>
-                      <Button onClick={restartCore} size="sm">
-                        <RefreshCwIcon className="size-4" />
-                        Retry
-                      </Button>
-                      <Button onClick={stopCore} variant="outline" size="sm">
-                        <SquareIcon className="size-4" />
-                        Stop
-                      </Button>
-                    </>
-                  )
                 : null}
         <Button
           variant="outline"
@@ -258,9 +257,6 @@ export function DashboardPage() {
             </AlertDescription>
           </Alert>
         </m.div>
-        <div className="mt-6">
-          <LogsPanel />
-        </div>
       </div>
     )
   }

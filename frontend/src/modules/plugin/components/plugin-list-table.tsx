@@ -3,19 +3,12 @@
 // Position: Main table component for plugins page
 
 import type { PluginListEntry } from '@bindings/mcpv/internal/ui'
-import { AlertCircleIcon, CheckCircleIcon, MinusCircleIcon, PencilIcon } from 'lucide-react'
-import { m } from 'motion/react'
+import { AlertCircleIcon, CheckCircleIcon, MapPinIcon, MinusCircleIcon, PencilIcon } from 'lucide-react'
 import { useCallback, useState } from 'react'
 
+import { UniversalEmptyState } from '@/components/common/universal-empty-state'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import {
@@ -72,21 +65,11 @@ export function PluginListTable({ plugins, onEditRequest }: PluginListTableProps
 
   if (plugins.length === 0) {
     return (
-      <Empty>
-        <EmptyMedia>
-          <div className="size-16 rounded-full bg-muted flex items-center justify-center">
-            <svg className="size-8 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-            </svg>
-          </div>
-        </EmptyMedia>
-        <EmptyHeader>
-          <EmptyTitle>No plugins configured</EmptyTitle>
-          <EmptyDescription>
-            Add plugins to your configuration to enable governance features
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
+      <UniversalEmptyState
+        icon={MapPinIcon}
+        title="No plugins configured"
+        description="Add plugins to your configuration to enable governance features."
+      />
     )
   }
 
@@ -107,15 +90,12 @@ export function PluginListTable({ plugins, onEditRequest }: PluginListTableProps
         </TableRow>
       </TableHeader>
       <TableBody>
-        {plugins.map((plugin, index) => {
+        {plugins.map((plugin) => {
           const isToggling = togglingPlugins.has(plugin.name)
 
           return (
-            <m.tr
+            <tr
               key={plugin.name}
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.02, duration: 0.2 }}
               data-slot="table-row"
               className={cn(
                 'border-b transition-colors hover:bg-muted/50',
@@ -157,33 +137,33 @@ export function PluginListTable({ plugins, onEditRequest }: PluginListTableProps
               <TableCell className="text-right font-mono text-sm tabular-nums">
                 {plugin.latestMetrics.rejectionCount > 0
                   ? (
-                      <span className="text-warning-foreground">
-                        {plugin.latestMetrics.rejectionCount.toLocaleString()}
-                      </span>
-                    )
+                    <span className="text-warning-foreground">
+                      {plugin.latestMetrics.rejectionCount.toLocaleString()}
+                    </span>
+                  )
                   : (
-                      <span className="text-muted-foreground">0</span>
-                    )}
+                    <span className="text-muted-foreground">0</span>
+                  )}
               </TableCell>
               <TableCell className="text-right font-mono text-sm tabular-nums">
                 {plugin.latestMetrics.avgLatencyMs > 0
                   ? plugin.latestMetrics.avgLatencyMs.toFixed(2)
                   : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
+                    <span className="text-muted-foreground">—</span>
+                  )}
               </TableCell>
               <TableCell className="text-center">
                 {plugin.required
                   ? (
-                      <Badge variant="error" size="sm">
-                        Required
-                      </Badge>
-                    )
+                    <Badge variant="error" size="sm">
+                      Required
+                    </Badge>
+                  )
                   : (
-                      <Badge variant="outline" size="sm">
-                        Optional
-                      </Badge>
-                    )}
+                    <Badge variant="outline" size="sm">
+                      Optional
+                    </Badge>
+                  )}
               </TableCell>
               <TableCell className="text-center">
                 <div className="flex items-center justify-center gap-2">
@@ -204,7 +184,7 @@ export function PluginListTable({ plugins, onEditRequest }: PluginListTableProps
                   <PencilIcon className="size-4" />
                 </Button>
               </TableCell>
-            </m.tr>
+            </tr>
           )
         })}
 
