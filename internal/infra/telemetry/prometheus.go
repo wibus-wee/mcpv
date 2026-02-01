@@ -34,6 +34,9 @@ type PrometheusMetrics struct {
 	reloadApplyDuration     *prometheus.HistogramVec
 	governanceOutcome       *prometheus.HistogramVec
 	governanceRejections    *prometheus.CounterVec
+	pluginLifecycle         *prometheus.CounterVec
+	pluginHandshakeDuration *prometheus.HistogramVec
+	pluginStatus            *prometheus.GaugeVec
 }
 
 func NewPrometheusMetrics(registerer prometheus.Registerer) *PrometheusMetrics {
@@ -166,6 +169,28 @@ func NewPrometheusMetrics(registerer prometheus.Registerer) *PrometheusMetrics {
 				Buckets: []float64{.1, .25, .5, .75, .9, 1},
 			},
 			[]string{"provider", "model"},
+		),
+		pluginLifecycle: factory.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "mcpv_plugin_lifecycle_total",
+				Help: "Total number of plugin lifecycle events",
+			},
+			[]string{"category", "plugin", "outcome"},
+		),
+		pluginHandshakeDuration: factory.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    "mcpv_plugin_handshake_duration_seconds",
+				Help:    "Duration of plugin handshakes",
+				Buckets: []float64{0.05, 0.1, 0.25, 0.5, 1, 2.5, 5},
+			},
+			[]string{"category", "plugin", "outcome"},
+		),
+		pluginStatus: factory.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "mcpv_plugin_status",
+				Help: "Plugin running state (1=running, 0=stopped)",
+			},
+			[]string{"category", "plugin", "state"},
 		),
 		reloadSuccesses: factory.NewCounterVec(
 			prometheus.CounterOpts{
@@ -363,6 +388,61 @@ func (p *PrometheusMetrics) RecordGovernanceRejection(metric domain.GovernanceRe
 		string(metric.Flow),
 		code,
 	).Inc()
+}
+
+func (p *PrometheusMetrics) RecordPluginStart(metric domain.PluginStartMetric) {
+	if p.pluginLifecycle == nil || metric.Plugin == "" {
+		return
+	}
+	outcome := "success"
+	if !metric.Success {
+		outcome = "failure"
+	}
+	category := string(metric.Category)
+	if category == "" {
+		category = "unknown"
+	}
+	p.pluginLifecycle.WithLabelValues(category, metric.Plugin, outcome).Inc()
+}
+
+func (p *PrometheusMetrics) RecordPluginHandshake(metric domain.PluginHandshakeMetric) {
+	if p.pluginHandshakeDuration == nil || metric.Plugin == "" {
+		return
+	}
+	outcome := "success"
+	if !metric.Succeeded {
+		outcome = "failure"
+	}
+	category := string(metric.Category)
+	if category == "" {
+		category = "unknown"
+	}
+	duration := metric.Duration.Seconds()
+	if duration < 0 {
+		duration = 0
+	}
+	p.pluginHandshakeDuration.WithLabelValues(category, metric.Plugin, outcome).Observe(duration)
+}
+
+func (p *PrometheusMetrics) SetPluginRunning(category domain.PluginCategory, name string, running bool) {
+	if p.pluginStatus == nil || name == "" {
+		return
+	}
+	cat := string(category)
+	if cat == "" {
+		cat = "unknown"
+	}
+	stateRunning := "running"
+	stateStopped := "stopped"
+	p.pluginStatus.WithLabelValues(cat, name, stateRunning).Set(boolToFloat(running))
+	p.pluginStatus.WithLabelValues(cat, name, stateStopped).Set(boolToFloat(!running))
+}
+
+func boolToFloat(v bool) float64 {
+	if v {
+		return 1
+	}
+	return 0
 }
 
 var _ domain.Metrics = (*PrometheusMetrics)(nil)

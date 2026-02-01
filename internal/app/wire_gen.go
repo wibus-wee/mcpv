@@ -54,7 +54,7 @@ func InitializeApplication(ctx context.Context, cfg ServeConfig, logging Logging
 	observabilityService := controlplane.NewObservabilityService(controlplaneState, clientRegistry, logBroadcaster)
 	automationService := controlplane.NewAutomationService(controlplaneState, clientRegistry, discoveryService)
 	controlPlane := controlplane.NewControlPlane(controlplaneState, clientRegistry, discoveryService, observabilityService, automationService)
-	pluginManager, err := NewPluginManager(logger)
+	pluginManager, err := NewPluginManager(logger, metrics)
 	if err != nil {
 		return nil, err
 	}

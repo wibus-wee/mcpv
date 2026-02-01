@@ -48,5 +48,8 @@ func (n *NoopMetrics) RecordReloadRestart(_ domain.CatalogUpdateSource, _ domain
 func (n *NoopMetrics) ObserveReloadApply(_ domain.ReloadApplyMetric)                           {}
 func (n *NoopMetrics) RecordGovernanceOutcome(_ domain.GovernanceOutcomeMetric)                {}
 func (n *NoopMetrics) RecordGovernanceRejection(_ domain.GovernanceRejectionMetric)            {}
+func (n *NoopMetrics) RecordPluginStart(_ domain.PluginStartMetric)                            {}
+func (n *NoopMetrics) RecordPluginHandshake(_ domain.PluginHandshakeMetric)                    {}
+func (n *NoopMetrics) SetPluginRunning(_ domain.PluginCategory, _ string, _ bool)              {}
 
 var _ domain.Metrics = (*NoopMetrics)(nil)

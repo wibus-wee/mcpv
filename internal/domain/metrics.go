@@ -151,4 +151,23 @@ type Metrics interface {
 	ObserveReloadApply(metric ReloadApplyMetric)
 	RecordGovernanceOutcome(metric GovernanceOutcomeMetric)
 	RecordGovernanceRejection(metric GovernanceRejectionMetric)
+	RecordPluginStart(metric PluginStartMetric)
+	RecordPluginHandshake(metric PluginHandshakeMetric)
+	SetPluginRunning(category PluginCategory, name string, running bool)
+}
+
+// PluginStartMetric tracks plugin startup/shutdown results.
+type PluginStartMetric struct {
+	Category PluginCategory
+	Plugin   string
+	Duration time.Duration
+	Success  bool
+}
+
+// PluginHandshakeMetric tracks plugin handshake attempts.
+type PluginHandshakeMetric struct {
+	Category  PluginCategory
+	Plugin    string
+	Duration  time.Duration
+	Succeeded bool
 }

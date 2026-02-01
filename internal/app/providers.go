@@ -87,8 +87,11 @@ func NewLifecycleManager(ctx context.Context, launcher domain.Launcher, transpor
 }
 
 // NewPluginManager constructs the governance plugin manager.
-func NewPluginManager(logger *zap.Logger) (*plugin.Manager, error) {
-	return plugin.NewManager(plugin.ManagerOptions{Logger: logger})
+func NewPluginManager(logger *zap.Logger, metrics domain.Metrics) (*plugin.Manager, error) {
+	return plugin.NewManager(plugin.ManagerOptions{
+		Logger:  logger,
+		Metrics: metrics,
+	})
 }
 
 // NewPipelineEngine constructs the governance pipeline engine and applies initial specs.

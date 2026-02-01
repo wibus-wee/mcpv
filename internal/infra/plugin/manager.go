@@ -34,11 +34,13 @@ type Manager struct {
 	rootDir   string
 	mu        sync.RWMutex
 	instances map[string]*Instance
+	metrics   domain.Metrics
 }
 
 type ManagerOptions struct {
 	RootDir string
 	Logger  *zap.Logger
+	Metrics domain.Metrics
 }
 
 type Instance struct {
@@ -56,6 +58,10 @@ func NewManager(opts ManagerOptions) (*Manager, error) {
 	logger := opts.Logger
 	if logger == nil {
 		logger = zap.NewNop()
+	}
+	metrics := opts.Metrics
+	if metrics == nil {
+		metrics = telemetry.NewNoopMetrics()
 	}
 	rootDir := strings.TrimSpace(opts.RootDir)
 	if rootDir == "" {
@@ -78,6 +84,7 @@ func NewManager(opts ManagerOptions) (*Manager, error) {
 		logger:    logger.Named("plugin_manager"),
 		rootDir:   rootDir,
 		instances: make(map[string]*Instance),
+		metrics:   metrics,
 	}, nil
 }
 
@@ -173,6 +180,7 @@ func (m *Manager) Apply(ctx context.Context, specs []domain.PluginSpec) error {
 		m.mu.Lock()
 		m.instances[name] = newInst
 		m.mu.Unlock()
+		m.setPluginRunning(spec, true)
 		if ok {
 			_ = inst.stop(context.Background())
 			m.cleanupInstance(inst)
@@ -190,6 +198,7 @@ func (m *Manager) Apply(ctx context.Context, specs []domain.PluginSpec) error {
 		if err := inst.stop(context.Background()); err != nil {
 			m.logger.Warn("plugin stop failed", zap.String("plugin", name), zap.Error(err))
 		}
+		m.setPluginRunning(inst.spec, false)
 		m.cleanupInstance(inst)
 	}
 
@@ -209,6 +218,7 @@ func (m *Manager) Stop(ctx context.Context) {
 		if err := inst.stop(ctx); err != nil {
 			m.logger.Warn("plugin stop failed", zap.String("plugin", inst.spec.Name), zap.Error(err))
 		}
+		m.setPluginRunning(inst.spec, false)
 		m.cleanupInstance(inst)
 	}
 }
@@ -271,6 +281,7 @@ func (m *Manager) Handle(ctx context.Context, spec domain.PluginSpec, req domain
 }
 
 func (m *Manager) startInstance(ctx context.Context, spec domain.PluginSpec) (*Instance, error) {
+	startTime := time.Now()
 	socketDir, socketPath, err := m.prepareSocket(spec.Name)
 	if err != nil {
 		return nil, err
@@ -299,6 +310,7 @@ func (m *Manager) startInstance(ctx context.Context, spec domain.PluginSpec) (*I
 	}
 
 	if err := cmd.Start(); err != nil {
+		m.recordPluginStart(spec, time.Since(startTime), false)
 		cancel()
 		if cleanup != nil {
 			cleanup()
@@ -328,9 +340,12 @@ func (m *Manager) startInstance(ctx context.Context, spec domain.PluginSpec) (*I
 
 	conn, client, metadata, err := m.connectAndHandshake(ctx, spec, socketPath)
 	if err != nil {
+		m.recordPluginStart(spec, time.Since(startTime), false)
 		_ = stopFn(context.Background())
 		return nil, err
 	}
+
+	m.recordPluginStart(spec, time.Since(startTime), true)
 
 	return &Instance{
 		spec:       spec,
@@ -344,7 +359,7 @@ func (m *Manager) startInstance(ctx context.Context, spec domain.PluginSpec) (*I
 	}, nil
 }
 
-func (m *Manager) connectAndHandshake(ctx context.Context, spec domain.PluginSpec, socketPath string) (*grpc.ClientConn, pluginv1.PluginServiceClient, *pluginv1.PluginMetadata, error) {
+func (m *Manager) connectAndHandshake(ctx context.Context, spec domain.PluginSpec, socketPath string) (conn *grpc.ClientConn, client pluginv1.PluginServiceClient, metadata *pluginv1.PluginMetadata, err error) {
 	deadline := time.Duration(domain.DefaultPluginHandshakeTimeoutSeconds) * time.Second
 	if spec.HandshakeTimeoutMs > 0 {
 		deadline = time.Duration(spec.HandshakeTimeoutMs) * time.Millisecond
@@ -353,13 +368,15 @@ func (m *Manager) connectAndHandshake(ctx context.Context, spec domain.PluginSpe
 		deadline = time.Duration(domain.DefaultPluginHandshakeTimeoutSeconds) * time.Second
 	}
 
+	start := time.Now()
+	defer func() {
+		m.recordPluginHandshake(spec, time.Since(start), err == nil)
+	}()
+
 	// Wait for socket file to appear with retries
 	handshakeCtx, handshakeCancel := context.WithTimeout(ctx, deadline)
 	defer handshakeCancel()
 
-	var conn *grpc.ClientConn
-	var client pluginv1.PluginServiceClient
-	var metadata *pluginv1.PluginMetadata
 	var lastErr error
 
 	retryInterval := 100 * time.Millisecond
@@ -367,9 +384,11 @@ func (m *Manager) connectAndHandshake(ctx context.Context, spec domain.PluginSpe
 		select {
 		case <-handshakeCtx.Done():
 			if lastErr != nil {
-				return nil, nil, nil, fmt.Errorf("plugin handshake timeout: %w", lastErr)
+				err = fmt.Errorf("plugin handshake timeout: %w", lastErr)
+			} else {
+				err = handshakeCtx.Err()
 			}
-			return nil, nil, nil, handshakeCtx.Err()
+			return nil, nil, nil, err
 		default:
 		}
 
@@ -382,11 +401,12 @@ func (m *Manager) connectAndHandshake(ctx context.Context, spec domain.PluginSpe
 		// Wait before retrying
 		select {
 		case <-handshakeCtx.Done():
-			return nil, nil, nil, fmt.Errorf("plugin handshake timeout: %w", lastErr)
+			err = fmt.Errorf("plugin handshake timeout: %w", lastErr)
+			return nil, nil, nil, err
 		case <-time.After(retryInterval):
 		}
 	}
-	if err := validateMetadata(spec, metadata); err != nil {
+	if err = validateMetadata(spec, metadata); err != nil {
 		_ = conn.Close()
 		return nil, nil, nil, err
 	}
@@ -396,15 +416,18 @@ func (m *Manager) connectAndHandshake(ctx context.Context, spec domain.PluginSpe
 	_, cfgErr := client.Configure(cfgCtx, &pluginv1.PluginConfigureRequest{ConfigJson: spec.ConfigJSON})
 	if cfgErr != nil {
 		_ = conn.Close()
-		return nil, nil, nil, fmt.Errorf("plugin configure: %w", cfgErr)
+		err = fmt.Errorf("plugin configure: %w", cfgErr)
+		return nil, nil, nil, err
 	}
 
 	readyCtx, readyCancel := context.WithTimeout(handshakeCtx, deadline)
 	defer readyCancel()
-	ready, readyErr := client.CheckReady(readyCtx, &emptypb.Empty{})
-	if readyErr != nil {
+	var ready *pluginv1.PluginReadyResponse
+	ready, err = client.CheckReady(readyCtx, &emptypb.Empty{})
+	if err != nil {
 		_ = conn.Close()
-		return nil, nil, nil, fmt.Errorf("plugin readiness: %w", readyErr)
+		err = fmt.Errorf("plugin readiness: %w", err)
+		return nil, nil, nil, err
 	}
 	if ready != nil && !ready.GetReady() {
 		_ = conn.Close()
@@ -412,7 +435,8 @@ func (m *Manager) connectAndHandshake(ctx context.Context, spec domain.PluginSpe
 		if msg == "" {
 			msg = "plugin not ready"
 		}
-		return nil, nil, nil, errors.New(msg)
+		err = errors.New(msg)
+		return nil, nil, nil, err
 	}
 
 	return conn, client, metadata, nil
@@ -562,4 +586,35 @@ func mirrorStderr(reader io.ReadCloser, logger *zap.Logger) {
 			return
 		}
 	}
+}
+
+func (m *Manager) recordPluginStart(spec domain.PluginSpec, duration time.Duration, success bool) {
+	if m.metrics == nil || spec.Name == "" {
+		return
+	}
+	m.metrics.RecordPluginStart(domain.PluginStartMetric{
+		Category: spec.Category,
+		Plugin:   spec.Name,
+		Duration: duration,
+		Success:  success,
+	})
+}
+
+func (m *Manager) recordPluginHandshake(spec domain.PluginSpec, duration time.Duration, succeeded bool) {
+	if m.metrics == nil || spec.Name == "" {
+		return
+	}
+	m.metrics.RecordPluginHandshake(domain.PluginHandshakeMetric{
+		Category:  spec.Category,
+		Plugin:    spec.Name,
+		Duration:  duration,
+		Succeeded: succeeded,
+	})
+}
+
+func (m *Manager) setPluginRunning(spec domain.PluginSpec, running bool) {
+	if m.metrics == nil || spec.Name == "" {
+		return
+	}
+	m.metrics.SetPluginRunning(spec.Category, spec.Name, running)
 }
