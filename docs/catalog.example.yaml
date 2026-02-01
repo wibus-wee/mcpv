@@ -39,6 +39,27 @@ subAgent:
   # baseURL: ""  # Optional: custom API endpoint
   maxToolsPerRequest: 20
   # filterPrompt: ""  # Optional custom prompt for tool filtering
+plugins:
+  - name: "auth-guard"
+    category: "authentication"
+    required: true
+    cmd:
+      - /bin/sh
+      - -c
+      - ./plugins/auth-guard
+    timeoutMs: 300
+    handshakeTimeoutMs: 12000
+    flows: ["request"]
+    config:
+      header: "authorization"
+  - name: "audit-log"
+    category: "audit"
+    required: false
+    cmd:
+      - /bin/sh
+      - -c
+      - ./plugins/audit-log
+    flows: ["request", "response"]
 servers:
   - name: "weather"
     cmd: 

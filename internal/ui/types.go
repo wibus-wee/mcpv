@@ -378,3 +378,39 @@ type ProxyFetchResponse struct {
 	Headers map[string]string `json:"headers"`
 	Body    string            `json:"body"`
 }
+
+// =============================================================================
+// Plugin Management Types
+// =============================================================================
+
+// PluginListEntry represents a single plugin for the frontend.
+type PluginListEntry struct {
+	Name               string            `json:"name"`
+	Category           string            `json:"category"`
+	Flows              []string          `json:"flows"`
+	Required           bool              `json:"required"`
+	Enabled            bool              `json:"enabled"`
+	Status             string            `json:"status"`                // "running", "stopped", "error"
+	StatusError        string            `json:"statusError,omitempty"` // Error message if status is "error"
+	CommitHash         string            `json:"commitHash,omitempty"`
+	TimeoutMs          int               `json:"timeoutMs"`
+	HandshakeTimeoutMs int               `json:"handshakeTimeoutMs"`
+	Cmd                []string          `json:"cmd"`
+	Env                map[string]string `json:"env,omitempty"`
+	Cwd                string            `json:"cwd,omitempty"`
+	ConfigJSON         string            `json:"configJson,omitempty"` // JSON string for frontend editing
+	LatestMetrics      PluginMetrics     `json:"latestMetrics"`
+}
+
+// PluginMetrics represents aggregated metrics for a plugin.
+type PluginMetrics struct {
+	CallCount      int64   `json:"callCount"`
+	RejectionCount int64   `json:"rejectionCount"`
+	AvgLatencyMs   float64 `json:"avgLatencyMs"`
+}
+
+// TogglePluginRequest is the request to enable/disable a plugin.
+type TogglePluginRequest struct {
+	Name    string `json:"name"`
+	Enabled bool   `json:"enabled"`
+}

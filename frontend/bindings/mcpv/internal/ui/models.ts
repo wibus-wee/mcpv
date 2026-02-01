@@ -432,6 +432,131 @@ export class ObservabilityConfigDetail {
     }
 }
 
+/**
+ * PluginListEntry represents a single plugin for the frontend.
+ */
+export class PluginListEntry {
+    "name": string;
+    "category": string;
+    "flows": string[];
+    "required": boolean;
+    "enabled": boolean;
+
+    /**
+     * "running", "stopped", "error"
+     */
+    "status": string;
+
+    /**
+     * Error message if status is "error"
+     */
+    "statusError"?: string;
+    "commitHash"?: string;
+    "timeoutMs": number;
+    "handshakeTimeoutMs": number;
+    "cmd": string[];
+    "env"?: { [_: string]: string };
+    "cwd"?: string;
+
+    /**
+     * JSON string for frontend editing
+     */
+    "configJson"?: string;
+    "latestMetrics": PluginMetrics;
+
+    /** Creates a new PluginListEntry instance. */
+    constructor($$source: Partial<PluginListEntry> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("category" in $$source)) {
+            this["category"] = "";
+        }
+        if (!("flows" in $$source)) {
+            this["flows"] = [];
+        }
+        if (!("required" in $$source)) {
+            this["required"] = false;
+        }
+        if (!("enabled" in $$source)) {
+            this["enabled"] = false;
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("timeoutMs" in $$source)) {
+            this["timeoutMs"] = 0;
+        }
+        if (!("handshakeTimeoutMs" in $$source)) {
+            this["handshakeTimeoutMs"] = 0;
+        }
+        if (!("cmd" in $$source)) {
+            this["cmd"] = [];
+        }
+        if (!("latestMetrics" in $$source)) {
+            this["latestMetrics"] = (new PluginMetrics());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PluginListEntry instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PluginListEntry {
+        const $$createField2_0 = $$createType0;
+        const $$createField10_0 = $$createType0;
+        const $$createField11_0 = $$createType1;
+        const $$createField14_0 = $$createType9;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("flows" in $$parsedSource) {
+            $$parsedSource["flows"] = $$createField2_0($$parsedSource["flows"]);
+        }
+        if ("cmd" in $$parsedSource) {
+            $$parsedSource["cmd"] = $$createField10_0($$parsedSource["cmd"]);
+        }
+        if ("env" in $$parsedSource) {
+            $$parsedSource["env"] = $$createField11_0($$parsedSource["env"]);
+        }
+        if ("latestMetrics" in $$parsedSource) {
+            $$parsedSource["latestMetrics"] = $$createField14_0($$parsedSource["latestMetrics"]);
+        }
+        return new PluginListEntry($$parsedSource as Partial<PluginListEntry>);
+    }
+}
+
+/**
+ * PluginMetrics represents aggregated metrics for a plugin.
+ */
+export class PluginMetrics {
+    "callCount": number;
+    "rejectionCount": number;
+    "avgLatencyMs": number;
+
+    /** Creates a new PluginMetrics instance. */
+    constructor($$source: Partial<PluginMetrics> = {}) {
+        if (!("callCount" in $$source)) {
+            this["callCount"] = 0;
+        }
+        if (!("rejectionCount" in $$source)) {
+            this["rejectionCount"] = 0;
+        }
+        if (!("avgLatencyMs" in $$source)) {
+            this["avgLatencyMs"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PluginMetrics instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PluginMetrics {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new PluginMetrics($$parsedSource as Partial<PluginMetrics>);
+    }
+}
+
 export class PoolMetrics {
     "startCount": number;
     "stopCount": number;
@@ -573,7 +698,7 @@ export class PromptPage {
      * Creates a new PromptPage instance from a string or object.
      */
     static createFrom($$source: any = {}): PromptPage {
-        const $$createField0_0 = $$createType10;
+        const $$createField0_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("prompts" in $$parsedSource) {
             $$parsedSource["prompts"] = $$createField0_0($$parsedSource["prompts"]);
@@ -693,7 +818,7 @@ export class RPCConfigDetail {
      * Creates a new RPCConfigDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): RPCConfigDetail {
-        const $$createField6_0 = $$createType11;
+        const $$createField6_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tls" in $$parsedSource) {
             $$parsedSource["tls"] = $$createField6_0($$parsedSource["tls"]);
@@ -790,7 +915,7 @@ export class ResourcePage {
      * Creates a new ResourcePage instance from a string or object.
      */
     static createFrom($$source: any = {}): ResourcePage {
-        const $$createField0_0 = $$createType13;
+        const $$createField0_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("resources" in $$parsedSource) {
             $$parsedSource["resources"] = $$createField0_0($$parsedSource["resources"]);
@@ -907,8 +1032,8 @@ export class RuntimeConfigDetail {
      * Creates a new RuntimeConfigDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): RuntimeConfigDetail {
-        const $$createField16_0 = $$createType14;
-        const $$createField17_0 = $$createType15;
+        const $$createField16_0 = $$createType15;
+        const $$createField17_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("observability" in $$parsedSource) {
             $$parsedSource["observability"] = $$createField16_0($$parsedSource["observability"]);
@@ -960,9 +1085,9 @@ export class ServerGroup {
      * Creates a new ServerGroup instance from a string or object.
      */
     static createFrom($$source: any = {}): ServerGroup {
-        const $$createField3_0 = $$createType17;
+        const $$createField3_0 = $$createType18;
         const $$createField4_0 = $$createType0;
-        const $$createField6_0 = $$createType18;
+        const $$createField6_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tools" in $$parsedSource) {
             $$parsedSource["tools"] = $$createField3_0($$parsedSource["tools"]);
@@ -1063,9 +1188,9 @@ export class ServerRuntimeStatus {
      * Creates a new ServerRuntimeStatus instance from a string or object.
      */
     static createFrom($$source: any = {}): ServerRuntimeStatus {
-        const $$createField2_0 = $$createType20;
-        const $$createField3_0 = $$createType21;
-        const $$createField4_0 = $$createType22;
+        const $$createField2_0 = $$createType21;
+        const $$createField3_0 = $$createType22;
+        const $$createField4_0 = $$createType23;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("instances" in $$parsedSource) {
             $$parsedSource["instances"] = $$createField2_0($$parsedSource["instances"]);
@@ -1260,7 +1385,7 @@ export class StartCause {
      * Creates a new StartCause instance from a string or object.
      */
     static createFrom($$source: any = {}): StartCause {
-        const $$createField3_0 = $$createType24;
+        const $$createField3_0 = $$createType25;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("policy" in $$parsedSource) {
             $$parsedSource["policy"] = $$createField3_0($$parsedSource["policy"]);
@@ -1397,6 +1522,34 @@ export class SubAgentConfigDetail {
             $$parsedSource["enabledTags"] = $$createField0_0($$parsedSource["enabledTags"]);
         }
         return new SubAgentConfigDetail($$parsedSource as Partial<SubAgentConfigDetail>);
+    }
+}
+
+/**
+ * TogglePluginRequest is the request to enable/disable a plugin.
+ */
+export class TogglePluginRequest {
+    "name": string;
+    "enabled": boolean;
+
+    /** Creates a new TogglePluginRequest instance. */
+    constructor($$source: Partial<TogglePluginRequest> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("enabled" in $$source)) {
+            this["enabled"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TogglePluginRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TogglePluginRequest {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TogglePluginRequest($$parsedSource as Partial<TogglePluginRequest>);
     }
 }
 
@@ -1645,19 +1798,20 @@ const $$createType5 = StreamableHTTPConfigDetail.createFrom;
 const $$createType6 = $Create.Nullable($$createType5);
 const $$createType7 = StartCause.createFrom;
 const $$createType8 = $Create.Nullable($$createType7);
-const $$createType9 = PromptEntry.createFrom;
-const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = RPCTLSConfigDetail.createFrom;
-const $$createType12 = ResourceEntry.createFrom;
-const $$createType13 = $Create.Array($$createType12);
-const $$createType14 = ObservabilityConfigDetail.createFrom;
-const $$createType15 = RPCConfigDetail.createFrom;
-const $$createType16 = ToolEntry.createFrom;
-const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = $Create.Nullable($$createType2);
-const $$createType19 = InstanceStatus.createFrom;
-const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = PoolStats.createFrom;
-const $$createType22 = PoolMetrics.createFrom;
-const $$createType23 = StartCausePolicy.createFrom;
-const $$createType24 = $Create.Nullable($$createType23);
+const $$createType9 = PluginMetrics.createFrom;
+const $$createType10 = PromptEntry.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = RPCTLSConfigDetail.createFrom;
+const $$createType13 = ResourceEntry.createFrom;
+const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = ObservabilityConfigDetail.createFrom;
+const $$createType16 = RPCConfigDetail.createFrom;
+const $$createType17 = ToolEntry.createFrom;
+const $$createType18 = $Create.Array($$createType17);
+const $$createType19 = $Create.Nullable($$createType2);
+const $$createType20 = InstanceStatus.createFrom;
+const $$createType21 = $Create.Array($$createType20);
+const $$createType22 = PoolStats.createFrom;
+const $$createType23 = PoolMetrics.createFrom;
+const $$createType24 = StartCausePolicy.createFrom;
+const $$createType25 = $Create.Nullable($$createType24);

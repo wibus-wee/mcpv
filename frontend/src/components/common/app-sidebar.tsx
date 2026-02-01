@@ -6,6 +6,7 @@ import {
   InfoIcon,
   LayoutDashboardIcon,
   NetworkIcon,
+  PlugIcon,
   ScrollTextIcon,
   ServerIcon,
   SettingsIcon,
@@ -36,6 +37,11 @@ const navItems: NavItem[] = [
     path: '/servers',
     label: 'Servers',
     icon: ServerIcon,
+  },
+  {
+    path: '/plugins',
+    label: 'Plugins',
+    icon: PlugIcon,
   },
   {
     path: '/logs',

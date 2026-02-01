@@ -144,6 +144,7 @@ type RPCTLSConfig struct {
 // Catalog groups runtime and server spec configuration.
 type Catalog struct {
 	Specs   map[string]ServerSpec
+	Plugins []PluginSpec
 	Runtime RuntimeConfig
 }
 

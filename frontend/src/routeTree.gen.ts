@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TopologyRouteImport } from './routes/topology'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ServersRouteImport } from './routes/servers'
+import { Route as PluginsRouteImport } from './routes/plugins'
 import { Route as LogsRouteImport } from './routes/logs'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
@@ -34,6 +35,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const ServersRoute = ServersRouteImport.update({
   id: '/servers',
   path: '/servers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PluginsRoute = PluginsRouteImport.update({
+  id: '/plugins',
+  path: '/plugins',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LogsRoute = LogsRouteImport.update({
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/logs': typeof LogsRoute
+  '/plugins': typeof PluginsRoute
   '/servers': typeof ServersRoute
   '/settings': typeof SettingsRouteWithChildren
   '/topology': typeof TopologyRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/logs': typeof LogsRoute
+  '/plugins': typeof PluginsRoute
   '/servers': typeof ServersRoute
   '/topology': typeof TopologyRoute
   '/settings/advanced': typeof SettingsAdvancedRoute
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/logs': typeof LogsRoute
+  '/plugins': typeof PluginsRoute
   '/servers': typeof ServersRoute
   '/settings': typeof SettingsRouteWithChildren
   '/topology': typeof TopologyRoute
@@ -122,6 +131,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/logs'
+    | '/plugins'
     | '/servers'
     | '/settings'
     | '/topology'
@@ -135,6 +145,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/logs'
+    | '/plugins'
     | '/servers'
     | '/topology'
     | '/settings/advanced'
@@ -147,6 +158,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/logs'
+    | '/plugins'
     | '/servers'
     | '/settings'
     | '/topology'
@@ -161,6 +173,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   LogsRoute: typeof LogsRoute
+  PluginsRoute: typeof PluginsRoute
   ServersRoute: typeof ServersRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   TopologyRoute: typeof TopologyRoute
@@ -187,6 +200,13 @@ declare module '@tanstack/react-router' {
       path: '/servers'
       fullPath: '/servers'
       preLoaderRoute: typeof ServersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plugins': {
+      id: '/plugins'
+      path: '/plugins'
+      fullPath: '/plugins'
+      preLoaderRoute: typeof PluginsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/logs': {
@@ -272,6 +292,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   LogsRoute: LogsRoute,
+  PluginsRoute: PluginsRoute,
   ServersRoute: ServersRoute,
   SettingsRoute: SettingsRouteWithChildren,
   TopologyRoute: TopologyRoute,

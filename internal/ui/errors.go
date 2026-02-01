@@ -35,6 +35,7 @@ const (
 	ErrCodeInvalidConfig      = "INVALID_CONFIG"
 	ErrCodeInvalidRequest     = "INVALID_REQUEST"
 	ErrCodeOperationCancelled = "OPERATION_CANCELLED"
+	ErrCodeNotImplemented     = "NOT_IMPLEMENTED"
 	ErrCodeInternal           = "INTERNAL_ERROR"
 )
 

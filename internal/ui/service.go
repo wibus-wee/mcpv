@@ -21,6 +21,7 @@ type ServiceRegistry struct {
 	SubAgent  *SubAgentService
 	Proxy     *ProxyService
 	Debug     *DebugService
+	Plugin    *PluginService
 }
 
 func NewServiceRegistry(coreApp *app.App, logger *zap.Logger) *ServiceRegistry {
@@ -37,6 +38,7 @@ func NewServiceRegistry(coreApp *app.App, logger *zap.Logger) *ServiceRegistry {
 		SubAgent:  NewSubAgentService(deps),
 		Proxy:     NewProxyService(deps),
 		Debug:     NewDebugService(deps),
+		Plugin:    NewPluginService(deps),
 	}
 }
 
@@ -51,6 +53,7 @@ func (r *ServiceRegistry) Services() []application.Service {
 		application.NewService(r.Runtime),
 		application.NewService(r.SubAgent),
 		application.NewService(r.Proxy),
+		application.NewService(r.Plugin),
 		application.NewService(r.Debug),
 	}
 }

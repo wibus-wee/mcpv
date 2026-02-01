@@ -41,6 +41,10 @@ export const swrKeys = {
 
   // Log-related keys
   logs: 'logs',
+
+  // Plugin-related keys
+  pluginList: 'plugin-list',
+  pluginMetrics: 'plugin-metrics',
 } as const
 
 export type SwrKey = typeof swrKeys[keyof typeof swrKeys]

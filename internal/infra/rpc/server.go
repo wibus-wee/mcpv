@@ -18,6 +18,7 @@ import (
 
 	"mcpv/internal/domain"
 	"mcpv/internal/infra/fsutil"
+	"mcpv/internal/infra/governance"
 	controlv1 "mcpv/pkg/api/control/v1"
 )
 
@@ -25,6 +26,7 @@ import (
 type Server struct {
 	cfg        domain.RPCConfig
 	control    ControlPlaneAPI
+	executor   *governance.Executor
 	logger     *zap.Logger
 	grpcServer *grpc.Server
 	listener   net.Listener
@@ -34,14 +36,15 @@ type Server struct {
 }
 
 // NewServer constructs a gRPC server for the control plane.
-func NewServer(control ControlPlaneAPI, cfg domain.RPCConfig, logger *zap.Logger) *Server {
+func NewServer(control ControlPlaneAPI, executor *governance.Executor, cfg domain.RPCConfig, logger *zap.Logger) *Server {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 	return &Server{
-		cfg:     cfg,
-		control: control,
-		logger:  logger.Named("rpc"),
+		cfg:      cfg,
+		control:  control,
+		executor: executor,
+		logger:   logger.Named("rpc"),
 	}
 }
 
@@ -114,7 +117,7 @@ func (s *Server) Run(ctx context.Context) error {
 	s.grpcServer = grpc.NewServer(serverOpts...)
 	s.health = health.NewServer()
 	grpc_health_v1.RegisterHealthServer(s.grpcServer, s.health)
-	controlv1.RegisterControlPlaneServiceServer(s.grpcServer, NewControlService(s.control, s.logger))
+	controlv1.RegisterControlPlaneServiceServer(s.grpcServer, NewControlService(s.control, s.executor, s.logger))
 	s.health.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
 
 	errCh := make(chan error, 1)

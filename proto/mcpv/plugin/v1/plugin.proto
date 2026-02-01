@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package mcpv.plugin.v1;
+
+option go_package = "mcpv/pkg/api/plugin/v1;pluginv1";
+
+import "google/protobuf/empty.proto";
+
+service PluginService {
+  rpc GetMetadata(google.protobuf.Empty) returns (PluginMetadata);
+  rpc Configure(PluginConfigureRequest) returns (PluginConfigureResponse);
+  rpc CheckReady(google.protobuf.Empty) returns (PluginReadyResponse);
+  rpc HandleRequest(PluginHandleRequest) returns (PluginHandleResponse);
+  rpc HandleResponse(PluginHandleRequest) returns (PluginHandleResponse);
+  rpc Shutdown(google.protobuf.Empty) returns (google.protobuf.Empty);
+}
+
+message PluginMetadata {
+  string name = 1;
+  string category = 2;
+  string commit_hash = 3;
+  repeated string flows = 4;
+}
+
+message PluginConfigureRequest {
+  bytes config_json = 1;
+}
+
+message PluginConfigureResponse {}
+
+message PluginReadyResponse {
+  bool ready = 1;
+  string message = 2;
+}
+
+message PluginHandleRequest {
+  string flow = 1;
+  string method = 2;
+  string caller = 3;
+  string server = 4;
+  string tool_name = 5;
+  string resource_uri = 6;
+  string prompt_name = 7;
+  string routing_key = 8;
+  bytes request_json = 9;
+  bytes response_json = 10;
+  map<string, string> metadata = 11;
+}
+
+message PluginHandleResponse {
+  bool continue = 1;
+  bytes request_json = 2;
+  bytes response_json = 3;
+  string reject_code = 4;
+  string reject_message = 5;
+}

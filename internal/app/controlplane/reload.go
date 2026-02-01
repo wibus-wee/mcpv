@@ -14,6 +14,8 @@ import (
 	appRuntime "mcpv/internal/app/runtime"
 	"mcpv/internal/domain"
 	"mcpv/internal/infra/notifications"
+	"mcpv/internal/infra/pipeline"
+	"mcpv/internal/infra/plugin"
 	"mcpv/internal/infra/telemetry"
 )
 
@@ -24,6 +26,8 @@ type ReloadManager struct {
 	registry      *ClientRegistry
 	scheduler     domain.Scheduler
 	initManager   *bootstrap.ServerInitializationManager
+	pluginManager *plugin.Manager
+	pipeline      *pipeline.Engine
 	metrics       domain.Metrics
 	health        *telemetry.HealthTracker
 	metadataCache *domain.MetadataCache
@@ -54,6 +58,8 @@ func NewReloadManager(
 	registry *ClientRegistry,
 	scheduler domain.Scheduler,
 	initManager *bootstrap.ServerInitializationManager,
+	pluginManager *plugin.Manager,
+	pipelineEngine *pipeline.Engine,
 	metrics domain.Metrics,
 	health *telemetry.HealthTracker,
 	metadataCache *domain.MetadataCache,
@@ -69,6 +75,8 @@ func NewReloadManager(
 		registry:      registry,
 		scheduler:     scheduler,
 		initManager:   initManager,
+		pluginManager: pluginManager,
+		pipeline:      pipelineEngine,
 		metrics:       metrics,
 		health:        health,
 		metadataCache: metadataCache,
@@ -161,6 +169,9 @@ func (m *ReloadManager) run(ctx context.Context, updates <-chan domain.CatalogUp
 				zap.Int("added", len(update.Diff.AddedSpecKeys)),
 				zap.Int("removed", len(update.Diff.RemovedSpecKeys)),
 				zap.Int("updated", len(update.Diff.UpdatedSpecKeys)),
+				zap.Int("plugins_added", len(update.Diff.AddedPlugins)),
+				zap.Int("plugins_removed", len(update.Diff.RemovedPlugins)),
+				zap.Int("plugins_updated", len(update.Diff.UpdatedPlugins)),
 				zap.String("reload_mode", string(reloadMode)),
 				zap.Duration("latency", duration),
 			)
@@ -278,6 +289,39 @@ func (m *ReloadManager) buildReloadSteps(prev domain.CatalogState, update domain
 	}
 
 	steps = append(steps, m.buildStateRegistryStep(prev, update, reverseDiff))
+	if diff.PluginsChanged && (m.pluginManager != nil || m.pipeline != nil) {
+		prevPlugins := prev.Summary.Plugins
+		nextPlugins := update.Snapshot.Summary.Plugins
+		steps = append(steps, reloadStep{
+			name: "plugins",
+			apply: func(ctx context.Context) error {
+				if m.pluginManager != nil {
+					if err := m.pluginManager.Apply(ctx, nextPlugins); err != nil {
+						if rollbackErr := m.pluginManager.Apply(ctx, prevPlugins); rollbackErr != nil {
+							return errors.Join(err, rollbackErr)
+						}
+						return err
+					}
+				}
+				if m.pipeline != nil {
+					m.pipeline.Update(nextPlugins)
+				}
+				return nil
+			},
+			rollback: func(ctx context.Context) error {
+				var rollbackErr error
+				if m.pipeline != nil {
+					m.pipeline.Update(prevPlugins)
+				}
+				if m.pluginManager != nil {
+					if err := m.pluginManager.Apply(ctx, prevPlugins); err != nil {
+						rollbackErr = err
+					}
+				}
+				return rollbackErr
+			},
+		})
+	}
 	if diff.RuntimeChanged {
 		steps = append(steps, m.buildRuntimeConfigStep(prev.Summary.Runtime, update.Snapshot.Summary.Runtime))
 	}
@@ -555,6 +599,9 @@ func diffChangedFields(diff domain.CatalogDiff) []string {
 	}
 	if diff.RuntimeChanged {
 		fields = append(fields, "runtime")
+	}
+	if diff.PluginsChanged {
+		fields = append(fields, "plugins")
 	}
 	return fields
 }

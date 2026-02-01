@@ -54,9 +54,9 @@ export const LogToolbar = memo(function LogToolbar({
 }: LogToolbarProps) {
   const hasActiveFilters
     = filters.level !== 'all'
-    || filters.source !== 'all'
-    || filters.server !== 'all'
-    || filters.search !== ''
+      || filters.source !== 'all'
+      || filters.server !== 'all'
+      || filters.search !== ''
 
   const handleClearFilters = () => {
     onFiltersChange({
@@ -69,7 +69,7 @@ export const LogToolbar = memo(function LogToolbar({
 
   const showServerFilter
     = serverOptions.length > 0
-    && (filters.source === 'all' || filters.source === 'downstream')
+      && (filters.source === 'all' || filters.source === 'downstream')
 
   return (
     <div className="flex flex-wrap items-center gap-3 border-b bg-muted/30 px-4 py-2">

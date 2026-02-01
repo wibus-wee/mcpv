@@ -16,6 +16,10 @@ type CatalogDiff struct {
 	RestartRequiredSpecKeys []string
 	TagsChanged             bool
 	RuntimeChanged          bool
+	PluginsChanged          bool
+	AddedPlugins            []string
+	RemovedPlugins          []string
+	UpdatedPlugins          []string
 	RuntimeDiff             RuntimeDiff
 }
 
@@ -30,6 +34,7 @@ func (d CatalogDiff) IsEmpty() bool {
 		len(d.RestartRequiredSpecKeys) == 0 &&
 		!d.TagsChanged &&
 		!d.RuntimeChanged &&
+		!d.PluginsChanged &&
 		d.RuntimeDiff.IsEmpty()
 }
 
@@ -129,6 +134,34 @@ func DiffCatalogStates(prev CatalogState, next CatalogState) CatalogDiff {
 	sort.Strings(diff.ToolsOnlySpecKeys)
 	sort.Strings(diff.RuntimeBehaviorSpecKeys)
 	sort.Strings(diff.RestartRequiredSpecKeys)
+
+	prevPlugins := prev.Summary.PluginIndex
+	if prevPlugins == nil {
+		prevPlugins = map[string]PluginSpec{}
+	}
+	nextPlugins := next.Summary.PluginIndex
+	if nextPlugins == nil {
+		nextPlugins = map[string]PluginSpec{}
+	}
+	for name, prevPlugin := range prevPlugins {
+		nextPlugin, ok := nextPlugins[name]
+		if !ok {
+			diff.RemovedPlugins = append(diff.RemovedPlugins, name)
+			continue
+		}
+		if !reflect.DeepEqual(prevPlugin, nextPlugin) {
+			diff.UpdatedPlugins = append(diff.UpdatedPlugins, name)
+		}
+	}
+	for name := range nextPlugins {
+		if _, ok := prevPlugins[name]; !ok {
+			diff.AddedPlugins = append(diff.AddedPlugins, name)
+		}
+	}
+	sort.Strings(diff.AddedPlugins)
+	sort.Strings(diff.RemovedPlugins)
+	sort.Strings(diff.UpdatedPlugins)
+	diff.PluginsChanged = len(diff.AddedPlugins)+len(diff.RemovedPlugins)+len(diff.UpdatedPlugins) > 0
 
 	return diff
 }
