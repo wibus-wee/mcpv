@@ -137,33 +137,33 @@ export function PluginListTable({ plugins, onEditRequest }: PluginListTableProps
               <TableCell className="text-right font-mono text-sm tabular-nums">
                 {plugin.latestMetrics.rejectionCount > 0
                   ? (
-                    <span className="text-warning-foreground">
-                      {plugin.latestMetrics.rejectionCount.toLocaleString()}
-                    </span>
-                  )
+                      <span className="text-warning-foreground">
+                        {plugin.latestMetrics.rejectionCount.toLocaleString()}
+                      </span>
+                    )
                   : (
-                    <span className="text-muted-foreground">0</span>
-                  )}
+                      <span className="text-muted-foreground">0</span>
+                    )}
               </TableCell>
               <TableCell className="text-right font-mono text-sm tabular-nums">
                 {plugin.latestMetrics.avgLatencyMs > 0
                   ? plugin.latestMetrics.avgLatencyMs.toFixed(2)
                   : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
+                      <span className="text-muted-foreground">—</span>
+                    )}
               </TableCell>
               <TableCell className="text-center">
                 {plugin.required
                   ? (
-                    <Badge variant="error" size="sm">
-                      Required
-                    </Badge>
-                  )
+                      <Badge variant="error" size="sm">
+                        Required
+                      </Badge>
+                    )
                   : (
-                    <Badge variant="outline" size="sm">
-                      Optional
-                    </Badge>
-                  )}
+                      <Badge variant="outline" size="sm">
+                        Optional
+                      </Badge>
+                    )}
               </TableCell>
               <TableCell className="text-center">
                 <div className="flex items-center justify-center gap-2">

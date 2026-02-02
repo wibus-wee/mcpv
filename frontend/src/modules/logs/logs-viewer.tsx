@@ -18,7 +18,7 @@ import {
   LogToolbar,
 } from './components'
 import { logTableColumnsClassName } from './components/log-table-row'
-import { useLogViewer } from './hooks'
+import { useKeyboardNavigation, useLogViewer } from './hooks'
 
 export function LogsViewer() {
   const { logs, mutate } = useLogs()
@@ -76,6 +76,13 @@ export function LogsViewer() {
   const deferredLogs = useDeferredValue(filteredLogs)
   const deferredLogCounts = useDeferredValue(logCounts)
   const deferredServerOptions = useDeferredValue(serverOptions)
+
+  useKeyboardNavigation({
+    onUp: selectPrev,
+    onDown: selectNext,
+    onEscape: clearSelection,
+    enabled: deferredLogs.length > 0,
+  })
 
   const {
     size: detailPanelWidth,

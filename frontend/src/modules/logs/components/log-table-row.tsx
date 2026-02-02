@@ -3,7 +3,7 @@
 // Position: Log list row in logs module table view
 
 import { AlertCircleIcon, AlertTriangleIcon, CheckCircleIcon, InfoIcon, WorkflowIcon, ZapIcon } from 'lucide-react'
-import { memo, useCallback, useId } from 'react'
+import { memo, useCallback, useEffect, useId, useRef } from 'react'
 
 import {
   Tooltip,
@@ -73,6 +73,7 @@ export const LogTableRow = memo(function LogTableRow({
   onSelectLog,
   columnsClassName,
 }: LogTableRowProps) {
+  const rowRef = useRef<HTMLDivElement>(null)
   // Build trace nodes from log for display
   const traceNodes = buildTraceIcons(log)
   const baseId = useId()
@@ -88,14 +89,23 @@ export const LogTableRow = memo(function LogTableRow({
     onSelectLog(isSelected ? null : log.id)
   }, [isSelected, log.id, onSelectLog])
 
+  useEffect(() => {
+    if (isSelected && rowRef.current) {
+      rowRef.current.scrollIntoView({ block: 'nearest' })
+    }
+  }, [isSelected])
+
   return (
     <div
+      ref={rowRef}
       className={cn(
         'group h-9 w-full cursor-pointer border-b border-border/40 px-4 text-sm transition-colors hover:bg-muted/50',
         columnsClassName,
         isSelected && 'bg-accent',
         hasError && 'bg-red-500/5 hover:bg-red-500/10',
         hasWarning && 'bg-amber-500/5 hover:bg-amber-500/10',
+        isSelected && hasError && 'bg-red-500/10',
+        isSelected && hasWarning && 'bg-amber-500/10',
       )}
       onClick={handleClick}
     >
