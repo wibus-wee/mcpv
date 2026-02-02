@@ -7,6 +7,7 @@ import { BugIcon, PaletteIcon, ServerIcon, SettingsIcon } from 'lucide-react'
 
 import { NavItem } from '@/components/common/nav-item'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { isDev } from '@/lib/is-dev'
 
 export const Route = createFileRoute('/settings')({
   component: SettingsLayout,
@@ -19,12 +20,14 @@ const navItems: NavItem[] = [
     icon: ServerIcon,
     description: 'Timeouts, retries, and global defaults',
   },
-  {
-    path: '/settings/subagent',
-    label: 'SubAgent',
-    icon: SettingsIcon,
-    description: 'AI assistant configuration',
-  },
+  ...isDev
+    ? [{
+      path: '/settings/subagent',
+      label: 'SubAgent',
+      icon: SettingsIcon,
+      description: 'AI assistant configuration',
+    }]
+    : [],
   {
     path: '/settings/appearance',
     label: 'Appearance',

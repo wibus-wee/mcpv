@@ -25,6 +25,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
+import { isDev } from '@/lib/is-dev'
 import { Spring } from '@/lib/spring'
 
 const navItems: NavItem[] = [
@@ -38,11 +39,13 @@ const navItems: NavItem[] = [
     label: 'Servers',
     icon: ServerIcon,
   },
-  {
-    path: '/plugins',
-    label: 'Plugins',
-    icon: PlugIcon,
-  },
+  ...isDev
+    ? [{
+      path: '/plugins',
+      label: 'Plugins',
+      icon: PlugIcon,
+    }]
+    : [],
   {
     path: '/logs',
     label: 'Logs',
