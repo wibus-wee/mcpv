@@ -8,7 +8,7 @@
 
 ## Files
 
-- **analytics.ts**: Umami 统计封装，提供开关、事件追踪与页面浏览上报
+- **analytics.ts**: Umami 统计封装，提供开关、事件追踪、统一上下文与页面浏览上报
 - **analytics-events.md**: AnalyticsEvents 事件规范与字段说明（英文）
 - **framer-lazy-feature.ts**: Motion LazyMotion 特性加载器
 - **is-dev.ts**: 开发环境判断工具

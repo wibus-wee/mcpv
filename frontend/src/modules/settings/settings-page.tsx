@@ -43,11 +43,11 @@ export const SettingsPage = () => {
         <SubAgentSettingsCard
           canEdit={canEdit}
           form={subAgent.form}
-          apiKeyInput={subAgent.apiKeyInput}
-          onApiKeyChange={subAgent.setApiKeyInput}
-          modelInputValue={subAgent.modelInputValue}
-          onModelInputChange={subAgent.setModelValue}
-          onModelValueChange={subAgent.setModelValue}
+        apiKeyInput={subAgent.apiKeyInput}
+        onApiKeyChange={subAgent.setApiKeyInput}
+        modelInputValue={subAgent.modelInputValue}
+        onModelInputChange={subAgent.setModelInput}
+        onModelValueChange={subAgent.setModelValue}
           modelLabelMap={subAgent.modelLabelMap}
           modelOptionIDs={subAgent.modelOptionIDs}
           modelFetchState={subAgent.modelFetchState}

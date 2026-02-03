@@ -309,6 +309,7 @@ export const useSubAgentSettings = ({ canEdit }: UseSubAgentSettingsOptions) => 
     apiKeyInput,
     setApiKeyInput,
     modelInputValue,
+    setModelInput,
     setModelValue,
     modelOptionIDs,
     modelLabelMap,
