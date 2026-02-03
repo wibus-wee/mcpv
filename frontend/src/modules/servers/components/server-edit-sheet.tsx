@@ -34,6 +34,8 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { toastManager } from '@/components/ui/toast'
 import { formatCommaSeparated, formatEnvironmentVariables, parseCommaSeparated, parseEnvironmentVariables } from '@/lib/parsers'
+import { reloadConfig } from '@/modules/servers/lib/reload-config'
+import type { ServerFormValues } from '@/modules/servers/lib/server-form-content'
 import {
   SERVER_ADVICE_RULES,
   SERVER_FIELD_HELP,
@@ -41,9 +43,7 @@ import {
   SERVER_FORM_TEXT,
   SERVER_FORM_VALIDATION,
   SERVER_SELECT_OPTIONS,
-  type ServerFormValues,
 } from '@/modules/servers/lib/server-form-content'
-import { reloadConfig } from '@/modules/servers/lib/reload-config'
 
 import { ServerFormField } from './server-form-field'
 
@@ -139,14 +139,36 @@ export function ServerEditSheet({
     formState: { errors },
   } = form
 
-  const transport = (useWatch({ control, name: 'transport' }) ?? 'stdio') as FormData['transport']
-  const activationMode = (useWatch({ control, name: 'activationMode' }) ?? 'on-demand') as FormData['activationMode']
-  const strategy = (useWatch({ control, name: 'strategy' }) ?? 'stateless') as string
-  const idleSeconds = Number(useWatch({ control, name: 'idleSeconds' }) ?? 0)
-  const maxConcurrent = Number(useWatch({ control, name: 'maxConcurrent' }) ?? 0)
-  const minReady = Number(useWatch({ control, name: 'minReady' }) ?? 0)
-  const sessionTTLSeconds = Number(useWatch({ control, name: 'sessionTTLSeconds' }) ?? 0)
-  const drainTimeoutSeconds = Number(useWatch({ control, name: 'drainTimeoutSeconds' }) ?? 0)
+  const [
+    transportRaw,
+    activationModeRaw,
+    strategyRaw,
+    idleSecondsRaw,
+    maxConcurrentRaw,
+    minReadyRaw,
+    sessionTTLSecondsRaw,
+    drainTimeoutSecondsRaw,
+  ] = useWatch({
+    control,
+    name: [
+      'transport',
+      'activationMode',
+      'strategy',
+      'idleSeconds',
+      'maxConcurrent',
+      'minReady',
+      'sessionTTLSeconds',
+      'drainTimeoutSeconds',
+    ],
+  })
+  const transport = (transportRaw ?? 'stdio') as FormData['transport']
+  const activationMode = (activationModeRaw ?? 'on-demand') as FormData['activationMode']
+  const strategy = (strategyRaw ?? 'stateless') as string
+  const idleSeconds = Number(idleSecondsRaw ?? 0)
+  const maxConcurrent = Number(maxConcurrentRaw ?? 0)
+  const minReady = Number(minReadyRaw ?? 0)
+  const sessionTTLSeconds = Number(sessionTTLSecondsRaw ?? 0)
+  const drainTimeoutSeconds = Number(drainTimeoutSecondsRaw ?? 0)
 
   const adviceItems = useMemo(() => {
     const values: ServerFormValues = {
