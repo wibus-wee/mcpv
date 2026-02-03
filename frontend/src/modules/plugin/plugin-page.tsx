@@ -5,6 +5,7 @@
 import { m } from 'motion/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { ExperimentalBanner } from '@/components/common/experimental-banner'
 import { RefreshButton } from '@/components/custom/refresh-button'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -132,6 +133,13 @@ export function PluginPage() {
             />
           </div>
         </m.div>
+      </div>
+
+      <div className="px-4 py-3 pt-0">
+        <ExperimentalBanner
+          feature="Feature"
+          description="Plugins are currently under very early design and development. Your feedback is welcome!"
+        />
       </div>
 
       <Separator />

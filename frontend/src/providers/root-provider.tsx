@@ -20,7 +20,7 @@ import { startTransition, useCallback, useEffect, useRef } from 'react'
 import { SWRConfig, useSWRConfig } from 'swr'
 
 import { logStreamTokenAtom } from '@/atoms/logs'
-import { ToastProvider } from '@/components/ui/toast'
+import { AnchoredToastProvider, ToastProvider } from '@/components/ui/toast'
 import { activeClientsKey } from '@/hooks/use-active-clients'
 import { coreStateKey, useCoreState } from '@/hooks/use-core-state'
 import type { LogEntry } from '@/hooks/use-logs'
@@ -325,23 +325,25 @@ export function RootProvider({ children }: { children: React.ReactNode }) {
           disableTransitionOnChange
         >
           <ToastProvider>
-            <SWRConfig
-              value={{
-                revalidateOnMount: true,
-                revalidateOnFocus: false,
-                revalidateOnReconnect: true,
-                dedupingInterval: 2000,
-                shouldRetryOnError: true,
-                errorRetryCount: 3,
-                errorRetryInterval: 1000,
-                keepPreviousData: true,
-              }}
-            >
-              <Provider store={jotaiStore}>
-                {children}
-                <WailsEventsBridge />
-              </Provider>
-            </SWRConfig>
+            <AnchoredToastProvider>
+              <SWRConfig
+                value={{
+                  revalidateOnMount: true,
+                  revalidateOnFocus: false,
+                  revalidateOnReconnect: true,
+                  dedupingInterval: 2000,
+                  shouldRetryOnError: true,
+                  errorRetryCount: 3,
+                  errorRetryInterval: 1000,
+                  keepPreviousData: true,
+                }}
+              >
+                <Provider store={jotaiStore}>
+                  {children}
+                  <WailsEventsBridge />
+                </Provider>
+              </SWRConfig>
+            </AnchoredToastProvider>
           </ToastProvider>
         </ThemeProvider>
       </MotionConfig>

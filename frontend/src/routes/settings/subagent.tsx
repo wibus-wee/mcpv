@@ -4,6 +4,7 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
+import { ExperimentalBanner } from '@/components/common/experimental-banner'
 import { useConfigMode } from '@/modules/servers/hooks'
 import { SubAgentSettingsCard } from '@/modules/settings/components/subagent-settings-card'
 import { useSubAgentSettings } from '@/modules/settings/hooks/use-subagent-settings'
@@ -18,7 +19,13 @@ function SubAgentSettingsPage() {
   const subAgent = useSubAgentSettings({ canEdit })
 
   return (
-    <div className="p-3">
+    <div className="flex flex-col gap-3 p-3">
+      <ExperimentalBanner
+        feature="Feature"
+        description="SubAgent is currently under active development and the implementation may change."
+        inspirationName="Alma by yetone"
+        inspirationUrl="https://alma.now/"
+      />
       <SubAgentSettingsCard
         canEdit={canEdit}
         form={subAgent.form}

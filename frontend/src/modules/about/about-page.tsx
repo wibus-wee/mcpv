@@ -79,7 +79,7 @@ export function AboutPage() {
             <Skeleton className="h-8 w-36" />
           ) : (
             <h1 className="text-2xl font-semibold tracking-tight">
-              mcpv UI
+              MCPV UI
               {appInfo?.version && (
                 <span className="ml-2 text-base font-normal text-muted-foreground">
                   v{appInfo.version}
