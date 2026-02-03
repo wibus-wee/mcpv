@@ -9,7 +9,7 @@ import { createAtomHooks, jotaiStore } from './jotai'
 
 const STORAGE_KEY = 'mcpv-analytics-enabled'
 const UMAMI_WEBSITE_ID = import.meta.env.VITE_UMAMI_WEBSITE_ID || '__UMAMI_WEBSITE_ID__'
-const UMAMI_HOST_URL = import.meta.env.VITE_UMAMI_HOST_URL || '__UMAMI_HOST_URL__'
+const UMAMI_HOST_URL = import.meta.env.VITE_UMAMI_HOST_URL || 'https://cloud.umami.is'
 const ANALYTICS_CHANNEL = import.meta.env.VITE_ANALYTICS_CHANNEL
   || (import.meta.env.DEV ? 'dev' : 'prod')
 const ENV_MODE = import.meta.env.MODE || (import.meta.env.DEV ? 'dev' : 'prod')

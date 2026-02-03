@@ -22,6 +22,20 @@ import { logTableColumnsClassName } from './components/log-table-row'
 import { useKeyboardNavigation, useLogViewer } from './hooks'
 import type { LogFilters } from './types'
 
+function trackFilterChange<T>(
+  filterName: string,
+  prevValue: T,
+  nextValue: T,
+  transformValue?: (value: T) => string | number | boolean,
+) {
+  if (prevValue !== nextValue) {
+    track(AnalyticsEvents.LOGS_FILTER_CHANGED, {
+      filter: filterName,
+      value: transformValue ? transformValue(nextValue) : nextValue,
+    })
+  }
+}
+
 export function LogsViewer() {
   const { logs, mutate } = useLogs()
   const { coreStatus } = useCoreState()
@@ -90,24 +104,13 @@ export function LogsViewer() {
   const handleFiltersChange = useCallback((next: LogFilters) => {
     const prev = filtersRef.current
     if (prev) {
-      if (prev.level !== next.level) {
-        track(AnalyticsEvents.LOGS_FILTER_CHANGED, {
-          filter: 'level',
-          value: next.level,
-        })
-      }
-      if (prev.source !== next.source) {
-        track(AnalyticsEvents.LOGS_FILTER_CHANGED, {
-          filter: 'source',
-          value: next.source,
-        })
-      }
-      if (prev.server !== next.server) {
-        track(AnalyticsEvents.LOGS_FILTER_CHANGED, {
-          filter: 'server',
-          value: next.server === 'all' ? 'all' : 'custom',
-        })
-      }
+      // Track simple filter changes
+      trackFilterChange('level', prev.level, next.level)
+      trackFilterChange('source', prev.source, next.source)
+      trackFilterChange('server', prev.server, next.server, value =>
+        value === 'all' ? 'all' : 'custom')
+
+      // Track search changes with debouncing
       if (prev.search !== next.search) {
         if (searchTrackTimerRef.current !== null) {
           window.clearTimeout(searchTrackTimerRef.current)
@@ -248,27 +251,27 @@ export function LogsViewer() {
           {/* Virtual list */}
           {deferredLogs.length > 0
             ? (
-                <div className="min-h-0 flex-1 overflow-y-auto">
-                  {deferredLogs.map(log => (
-                    <LogTableRow
-                      key={log.id}
-                      log={log}
-                      isSelected={log.id === selectedId}
-                      onSelectLog={handleSelectLog}
-                      columnsClassName={logTableColumnsClassName}
-                    />
-                  ))}
-                </div>
-              )
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {deferredLogs.map(log => (
+                  <LogTableRow
+                    key={log.id}
+                    log={log}
+                    isSelected={log.id === selectedId}
+                    onSelectLog={handleSelectLog}
+                    columnsClassName={logTableColumnsClassName}
+                  />
+                ))}
+              </div>
+            )
             : (
-                <div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
-                  {connectionStatus === 'disconnected'
-                    ? 'Core is stopped'
-                    : connectionStatus === 'waiting'
-                      ? 'Waiting for logs...'
-                      : 'No logs found'}
-                </div>
-              )}
+              <div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
+                {connectionStatus === 'disconnected'
+                  ? 'Core is stopped'
+                  : connectionStatus === 'waiting'
+                    ? 'Waiting for logs...'
+                    : 'No logs found'}
+              </div>
+            )}
 
           {/* Bottom logs panel */}
           {selectedLog && (
