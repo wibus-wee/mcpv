@@ -17,7 +17,7 @@ import { Provider, useAtomValue } from 'jotai'
 import { LazyMotion, MotionConfig } from 'motion/react'
 import { ThemeProvider } from 'next-themes'
 import { startTransition, useCallback, useEffect, useRef } from 'react'
-import { useSWRConfig } from 'swr'
+import { SWRConfig, useSWRConfig } from 'swr'
 
 import { logStreamTokenAtom } from '@/atoms/logs'
 import { ToastProvider } from '@/components/ui/toast'
@@ -305,10 +305,23 @@ export function RootProvider({ children }: { children: React.ReactNode }) {
           disableTransitionOnChange
         >
           <ToastProvider>
-            <Provider store={jotaiStore}>
-              {children}
-              <WailsEventsBridge />
-            </Provider>
+            <SWRConfig
+              value={{
+                revalidateOnMount: true,
+                revalidateOnFocus: false,
+                revalidateOnReconnect: true,
+                dedupingInterval: 2000,
+                shouldRetryOnError: true,
+                errorRetryCount: 3,
+                errorRetryInterval: 1000,
+                keepPreviousData: true,
+              }}
+            >
+              <Provider store={jotaiStore}>
+                {children}
+                <WailsEventsBridge />
+              </Provider>
+            </SWRConfig>
           </ToastProvider>
         </ThemeProvider>
       </MotionConfig>
