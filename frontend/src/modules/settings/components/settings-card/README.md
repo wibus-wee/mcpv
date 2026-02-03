@@ -2,22 +2,16 @@
 
 # SettingsCard Compound Component
 
-A compound component pattern for building settings forms with react-hook-form.
-Uses React Context to eliminate prop drilling for `form`, `canEdit`, and `isSaving` state.
-
-## Architecture
-
-The component provides a context-based approach where:
-- Parent `SettingsCard` provides form context
-- Child components consume context automatically
-- Custom fields can access context via `useSettingsCardContext()`
+SettingsCard 采用复合组件模式构建设置表单。
+使用 React Context 避免在字段间传递 form、canEdit 与 isSaving。
+支持字段级帮助图标与统一的布局约束。
 
 ## Files
 
-- **index.tsx**: Main entry point, exports `SettingsCard` compound component
-- **context.tsx**: React context and provider for form state
-- **fields.tsx**: Field components (NumberField, SelectField, SwitchField, TextField, TextareaField)
-- **layout.tsx**: Layout components (Header, Content, Section, Footer, ReadOnlyAlert, ErrorAlert)
+- **index.tsx**: 入口导出 SettingsCard 复合组件
+- **context.tsx**: 表单状态上下文与 Provider
+- **fields.tsx**: 字段组件（Number, Select, Switch, Text, Textarea）
+- **layout.tsx**: 布局组件（Header, Content, Section, Footer, ReadOnlyAlert, ErrorAlert）
 
 ## Usage
 
@@ -48,7 +42,7 @@ import { SettingsCard } from './settings-card'
 
 ## Custom Fields
 
-For custom rendering, use `SettingsCard.Field` or access context directly:
+如需自定义渲染，可使用 `SettingsCard.Field` 或直接消费 context：
 
 ```tsx
 import { useSettingsCardContext } from './settings-card'

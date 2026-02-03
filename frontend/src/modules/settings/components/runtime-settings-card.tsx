@@ -18,6 +18,7 @@ import {
   NAMESPACE_STRATEGY_LABELS,
   NAMESPACE_STRATEGY_OPTIONS,
 } from '../lib/runtime-config'
+import { RUNTIME_FIELD_HELP } from '../lib/runtime-help'
 import { SettingsCard } from './settings-card'
 
 interface RuntimeSettingsCardProps {
@@ -67,6 +68,7 @@ export const RuntimeSettingsCard = ({
                 description="How metadata is collected during startup"
                 options={BOOTSTRAP_MODE_OPTIONS}
                 labels={BOOTSTRAP_MODE_LABELS}
+                help={RUNTIME_FIELD_HELP.bootstrapMode}
               />
               <SettingsCard.SelectField<RuntimeFormState>
                 name="defaultActivationMode"
@@ -74,24 +76,28 @@ export const RuntimeSettingsCard = ({
                 description="Applied when a server does not specify activationMode"
                 options={ACTIVATION_MODE_OPTIONS}
                 labels={ACTIVATION_MODE_LABELS}
+                help={RUNTIME_FIELD_HELP.defaultActivationMode}
               />
               <SettingsCard.NumberField<RuntimeFormState>
                 name="routeTimeoutSeconds"
                 label="Route Timeout"
                 description="Maximum time to wait for routing requests"
                 unit="seconds"
+                help={RUNTIME_FIELD_HELP.routeTimeoutSeconds}
               />
               <SettingsCard.NumberField<RuntimeFormState>
                 name="pingIntervalSeconds"
                 label="Ping Interval"
                 description="Interval for server health checks (0 to disable)"
                 unit="seconds"
+                help={RUNTIME_FIELD_HELP.pingIntervalSeconds}
               />
               <SettingsCard.NumberField<RuntimeFormState>
                 name="toolRefreshSeconds"
                 label="Tool Refresh Interval"
                 description="How often to refresh tool lists from servers"
                 unit="seconds"
+                help={RUNTIME_FIELD_HELP.toolRefreshSeconds}
               />
             </SettingsCard.Section>
 
@@ -101,53 +107,62 @@ export const RuntimeSettingsCard = ({
                 label="Bootstrap Concurrency"
                 description="Number of servers to initialize in parallel"
                 unit="workers"
+                help={RUNTIME_FIELD_HELP.bootstrapConcurrency}
               />
               <SettingsCard.NumberField<RuntimeFormState>
                 name="bootstrapTimeoutSeconds"
                 label="Bootstrap Timeout"
                 description="Maximum time for server initialization"
                 unit="seconds"
+                help={RUNTIME_FIELD_HELP.bootstrapTimeoutSeconds}
               />
               <SettingsCard.NumberField<RuntimeFormState>
                 name="toolRefreshConcurrency"
                 label="Tool Refresh Concurrency"
                 description="Parallel tool refresh operations limit"
                 unit="workers"
+                help={RUNTIME_FIELD_HELP.toolRefreshConcurrency}
               />
               <SettingsCard.NumberField<RuntimeFormState>
                 name="clientCheckSeconds"
                 label="Client Check Interval"
                 description="How often to check for inactive clients"
                 unit="seconds"
+                help={RUNTIME_FIELD_HELP.clientCheckSeconds}
               />
               <SettingsCard.NumberField<RuntimeFormState>
                 name="clientInactiveSeconds"
                 label="Client Inactive Threshold"
                 description="Time before marking client as inactive"
                 unit="seconds"
+                help={RUNTIME_FIELD_HELP.clientInactiveSeconds}
               />
               <SettingsCard.NumberField<RuntimeFormState>
                 name="serverInitRetryBaseSeconds"
                 label="Init Retry Base Delay"
                 description="Initial delay for server initialization retry"
                 unit="seconds"
+                help={RUNTIME_FIELD_HELP.serverInitRetryBaseSeconds}
               />
               <SettingsCard.NumberField<RuntimeFormState>
                 name="serverInitRetryMaxSeconds"
                 label="Init Retry Max Delay"
                 description="Maximum delay for server initialization retry"
                 unit="seconds"
+                help={RUNTIME_FIELD_HELP.serverInitRetryMaxSeconds}
               />
               <SettingsCard.NumberField<RuntimeFormState>
                 name="serverInitMaxRetries"
                 label="Init Max Retries"
                 description="Maximum retry attempts for server initialization"
                 unit="retries"
+                help={RUNTIME_FIELD_HELP.serverInitMaxRetries}
               />
               <SettingsCard.SwitchField<RuntimeFormState>
                 name="exposeTools"
                 label="Expose Tools"
                 description="Expose tools to external clients"
+                help={RUNTIME_FIELD_HELP.exposeTools}
               />
               <SettingsCard.SelectField<RuntimeFormState>
                 name="toolNamespaceStrategy"
@@ -155,6 +170,7 @@ export const RuntimeSettingsCard = ({
                 description="How to namespace tool names from different servers"
                 options={NAMESPACE_STRATEGY_OPTIONS}
                 labels={NAMESPACE_STRATEGY_LABELS}
+                help={RUNTIME_FIELD_HELP.toolNamespaceStrategy}
               />
             </SettingsCard.Section>
           </>
