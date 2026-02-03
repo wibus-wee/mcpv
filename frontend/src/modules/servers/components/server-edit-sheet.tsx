@@ -1,16 +1,18 @@
-// Input: open state, server data (for edit mode), callbacks, analytics
-// Output: Sheet component for adding/editing server configurations
+// Input: open state, server data (for edit mode), callbacks, help content
+// Output: Sheet component for adding/editing server configurations with guidance
 // Position: Overlay sheet triggered from server list or config panel
 
 import type { ServerDetail } from '@bindings/mcpv/internal/ui'
 import { ServerService } from '@bindings/mcpv/internal/ui'
-import { PlusIcon, SaveIcon } from 'lucide-react'
+import { AlertTriangleIcon, ChevronDownIcon, InfoIcon, PlusIcon, SaveIcon } from 'lucide-react'
 import { m } from 'motion/react'
-import { useCallback, useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useForm, useWatch } from 'react-hook-form'
 
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -34,6 +36,17 @@ import { toastManager } from '@/components/ui/toast'
 import { AnalyticsEvents, track } from '@/lib/analytics'
 import { formatCommaSeparated, formatEnvironmentVariables, parseCommaSeparated, parseEnvironmentVariables } from '@/lib/parsers'
 import { reloadConfig } from '@/modules/servers/lib/reload-config'
+import type { ServerFormValues } from '@/modules/servers/lib/server-form-content'
+import {
+  SERVER_ADVICE_RULES,
+  SERVER_FIELD_HELP,
+  SERVER_FIELD_IDS,
+  SERVER_FORM_TEXT,
+  SERVER_FORM_VALIDATION,
+  SERVER_SELECT_OPTIONS,
+} from '@/modules/servers/lib/server-form-content'
+
+import { ServerFormField } from './server-form-field'
 
 interface ServerEditSheetProps {
   open: boolean
@@ -86,30 +99,17 @@ const INITIAL_FORM_DATA: FormData = {
   httpHeaders: '',
 }
 
-function FormField({
-  label,
-  description,
-  required,
-  children,
-}: {
-  label: string
-  description?: string
-  required?: boolean
-  children: React.ReactNode
-}) {
-  return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium">
-        {label}
-        {required && <span className="ml-1 text-destructive">*</span>}
-      </label>
-      {description && (
-        <p className="text-xs text-muted-foreground">{description}</p>
-      )}
-      {children}
-    </div>
-  )
+const resolveSelectLabel = (
+  options: Array<{ value: string, label: string }>,
+  value: unknown,
+  placeholder: string,
+) => {
+  if (!value) return placeholder
+  const match = options.find(option => option.value === value)
+  return match ? match.label : placeholder
 }
+
+const getErrorMessage = (message: unknown) => (typeof message === 'string' ? message : undefined)
 
 export function ServerEditSheet({
   open,
@@ -124,6 +124,8 @@ export function ServerEditSheet({
   const isMissingServer = isEdit && !server
   const isFormDisabled = isEditLoading || isMissingServer
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [httpAdvancedOpen, setHttpAdvancedOpen] = useState(false)
 
   const form = useForm<FormData>({
     defaultValues: INITIAL_FORM_DATA,
@@ -133,11 +135,67 @@ export function ServerEditSheet({
     register,
     handleSubmit,
     reset,
-    watch,
     setValue,
+    control,
+    formState: { errors },
   } = form
 
-  const transport = watch('transport')
+  const [
+    transportRaw,
+    activationModeRaw,
+    strategyRaw,
+    idleSecondsRaw,
+    maxConcurrentRaw,
+    minReadyRaw,
+    sessionTTLSecondsRaw,
+    drainTimeoutSecondsRaw,
+  ] = useWatch({
+    control,
+    name: [
+      'transport',
+      'activationMode',
+      'strategy',
+      'idleSeconds',
+      'maxConcurrent',
+      'minReady',
+      'sessionTTLSeconds',
+      'drainTimeoutSeconds',
+    ],
+  })
+  const transport = (transportRaw ?? 'stdio') as FormData['transport']
+  const activationMode = (activationModeRaw ?? 'on-demand') as FormData['activationMode']
+  const strategy = (strategyRaw ?? 'stateless') as string
+  const idleSeconds = Number(idleSecondsRaw ?? 0)
+  const maxConcurrent = Number(maxConcurrentRaw ?? 0)
+  const minReady = Number(minReadyRaw ?? 0)
+  const sessionTTLSeconds = Number(sessionTTLSecondsRaw ?? 0)
+  const drainTimeoutSeconds = Number(drainTimeoutSecondsRaw ?? 0)
+
+  const adviceItems = useMemo(() => {
+    const values: ServerFormValues = {
+      transport,
+      activationMode,
+      idleSeconds,
+      maxConcurrent,
+      minReady,
+      strategy,
+      sessionTTLSeconds,
+      drainTimeoutSeconds,
+    }
+    return SERVER_ADVICE_RULES.filter(rule => rule.when(values))
+  }, [
+    transport,
+    activationMode,
+    idleSeconds,
+    maxConcurrent,
+    minReady,
+    strategy,
+    sessionTTLSeconds,
+    drainTimeoutSeconds,
+  ])
+
+  const warningAdvice = adviceItems.filter(item => item.severity === 'warning')
+  const infoAdvice = adviceItems.filter(item => item.severity === 'info')
 
   useEffect(() => {
     if (!open) return
@@ -327,35 +385,55 @@ export function ServerEditSheet({
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2 }}
             >
-              <FormField label="Server Name" required>
+              <ServerFormField
+                id={SERVER_FIELD_IDS.name}
+                label="Server Name"
+                required
+                help={SERVER_FIELD_HELP.name}
+                error={getErrorMessage(errors.name?.message)}
+              >
                 <Input
-                  {...register('name')}
-                  placeholder="my-server"
+                  {...register('name', { required: SERVER_FORM_VALIDATION.nameRequired })}
+                  id={SERVER_FIELD_IDS.name}
+                  placeholder={SERVER_FORM_TEXT.placeholders.name}
                   disabled={isEdit}
                 />
-                {isEdit && (
+                {isEdit ? (
                   <p className="mt-1 text-xs text-muted-foreground">
                     Server name cannot be changed after creation
                   </p>
-                )}
-              </FormField>
+                ) : null}
+              </ServerFormField>
 
-              <FormField label="Transport Type" required>
+              <ServerFormField
+                id={SERVER_FIELD_IDS.transport}
+                label="Transport Type"
+                required
+                help={SERVER_FIELD_HELP.transport}
+                error={getErrorMessage(errors.transport?.message)}
+              >
                 <Select
                   value={transport}
                   onValueChange={v => setValue('transport', v as 'stdio' | 'streamable_http')}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id={SERVER_FIELD_IDS.transport}>
                     <SelectValue>
-                      {value => (value ? String(value) : 'Select transport')}
+                      {value => resolveSelectLabel(
+                        SERVER_SELECT_OPTIONS.transport,
+                        value,
+                        SERVER_FORM_TEXT.selectPlaceholders.transport,
+                      )}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectPopup>
-                    <SelectItem value="stdio">stdio</SelectItem>
-                    <SelectItem value="streamable_http">streamable_http</SelectItem>
+                    {SERVER_SELECT_OPTIONS.transport.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectPopup>
                 </Select>
-              </FormField>
+              </ServerFormField>
 
               <Separator />
 
@@ -363,204 +441,406 @@ export function ServerEditSheet({
                 <>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" size="sm">
-                      stdio
+                      {SERVER_FORM_TEXT.badges.stdio}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
-                      Configure command execution
+                      {SERVER_FORM_TEXT.transportSummaries.stdio}
                     </span>
                   </div>
 
-                  <FormField label="Command" required description="Executable path or command">
+                  <ServerFormField
+                    id={SERVER_FIELD_IDS.cmd}
+                    label="Command"
+                    required
+                    description={SERVER_FORM_TEXT.descriptions.cmd}
+                    help={SERVER_FIELD_HELP.cmd}
+                    error={getErrorMessage(errors.cmd?.message)}
+                  >
                     <Input
-                      {...register('cmd')}
-                      placeholder="/usr/bin/node"
+                      {...register('cmd', {
+                        validate: value => (
+                          transport === 'stdio'
+                            ? (value?.trim()
+                                ? true
+                                : SERVER_FORM_VALIDATION.cmdRequired)
+                            : true
+                        ),
+                      })}
+                      id={SERVER_FIELD_IDS.cmd}
+                      placeholder={SERVER_FORM_TEXT.placeholders.cmd}
                     />
-                  </FormField>
+                  </ServerFormField>
 
-                  <FormField
+                  <ServerFormField
+                    id={SERVER_FIELD_IDS.args}
                     label="Arguments"
-                    description="Comma-separated command arguments"
+                    description={SERVER_FORM_TEXT.descriptions.args}
+                    help={SERVER_FIELD_HELP.args}
+                    error={getErrorMessage(errors.args?.message)}
                   >
                     <Input
                       {...register('args')}
-                      placeholder="server.js, --port, 3000"
+                      id={SERVER_FIELD_IDS.args}
+                      placeholder={SERVER_FORM_TEXT.placeholders.args}
                     />
-                  </FormField>
+                  </ServerFormField>
 
-                  <FormField label="Working Directory" description="Execution directory">
+                  <ServerFormField
+                    id={SERVER_FIELD_IDS.cwd}
+                    label="Working Directory"
+                    description={SERVER_FORM_TEXT.descriptions.cwd}
+                    help={SERVER_FIELD_HELP.cwd}
+                    error={getErrorMessage(errors.cwd?.message)}
+                  >
                     <Input
                       {...register('cwd')}
-                      placeholder="/path/to/project"
+                      id={SERVER_FIELD_IDS.cwd}
+                      placeholder={SERVER_FORM_TEXT.placeholders.cwd}
                     />
-                  </FormField>
+                  </ServerFormField>
 
-                  <FormField
+                  <ServerFormField
+                    id={SERVER_FIELD_IDS.env}
                     label="Environment Variables"
-                    description="One per line: KEY=value"
+                    description={SERVER_FORM_TEXT.descriptions.env}
+                    help={SERVER_FIELD_HELP.env}
+                    error={getErrorMessage(errors.env?.message)}
                   >
                     <Textarea
                       {...register('env')}
-                      placeholder="NODE_ENV=production&#10;API_KEY=secret"
+                      id={SERVER_FIELD_IDS.env}
+                      placeholder={SERVER_FORM_TEXT.placeholders.env}
                       className="min-h-24"
                     />
-                  </FormField>
+                  </ServerFormField>
                 </>
               ) : (
                 <>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" size="sm">
-                      streamable_http
+                      {SERVER_FORM_TEXT.badges.streamableHttp}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
-                      Configure HTTP endpoint
+                      {SERVER_FORM_TEXT.transportSummaries.streamableHttp}
                     </span>
                   </div>
 
-                  <FormField
+                  <ServerFormField
+                    id={SERVER_FIELD_IDS.endpoint}
                     label="Endpoint URL"
                     required
-                    description="HTTP endpoint for the MCP server"
+                    description={SERVER_FORM_TEXT.descriptions.endpoint}
+                    help={SERVER_FIELD_HELP.endpoint}
+                    error={getErrorMessage(errors.endpoint?.message)}
                   >
                     <Input
-                      {...register('endpoint')}
-                      placeholder="http://localhost:3000/mcp"
+                      {...register('endpoint', {
+                        validate: value => (
+                          transport === 'streamable_http'
+                            ? (value?.trim()
+                                ? true
+                                : SERVER_FORM_VALIDATION.endpointRequired)
+                            : true
+                        ),
+                      })}
+                      id={SERVER_FIELD_IDS.endpoint}
+                      placeholder={SERVER_FORM_TEXT.placeholders.endpoint}
                     />
-                  </FormField>
+                  </ServerFormField>
 
-                  <FormField
-                    label="Max Retries"
-                    description="Maximum number of retries for HTTP requests"
-                  >
-                    <Input
-                      type="number"
-                      {...register('httpMaxRetries', { valueAsNumber: true })}
-                      min={0}
-                    />
-                  </FormField>
+                  <Collapsible open={httpAdvancedOpen} onOpenChange={setHttpAdvancedOpen}>
+                    <CollapsibleTrigger className="w-full">
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-between h-auto px-3 py-2"
+                      >
+                        <span className="text-sm font-medium">
+                          {SERVER_FORM_TEXT.advanced.toggleLabel}
+                        </span>
+                        <m.div
+                          animate={{ rotate: httpAdvancedOpen ? 180 : 0 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <ChevronDownIcon className="size-4" />
+                        </m.div>
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <m.div
+                        className="mt-3 space-y-4"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <p className="text-xs text-muted-foreground">
+                          {SERVER_FORM_TEXT.advanced.description}
+                        </p>
+                        <ServerFormField
+                          id={SERVER_FIELD_IDS.httpMaxRetries}
+                          label="Max Retries"
+                          description={SERVER_FORM_TEXT.descriptions.httpMaxRetries}
+                          help={SERVER_FIELD_HELP.httpMaxRetries}
+                          error={getErrorMessage(errors.httpMaxRetries?.message)}
+                        >
+                          <Input
+                            type="number"
+                            {...register('httpMaxRetries', {
+                              valueAsNumber: true,
+                              min: { value: 0, message: SERVER_FORM_VALIDATION.minZero },
+                            })}
+                            id={SERVER_FIELD_IDS.httpMaxRetries}
+                            min={0}
+                          />
+                        </ServerFormField>
 
-                  <FormField
-                    label="HTTP Headers"
-                    description="One per line: Header-Name=value"
-                  >
-                    <Textarea
-                      {...register('httpHeaders')}
-                      placeholder="Authorization=Bearer token&#10;Content-Type=application/json"
-                      className="min-h-24"
-                    />
-                  </FormField>
+                        <ServerFormField
+                          id={SERVER_FIELD_IDS.httpHeaders}
+                          label="HTTP Headers"
+                          description={SERVER_FORM_TEXT.descriptions.httpHeaders}
+                          help={SERVER_FIELD_HELP.httpHeaders}
+                          error={getErrorMessage(errors.httpHeaders?.message)}
+                        >
+                          <Textarea
+                            {...register('httpHeaders')}
+                            id={SERVER_FIELD_IDS.httpHeaders}
+                            placeholder={SERVER_FORM_TEXT.placeholders.httpHeaders}
+                            className="min-h-24"
+                          />
+                        </ServerFormField>
+                      </m.div>
+                    </CollapsibleContent>
+                  </Collapsible>
                 </>
               )}
 
               <Separator />
 
-              <FormField label="Tags" description="Comma-separated tags for organization">
+              <ServerFormField
+                id={SERVER_FIELD_IDS.tags}
+                label="Tags"
+                description={SERVER_FORM_TEXT.descriptions.tags}
+                help={SERVER_FIELD_HELP.tags}
+                error={getErrorMessage(errors.tags?.message)}
+              >
                 <Input
                   {...register('tags')}
-                  placeholder="production, api, core"
+                  id={SERVER_FIELD_IDS.tags}
+                  placeholder={SERVER_FORM_TEXT.placeholders.tags}
                 />
-              </FormField>
+              </ServerFormField>
 
-              <FormField label="Activation Mode">
+              <ServerFormField
+                id={SERVER_FIELD_IDS.activationMode}
+                label="Activation Mode"
+                help={SERVER_FIELD_HELP.activationMode}
+                error={getErrorMessage(errors.activationMode?.message)}
+              >
                 <Select
-                  value={watch('activationMode')}
+                  value={activationMode}
                   onValueChange={v => setValue('activationMode', v as 'on-demand' | 'always-on')}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id={SERVER_FIELD_IDS.activationMode}>
                     <SelectValue>
-                      {value =>
-                        value === 'on-demand'
-                          ? 'On Demand'
-                          : value === 'always-on'
-                            ? 'Always On'
-                            : 'Select mode'}
+                      {value => resolveSelectLabel(
+                        SERVER_SELECT_OPTIONS.activationMode,
+                        value,
+                        SERVER_FORM_TEXT.selectPlaceholders.activationMode,
+                      )}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectPopup>
-                    <SelectItem value="on-demand">On Demand</SelectItem>
-                    <SelectItem value="always-on">Always On</SelectItem>
+                    {SERVER_SELECT_OPTIONS.activationMode.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectPopup>
                 </Select>
-              </FormField>
+              </ServerFormField>
 
-              <FormField label="Strategy">
+              <ServerFormField
+                id={SERVER_FIELD_IDS.strategy}
+                label="Strategy"
+                help={SERVER_FIELD_HELP.strategy}
+                error={getErrorMessage(errors.strategy?.message)}
+              >
                 <Select
-                  value={watch('strategy')}
+                  value={strategy}
                   onValueChange={v => setValue('strategy', v as string)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id={SERVER_FIELD_IDS.strategy}>
                     <SelectValue>
-                      {value => value || 'Select strategy'}
+                      {value => resolveSelectLabel(
+                        SERVER_SELECT_OPTIONS.strategy,
+                        value,
+                        SERVER_FORM_TEXT.selectPlaceholders.strategy,
+                      )}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectPopup>
-                    <SelectItem value="stateless">Stateless</SelectItem>
-                    <SelectItem value="stateful">Stateful</SelectItem>
+                    {SERVER_SELECT_OPTIONS.strategy.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectPopup>
                 </Select>
-              </FormField>
+              </ServerFormField>
 
               <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  label="Drain Timeout"
-                  description="Drain timeout in seconds"
-                >
-                  <Input
-                    type="number"
-                    {...register('drainTimeoutSeconds', { valueAsNumber: true })}
-                    min={0}
-                  />
-                </FormField>
-
-                <div />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
+                <ServerFormField
+                  id={SERVER_FIELD_IDS.idleSeconds}
                   label="Idle Timeout"
-                  description="Seconds before idle shutdown"
+                  description={SERVER_FORM_TEXT.descriptions.idleSeconds}
+                  help={SERVER_FIELD_HELP.idleSeconds}
+                  error={getErrorMessage(errors.idleSeconds?.message)}
                 >
                   <Input
                     type="number"
-                    {...register('idleSeconds', { valueAsNumber: true })}
+                    {...register('idleSeconds', {
+                      valueAsNumber: true,
+                      min: { value: 0, message: SERVER_FORM_VALIDATION.minZero },
+                    })}
+                    id={SERVER_FIELD_IDS.idleSeconds}
                     min={0}
                   />
-                </FormField>
+                </ServerFormField>
 
-                <FormField
+                <ServerFormField
+                  id={SERVER_FIELD_IDS.maxConcurrent}
                   label="Max Concurrency"
-                  description="Maximum concurrent requests"
+                  description={SERVER_FORM_TEXT.descriptions.maxConcurrent}
+                  help={SERVER_FIELD_HELP.maxConcurrent}
+                  error={getErrorMessage(errors.maxConcurrent?.message)}
                 >
                   <Input
                     type="number"
-                    {...register('maxConcurrent', { valueAsNumber: true })}
+                    {...register('maxConcurrent', {
+                      valueAsNumber: true,
+                      min: { value: 1, message: SERVER_FORM_VALIDATION.minOne },
+                    })}
+                    id={SERVER_FIELD_IDS.maxConcurrent}
                     min={1}
                   />
-                </FormField>
+                </ServerFormField>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  label="Min Ready"
-                  description="Minimum ready instances"
-                >
-                  <Input
-                    type="number"
-                    {...register('minReady', { valueAsNumber: true })}
-                    min={0}
-                  />
-                </FormField>
+              {warningAdvice.length > 0 ? (
+                <Alert variant="warning">
+                  <AlertTriangleIcon />
+                  <AlertTitle>{SERVER_FORM_TEXT.advice.title}</AlertTitle>
+                  <AlertDescription>
+                    <ul className="list-disc space-y-1 pl-4">
+                      {warningAdvice.map(item => (
+                        <li key={item.id}>{item.message}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              ) : null}
 
-                <FormField
-                  label="Session TTL"
-                  description="Session time-to-live in seconds"
-                >
-                  <Input
-                    type="number"
-                    {...register('sessionTTLSeconds', { valueAsNumber: true })}
-                    min={0}
-                  />
-                </FormField>
-              </div>
+              {infoAdvice.length > 0 ? (
+                <Alert variant="info">
+                  <InfoIcon />
+                  <AlertTitle>{SERVER_FORM_TEXT.advice.title}</AlertTitle>
+                  <AlertDescription>
+                    <ul className="list-disc space-y-1 pl-4">
+                      {infoAdvice.map(item => (
+                        <li key={item.id}>{item.message}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+
+              <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+                <CollapsibleTrigger className="w-full">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-between h-auto px-3 py-2"
+                  >
+                    <span className="text-sm font-medium">
+                      {SERVER_FORM_TEXT.advanced.toggleLabel}
+                    </span>
+                    <m.div
+                      animate={{ rotate: advancedOpen ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <ChevronDownIcon className="size-4" />
+                    </m.div>
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <m.div
+                    className="mt-3 space-y-4"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <p className="text-xs text-muted-foreground">
+                      {SERVER_FORM_TEXT.advanced.description}
+                    </p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <ServerFormField
+                        id={SERVER_FIELD_IDS.minReady}
+                        label="Min Ready"
+                        description={SERVER_FORM_TEXT.descriptions.minReady}
+                        help={SERVER_FIELD_HELP.minReady}
+                        error={getErrorMessage(errors.minReady?.message)}
+                      >
+                        <Input
+                          type="number"
+                          {...register('minReady', {
+                            valueAsNumber: true,
+                            min: { value: 0, message: SERVER_FORM_VALIDATION.minZero },
+                          })}
+                          id={SERVER_FIELD_IDS.minReady}
+                          min={0}
+                        />
+                      </ServerFormField>
+
+                      <ServerFormField
+                        id={SERVER_FIELD_IDS.sessionTTLSeconds}
+                        label="Session TTL"
+                        description={SERVER_FORM_TEXT.descriptions.sessionTTLSeconds}
+                        help={SERVER_FIELD_HELP.sessionTTLSeconds}
+                        error={getErrorMessage(errors.sessionTTLSeconds?.message)}
+                      >
+                        <Input
+                          type="number"
+                          {...register('sessionTTLSeconds', {
+                            valueAsNumber: true,
+                            min: { value: 0, message: SERVER_FORM_VALIDATION.minZero },
+                          })}
+                          id={SERVER_FIELD_IDS.sessionTTLSeconds}
+                          min={0}
+                        />
+                      </ServerFormField>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <ServerFormField
+                        id={SERVER_FIELD_IDS.drainTimeoutSeconds}
+                        label="Drain Timeout"
+                        description={SERVER_FORM_TEXT.descriptions.drainTimeoutSeconds}
+                        help={SERVER_FIELD_HELP.drainTimeoutSeconds}
+                        error={getErrorMessage(errors.drainTimeoutSeconds?.message)}
+                      >
+                        <Input
+                          type="number"
+                          {...register('drainTimeoutSeconds', {
+                            valueAsNumber: true,
+                            min: { value: 0, message: SERVER_FORM_VALIDATION.minZero },
+                          })}
+                          id={SERVER_FIELD_IDS.drainTimeoutSeconds}
+                          min={0}
+                        />
+                      </ServerFormField>
+                      <div />
+                    </div>
+                  </m.div>
+                </CollapsibleContent>
+              </Collapsible>
             </m.div>
           </fieldset>
         </SheetPanel>

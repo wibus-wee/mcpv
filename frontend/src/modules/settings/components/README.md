@@ -2,16 +2,16 @@
 
 # Settings Components
 
-Settings 页面专用 UI 组件。
-包含运行时与 SubAgent 的卡片布局与头部组件。
-仅负责展示与表单布局。
+Settings 模块的页面级组件集合。
+包含运行时与 SubAgent 的配置卡片与页头组件。
+复合字段组件位于 `settings-card/` 子目录。
 
 ## Files
 
-- **runtime-settings-card.tsx**: Runtime 设置卡片与表单布局
-- **settings-header.tsx**: Settings 页面头部区域
-- **subagent-settings-card.tsx**: SubAgent 设置卡片与表单布局（包含标签变更埋点）
+- **runtime-settings-card.tsx**: Runtime 配置表单卡片
+- **settings-header.tsx**: Settings 页面头部信息
+- **subagent-settings-card.tsx**: SubAgent 配置表单卡片
 
 ## Directories
 
-- **settings-card/**: SettingsCard 复合组件与字段封装
+- **settings-card/**: SettingsCard 复合组件与字段实现

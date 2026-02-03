@@ -6,6 +6,8 @@ import type { ReactNode } from 'react'
 import type { FieldPath, FieldValues } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
 
+import type { FieldHelpContent } from '@/components/common/field-help'
+import { FieldHelp } from '@/components/common/field-help'
 import { Badge } from '@/components/ui/badge'
 import { InputGroup, InputGroupInput, InputGroupText, InputGroupTextarea } from '@/components/ui/input-group'
 import { Label } from '@/components/ui/label'
@@ -27,6 +29,7 @@ interface FieldRowProps {
   htmlFor: string
   children: ReactNode
   className?: string
+  help?: FieldHelpContent
 }
 
 export const FieldRow = ({
@@ -35,6 +38,7 @@ export const FieldRow = ({
   htmlFor,
   children,
   className,
+  help,
 }: FieldRowProps) => (
   <div
     className={cn(
@@ -43,10 +47,13 @@ export const FieldRow = ({
     )}
   >
     <div className="space-y-1">
-      <Label htmlFor={htmlFor}>{label}</Label>
-      {description && (
+      <div className="flex items-center gap-2">
+        <Label htmlFor={htmlFor}>{label}</Label>
+        {help ? <FieldHelp content={help} /> : null}
+      </div>
+      {description ? (
         <p className="text-xs text-muted-foreground">{description}</p>
-      )}
+      ) : null}
     </div>
     <div className="w-full sm:max-w-64 sm:justify-self-end">
       {children}
@@ -60,10 +67,17 @@ interface FieldProps {
   htmlFor: string
   children: ReactNode
   className?: string
+  help?: FieldHelpContent
 }
 
-export const Field = ({ label, description, htmlFor, children, className }: FieldProps) => (
-  <FieldRow label={label} description={description} htmlFor={htmlFor} className={className}>
+export const Field = ({ label, description, htmlFor, children, className, help }: FieldProps) => (
+  <FieldRow
+    label={label}
+    description={description}
+    htmlFor={htmlFor}
+    className={className}
+    help={help}
+  >
     {children}
   </FieldRow>
 )
@@ -75,6 +89,7 @@ interface NumberFieldProps<T extends FieldValues> {
   unit?: string
   min?: number
   step?: number
+  help?: FieldHelpContent
 }
 
 export function NumberField<T extends FieldValues>({
@@ -84,12 +99,13 @@ export function NumberField<T extends FieldValues>({
   unit,
   min = 0,
   step = 1,
+  help,
 }: NumberFieldProps<T>) {
   const { form, canEdit, isSaving } = useSettingsCardContext<T>()
   const id = `settings-${name}`
 
   return (
-    <FieldRow label={label} description={description} htmlFor={id}>
+    <FieldRow label={label} description={description} htmlFor={id} help={help}>
       <InputGroup className="w-full">
         <InputGroupInput
           id={id}
@@ -107,11 +123,11 @@ export function NumberField<T extends FieldValues>({
             },
           })}
         />
-        {unit && (
+        {unit ? (
           <InputGroupText className="pr-4 text-xs text-muted-foreground">
             {unit}
           </InputGroupText>
-        )}
+        ) : null}
       </InputGroup>
     </FieldRow>
   )
@@ -123,6 +139,7 @@ interface SelectFieldProps<T extends FieldValues> {
   description?: string
   options: readonly { value: string, label: string }[]
   labels?: Record<string, string>
+  help?: FieldHelpContent
 }
 
 export function SelectField<T extends FieldValues>({
@@ -131,12 +148,13 @@ export function SelectField<T extends FieldValues>({
   description,
   options,
   labels,
+  help,
 }: SelectFieldProps<T>) {
   const { form, canEdit, isSaving } = useSettingsCardContext<T>()
   const id = `settings-${name}`
 
   return (
-    <FieldRow label={label} description={description} htmlFor={id}>
+    <FieldRow label={label} description={description} htmlFor={id} help={help}>
       <Controller
         control={form.control}
         name={name}
@@ -174,6 +192,7 @@ interface SwitchFieldProps<T extends FieldValues> {
   description?: string
   enabledLabel?: string
   disabledLabel?: string
+  help?: FieldHelpContent
 }
 
 export function SwitchField<T extends FieldValues>({
@@ -182,12 +201,13 @@ export function SwitchField<T extends FieldValues>({
   description,
   enabledLabel = 'Enabled',
   disabledLabel = 'Disabled',
+  help,
 }: SwitchFieldProps<T>) {
   const { form, canEdit, isSaving } = useSettingsCardContext<T>()
   const id = `settings-${name}`
 
   return (
-    <FieldRow label={label} description={description} htmlFor={id}>
+    <FieldRow label={label} description={description} htmlFor={id} help={help}>
       <Controller
         control={form.control}
         name={name}
@@ -219,6 +239,7 @@ interface TextFieldProps<T extends FieldValues> {
   placeholder?: string
   type?: 'text' | 'password'
   autoComplete?: string
+  help?: FieldHelpContent
 }
 
 export function TextField<T extends FieldValues>({
@@ -228,12 +249,13 @@ export function TextField<T extends FieldValues>({
   placeholder,
   type = 'text',
   autoComplete,
+  help,
 }: TextFieldProps<T>) {
   const { form, canEdit, isSaving } = useSettingsCardContext<T>()
   const id = `settings-${name}`
 
   return (
-    <FieldRow label={label} description={description} htmlFor={id}>
+    <FieldRow label={label} description={description} htmlFor={id} help={help}>
       <InputGroup className="w-full">
         <InputGroupInput
           id={id}
@@ -254,6 +276,7 @@ interface TextareaFieldProps<T extends FieldValues> {
   description?: string
   placeholder?: string
   rows?: number
+  help?: FieldHelpContent
 }
 
 export function TextareaField<T extends FieldValues>({
@@ -262,6 +285,7 @@ export function TextareaField<T extends FieldValues>({
   description,
   placeholder,
   rows = 4,
+  help,
 }: TextareaFieldProps<T>) {
   const { form, canEdit, isSaving } = useSettingsCardContext<T>()
   const id = `settings-${name}`
@@ -272,6 +296,7 @@ export function TextareaField<T extends FieldValues>({
       description={description}
       htmlFor={id}
       className="sm:grid-cols-[minmax(0,1fr)_minmax(0,360px)]"
+      help={help}
     >
       <InputGroup className="w-full" data-align="block-start">
         <InputGroupTextarea

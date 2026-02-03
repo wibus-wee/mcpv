@@ -8,6 +8,7 @@ import type * as React from 'react'
 import type { UseFormReturn } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
 
+import type { FieldHelpContent } from '@/components/common/field-help'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -26,6 +27,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { AnalyticsEvents, track } from '@/lib/analytics'
 
 import { SUBAGENT_PROVIDER_OPTIONS } from '../lib/subagent-config'
+import { SUBAGENT_FIELD_HELP } from '../lib/subagent-help'
 import type { ModelFetchState } from '../lib/subagent-models'
 import { SettingsCard, useSettingsCardContext } from './settings-card'
 
@@ -92,6 +94,7 @@ export const SubAgentSettingsCard = ({
             label="Provider"
             description="Currently only OpenAI is supported"
             options={SUBAGENT_PROVIDER_OPTIONS}
+            help={SUBAGENT_FIELD_HELP.provider}
           />
           <ModelField
             modelInputValue={modelInputValue}
@@ -102,6 +105,7 @@ export const SubAgentSettingsCard = ({
             modelFetchState={modelFetchState}
             modelFetchLabel={modelFetchLabel}
             onFetchModels={onFetchModels}
+            help={SUBAGENT_FIELD_HELP.model}
           />
         </SettingsCard.Section>
 
@@ -114,34 +118,45 @@ export const SubAgentSettingsCard = ({
         )}
 
         <SettingsCard.Section title="Credentials">
-          <ApiKeyField apiKeyInput={apiKeyInput} onApiKeyChange={onApiKeyChange} />
+          <ApiKeyField
+            apiKeyInput={apiKeyInput}
+            onApiKeyChange={onApiKeyChange}
+            help={SUBAGENT_FIELD_HELP.apiKey}
+          />
           <SettingsCard.TextField<SubAgentConfigDetail>
             name="apiKeyEnvVar"
             label="API Key Env Var"
             description="Environment variable name used when no inline key is set"
             placeholder="OPENAI_API_KEY"
+            help={SUBAGENT_FIELD_HELP.apiKeyEnvVar}
           />
           <SettingsCard.TextField<SubAgentConfigDetail>
             name="baseURL"
             label="Base URL"
             description="Optional override for the provider endpoint"
             placeholder="https://api.openai.com/v1"
+            help={SUBAGENT_FIELD_HELP.baseURL}
           />
         </SettingsCard.Section>
 
         <SettingsCard.Section title="Behavior">
-          <EnabledTagsField availableTags={availableTags} />
+          <EnabledTagsField
+            availableTags={availableTags}
+            help={SUBAGENT_FIELD_HELP.enabledTags}
+          />
           <SettingsCard.NumberField<SubAgentConfigDetail>
             name="maxToolsPerRequest"
             label="Max Tools Per Request"
             description="Upper bound on tool candidates per query"
             unit="tools"
+            help={SUBAGENT_FIELD_HELP.maxToolsPerRequest}
           />
           <SettingsCard.TextareaField<SubAgentConfigDetail>
             name="filterPrompt"
             label="Filter Prompt"
             description="Optional prompt override for tool filtering"
             placeholder="Describe how tools should be filtered..."
+            help={SUBAGENT_FIELD_HELP.filterPrompt}
           />
         </SettingsCard.Section>
       </SettingsCard.Content>
@@ -163,6 +178,7 @@ interface ModelFieldProps {
   modelFetchState: ModelFetchState
   modelFetchLabel: string
   onFetchModels: () => void
+  help?: FieldHelpContent
 }
 
 const ModelField = ({
@@ -174,6 +190,7 @@ const ModelField = ({
   modelFetchState,
   modelFetchLabel,
   onFetchModels,
+  help,
 }: ModelFieldProps) => {
   const { canEdit, isSaving } = useSettingsCardContext()
   const selectedModelValue = modelOptionIDs.includes(modelInputValue)
@@ -185,6 +202,7 @@ const ModelField = ({
       label="Model"
       description="Fetch available models from the provider and match with models.dev"
       htmlFor="subagent-model"
+      help={help}
     >
       <Combobox
         items={modelOptionIDs}
@@ -249,9 +267,10 @@ const ModelField = ({
 
 interface EnabledTagsFieldProps {
   availableTags: string[]
+  help?: FieldHelpContent
 }
 
-const EnabledTagsField = ({ availableTags }: EnabledTagsFieldProps) => {
+const EnabledTagsField = ({ availableTags, help }: EnabledTagsFieldProps) => {
   const { form, canEdit, isSaving } = useSettingsCardContext<SubAgentConfigDetail>()
   const canInteract = canEdit && !isSaving
 
@@ -260,6 +279,7 @@ const EnabledTagsField = ({ availableTags }: EnabledTagsFieldProps) => {
       label="Enabled Tags"
       description="Leave empty to enable SubAgent for all client tags."
       htmlFor="subagent-enabled-tags"
+      help={help}
     >
       <Controller
         control={form.control}
@@ -379,9 +399,10 @@ const EnabledTagsField = ({ availableTags }: EnabledTagsFieldProps) => {
 interface ApiKeyFieldProps {
   apiKeyInput: string
   onApiKeyChange: (value: string) => void
+  help?: FieldHelpContent
 }
 
-const ApiKeyField = ({ apiKeyInput, onApiKeyChange }: ApiKeyFieldProps) => {
+const ApiKeyField = ({ apiKeyInput, onApiKeyChange, help }: ApiKeyFieldProps) => {
   const { canEdit, isSaving } = useSettingsCardContext()
 
   return (
@@ -389,6 +410,7 @@ const ApiKeyField = ({ apiKeyInput, onApiKeyChange }: ApiKeyFieldProps) => {
       label="API Key"
       description="Leave blank to keep the current key"
       htmlFor="subagent-api-key"
+      help={help}
     >
       <InputGroup className="w-full">
         <InputGroupInput
