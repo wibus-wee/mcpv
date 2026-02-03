@@ -1,4 +1,4 @@
-// Input: Wails runtime events, SWR cache, theme/motion providers
+// Input: Wails runtime events, SWR cache, router state, analytics, theme/motion providers
 // Output: RootProvider component with buffered log stream bridge
 // Position: App-level providers and core/log/status event integration
 
@@ -11,7 +11,7 @@ import type {
   ServerRuntimeStatus,
 } from '@bindings/mcpv/internal/ui'
 import { LogService } from '@bindings/mcpv/internal/ui'
-import { useRouter } from '@tanstack/react-router'
+import { useRouter, useRouterState } from '@tanstack/react-router'
 import { Events } from '@wailsio/runtime'
 import { Provider, useAtomValue } from 'jotai'
 import { LazyMotion, MotionConfig } from 'motion/react'
@@ -25,6 +25,7 @@ import { activeClientsKey } from '@/hooks/use-active-clients'
 import { coreStateKey, useCoreState } from '@/hooks/use-core-state'
 import type { LogEntry } from '@/hooks/use-logs'
 import { logsKey, maxLogEntries } from '@/hooks/use-logs'
+import { AnalyticsEvents, track, trackPageView } from '@/lib/analytics'
 import { jotaiStore } from '@/lib/jotai'
 import { Spring } from '@/lib/spring'
 import { swrKeys } from '@/lib/swr-keys'
@@ -84,8 +85,10 @@ function WailsEventsBridge() {
   const stopRef = useRef<(() => void) | null>(null)
   const logStreamToken = useAtomValue(logStreamTokenAtom)
   const router = useRouter()
+  const location = useRouterState({ select: state => state.location })
   const logQueueRef = useRef<LogEntry[]>([])
   const logFlushTimerRef = useRef<number | null>(null)
+  const lastTrackedPathRef = useRef<string | null>(null)
 
   const flushLogQueue = useCallback(() => {
     if (logQueueRef.current.length === 0) return
@@ -122,9 +125,26 @@ function WailsEventsBridge() {
         router.navigate({ to: data.path, search } as any)
       }
       // If path is '/' or empty, just open the app without navigation
+      if (data?.path) {
+        const params = data.params ?? {}
+        track(AnalyticsEvents.DEEP_LINK_OPENED, {
+          path: data.path,
+          has_params: Object.keys(params).length > 0,
+          params_count: Object.keys(params).length,
+        })
+      }
     })
     return () => unbind()
   }, [router])
+
+  useEffect(() => {
+    const path = location.pathname
+    if (!path || lastTrackedPathRef.current === path) {
+      return
+    }
+    lastTrackedPathRef.current = path
+    trackPageView(path, document.title)
+  }, [location.pathname])
 
   // Listen for core:state events from backend
   useEffect(() => {

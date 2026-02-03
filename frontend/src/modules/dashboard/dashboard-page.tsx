@@ -1,4 +1,4 @@
-// Input: Dashboard components, tabs/alerts/buttons, core/app hooks
+// Input: Dashboard components, tabs/alerts/buttons, core/app hooks, analytics
 // Output: DashboardPage component - main dashboard view with insights
 // Position: Main dashboard page in dashboard module
 
@@ -13,7 +13,7 @@ import {
   SquareIcon,
 } from 'lucide-react'
 import { m } from 'motion/react'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 
 import { ConnectIdeSheet } from '@/components/common/connect-ide-sheet'
 import { UniversalEmptyState } from '@/components/common/universal-empty-state'
@@ -32,6 +32,7 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { toastManager } from '@/components/ui/toast'
 import { useCoreActions, useCoreState } from '@/hooks/use-core-state'
+import { AnalyticsEvents, track } from '@/lib/analytics'
 import { Spring } from '@/lib/spring'
 
 import { ActiveClientsPanel } from './components/active-clients-panel'
@@ -44,17 +45,53 @@ import { useAppInfo, useBootstrapProgress } from './hooks'
 function DashboardHeader() {
   const { appInfo } = useAppInfo()
   const { coreStatus } = useCoreState()
-  const {
-    refreshCoreState,
-    restartCore,
-    startCore,
-    stopCore,
-  } = useCoreActions()
+  const { refreshCoreState, restartCore, startCore, stopCore } = useCoreActions()
   const [isExporting, setIsExporting] = useState(false)
   const [debugData, setDebugData] = useState<string | null>(null)
+
   const appLabel = appInfo?.name
     ? `${appInfo.name} · ${appInfo.version === 'dev' ? 'dev' : `v${appInfo.version}`} (${appInfo.build})`
     : 'mcpv'
+
+  const handleStartCore = useCallback(async () => {
+    try {
+      await startCore()
+      track(AnalyticsEvents.CORE_START, { result: 'success' })
+    }
+    catch {
+      track(AnalyticsEvents.CORE_START, { result: 'error' })
+    }
+  }, [startCore])
+
+  const handleStopCore = useCallback(async () => {
+    try {
+      await stopCore()
+      track(AnalyticsEvents.CORE_STOP, { result: 'success' })
+    }
+    catch {
+      track(AnalyticsEvents.CORE_STOP, { result: 'error' })
+    }
+  }, [stopCore])
+
+  const handleRestartCore = useCallback(async () => {
+    try {
+      await restartCore()
+      track(AnalyticsEvents.CORE_RESTART, { result: 'success' })
+    }
+    catch {
+      track(AnalyticsEvents.CORE_RESTART, { result: 'error' })
+    }
+  }, [restartCore])
+
+  const handleRefreshCoreState = useCallback(async () => {
+    try {
+      await refreshCoreState()
+      track(AnalyticsEvents.CORE_STATE_REFRESH, { result: 'success' })
+    }
+    catch {
+      track(AnalyticsEvents.CORE_STATE_REFRESH, { result: 'error' })
+    }
+  }, [refreshCoreState])
 
   const handleExportDebug = async () => {
     if (isExporting) {
@@ -73,10 +110,12 @@ function DashboardHeader() {
           title: 'Debug snapshot copied',
           description: 'Copied to clipboard',
         })
+        track(AnalyticsEvents.DEBUG_SNAPSHOT_EXPORT, { result: 'clipboard' })
       }
       catch {
         // Fallback: show dialog for manual copy
         setDebugData(payload)
+        track(AnalyticsEvents.DEBUG_SNAPSHOT_EXPORT, { result: 'dialog' })
       }
     }
     catch (err) {
@@ -85,6 +124,7 @@ function DashboardHeader() {
         title: 'Export failed',
         description: err instanceof Error ? err.message : 'Export failed',
       })
+      track(AnalyticsEvents.DEBUG_SNAPSHOT_EXPORT, { result: 'error' })
     }
     finally {
       setIsExporting(false)
@@ -109,6 +149,7 @@ function DashboardHeader() {
         title: 'Copied',
         description: 'Debug snapshot copied to clipboard',
       })
+      track(AnalyticsEvents.DEBUG_SNAPSHOT_EXPORT, { result: 'dialog_copy' })
       setDebugData(null)
     }
     catch {
@@ -134,53 +175,57 @@ function DashboardHeader() {
         <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground text-sm">{appLabel}</p>
       </div>
+
       <div className="flex items-center gap-2">
-        {coreStatus === 'stopped' ? (
-          <Button onClick={startCore} size="sm">
-            <PlayIcon className="size-4" />
-            Start Core
-          </Button>
-        ) : coreStatus === 'starting'
+        {coreStatus === 'stopped'
           ? (
-              <Button onClick={stopCore} variant="outline" size="sm">
-                <SquareIcon className="size-4" />
-                Cancel
+              <Button onClick={() => void handleStartCore()} size="sm">
+                <PlayIcon className="size-4" />
+                Start Core
               </Button>
             )
-          : coreStatus === 'stopping'
+          : coreStatus === 'starting'
             ? (
-                <Button variant="outline" size="sm" disabled>
-                  <Loader2Icon className="size-4 animate-spin" />
-                  Stopping...
+                <Button onClick={() => void handleStopCore()} variant="outline" size="sm">
+                  <SquareIcon className="size-4" />
+                  Cancel
                 </Button>
               )
-            : coreStatus === 'running'
+            : coreStatus === 'stopping'
               ? (
-                  <>
-                    <Button onClick={stopCore} variant="outline" size="sm">
-                      <SquareIcon className="size-4" />
-                      Stop
-                    </Button>
-                    <Button onClick={restartCore} variant="outline" size="sm">
-                      <RefreshCwIcon className="size-4" />
-                      Restart
-                    </Button>
-                  </>
+                  <Button variant="outline" size="sm" disabled>
+                    <Loader2Icon className="size-4 animate-spin" />
+                    Stopping...
+                  </Button>
                 )
-              : coreStatus === 'error'
+              : coreStatus === 'running'
                 ? (
                     <>
-                      <Button onClick={restartCore} size="sm">
-                        <RefreshCwIcon className="size-4" />
-                        Retry
-                      </Button>
-                      <Button onClick={stopCore} variant="outline" size="sm">
+                      <Button onClick={() => void handleStopCore()} variant="outline" size="sm">
                         <SquareIcon className="size-4" />
                         Stop
                       </Button>
+                      <Button onClick={() => void handleRestartCore()} variant="outline" size="sm">
+                        <RefreshCwIcon className="size-4" />
+                        Restart
+                      </Button>
                     </>
                   )
-                : null}
+                : coreStatus === 'error'
+                  ? (
+                      <>
+                        <Button onClick={() => void handleRestartCore()} size="sm">
+                          <RefreshCwIcon className="size-4" />
+                          Retry
+                        </Button>
+                        <Button onClick={() => void handleStopCore()} variant="outline" size="sm">
+                          <SquareIcon className="size-4" />
+                          Stop
+                        </Button>
+                      </>
+                    )
+                  : null}
+
         <Button
           variant="outline"
           size="sm"
@@ -190,13 +235,15 @@ function DashboardHeader() {
           <FileDownIcon className="size-4" />
           {isExporting ? 'Copying...' : 'Copy Debug'}
         </Button>
+
         <Button
           variant="ghost"
           size="icon-sm"
-          onClick={() => refreshCoreState()}
+          onClick={() => void handleRefreshCoreState()}
         >
           <RefreshCwIcon className="size-4" />
         </Button>
+
         <ConnectIdeSheet />
       </div>
 
@@ -257,7 +304,6 @@ function DashboardContent() {
       className="space-y-6"
     >
       <StatusCards />
-
       <DashboardInsights />
     </m.div>
   )
@@ -288,6 +334,16 @@ export function DashboardPage() {
   const { coreStatus, data: coreState } = useCoreState()
   const { startCore } = useCoreActions()
 
+  const handleStartCore = useCallback(async () => {
+    try {
+      await startCore()
+      track(AnalyticsEvents.CORE_START, { result: 'success' })
+    }
+    catch {
+      track(AnalyticsEvents.CORE_START, { result: 'error' })
+    }
+  }, [startCore])
+
   if (coreStatus === 'stopped') {
     return (
       <div className="flex flex-1 flex-col p-6 overflow-auto">
@@ -299,7 +355,7 @@ export function DashboardPage() {
           description="Start the mcpv core to see your dashboard and manage MCP servers."
           action={{
             label: 'Start Core',
-            onClick: startCore,
+            onClick: () => void handleStartCore(),
           }}
         />
       </div>

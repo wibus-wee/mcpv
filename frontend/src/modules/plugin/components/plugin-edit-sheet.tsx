@@ -1,4 +1,4 @@
-// Input: open state, plugin data (for edit mode), callbacks
+// Input: open state, plugin data (for edit mode), callbacks, analytics
 // Output: Sheet component for adding/editing plugin configurations
 // Position: Overlay sheet triggered from plugin list
 
@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import { toastManager } from '@/components/ui/toast'
+import { AnalyticsEvents, track } from '@/lib/analytics'
 
 import { PluginCategoryBadge } from './plugin-category-badge'
 
@@ -205,6 +206,10 @@ export function PluginEditSheet({
           title: 'Invalid JSON',
           description: 'Config JSON must be valid JSON format',
         })
+        track(AnalyticsEvents.PLUGIN_SAVE_ATTEMPTED, {
+          mode: isEdit ? 'edit' : 'create',
+          result: 'invalid_json',
+        })
         setIsSubmitting(false)
         return
       }
@@ -216,12 +221,20 @@ export function PluginEditSheet({
         title: isEdit ? 'Update not implemented' : 'Create not implemented',
         description: 'Plugin CRUD operations are coming soon. Edit the YAML config directly.',
       })
+      track(AnalyticsEvents.PLUGIN_SAVE_ATTEMPTED, {
+        mode: isEdit ? 'edit' : 'create',
+        result: 'not_implemented',
+      })
 
       onSaved?.()
       onOpenChange(false)
     }
     catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save plugin'
+      track(AnalyticsEvents.PLUGIN_SAVE_ATTEMPTED, {
+        mode: isEdit ? 'edit' : 'create',
+        result: 'error',
+      })
       toastManager.add({
         type: 'error',
         title: 'Failed to save',

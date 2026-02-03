@@ -1,4 +1,4 @@
-// Input: TanStack Router, theme utilities
+// Input: TanStack Router, theme utilities, analytics
 // Output: Appearance settings page
 // Position: /settings/appearance route
 
@@ -8,6 +8,7 @@ import { useTheme } from 'next-themes'
 
 import { Button } from '@/components/ui/button'
 import { CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { AnalyticsEvents, track } from '@/lib/analytics'
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/settings/appearance')({
@@ -37,7 +38,10 @@ function AppearanceSettingsPage() {
               <Button
                 key={t.value}
                 variant={isActive ? 'secondary' : 'outline'}
-                onClick={() => setTheme(t.value)}
+                onClick={() => {
+                  setTheme(t.value)
+                  track(AnalyticsEvents.SETTINGS_THEME_CHANGE, { theme: t.value })
+                }}
                 className={cn('flex-1 gap-2', isActive && 'ring-2 ring-primary/20')}
               >
                 <Icon className="size-4" />

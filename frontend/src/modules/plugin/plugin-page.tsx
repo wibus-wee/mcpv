@@ -1,15 +1,16 @@
-// Input: Hooks, child components, UI primitives
+// Input: Hooks, child components, UI primitives, analytics
 // Output: PluginPage component - Full-width table with right-side drawer
 // Position: Main page for plugins module
 
 import { m } from 'motion/react'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { RefreshButton } from '@/components/custom/refresh-button'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
+import { AnalyticsEvents, track } from '@/lib/analytics'
 import { Spring } from '@/lib/spring'
 
 import { PluginEditSheet } from './components/plugin-edit-sheet'
@@ -23,9 +24,36 @@ export function PluginPage() {
   const [editingPluginName, setEditingPluginName] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const searchTrackTimerRef = useRef<number | null>(null)
+  const lastTrackedQueryRef = useRef<string>('')
 
   const pluginCount = plugins?.length ?? 0
   const filteredPlugins = useFilteredPlugins(plugins ?? [], searchQuery)
+
+  useEffect(() => {
+    return () => {
+      if (searchTrackTimerRef.current !== null) {
+        window.clearTimeout(searchTrackTimerRef.current)
+        searchTrackTimerRef.current = null
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (searchTrackTimerRef.current !== null) {
+      window.clearTimeout(searchTrackTimerRef.current)
+    }
+    searchTrackTimerRef.current = window.setTimeout(() => {
+      const query = searchQuery.trim()
+      if (query === lastTrackedQueryRef.current) return
+      lastTrackedQueryRef.current = query
+      track(AnalyticsEvents.PLUGIN_SEARCH, {
+        query_len: query.length,
+        has_query: query.length > 0,
+        result_count: filteredPlugins.length,
+      })
+    }, 400)
+  }, [searchQuery, filteredPlugins.length])
 
   // Find the editing plugin from the list
   const editingPlugin = editingPluginName
@@ -33,11 +61,13 @@ export function PluginPage() {
     : null
 
   const handleAddPlugin = useCallback(() => {
+    track(AnalyticsEvents.PLUGIN_EDIT_OPENED, { mode: 'create' })
     setEditingPluginName(null)
     setEditSheetOpen(true)
   }, [])
 
   const handleEditRequest = useCallback((pluginName: string) => {
+    track(AnalyticsEvents.PLUGIN_EDIT_OPENED, { mode: 'edit' })
     setEditingPluginName(pluginName)
     setEditSheetOpen(true)
   }, [])

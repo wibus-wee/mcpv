@@ -25,7 +25,7 @@ function SubAgentSettingsPage() {
         apiKeyInput={subAgent.apiKeyInput}
         onApiKeyChange={subAgent.setApiKeyInput}
         modelInputValue={subAgent.modelInputValue}
-        onModelInputChange={subAgent.setModelValue}
+        onModelInputChange={subAgent.setModelInput}
         onModelValueChange={subAgent.setModelValue}
         modelLabelMap={subAgent.modelLabelMap}
         modelOptionIDs={subAgent.modelOptionIDs}

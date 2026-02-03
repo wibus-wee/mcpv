@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import { toastManager } from '@/components/ui/toast'
+import { AnalyticsEvents, track } from '@/lib/analytics'
 import { formatCommaSeparated, formatEnvironmentVariables, parseCommaSeparated, parseEnvironmentVariables } from '@/lib/parsers'
 import { reloadConfig } from '@/modules/servers/lib/reload-config'
 import type { ServerFormValues } from '@/modules/servers/lib/server-form-content'
@@ -308,6 +309,15 @@ export function ServerEditSheet({
 
       const reloadResult = await reloadConfig()
       if (!reloadResult.ok) {
+        track(AnalyticsEvents.SERVER_SAVE, {
+          mode: isEdit ? 'edit' : 'create',
+          result: 'reload_failed',
+          transport: data.transport,
+          activation_mode: data.activationMode,
+          strategy: data.strategy,
+          tags_count: filteredTags.length,
+          expose_tools_count: exposeTools.length,
+        })
         toastManager.add({
           type: 'error',
           title: 'Reload failed',
@@ -316,6 +326,15 @@ export function ServerEditSheet({
         return
       }
 
+      track(AnalyticsEvents.SERVER_SAVE, {
+        mode: isEdit ? 'edit' : 'create',
+        result: 'success',
+        transport: data.transport,
+        activation_mode: data.activationMode,
+        strategy: data.strategy,
+        tags_count: filteredTags.length,
+        expose_tools_count: exposeTools.length,
+      })
       toastManager.add({
         type: 'success',
         title: isEdit ? 'Server updated' : 'Server added',
@@ -326,6 +345,13 @@ export function ServerEditSheet({
     }
     catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save server'
+      track(AnalyticsEvents.SERVER_SAVE, {
+        mode: isEdit ? 'edit' : 'create',
+        result: 'error',
+        transport: data.transport,
+        activation_mode: data.activationMode,
+        strategy: data.strategy,
+      })
       toastManager.add({
         type: 'error',
         title: 'Failed to save',

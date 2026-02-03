@@ -35,6 +35,9 @@ importers:
       '@tsparticles/confetti':
         specifier: ^3.9.1
         version: 3.9.1
+      '@umami/node':
+        specifier: ^0.4.0
+        version: 0.4.0
       '@wailsio/runtime':
         specifier: 3.0.0-alpha.77
         version: 3.0.0-alpha.77
@@ -1533,6 +1536,9 @@ packages:
   '@typescript-eslint/visitor-keys@8.50.1':
     resolution: {integrity: sha512-IrDKrw7pCRUR94zeuCSUWQ+w8JEf5ZX5jl/e6AHGSLi1/zIr0lgutfn/7JpfCey+urpgQEdrZVYzCaVVKiTwhQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@umami/node@0.4.0':
+    resolution: {integrity: sha512-pyphprbiF7KiDSc+SWZ4/rVM8B5vU27zIiFfEPj2lEqczpI4xAKSp+dM3tlzyRAWJL32fcbCfAaLGhJZQV13Rg==}
 
   '@unocss/config@66.5.11':
     resolution: {integrity: sha512-IsogGaynqMtUCRlqzKiHcIuLAlf6jHLMPwJieRC+DthhIj+pV3EoPDXmqfgsA5fc1gseAtLIjDUDaVh4bROJiQ==}
@@ -5765,6 +5771,8 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 8.50.1
       eslint-visitor-keys: 4.2.1
+
+  '@umami/node@0.4.0': {}
 
   '@unocss/config@66.5.11':
     dependencies:

@@ -1,4 +1,4 @@
-// Input: runtime bindings, SWR, react-hook-form
+// Input: runtime bindings, SWR, react-hook-form, analytics
 // Output: runtime settings state + save handler
 // Position: Settings runtime hook
 
@@ -9,6 +9,7 @@ import { useForm } from 'react-hook-form'
 import useSWR, { useSWRConfig } from 'swr'
 
 import { toastManager } from '@/components/ui/toast'
+import { AnalyticsEvents, track } from '@/lib/analytics'
 import { reloadConfig } from '@/modules/servers/lib/reload-config'
 
 import type { RuntimeFormState } from '../lib/runtime-config'
@@ -90,11 +91,16 @@ export const useRuntimeSettings = ({ canEdit }: UseRuntimeSettingsOptions) => {
     if (!canEdit) {
       return
     }
+    const dirtyFieldCount = Object.keys(formState.dirtyFields ?? {}).length
     try {
       await ConfigService.UpdateRuntimeConfig(values)
 
       const reloadResult = await reloadConfig()
       if (!reloadResult.ok) {
+        track(AnalyticsEvents.SETTINGS_RUNTIME_SAVE, {
+          result: 'reload_failed',
+          dirty_fields_count: dirtyFieldCount,
+        })
         toastManager.add({
           type: 'error',
           title: 'Reload failed',
@@ -109,6 +115,10 @@ export const useRuntimeSettings = ({ canEdit }: UseRuntimeSettingsOptions) => {
       ])
       reset(values, { keepDirty: false })
 
+      track(AnalyticsEvents.SETTINGS_RUNTIME_SAVE, {
+        result: 'success',
+        dirty_fields_count: dirtyFieldCount,
+      })
       toastManager.add({
         type: 'success',
         title: 'Runtime updated',
@@ -116,6 +126,10 @@ export const useRuntimeSettings = ({ canEdit }: UseRuntimeSettingsOptions) => {
       })
     }
     catch (err) {
+      track(AnalyticsEvents.SETTINGS_RUNTIME_SAVE, {
+        result: 'error',
+        dirty_fields_count: dirtyFieldCount,
+      })
       toastManager.add({
         type: 'error',
         title: 'Update failed',

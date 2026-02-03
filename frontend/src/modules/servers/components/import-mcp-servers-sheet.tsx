@@ -1,10 +1,10 @@
-// Input: MCP JSON payload, IDE config previews, server list, config mode
+// Input: MCP JSON payload, IDE config previews, server list, config mode, analytics
 // Output: ImportMcpServersSheet component - combined JSON + IDE import flow
 // Position: Config header action entry
 
 import { FileUpIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -19,6 +19,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { AnalyticsEvents, track } from '@/lib/analytics'
 
 import { useConfigMode, useServers } from '../hooks'
 import { IdeImportTab } from './import-mcp-servers/ide-import-tab'
@@ -36,7 +37,18 @@ export const ImportMcpServersSheet = () => {
   const [jsonCount, setJsonCount] = useState(0)
   const [ideCount, setIdeCount] = useState(0)
 
+  const wasOpenRef = useRef(false)
+
   const isWritable = configMode?.isWritable ?? false
+
+  useEffect(() => {
+    if (open && !wasOpenRef.current) {
+      track(AnalyticsEvents.SERVER_IMPORT_OPENED, {
+        server_count: serversList?.length ?? 0,
+      })
+    }
+    wasOpenRef.current = open
+  }, [open, serversList?.length])
 
   const existingServerNames = useMemo(() => {
     return new Set((serversList ?? []).map(server => server.name))
@@ -88,6 +100,7 @@ export const ImportMcpServersSheet = () => {
           Import MCP Servers
         </Button>
       </SheetTrigger>
+
       <SheetContent side="right">
         <SheetHeader>
           <SheetTitle>Import MCP servers</SheetTitle>
@@ -95,6 +108,7 @@ export const ImportMcpServersSheet = () => {
             Import from local IDE configs or paste JSON to add servers.
           </SheetDescription>
         </SheetHeader>
+
         <SheetPanel>
           <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col h-full">
             <TabsList className="w-full">
@@ -126,6 +140,7 @@ export const ImportMcpServersSheet = () => {
               onFooterChange={handleFooterChange}
               onCountChange={handleJsonCountChange}
             />
+
             <IdeImportTab
               open={open}
               isActive={activeTab === 'ide'}
@@ -137,6 +152,7 @@ export const ImportMcpServersSheet = () => {
             />
           </Tabs>
         </SheetPanel>
+
         <SheetFooter>
           <Button variant="ghost" onClick={handleClose}>
             Close

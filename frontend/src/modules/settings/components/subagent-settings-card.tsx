@@ -1,4 +1,4 @@
-// Input: subagent form state, model list, fetch handlers
+// Input: subagent form state, model list, fetch handlers, analytics
 // Output: SubAgent settings card using compound component pattern
 // Position: Settings page SubAgent section
 
@@ -24,6 +24,7 @@ import {
 import { InputGroup, InputGroupInput } from '@/components/ui/input-group'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { AnalyticsEvents, track } from '@/lib/analytics'
 
 import { SUBAGENT_PROVIDER_OPTIONS } from '../lib/subagent-config'
 import { SUBAGENT_FIELD_HELP } from '../lib/subagent-help'
@@ -290,7 +291,12 @@ const EnabledTagsField = ({ availableTags, help }: EnabledTagsFieldProps) => {
 
           const handleTagChange = (values: string[]) => {
             const next = [...new Set([...values, ...unavailableTags])]
+            const nextUnavailableTags = next.filter(tag => !availableSet.has(tag))
             field.onChange(next)
+            track(AnalyticsEvents.SETTINGS_SUBAGENT_TAGS_CHANGE, {
+              selected_count: next.length,
+              unavailable_count: nextUnavailableTags.length,
+            })
           }
 
           return (
@@ -307,7 +313,13 @@ const EnabledTagsField = ({ availableTags, help }: EnabledTagsFieldProps) => {
                     type="button"
                     size="xs"
                     variant="ghost"
-                    onClick={() => field.onChange([])}
+                    onClick={() => {
+                      field.onChange([])
+                      track(AnalyticsEvents.SETTINGS_SUBAGENT_TAGS_CHANGE, {
+                        selected_count: 0,
+                        unavailable_count: 0,
+                      })
+                    }}
                     disabled={!canInteract}
                   >
                     Clear selection
@@ -359,7 +371,15 @@ const EnabledTagsField = ({ availableTags, help }: EnabledTagsFieldProps) => {
                     type="button"
                     size="xs"
                     variant="outline"
-                    onClick={() => field.onChange(selectedTags.filter(value => value !== tag))}
+                    onClick={() => {
+                      const next = selectedTags.filter(value => value !== tag)
+                      const nextUnavailableTags = next.filter(value => !availableSet.has(value))
+                      field.onChange(next)
+                      track(AnalyticsEvents.SETTINGS_SUBAGENT_TAGS_CHANGE, {
+                        selected_count: next.length,
+                        unavailable_count: nextUnavailableTags.length,
+                      })
+                    }}
                     disabled={!canInteract}
                   >
                     <AlertTriangleIcon className="size-3.5" />

@@ -6,6 +6,7 @@ import ReactDOM from 'react-dom/client'
 import { start } from 'react-scan'
 
 import { RouterErrorComponent } from '@/components/common/router-error-component'
+import { AnalyticsEvents, track } from '@/lib/analytics'
 
 import reportWebVitals from './reportWebVitals.ts'
 // Import the generated route tree
@@ -14,6 +15,8 @@ import { routeTree } from './routeTree.gen'
 if (process.env.NODE_ENV === 'development') {
   start()
 }
+
+track(AnalyticsEvents.APP_LAUNCH)
 
 // Create a new router instance
 const router = createRouter({
