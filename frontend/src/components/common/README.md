@@ -14,6 +14,7 @@
 - **client-chip-group.tsx**: 以标签形式展示客户端信息的组件
 - **connect-ide-sheet.tsx**: IDE 连接配置抽屉与预设输出
 - **error-boundary.tsx**: 组件级错误边界与回退 UI
+- **field-help.tsx**: 表单字段帮助图标与提示内容渲染
 - **main-content.tsx**: 主内容区域容器，负责布局与顶栏集成
 - **nav-item.tsx**: 侧边栏导航项呈现
 - **router-error-component.tsx**: 路由错误展示组件
