@@ -47,7 +47,7 @@ export const FieldRow = ({
     )}
   >
     <div className="space-y-1">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         <Label htmlFor={htmlFor}>{label}</Label>
         {help ? <FieldHelp content={help} /> : null}
       </div>

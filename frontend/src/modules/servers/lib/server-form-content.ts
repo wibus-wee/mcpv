@@ -101,88 +101,146 @@ export const SERVER_FIELD_HELP: Record<string, FieldHelpContent> = {
     id: 'name',
     title: 'Server name',
     summary: 'Unique identifier used in routing and tool names.',
+    details: 'Used in logs and as the server namespace when tools are prefixed. Names must be unique and cannot be changed after creation.',
+    tips: [
+      'Use short, stable, lowercase names.',
+    ],
   },
   transport: {
     id: 'transport',
     title: 'Transport type',
     summary: 'Controls how mcpv connects to the server runtime.',
-    details: 'stdio launches a local process. streamable_http connects to an external HTTP endpoint.',
+    details: 'stdio launches a local process and speaks MCP over stdin/stdout. streamable_http connects to an external HTTP endpoint and does not manage its lifecycle.',
+    tips: [
+      'stdio for local binaries.',
+      'streamable_http for hosted services.',
+    ],
   },
   cmd: {
     id: 'cmd',
     title: 'Command',
     summary: 'Executable used for stdio servers.',
+    details: 'Required for stdio. This becomes the first entry in the command array; arguments are configured separately.',
+    tips: [
+      'Prefer absolute paths for reliability.',
+    ],
   },
   args: {
     id: 'args',
     title: 'Arguments',
     summary: 'Optional command arguments, comma separated.',
+    details: 'Comma-separated list appended to cmd. Whitespace is trimmed.',
+    tips: [
+      'Do not include arguments in the Command field.',
+    ],
   },
   cwd: {
     id: 'cwd',
     title: 'Working directory',
     summary: 'Directory used as the process working directory.',
+    details: 'Only applies to stdio. Leave empty to use the mcpv working directory.',
+    tips: [
+      'Use an absolute path to avoid ambiguity.',
+    ],
   },
   env: {
     id: 'env',
     title: 'Environment variables',
     summary: 'Key/value pairs injected into the process environment.',
+    details: 'One KEY=value per line. Empty lines are ignored and later keys overwrite earlier ones.',
   },
   endpoint: {
     id: 'endpoint',
     title: 'Endpoint URL',
     summary: 'Streamable HTTP endpoint for the MCP server.',
+    details: 'Must be a valid http(s) URL. The remote server must already be running and support MCP Streamable HTTP.',
   },
   httpMaxRetries: {
     id: 'httpMaxRetries',
     title: 'Max retries',
     summary: 'How many times to retry failed HTTP requests.',
+    details: '0 uses the default retry policy (5). Higher values help with flaky networks.',
+    tips: [
+      'Use 1 to fail fast when upstreams are down.',
+    ],
   },
   httpHeaders: {
     id: 'httpHeaders',
     title: 'HTTP headers',
     summary: 'Headers included on every HTTP request.',
+    details: 'One Header-Name=value per line. Reserved headers such as Content-Type, Accept, and MCP-Protocol-Version cannot be overridden.',
+    tips: [
+      'Use Authorization for bearer tokens.',
+    ],
   },
   tags: {
     id: 'tags',
     title: 'Tags',
     summary: 'Tags control visibility and client routing.',
-    details: 'Clients only see servers that match their tag set.',
+    details: 'Clients only see servers that share at least one tag. If either side has no tags, the server is visible to all.',
+    tips: [
+      'Tags are normalized to lowercase and de-duplicated.',
+    ],
   },
   activationMode: {
     id: 'activationMode',
     title: 'Activation mode',
-    summary: 'On demand starts when traffic arrives. Always on keeps instances warm.',
+    summary: 'On-demand starts when traffic arrives. Always-on keeps instances warm.',
+    details: 'On-demand only runs when clients are active. Always-on keeps a warm pool based on minReady (at least one instance).',
+    tips: [
+      'Use always-on for latency-sensitive or background services.',
+    ],
   },
   strategy: {
     id: 'strategy',
     title: 'Strategy',
     summary: 'Stateless routes to any instance. Stateful keeps sticky sessions.',
+    details: 'Stateful binds the same routing key to one instance until the session TTL expires.',
+    tips: [
+      'Use stateful when tools maintain per-client state.',
+    ],
   },
   drainTimeoutSeconds: {
     id: 'drainTimeoutSeconds',
     title: 'Drain timeout',
     summary: 'Grace period to finish in-flight work before shutdown.',
+    details: 'Applied during stop or reload. 0 uses the default (30s).',
+    tips: [
+      'Increase for long-running tool calls.',
+    ],
   },
   idleSeconds: {
     id: 'idleSeconds',
     title: 'Idle timeout',
-    summary: 'Time before idle instances are shut down. 0 disables idle shutdown.',
+    summary: 'Time before idle instances are shut down.',
+    details: 'Instances above minReady are drained after this period of inactivity. When minReady is 0, idle instances are drained immediately.',
+    tips: [
+      'Higher values reduce cold starts but keep resources allocated.',
+    ],
   },
   maxConcurrent: {
     id: 'maxConcurrent',
     title: 'Max concurrency',
     summary: 'Maximum in-flight requests per instance.',
+    details: 'Stateless servers can start new instances when this limit is reached. Stateful servers may return busy until a slot frees.',
   },
   minReady: {
     id: 'minReady',
     title: 'Min ready',
     summary: 'Minimum ready instances kept while active.',
+    details: 'On-demand with 0 scales to zero when idle. Always-on keeps at least one instance warm even if minReady is 0.',
+    tips: [
+      'Increase to reduce cold starts under bursty traffic.',
+    ],
   },
   sessionTTLSeconds: {
     id: 'sessionTTLSeconds',
     title: 'Session TTL',
     summary: 'How long stateful bindings remain valid.',
+    details: 'Only used for stateful strategy. 0 keeps bindings forever; positive values allow rebinding after expiry.',
+    tips: [
+      'Set a TTL if clients can reconnect to different instances.',
+    ],
   },
 }
 
@@ -208,13 +266,13 @@ export const SERVER_ADVICE_RULES: ServerAdviceRule[] = [
   {
     id: 'idle-disabled',
     severity: 'info',
-    message: 'Idle timeout is set to 0. Instances will stay running after activation.',
+    message: 'Idle timeout is set to 0. Instances above minReady drain immediately after becoming idle.',
     when: values => values.idleSeconds === 0,
   },
   {
     id: 'always-on-min-ready',
     severity: 'warning',
-    message: 'Always-on keeps the server active. Consider setting minReady to 1 or more.',
+    message: 'Always-on keeps at least one instance warm. Increase minReady for more warm capacity.',
     when: values => values.activationMode === 'always-on' && values.minReady === 0,
   },
   {
@@ -226,7 +284,7 @@ export const SERVER_ADVICE_RULES: ServerAdviceRule[] = [
   {
     id: 'drain-zero',
     severity: 'info',
-    message: 'Drain timeout is 0. In-flight work may be terminated immediately on shutdown.',
+    message: 'Drain timeout is 0. The default (30s) will be used.',
     when: values => values.drainTimeoutSeconds === 0,
   },
 ]

@@ -6,7 +6,7 @@ import type { ReactNode } from 'react'
 
 import type { FieldHelpContent } from '@/components/common/field-help'
 import { FieldHelp } from '@/components/common/field-help'
-import { FieldDescription, FieldError } from '@/components/ui/field'
+import { Field, FieldDescription, FieldError } from '@/components/ui/field'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 
@@ -32,14 +32,12 @@ export function ServerFormField({
   className,
 }: ServerFormFieldProps) {
   return (
-    <div className={cn('space-y-2', className)}>
+    <Field className={cn('space-y-2', className)}>
       <div className="flex items-center gap-2">
         <Label htmlFor={id}>
           {label}
           {required ? (
-            <span className="ml-1 text-destructive" aria-hidden="true">
-              *
-            </span>
+            <span className="text-destructive" aria-hidden="true">*</span>
           ) : null}
         </Label>
         {help ? <FieldHelp content={help} /> : null}
@@ -55,6 +53,6 @@ export function ServerFormField({
           {error}
         </FieldError>
       ) : null}
-    </div>
+    </Field>
   )
 }
