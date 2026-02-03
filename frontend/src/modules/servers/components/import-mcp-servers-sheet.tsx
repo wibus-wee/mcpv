@@ -1,11 +1,11 @@
-// Input: MCP JSON payload, server list, config mode
+// Input: MCP JSON payload, server list, config mode, analytics
 // Output: ImportMcpServersSheet component - JSON import flow for servers
 // Position: Config header action entry
 
 import type { ImportMcpServersRequest } from '@bindings/mcpv/internal/ui'
 import { ConfigService } from '@bindings/mcpv/internal/ui'
 import { AlertCircleIcon, FileUpIcon } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -23,6 +23,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
+import { AnalyticsEvents, track } from '@/lib/analytics'
 
 import { useConfigMode, useServers } from '../hooks'
 import type { ImportServerDraft } from '../lib/mcp-import'
@@ -41,6 +42,7 @@ export const ImportMcpServersSheet = () => {
   const [parseErrors, setParseErrors] = useState<string[]>([])
   const [applyError, setApplyError] = useState<string | null>(null)
   const [isApplying, setIsApplying] = useState(false)
+  const wasOpenRef = useRef(false)
 
   useEffect(() => {
     if (open) {
@@ -52,6 +54,15 @@ export const ImportMcpServersSheet = () => {
     setApplyError(null)
     setIsApplying(false)
   }, [open])
+
+  useEffect(() => {
+    if (open && !wasOpenRef.current) {
+      track(AnalyticsEvents.SERVER_IMPORT_OPENED, {
+        server_count: serversList?.length ?? 0,
+      })
+    }
+    wasOpenRef.current = open
+  }, [open, serversList?.length])
 
   const existingServerNames = useMemo(() => {
     return new Set((serversList ?? []).map(server => server.name))
@@ -90,6 +101,10 @@ export const ImportMcpServersSheet = () => {
     setServers(result.servers)
     setParseErrors(result.errors)
     setApplyError(null)
+    track(AnalyticsEvents.SERVER_IMPORT_PARSE, {
+      server_count: result.servers.length,
+      error_count: result.errors.length,
+    })
   }
 
   const handleNameChange = (id: string, value: string) => {
@@ -121,14 +136,26 @@ export const ImportMcpServersSheet = () => {
       await ConfigService.ImportMcpServers(payload)
       const reloadResult = await reloadConfig()
       if (!reloadResult.ok) {
+        track(AnalyticsEvents.SERVER_IMPORT_APPLY, {
+          server_count: payload.servers.length,
+          result: 'reload_failed',
+        })
         setApplyError(`Reload failed: ${reloadResult.message}`)
         return
       }
       await mutateServers()
+      track(AnalyticsEvents.SERVER_IMPORT_APPLY, {
+        server_count: payload.servers.length,
+        result: 'success',
+      })
       setOpen(false) // 成功后直接关闭 Sheet
     }
     catch (err) {
       const message = err instanceof Error ? err.message : 'Import failed.'
+      track(AnalyticsEvents.SERVER_IMPORT_APPLY, {
+        server_count: payload.servers.length,
+        result: 'error',
+      })
       setApplyError(message)
     }
     finally {

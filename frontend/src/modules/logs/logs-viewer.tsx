@@ -1,14 +1,15 @@
-// Input: log stream data, log viewer hooks, resizable panel hooks
+// Input: log stream data, log viewer hooks, resizable panel hooks, analytics
 // Output: LogsViewer component with table, detail panel, and bottom panel
 // Position: Logs module main view for /logs route
 
 import { useSetAtom } from 'jotai'
-import { useCallback, useDeferredValue, useEffect, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react'
 
 import { logStreamTokenAtom } from '@/atoms/logs'
 import { useCoreState } from '@/hooks/use-core-state'
 import { useLogs } from '@/hooks/use-logs'
 import { useResizable } from '@/hooks/use-resizable'
+import { AnalyticsEvents, track } from '@/lib/analytics'
 import { cn } from '@/lib/utils'
 
 import {
@@ -19,6 +20,7 @@ import {
 } from './components'
 import { logTableColumnsClassName } from './components/log-table-row'
 import { useKeyboardNavigation, useLogViewer } from './hooks'
+import type { LogFilters } from './types'
 
 export function LogsViewer() {
   const { logs, mutate } = useLogs()
@@ -26,6 +28,10 @@ export function LogsViewer() {
   const bumpLogStreamToken = useSetAtom(logStreamTokenAtom)
   const [isBottomPanelOpen, setIsBottomPanelOpen] = useState(false)
   const [isBottomPanelDismissed, setIsBottomPanelDismissed] = useState(false)
+  const filtersRef = useRef<LogFilters | null>(null)
+  const searchTrackTimerRef = useRef<number | null>(null)
+  const lastSelectedLogIdRef = useRef<string | null>(null)
+  const lastDetailOpenRef = useRef(false)
 
   const {
     // Filter state
@@ -50,6 +56,19 @@ export function LogsViewer() {
     // setAutoScroll,
   } = useLogViewer(logs)
 
+  useEffect(() => {
+    filtersRef.current = filters
+  }, [filters])
+
+  useEffect(() => {
+    return () => {
+      if (searchTrackTimerRef.current !== null) {
+        window.clearTimeout(searchTrackTimerRef.current)
+        searchTrackTimerRef.current = null
+      }
+    }
+  }, [])
+
   // Connection status
   const connectionStatus = (() => {
     if (coreStatus === 'stopped' || coreStatus === 'error') return 'disconnected'
@@ -60,11 +79,50 @@ export function LogsViewer() {
   // Actions
   const handleClear = useCallback(() => {
     mutate([], { revalidate: false })
-  }, [mutate])
+    track(AnalyticsEvents.LOGS_CLEAR, { log_count: logs.length })
+  }, [mutate, logs.length])
 
   const handleRefresh = useCallback(() => {
     bumpLogStreamToken(value => value + 1)
+    track(AnalyticsEvents.LOGS_STREAM_REFRESH, { result: 'requested' })
   }, [bumpLogStreamToken])
+
+  const handleFiltersChange = useCallback((next: LogFilters) => {
+    const prev = filtersRef.current
+    if (prev) {
+      if (prev.level !== next.level) {
+        track(AnalyticsEvents.LOGS_FILTER_CHANGED, {
+          filter: 'level',
+          value: next.level,
+        })
+      }
+      if (prev.source !== next.source) {
+        track(AnalyticsEvents.LOGS_FILTER_CHANGED, {
+          filter: 'source',
+          value: next.source,
+        })
+      }
+      if (prev.server !== next.server) {
+        track(AnalyticsEvents.LOGS_FILTER_CHANGED, {
+          filter: 'server',
+          value: next.server === 'all' ? 'all' : 'custom',
+        })
+      }
+      if (prev.search !== next.search) {
+        if (searchTrackTimerRef.current !== null) {
+          window.clearTimeout(searchTrackTimerRef.current)
+        }
+        searchTrackTimerRef.current = window.setTimeout(() => {
+          track(AnalyticsEvents.LOGS_SEARCH, {
+            query_len: next.search.trim().length,
+            has_query: next.search.trim().length > 0,
+          })
+        }, 400)
+      }
+    }
+    filtersRef.current = next
+    setFilters(next)
+  }, [setFilters])
 
   const handleSelectLog = useCallback(
     (id: string | null) => {
@@ -122,10 +180,29 @@ export function LogsViewer() {
     }
   }, [isBottomPanelDismissed, isBottomPanelOpen, selectedLog])
 
+  useEffect(() => {
+    const isOpen = Boolean(selectedLog)
+    if (isOpen !== lastDetailOpenRef.current) {
+      track(AnalyticsEvents.LOG_DETAIL_TOGGLE, { open: isOpen })
+      lastDetailOpenRef.current = isOpen
+    }
+    if (selectedLog && selectedLog.id !== lastSelectedLogIdRef.current) {
+      track(AnalyticsEvents.LOG_ROW_SELECTED, {
+        level: selectedLog.level,
+        source: selectedLog.source,
+      })
+      lastSelectedLogIdRef.current = selectedLog.id
+    }
+    if (!selectedLog) {
+      lastSelectedLogIdRef.current = null
+    }
+  }, [selectedLog])
+
   const handleBottomPanelToggle = useCallback(
     (open: boolean) => {
       setIsBottomPanelOpen(open)
       setIsBottomPanelDismissed(!open)
+      track(AnalyticsEvents.LOGS_BOTTOM_PANEL_TOGGLE, { open })
     },
     [],
   )
@@ -135,7 +212,7 @@ export function LogsViewer() {
       {/* Toolbar */}
       <LogToolbar
         filters={filters}
-        onFiltersChange={setFilters}
+        onFiltersChange={handleFiltersChange}
         serverOptions={deferredServerOptions}
         logCounts={deferredLogCounts}
         // autoScroll={autoScroll}

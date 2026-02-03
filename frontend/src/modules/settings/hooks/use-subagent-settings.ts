@@ -1,4 +1,4 @@
-// Input: subagent bindings, proxy service, react-hook-form
+// Input: subagent bindings, proxy service, react-hook-form, analytics
 // Output: subagent settings state + model fetch helpers
 // Position: Settings SubAgent hook
 
@@ -14,6 +14,7 @@ import { useForm } from 'react-hook-form'
 import useSWR from 'swr'
 
 import { toastManager } from '@/components/ui/toast'
+import { AnalyticsEvents, track } from '@/lib/analytics'
 import { swrKeys } from '@/lib/swr-keys'
 import { useClients, useServers } from '@/modules/servers/hooks'
 import { reloadConfig } from '@/modules/servers/lib/reload-config'
@@ -135,16 +136,29 @@ export const useSubAgentSettings = ({ canEdit }: UseSubAgentSettingsOptions) => 
     return 'No models loaded'
   }, [modelFetchState, modelOptions.length])
 
-  const setModelValue = useCallback((value: string) => {
+  const setModelInput = useCallback((value: string) => {
     setModelInputValue(value)
     setValue('model', value, { shouldDirty: true })
   }, [setValue])
+
+  const setModelValue = useCallback((value: string) => {
+    setModelInputValue(value)
+    setValue('model', value, { shouldDirty: true })
+    track(AnalyticsEvents.SETTINGS_SUBAGENT_MODEL_SELECT, {
+      model: value,
+      provider: selectedProvider,
+    })
+  }, [selectedProvider, setValue])
 
   const fetchModels = useCallback(async () => {
     const apiKey = apiKeyInput.trim()
     if (!apiKey) {
       setModelFetchError('API key is required to fetch models.')
       setModelFetchState('error')
+      track(AnalyticsEvents.SETTINGS_SUBAGENT_FETCH_MODELS, {
+        result: 'missing_api_key',
+        provider: selectedProvider,
+      })
       return
     }
 
@@ -153,6 +167,10 @@ export const useSubAgentSettings = ({ canEdit }: UseSubAgentSettingsOptions) => 
     if (!resolvedBaseURL) {
       setModelFetchError('Base URL is required to fetch models.')
       setModelFetchState('error')
+      track(AnalyticsEvents.SETTINGS_SUBAGENT_FETCH_MODELS, {
+        result: 'missing_base_url',
+        provider,
+      })
       return
     }
 
@@ -196,12 +214,21 @@ export const useSubAgentSettings = ({ canEdit }: UseSubAgentSettingsOptions) => 
 
       setModelOptions(mergedModels)
       setModelFetchState('ready')
+      track(AnalyticsEvents.SETTINGS_SUBAGENT_FETCH_MODELS, {
+        result: 'success',
+        provider,
+        model_count: mergedModels.length,
+      })
     }
     catch (err) {
       setModelFetchError(err instanceof Error ? err.message : 'Failed to fetch models.')
       setModelFetchState('error')
+      track(AnalyticsEvents.SETTINGS_SUBAGENT_FETCH_MODELS, {
+        result: 'error',
+        provider: selectedProvider,
+      })
     }
-  }, [apiKeyInput, getValues])
+  }, [apiKeyInput, getValues, selectedProvider])
 
   const handleSave = form.handleSubmit(async (values) => {
     if (!canEdit) {

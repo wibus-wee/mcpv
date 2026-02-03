@@ -1,4 +1,4 @@
-// Input: Config hooks, tools hooks, SWR
+// Input: Config hooks, tools hooks, SWR, analytics
 // Output: Combined data hooks for servers module
 // Position: Data layer for unified servers module
 
@@ -16,6 +16,7 @@ import { ConfigService, DiscoveryService, RuntimeService, ServerService } from '
 import { useCallback, useMemo, useState } from 'react'
 import useSWR from 'swr'
 
+import { AnalyticsEvents, track } from '@/lib/analytics'
 import { withSWRPreset } from '@/lib/swr-config'
 import { swrKeys } from '@/lib/swr-keys'
 
@@ -173,6 +174,7 @@ export function useServerOperation(
     setIsWorking(true)
 
     try {
+      const nextState = server.disabled ? 'enabled' : 'disabled'
       if (operation === 'toggle') {
         await ServerService.SetServerDisabled({
           server: server.name,
@@ -185,6 +187,15 @@ export function useServerOperation(
 
       const reloadResult = await reloadConfig()
       if (!reloadResult.ok) {
+        track(
+          operation === 'toggle'
+            ? AnalyticsEvents.SERVER_TOGGLE_DISABLED
+            : AnalyticsEvents.SERVER_DELETE,
+          {
+            result: 'reload_failed',
+            ...(operation === 'toggle' ? { next_state: nextState } : {}),
+          },
+        )
         errorHandler?.('Reload failed', reloadResult.message)
         return
       }
@@ -195,18 +206,32 @@ export function useServerOperation(
       ])
 
       if (operation === 'toggle') {
+        track(AnalyticsEvents.SERVER_TOGGLE_DISABLED, {
+          result: 'success',
+          next_state: nextState,
+        })
         successHandler?.(
           server.disabled ? 'Server enabled' : 'Server disabled',
           'Changes applied.',
         )
       }
       else if (operation === 'delete') {
+        track(AnalyticsEvents.SERVER_DELETE, { result: 'success' })
         successHandler?.('Server deleted', 'Changes applied.')
         onDeleted?.(server.name)
       }
     }
     catch (err) {
       const message = err instanceof Error ? err.message : `${operation} failed.`
+      track(
+        operation === 'toggle'
+          ? AnalyticsEvents.SERVER_TOGGLE_DISABLED
+          : AnalyticsEvents.SERVER_DELETE,
+        {
+          result: 'error',
+          ...(operation === 'toggle' ? { next_state: server.disabled ? 'enabled' : 'disabled' } : {}),
+        },
+      )
       errorHandler?.(`${operation === 'toggle' ? 'Update' : 'Delete'} failed`, message)
     }
     finally {

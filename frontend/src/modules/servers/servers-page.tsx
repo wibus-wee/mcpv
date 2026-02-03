@@ -1,16 +1,17 @@
-// Input: Hooks, child components, UI primitives
+// Input: Hooks, child components, UI primitives, analytics
 // Output: ServersPage component - Full-width table with expandable rows and right-side drawer
 // Position: Main page for servers module
 
 import type { ServerSummary } from '@bindings/mcpv/internal/ui'
 import { m } from 'motion/react'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { RefreshButton } from '@/components/custom/refresh-button'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
+import { AnalyticsEvents, track } from '@/lib/analytics'
 import { Spring } from '@/lib/spring'
 import { ImportMcpServersSheet } from '@/modules/servers/components/import-mcp-servers-sheet'
 
@@ -28,6 +29,8 @@ export function ServersPage() {
   const [editingServerName, setEditingServerName] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const searchTrackTimerRef = useRef<number | null>(null)
+  const lastTrackedQueryRef = useRef<string>('')
 
   const {
     data: editingServer,
@@ -39,12 +42,39 @@ export function ServersPage() {
 
   const filteredServers = useFilteredServers(servers ?? [], searchQuery)
 
+  useEffect(() => {
+    return () => {
+      if (searchTrackTimerRef.current !== null) {
+        window.clearTimeout(searchTrackTimerRef.current)
+        searchTrackTimerRef.current = null
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (searchTrackTimerRef.current !== null) {
+      window.clearTimeout(searchTrackTimerRef.current)
+    }
+    searchTrackTimerRef.current = window.setTimeout(() => {
+      const query = searchQuery.trim()
+      if (query === lastTrackedQueryRef.current) return
+      lastTrackedQueryRef.current = query
+      track(AnalyticsEvents.SERVER_SEARCH, {
+        query_len: query.length,
+        has_query: query.length > 0,
+        result_count: filteredServers.length,
+      })
+    }, 400)
+  }, [searchQuery, filteredServers.length])
+
   const handleAddServer = useCallback(() => {
+    track(AnalyticsEvents.SERVER_EDIT_OPENED, { mode: 'create' })
     setEditingServerName(null)
     setEditSheetOpen(true)
   }, [])
 
   const handleEditRequest = useCallback((serverName: string) => {
+    track(AnalyticsEvents.SERVER_EDIT_OPENED, { mode: 'edit' })
     setEditingServerName(serverName)
     setEditSheetOpen(true)
   }, [])
@@ -60,6 +90,11 @@ export function ServersPage() {
   }, [mutate])
 
   const handleRowClick = useCallback((server: ServerSummary) => {
+    track(AnalyticsEvents.SERVER_DETAIL_OPENED, {
+      transport: server.transport ?? 'unknown',
+      disabled: Boolean(server.disabled),
+      tags_count: server.tags?.length ?? 0,
+    })
     setSelectedServer(server.name)
   }, [])
 

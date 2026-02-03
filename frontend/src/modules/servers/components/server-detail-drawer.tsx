@@ -1,4 +1,4 @@
-// Input: serverName, open state, callbacks
+// Input: serverName, open state, callbacks, analytics
 // Output: Drawer component displaying server details with tabs
 // Position: Right-side drawer triggered from table row click
 
@@ -28,6 +28,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toastManager } from '@/components/ui/toast'
+import { AnalyticsEvents, track } from '@/lib/analytics'
 import { Spring } from '@/lib/spring'
 
 import type { ServerTab } from '../constants'
@@ -155,7 +156,11 @@ export function ServerDetailDrawer({
             : (
                 <Tabs
                   value={tab}
-                  onValueChange={v => setTab(v as ServerTab)}
+                  onValueChange={(v) => {
+                    const next = v as ServerTab
+                    setTab(next)
+                    track(AnalyticsEvents.SERVER_TAB_CHANGED, { tab: next })
+                  }}
                   className="flex-1 flex flex-col min-h-0"
                 >
                   <TabsList variant="underline" className="px-6 border-b w-full">

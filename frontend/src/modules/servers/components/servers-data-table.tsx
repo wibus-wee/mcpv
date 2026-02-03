@@ -1,4 +1,4 @@
-// Input: ServerSummary array, selection handler
+// Input: ServerSummary array, selection handler, analytics
 // Output: Data table with sorting, filtering, and row selection
 // Position: Main table component for servers page
 
@@ -61,6 +61,7 @@ import {
 import { toastManager } from '@/components/ui/toast'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useActiveClients } from '@/hooks/use-active-clients'
+import { AnalyticsEvents, track } from '@/lib/analytics'
 import { Spring } from '@/lib/spring'
 import { formatDuration, getElapsedMs } from '@/lib/time'
 import { getToolDisplayName } from '@/lib/tool-names'
@@ -355,7 +356,12 @@ export function ServersDataTable({
                   size="icon-xs"
                   onClick={(e) => {
                     e.stopPropagation()
+                    const nextExpanded = !row.getIsExpanded()
                     row.toggleExpanded()
+                    track(AnalyticsEvents.SERVER_TOOLS_EXPAND, {
+                      expanded: nextExpanded,
+                      tool_count: tools.length,
+                    })
                   }}
                   className="-ml-1"
                 >

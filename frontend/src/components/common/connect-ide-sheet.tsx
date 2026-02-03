@@ -1,4 +1,4 @@
-// Input: motion/react, lucide-react icons, UI components, server hooks, mcpvmcp config helpers
+// Input: motion/react, lucide-react icons, UI components, server hooks, analytics, mcpvmcp config helpers
 // Output: ConnectIdeSheet component for IDE connection presets
 // Position: Shared UI component for configuring IDE connections in the app
 
@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { m } from 'motion/react'
 import type * as React from 'react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -35,6 +35,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useMcpvmcpPath } from '@/hooks/use-mcpvmcp-path'
 import { useRpcAddress } from '@/hooks/use-rpc-address'
+import { AnalyticsEvents, track } from '@/lib/analytics'
 import type { SelectorMode } from '@/lib/mcpvmcp'
 import { buildClientConfig, buildCliSnippet, buildTomlConfig } from '@/lib/mcpvmcp'
 import { useServers } from '@/modules/servers/hooks'
@@ -67,13 +68,36 @@ function generateCursorDeepLink(name: string, config: string): string {
   return `cursor://anysphere.cursor-deeplink/mcp/install?name=${encodeURIComponent(name)}&config=${encodeURIComponent(base64Config)}`
 }
 
-function CopyButton({ text }: { text: string }) {
+function CopyButton({
+  text,
+  client,
+  blockTitle,
+}: {
+  text: string
+  client: string
+  blockTitle: string
+}) {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+      track(AnalyticsEvents.CONNECT_IDE_COPY, {
+        client,
+        block: blockTitle,
+        result: 'success',
+      })
+    }
+    catch {
+      track(AnalyticsEvents.CONNECT_IDE_COPY, {
+        client,
+        block: blockTitle,
+        result: 'error',
+      })
+      console.error('[ConnectIde] Failed to copy preset')
+    }
   }
 
   return (
@@ -89,13 +113,21 @@ function CopyButton({ text }: { text: string }) {
   )
 }
 
-function InstallInCursorButton({ serverName, config }: { serverName: string, config: string }) {
+function InstallInCursorButton({
+  serverName,
+  config,
+}: {
+  serverName: string
+  config: string
+}) {
   const handleInstall = () => {
     try {
       const deepLink = generateCursorDeepLink(serverName, config)
       window.location.href = deepLink
+      track(AnalyticsEvents.CONNECT_IDE_INSTALL_CURSOR, { result: 'success', client: 'cursor' })
     }
     catch (error) {
+      track(AnalyticsEvents.CONNECT_IDE_INSTALL_CURSOR, { result: 'error', client: 'cursor' })
       console.error('Failed to generate Cursor deep link:', error)
     }
   }
@@ -121,6 +153,8 @@ export function ConnectIdeSheet() {
   const { rpcAddress } = useRpcAddress()
   const { data: servers } = useServers()
   const sidebar = useSidebar()
+  const wasOpenRef = useRef(false)
+  const lastTrackedSelectorRef = useRef<{ mode: SelectorMode, value: string } | null>(null)
 
   const serverOptions = useMemo(
     () => (servers ?? []).map(server => server.name).sort((a, b) => a.localeCompare(b)),
@@ -193,6 +227,17 @@ export function ConnectIdeSheet() {
   const suggestions = useMemo(() =>
     selectorMode === 'server' ? serverOptions : tagOptions, [selectorMode, serverOptions, tagOptions])
 
+  useEffect(() => {
+    if (open && !wasOpenRef.current) {
+      track(AnalyticsEvents.CONNECT_IDE_OPENED, {
+        selector_mode: selectorMode,
+        server_count: serverOptions.length,
+        tag_count: tagOptions.length,
+      })
+    }
+    wasOpenRef.current = open
+  }, [open, selectorMode, serverOptions.length, tagOptions.length])
+
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
@@ -218,7 +263,17 @@ export function ConnectIdeSheet() {
               value={[selectorMode]}
               onValueChange={(values) => {
                 const next = values[0] as SelectorMode | undefined
-                setSelectorMode(next ?? 'server')
+                const mode = next ?? 'server'
+                const nextDefault = mode === 'server'
+                  ? (serverOptions[0] ?? '')
+                  : (tagOptions[0] ?? '')
+                const hasValue = Boolean((selectorValue || nextDefault).trim())
+                setSelectorMode(mode)
+                track(AnalyticsEvents.CONNECT_IDE_TARGET_CHANGE, {
+                  mode,
+                  value_source: 'toggle',
+                  has_value: hasValue,
+                })
               }}
               className="flex flex-wrap gap-2"
             >
@@ -235,6 +290,17 @@ export function ConnectIdeSheet() {
               <Input
                 value={effectiveSelectorValue}
                 onChange={event => setSelectorValue(event.target.value)}
+                onBlur={() => {
+                  const value = effectiveSelectorValue.trim()
+                  const last = lastTrackedSelectorRef.current
+                  if (last?.mode === selectorMode && last.value === value) return
+                  lastTrackedSelectorRef.current = { mode: selectorMode, value }
+                  track(AnalyticsEvents.CONNECT_IDE_TARGET_CHANGE, {
+                    mode: selectorMode,
+                    value_source: 'manual',
+                    has_value: value.length > 0,
+                  })
+                }}
                 placeholder={selectorMode === 'server' ? 'Server name' : 'Tag name'}
               />
               {suggestions.length > 0 && (
@@ -245,7 +311,15 @@ export function ConnectIdeSheet() {
                       type="button"
                       variant="secondary"
                       size="xs"
-                      onClick={() => setSelectorValue(option)}
+                      onClick={() => {
+                        setSelectorValue(option)
+                        lastTrackedSelectorRef.current = { mode: selectorMode, value: option }
+                        track(AnalyticsEvents.CONNECT_IDE_TARGET_CHANGE, {
+                          mode: selectorMode,
+                          value_source: 'suggestion',
+                          has_value: true,
+                        })
+                      }}
                     >
                       {option}
                     </Button>
@@ -257,7 +331,14 @@ export function ConnectIdeSheet() {
 
           <div className="space-y-3">
             <p className="text-sm font-medium">Client presets</p>
-            <Tabs defaultValue="cursor">
+            <Tabs
+              defaultValue="cursor"
+              onValueChange={(value) => {
+                if (typeof value === 'string') {
+                  track(AnalyticsEvents.CONNECT_IDE_TAB_CHANGE, { client: value })
+                }
+              }}
+            >
               <TabsList>
                 <TabsTrigger value="cursor" className="gap-1.5">
                   <MousePointerClickIcon className="size-3.5" />
@@ -296,7 +377,7 @@ export function ConnectIdeSheet() {
                             <Icon className="size-4 text-muted-foreground" />
                             <CardTitle className="text-sm">{block.title}</CardTitle>
                           </div>
-                          <CopyButton text={block.value} />
+                          <CopyButton text={block.value} client={key} blockTitle={block.title} />
                         </CardHeader>
                         <CardContent className="space-y-2">
                           <Textarea readOnly value={block.value} className="font-mono text-xs min-h-[160px]" />
