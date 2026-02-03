@@ -1,17 +1,13 @@
-// Input: MCP JSON payload, server list, config mode, analytics
-// Output: ImportMcpServersSheet component - JSON import flow for servers
+// Input: MCP JSON payload, IDE config previews, server list, config mode, analytics
+// Output: ImportMcpServersSheet component - combined JSON + IDE import flow
 // Position: Config header action entry
 
-import type { ImportMcpServersRequest } from '@bindings/mcpv/internal/ui'
-import { ConfigService } from '@bindings/mcpv/internal/ui'
-import { AlertCircleIcon, FileUpIcon } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { FileUpIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Separator } from '@/components/ui/separator'
 import {
   Sheet,
   SheetContent,
@@ -22,38 +18,28 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
-import { Textarea } from '@/components/ui/textarea'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AnalyticsEvents, track } from '@/lib/analytics'
 
 import { useConfigMode, useServers } from '../hooks'
-import type { ImportServerDraft } from '../lib/mcp-import'
-import {
-  parseMcpServersJson,
-} from '../lib/mcp-import'
-import { reloadConfig } from '../lib/reload-config'
+import { IdeImportTab } from './import-mcp-servers/ide-import-tab'
+import { JsonImportTab } from './import-mcp-servers/json-import-tab'
+
+type ImportTab = 'ide' | 'json'
 
 export const ImportMcpServersSheet = () => {
   const { data: configMode } = useConfigMode()
   const { data: serversList, mutate: mutateServers } = useServers()
 
   const [open, setOpen] = useState(false)
-  const [rawInput, setRawInput] = useState('')
-  const [servers, setServers] = useState<ImportServerDraft[]>([])
-  const [parseErrors, setParseErrors] = useState<string[]>([])
-  const [applyError, setApplyError] = useState<string | null>(null)
-  const [isApplying, setIsApplying] = useState(false)
+  const [activeTab, setActiveTab] = useState<ImportTab>('ide')
+  const [footerContent, setFooterContent] = useState<ReactNode | null>(null)
+  const [jsonCount, setJsonCount] = useState(0)
+  const [ideCount, setIdeCount] = useState(0)
+
   const wasOpenRef = useRef(false)
 
-  useEffect(() => {
-    if (open) {
-      return
-    }
-    setRawInput('')
-    setServers([])
-    setParseErrors([])
-    setApplyError(null)
-    setIsApplying(false)
-  }, [open])
+  const isWritable = configMode?.isWritable ?? false
 
   useEffect(() => {
     if (open && !wasOpenRef.current) {
@@ -68,100 +54,38 @@ export const ImportMcpServersSheet = () => {
     return new Set((serversList ?? []).map(server => server.name))
   }, [serversList])
 
-  const normalizedNames = servers.map(server => server.name.trim())
-  const missingNames = normalizedNames.filter(name => !name)
-  const duplicateNames = normalizedNames.filter(
-    (name, index) => name && normalizedNames.indexOf(name) !== index,
-  )
-  const conflicts = normalizedNames.filter(
-    name => name && existingServerNames.has(name),
-  )
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value as ImportTab)
+  }, [])
 
-  const issues: string[] = []
-  if (missingNames.length > 0) {
-    issues.push('Server names cannot be empty.')
-  }
-  if (duplicateNames.length > 0) {
-    issues.push(`Duplicate server names: ${Array.from(new Set(duplicateNames)).join(', ')}`)
-  }
-  if (conflicts.length > 0) {
-    issues.push(`Name conflicts in current config: ${Array.from(new Set(conflicts)).join(', ')}`)
-  }
+  const handleFooterChange = useCallback((content: ReactNode | null) => {
+    setFooterContent(content)
+  }, [])
 
-  const isWritable = configMode?.isWritable ?? false
-  const canApply
-    = isWritable
-      && parseErrors.length === 0
-      && servers.length > 0
-      && issues.length === 0
-      && !isApplying
+  const handleJsonCountChange = useCallback((count: number) => {
+    setJsonCount(count)
+  }, [])
 
-  const handleParse = () => {
-    const result = parseMcpServersJson(rawInput)
-    setServers(result.servers)
-    setParseErrors(result.errors)
-    setApplyError(null)
-    track(AnalyticsEvents.SERVER_IMPORT_PARSE, {
-      server_count: result.servers.length,
-      error_count: result.errors.length,
-    })
-  }
+  const handleIdeCountChange = useCallback((count: number) => {
+    setIdeCount(count)
+  }, [])
 
-  const handleNameChange = (id: string, value: string) => {
-    setServers(current =>
-      current.map(server => (server.id === id ? { ...server, name: value } : server)),
-    )
-  }
+  const handleClose = useCallback(() => {
+    setOpen(false)
+  }, [])
 
-  const handleApply = async () => {
-    if (!canApply) {
-      return
+  useEffect(() => {
+    if (!open) {
+      setActiveTab('ide')
+      setFooterContent(null)
+      setJsonCount(0)
+      setIdeCount(0)
     }
+  }, [open])
 
-    setIsApplying(true)
-    setApplyError(null)
-
-    const payload: ImportMcpServersRequest = {
-      servers: servers.map(server => ({
-        name: server.name.trim(),
-        transport: server.transport,
-        cmd: server.cmd,
-        env: server.env,
-        cwd: server.cwd,
-        ...(server.http ? { http: server.http } : {}),
-      })),
-    }
-
-    try {
-      await ConfigService.ImportMcpServers(payload)
-      const reloadResult = await reloadConfig()
-      if (!reloadResult.ok) {
-        track(AnalyticsEvents.SERVER_IMPORT_APPLY, {
-          server_count: payload.servers.length,
-          result: 'reload_failed',
-        })
-        setApplyError(`Reload failed: ${reloadResult.message}`)
-        return
-      }
-      await mutateServers()
-      track(AnalyticsEvents.SERVER_IMPORT_APPLY, {
-        server_count: payload.servers.length,
-        result: 'success',
-      })
-      setOpen(false) // 成功后直接关闭 Sheet
-    }
-    catch (err) {
-      const message = err instanceof Error ? err.message : 'Import failed.'
-      track(AnalyticsEvents.SERVER_IMPORT_APPLY, {
-        server_count: payload.servers.length,
-        result: 'error',
-      })
-      setApplyError(message)
-    }
-    finally {
-      setIsApplying(false)
-    }
-  }
+  useEffect(() => {
+    setFooterContent(null)
+  }, [activeTab])
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -173,136 +97,67 @@ export const ImportMcpServersSheet = () => {
           title={isWritable ? 'Import MCP servers' : 'Configuration is not writable'}
         >
           <FileUpIcon className="size-4" />
-          Import MCP Server
+          Import MCP Servers
         </Button>
       </SheetTrigger>
+
       <SheetContent side="right">
         <SheetHeader>
           <SheetTitle>Import MCP servers</SheetTitle>
           <SheetDescription>
-            Paste your mcpServers JSON or a command line, review the servers, and apply them to this config.
+            Import from local IDE configs or paste JSON to add servers.
           </SheetDescription>
         </SheetHeader>
-        <SheetPanel className="space-y-6">
-          {parseErrors.length > 0 && (
-            <Alert variant="error">
-              <AlertCircleIcon />
-              <AlertTitle>Parsing failed</AlertTitle>
-              <AlertDescription>
-                {parseErrors.map(error => (
-                  <span key={error}>{error}</span>
-                ))}
-              </AlertDescription>
-            </Alert>
-          )}
 
-          {applyError && (
-            <Alert variant="error">
-              <AlertCircleIcon />
-              <AlertTitle>Import failed</AlertTitle>
-              <AlertDescription>{applyError}</AlertDescription>
-            </Alert>
-          )}
+        <SheetPanel>
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col h-full">
+            <TabsList className="w-full">
+              <TabsTrigger value="json" className="flex-1">
+                Paste JSON
+                {jsonCount > 0 && (
+                  <Badge variant="secondary" size="sm" className="ml-1.5">
+                    {jsonCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="ide" className="flex-1">
+                From IDE
+                {ideCount > 0 && (
+                  <Badge variant="secondary" size="sm" className="ml-1.5">
+                    {ideCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
 
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium">Source</h3>
-              {servers.length > 0 && (
-                <Badge variant="secondary" size="sm">
-                  {servers.length} servers
-                </Badge>
-              )}
-            </div>
-            <Textarea
-              value={rawInput}
-              onChange={event => setRawInput(event.target.value)}
-              placeholder={`Paste mcpServers JSON from Claude or Cursor\n\nOr paste a command line:\nnpx -y @upstash/context7-mcp --api-key YOUR_API_KEY`}
-              className="min-h-36 font-mono text-xs"
+            <JsonImportTab
+              open={open}
+              isActive={activeTab === 'json'}
+              isWritable={isWritable}
+              existingServerNames={existingServerNames}
+              mutateServers={mutateServers}
+              onClose={handleClose}
+              onFooterChange={handleFooterChange}
+              onCountChange={handleJsonCountChange}
             />
-            <div className="flex items-center gap-2">
-              <Button variant="default" size="sm" onClick={handleParse}>
-                Parse JSON
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setRawInput('')}
-                disabled={!rawInput}
-              >
-                Clear
-              </Button>
-            </div>
-          </section>
 
-          <Separator />
-
-          <section className="space-y-3">
-            <h3 className="text-sm font-medium">Servers preview</h3>
-            {servers.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                Parse JSON to review servers before importing.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {servers.map(server => (
-                  <div
-                    key={server.id}
-                    className="rounded-lg border bg-muted/20 p-3 space-y-2"
-                  >
-                    <div className="space-y-1">
-                      <span className="text-xs text-muted-foreground">
-                        Server name
-                      </span>
-                      <Input
-                        value={server.name}
-                        onChange={event => handleNameChange(server.id, event.target.value)}
-                        className="font-mono text-xs"
-                      />
-                    </div>
-                    <div className="text-xs text-muted-foreground wrap-break-word">
-                      {server.transport === 'streamable_http'
-                        ? `endpoint: ${server.http?.endpoint ?? ''}`
-                        : server.cmd.join(' ')}
-                    </div>
-                    {(server.cwd || Object.keys(server.env).length > 0) && (
-                      <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
-                        {server.cwd && (
-                          <span className="rounded bg-muted/40 px-2 py-0.5 font-mono">
-                            cwd: {server.cwd}
-                          </span>
-                        )}
-                        {Object.keys(server.env).length > 0 && (
-                          <span className="rounded bg-muted/40 px-2 py-0.5 font-mono">
-                            env: {Object.keys(server.env).length}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          {issues.length > 0 && (
-            <Alert variant="warning">
-              <AlertCircleIcon />
-              <AlertTitle>Resolve before importing</AlertTitle>
-              <AlertDescription>
-                {issues.map(issue => (
-                  <span key={issue}>{issue}</span>
-                ))}
-              </AlertDescription>
-            </Alert>
-          )}
+            <IdeImportTab
+              open={open}
+              isActive={activeTab === 'ide'}
+              isWritable={isWritable}
+              existingServerNames={existingServerNames}
+              mutateServers={mutateServers}
+              onFooterChange={handleFooterChange}
+              onCountChange={handleIdeCountChange}
+            />
+          </Tabs>
         </SheetPanel>
+
         <SheetFooter>
-          <Button variant="ghost" onClick={() => setOpen(false)}>
+          <Button variant="ghost" onClick={handleClose}>
             Close
           </Button>
-          <Button variant="default" onClick={handleApply} disabled={!canApply}>
-            {isApplying ? 'Saving...' : 'Apply to config'}
-          </Button>
+          {footerContent}
         </SheetFooter>
       </SheetContent>
     </Sheet>

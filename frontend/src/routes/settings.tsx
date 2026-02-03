@@ -22,11 +22,11 @@ const navItems: NavItem[] = [
   },
   ...isDev
     ? [{
-      path: '/settings/subagent',
-      label: 'SubAgent',
-      icon: SettingsIcon,
-      description: 'AI assistant configuration',
-    }]
+        path: '/settings/subagent',
+        label: 'SubAgent',
+        icon: SettingsIcon,
+        description: 'AI assistant configuration',
+      }]
     : [],
   {
     path: '/settings/appearance',

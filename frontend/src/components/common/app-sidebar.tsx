@@ -41,10 +41,10 @@ const navItems: NavItem[] = [
   },
   ...isDev
     ? [{
-      path: '/plugins',
-      label: 'Plugins',
-      icon: PlugIcon,
-    }]
+        path: '/plugins',
+        label: 'Plugins',
+        icon: PlugIcon,
+      }]
     : [],
   {
     path: '/logs',

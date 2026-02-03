@@ -6,6 +6,7 @@ import * as CoreService from "./coreservice.js";
 import * as DebugService from "./debugservice.js";
 import * as DiscoveryService from "./discoveryservice.js";
 import * as LogService from "./logservice.js";
+import * as McpTransferService from "./mcptransferservice.js";
 import * as PluginService from "./pluginservice.js";
 import * as ProxyService from "./proxyservice.js";
 import * as RuntimeService from "./runtimeservice.js";
@@ -18,6 +19,7 @@ export {
     DebugService,
     DiscoveryService,
     LogService,
+    McpTransferService,
     PluginService,
     ProxyService,
     RuntimeService,
@@ -38,6 +40,10 @@ export {
     ImportServerSpec,
     InfoResponse,
     InstanceStatus,
+    McpTransferImportResult,
+    McpTransferIssue,
+    McpTransferPreview,
+    McpTransferRequest,
     ObservabilityConfigDetail,
     PluginListEntry,
     PluginMetrics,
