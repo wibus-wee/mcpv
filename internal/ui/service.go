@@ -22,6 +22,7 @@ type ServiceRegistry struct {
 	Proxy     *ProxyService
 	Debug     *DebugService
 	Plugin    *PluginService
+	McpTransfer *McpTransferService
 }
 
 func NewServiceRegistry(coreApp *app.App, logger *zap.Logger) *ServiceRegistry {
@@ -39,6 +40,7 @@ func NewServiceRegistry(coreApp *app.App, logger *zap.Logger) *ServiceRegistry {
 		Proxy:     NewProxyService(deps),
 		Debug:     NewDebugService(deps),
 		Plugin:    NewPluginService(deps),
+		McpTransfer: NewMcpTransferService(deps),
 	}
 }
 
@@ -55,6 +57,7 @@ func (r *ServiceRegistry) Services() []application.Service {
 		application.NewService(r.Proxy),
 		application.NewService(r.Plugin),
 		application.NewService(r.Debug),
+		application.NewService(r.McpTransfer),
 	}
 }
 

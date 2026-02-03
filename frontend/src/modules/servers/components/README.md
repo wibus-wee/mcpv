@@ -8,7 +8,6 @@ Servers 模块的 UI 组件集合。
 
 ## Files
 
-- **import-mcp-servers-sheet.tsx**: MCP JSON 导入流程抽屉
 - **server-config-panel.tsx**: 服务器配置详情面板
 - **server-detail-drawer.tsx**: 服务器详情抽屉容器
 - **server-detail-empty-state.tsx**: 未选择服务器的空状态
@@ -23,3 +22,11 @@ Servers 模块的 UI 组件集合。
 - **servers-list.tsx**: 服务器列表侧栏
 - **servers-master-list.tsx**: 主从布局的服务器列表
 - **tool-detail-panel.tsx**: 工具详情面板
+- **servers-list.tsx**: Server list sidebar with selection
+- **server-overview-panel.tsx**: Overview tab content (health, stats, clients)
+- **server-tools-panel.tsx**: Tools tab content (tool browser)
+- **server-config-panel.tsx**: Configuration tab content (specs, edit form)
+- **server-edit-sheet.tsx**: Sheet for adding/editing servers
+- **import-mcp-servers-sheet.tsx**: Sheet for importing MCP servers from IDE configs or JSON/CLI
+- **import-mcp-servers/**: Tab components and shared types for MCP import flows
+
