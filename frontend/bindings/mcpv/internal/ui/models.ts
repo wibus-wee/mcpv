@@ -409,6 +409,141 @@ export class InstanceStatus {
 }
 
 /**
+ * McpTransferImportResult reports the import outcome for a transfer.
+ */
+export class McpTransferImportResult {
+    "source": string;
+    "path": string;
+    "imported": number;
+    "skipped": number;
+    "issues"?: McpTransferIssue[];
+
+    /** Creates a new McpTransferImportResult instance. */
+    constructor($$source: Partial<McpTransferImportResult> = {}) {
+        if (!("source" in $$source)) {
+            this["source"] = "";
+        }
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("imported" in $$source)) {
+            this["imported"] = 0;
+        }
+        if (!("skipped" in $$source)) {
+            this["skipped"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new McpTransferImportResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): McpTransferImportResult {
+        const $$createField4_0 = $$createType10;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("issues" in $$parsedSource) {
+            $$parsedSource["issues"] = $$createField4_0($$parsedSource["issues"]);
+        }
+        return new McpTransferImportResult($$parsedSource as Partial<McpTransferImportResult>);
+    }
+}
+
+/**
+ * McpTransferIssue reports a skipped or invalid entry during transfer.
+ */
+export class McpTransferIssue {
+    "name"?: string;
+    "kind": string;
+    "message": string;
+
+    /** Creates a new McpTransferIssue instance. */
+    constructor($$source: Partial<McpTransferIssue> = {}) {
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
+        }
+        if (!("message" in $$source)) {
+            this["message"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new McpTransferIssue instance from a string or object.
+     */
+    static createFrom($$source: any = {}): McpTransferIssue {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new McpTransferIssue($$parsedSource as Partial<McpTransferIssue>);
+    }
+}
+
+/**
+ * McpTransferPreview describes the servers available for import.
+ */
+export class McpTransferPreview {
+    "source": string;
+    "path": string;
+    "servers": ImportServerSpec[];
+    "issues"?: McpTransferIssue[];
+
+    /** Creates a new McpTransferPreview instance. */
+    constructor($$source: Partial<McpTransferPreview> = {}) {
+        if (!("source" in $$source)) {
+            this["source"] = "";
+        }
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("servers" in $$source)) {
+            this["servers"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new McpTransferPreview instance from a string or object.
+     */
+    static createFrom($$source: any = {}): McpTransferPreview {
+        const $$createField2_0 = $$createType4;
+        const $$createField3_0 = $$createType10;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("servers" in $$parsedSource) {
+            $$parsedSource["servers"] = $$createField2_0($$parsedSource["servers"]);
+        }
+        if ("issues" in $$parsedSource) {
+            $$parsedSource["issues"] = $$createField3_0($$parsedSource["issues"]);
+        }
+        return new McpTransferPreview($$parsedSource as Partial<McpTransferPreview>);
+    }
+}
+
+/**
+ * McpTransferRequest identifies which source to transfer from.
+ */
+export class McpTransferRequest {
+    "source": string;
+
+    /** Creates a new McpTransferRequest instance. */
+    constructor($$source: Partial<McpTransferRequest> = {}) {
+        if (!("source" in $$source)) {
+            this["source"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new McpTransferRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): McpTransferRequest {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new McpTransferRequest($$parsedSource as Partial<McpTransferRequest>);
+    }
+}
+
+/**
  * ObservabilityConfigDetail for frontend.
  */
 export class ObservabilityConfigDetail {
@@ -507,7 +642,7 @@ export class PluginListEntry {
         const $$createField2_0 = $$createType0;
         const $$createField10_0 = $$createType0;
         const $$createField11_0 = $$createType1;
-        const $$createField14_0 = $$createType9;
+        const $$createField14_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("flows" in $$parsedSource) {
             $$parsedSource["flows"] = $$createField2_0($$parsedSource["flows"]);
@@ -698,7 +833,7 @@ export class PromptPage {
      * Creates a new PromptPage instance from a string or object.
      */
     static createFrom($$source: any = {}): PromptPage {
-        const $$createField0_0 = $$createType11;
+        const $$createField0_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("prompts" in $$parsedSource) {
             $$parsedSource["prompts"] = $$createField0_0($$parsedSource["prompts"]);
@@ -818,7 +953,7 @@ export class RPCConfigDetail {
      * Creates a new RPCConfigDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): RPCConfigDetail {
-        const $$createField6_0 = $$createType12;
+        const $$createField6_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tls" in $$parsedSource) {
             $$parsedSource["tls"] = $$createField6_0($$parsedSource["tls"]);
@@ -915,7 +1050,7 @@ export class ResourcePage {
      * Creates a new ResourcePage instance from a string or object.
      */
     static createFrom($$source: any = {}): ResourcePage {
-        const $$createField0_0 = $$createType14;
+        const $$createField0_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("resources" in $$parsedSource) {
             $$parsedSource["resources"] = $$createField0_0($$parsedSource["resources"]);
@@ -1032,8 +1167,8 @@ export class RuntimeConfigDetail {
      * Creates a new RuntimeConfigDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): RuntimeConfigDetail {
-        const $$createField16_0 = $$createType15;
-        const $$createField17_0 = $$createType16;
+        const $$createField16_0 = $$createType17;
+        const $$createField17_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("observability" in $$parsedSource) {
             $$parsedSource["observability"] = $$createField16_0($$parsedSource["observability"]);
@@ -1085,9 +1220,9 @@ export class ServerGroup {
      * Creates a new ServerGroup instance from a string or object.
      */
     static createFrom($$source: any = {}): ServerGroup {
-        const $$createField3_0 = $$createType18;
+        const $$createField3_0 = $$createType20;
         const $$createField4_0 = $$createType0;
-        const $$createField6_0 = $$createType19;
+        const $$createField6_0 = $$createType21;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tools" in $$parsedSource) {
             $$parsedSource["tools"] = $$createField3_0($$parsedSource["tools"]);
@@ -1188,9 +1323,9 @@ export class ServerRuntimeStatus {
      * Creates a new ServerRuntimeStatus instance from a string or object.
      */
     static createFrom($$source: any = {}): ServerRuntimeStatus {
-        const $$createField2_0 = $$createType21;
-        const $$createField3_0 = $$createType22;
-        const $$createField4_0 = $$createType23;
+        const $$createField2_0 = $$createType23;
+        const $$createField3_0 = $$createType24;
+        const $$createField4_0 = $$createType25;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("instances" in $$parsedSource) {
             $$parsedSource["instances"] = $$createField2_0($$parsedSource["instances"]);
@@ -1385,7 +1520,7 @@ export class StartCause {
      * Creates a new StartCause instance from a string or object.
      */
     static createFrom($$source: any = {}): StartCause {
-        const $$createField3_0 = $$createType25;
+        const $$createField3_0 = $$createType27;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("policy" in $$parsedSource) {
             $$parsedSource["policy"] = $$createField3_0($$parsedSource["policy"]);
@@ -1798,20 +1933,22 @@ const $$createType5 = StreamableHTTPConfigDetail.createFrom;
 const $$createType6 = $Create.Nullable($$createType5);
 const $$createType7 = StartCause.createFrom;
 const $$createType8 = $Create.Nullable($$createType7);
-const $$createType9 = PluginMetrics.createFrom;
-const $$createType10 = PromptEntry.createFrom;
-const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = RPCTLSConfigDetail.createFrom;
-const $$createType13 = ResourceEntry.createFrom;
-const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = ObservabilityConfigDetail.createFrom;
-const $$createType16 = RPCConfigDetail.createFrom;
-const $$createType17 = ToolEntry.createFrom;
-const $$createType18 = $Create.Array($$createType17);
-const $$createType19 = $Create.Nullable($$createType2);
-const $$createType20 = InstanceStatus.createFrom;
-const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = PoolStats.createFrom;
-const $$createType23 = PoolMetrics.createFrom;
-const $$createType24 = StartCausePolicy.createFrom;
-const $$createType25 = $Create.Nullable($$createType24);
+const $$createType9 = McpTransferIssue.createFrom;
+const $$createType10 = $Create.Array($$createType9);
+const $$createType11 = PluginMetrics.createFrom;
+const $$createType12 = PromptEntry.createFrom;
+const $$createType13 = $Create.Array($$createType12);
+const $$createType14 = RPCTLSConfigDetail.createFrom;
+const $$createType15 = ResourceEntry.createFrom;
+const $$createType16 = $Create.Array($$createType15);
+const $$createType17 = ObservabilityConfigDetail.createFrom;
+const $$createType18 = RPCConfigDetail.createFrom;
+const $$createType19 = ToolEntry.createFrom;
+const $$createType20 = $Create.Array($$createType19);
+const $$createType21 = $Create.Nullable($$createType2);
+const $$createType22 = InstanceStatus.createFrom;
+const $$createType23 = $Create.Array($$createType22);
+const $$createType24 = PoolStats.createFrom;
+const $$createType25 = PoolMetrics.createFrom;
+const $$createType26 = StartCausePolicy.createFrom;
+const $$createType27 = $Create.Nullable($$createType26);

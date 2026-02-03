@@ -11,4 +11,5 @@ UI components for the unified servers module.
 - **server-tools-panel.tsx**: Tools tab content (tool browser)
 - **server-config-panel.tsx**: Configuration tab content (specs, edit form)
 - **server-edit-sheet.tsx**: Sheet for adding/editing servers
-- **add-server-button.tsx**: Button to trigger add server sheet
+- **import-mcp-servers-sheet.tsx**: Sheet for importing MCP servers from IDE configs or JSON/CLI
+- **import-mcp-servers/**: Tab components and shared types for MCP import flows

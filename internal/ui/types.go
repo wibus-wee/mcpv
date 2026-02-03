@@ -205,6 +205,35 @@ type ImportMcpServersRequest struct {
 	Servers []ImportServerSpec `json:"servers"`
 }
 
+// McpTransferRequest identifies which source to transfer from.
+type McpTransferRequest struct {
+	Source string `json:"source"`
+}
+
+// McpTransferIssue reports a skipped or invalid entry during transfer.
+type McpTransferIssue struct {
+	Name    string `json:"name,omitempty"`
+	Kind    string `json:"kind"`
+	Message string `json:"message"`
+}
+
+// McpTransferPreview describes the servers available for import.
+type McpTransferPreview struct {
+	Source  string                `json:"source"`
+	Path    string                `json:"path"`
+	Servers []ImportServerSpec    `json:"servers"`
+	Issues  []McpTransferIssue    `json:"issues,omitempty"`
+}
+
+// McpTransferImportResult reports the import outcome for a transfer.
+type McpTransferImportResult struct {
+	Source   string             `json:"source"`
+	Path     string             `json:"path"`
+	Imported int                `json:"imported"`
+	Skipped  int                `json:"skipped"`
+	Issues   []McpTransferIssue `json:"issues,omitempty"`
+}
+
 // UpdateServerStateRequest updates the disabled state for a server.
 type UpdateServerStateRequest struct {
 	Server   string `json:"server"`
