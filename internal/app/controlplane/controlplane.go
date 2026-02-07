@@ -14,7 +14,9 @@ import (
 type ControlPlane struct {
 	state         *State
 	registry      *ClientRegistry
-	discovery     *DiscoveryService
+	tools         *ToolDiscoveryService
+	resources     *ResourceDiscoveryService
+	prompts       *PromptDiscoveryService
 	observability *ObservabilityService
 	automation    *AutomationService
 }
@@ -23,14 +25,18 @@ type ControlPlane struct {
 func NewControlPlane(
 	state *State,
 	registry *ClientRegistry,
-	discovery *DiscoveryService,
+	tools *ToolDiscoveryService,
+	resources *ResourceDiscoveryService,
+	prompts *PromptDiscoveryService,
 	observability *ObservabilityService,
 	automation *AutomationService,
 ) *ControlPlane {
 	return &ControlPlane{
 		state:         state,
 		registry:      registry,
-		discovery:     discovery,
+		tools:         tools,
+		resources:     resources,
+		prompts:       prompts,
 		observability: observability,
 		automation:    automation,
 	}
@@ -38,7 +44,6 @@ func NewControlPlane(
 
 // StartClientMonitor begins client monitoring and tag change handling.
 func (c *ControlPlane) StartClientMonitor(ctx context.Context) {
-	c.discovery.StartClientChangeListener(ctx)
 	c.registry.StartMonitor(ctx)
 }
 
@@ -69,77 +74,77 @@ func (c *ControlPlane) WatchActiveClients(ctx context.Context) (<-chan domain.Ac
 
 // ListTools lists tools visible to a client.
 func (c *ControlPlane) ListTools(ctx context.Context, client string) (domain.ToolSnapshot, error) {
-	return c.discovery.ListTools(ctx, client)
+	return c.tools.ListTools(ctx, client)
 }
 
 // ListToolCatalog returns the full tool catalog snapshot.
 func (c *ControlPlane) ListToolCatalog(ctx context.Context) (domain.ToolCatalogSnapshot, error) {
-	return c.discovery.ListToolCatalog(ctx)
+	return c.tools.ListToolCatalog(ctx)
 }
 
 // WatchTools streams tool snapshots for a client.
 func (c *ControlPlane) WatchTools(ctx context.Context, client string) (<-chan domain.ToolSnapshot, error) {
-	return c.discovery.WatchTools(ctx, client)
+	return c.tools.WatchTools(ctx, client)
 }
 
 // CallTool executes a tool on behalf of a client.
 func (c *ControlPlane) CallTool(ctx context.Context, client, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
-	return c.discovery.CallTool(ctx, client, name, args, routingKey)
+	return c.tools.CallTool(ctx, client, name, args, routingKey)
 }
 
 // CallToolAll executes a tool without client visibility checks.
 func (c *ControlPlane) CallToolAll(ctx context.Context, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
-	return c.discovery.CallToolAll(ctx, name, args, routingKey)
+	return c.tools.CallToolAll(ctx, name, args, routingKey)
 }
 
 // ListResources lists resources visible to a client.
 func (c *ControlPlane) ListResources(ctx context.Context, client string, cursor string) (domain.ResourcePage, error) {
-	return c.discovery.ListResources(ctx, client, cursor)
+	return c.resources.ListResources(ctx, client, cursor)
 }
 
 // ListResourcesAll lists resources across all servers.
 func (c *ControlPlane) ListResourcesAll(ctx context.Context, cursor string) (domain.ResourcePage, error) {
-	return c.discovery.ListResourcesAll(ctx, cursor)
+	return c.resources.ListResourcesAll(ctx, cursor)
 }
 
 // WatchResources streams resource snapshots for a client.
 func (c *ControlPlane) WatchResources(ctx context.Context, client string) (<-chan domain.ResourceSnapshot, error) {
-	return c.discovery.WatchResources(ctx, client)
+	return c.resources.WatchResources(ctx, client)
 }
 
 // ReadResource reads a resource on behalf of a client.
 func (c *ControlPlane) ReadResource(ctx context.Context, client, uri string) (json.RawMessage, error) {
-	return c.discovery.ReadResource(ctx, client, uri)
+	return c.resources.ReadResource(ctx, client, uri)
 }
 
 // ReadResourceAll reads a resource without client visibility checks.
 func (c *ControlPlane) ReadResourceAll(ctx context.Context, uri string) (json.RawMessage, error) {
-	return c.discovery.ReadResourceAll(ctx, uri)
+	return c.resources.ReadResourceAll(ctx, uri)
 }
 
 // ListPrompts lists prompts visible to a client.
 func (c *ControlPlane) ListPrompts(ctx context.Context, client string, cursor string) (domain.PromptPage, error) {
-	return c.discovery.ListPrompts(ctx, client, cursor)
+	return c.prompts.ListPrompts(ctx, client, cursor)
 }
 
 // ListPromptsAll lists prompts across all servers.
 func (c *ControlPlane) ListPromptsAll(ctx context.Context, cursor string) (domain.PromptPage, error) {
-	return c.discovery.ListPromptsAll(ctx, cursor)
+	return c.prompts.ListPromptsAll(ctx, cursor)
 }
 
 // WatchPrompts streams prompt snapshots for a client.
 func (c *ControlPlane) WatchPrompts(ctx context.Context, client string) (<-chan domain.PromptSnapshot, error) {
-	return c.discovery.WatchPrompts(ctx, client)
+	return c.prompts.WatchPrompts(ctx, client)
 }
 
 // GetPrompt resolves a prompt for a client.
 func (c *ControlPlane) GetPrompt(ctx context.Context, client, name string, args json.RawMessage) (json.RawMessage, error) {
-	return c.discovery.GetPrompt(ctx, client, name, args)
+	return c.prompts.GetPrompt(ctx, client, name, args)
 }
 
 // GetPromptAll resolves a prompt without client visibility checks.
 func (c *ControlPlane) GetPromptAll(ctx context.Context, name string, args json.RawMessage) (json.RawMessage, error) {
-	return c.discovery.GetPromptAll(ctx, name, args)
+	return c.prompts.GetPromptAll(ctx, name, args)
 }
 
 // StreamLogs streams logs for a client.
@@ -247,7 +252,7 @@ func (c *ControlPlane) IsSubAgentEnabled() bool {
 
 // GetToolSnapshotForClient returns the tool snapshot for a client.
 func (c *ControlPlane) GetToolSnapshotForClient(client string) (domain.ToolSnapshot, error) {
-	return c.discovery.GetToolSnapshotForClient(client)
+	return c.tools.GetToolSnapshotForClient(client)
 }
 
 // AutomaticMCP filters tools using the automatic MCP flow.

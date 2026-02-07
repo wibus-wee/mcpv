@@ -132,10 +132,12 @@ func newTestControlPlane(
 	runtimeState := runtime.NewStateFromSpecKeys(state.Summary.ServerSpecKeys)
 	controlState := NewState(ctx, runtimeState, scheduler, nil, nil, &state, zap.NewNop())
 	registry := NewClientRegistry(controlState)
-	discovery := NewDiscoveryService(controlState, registry)
+	tools := NewToolDiscoveryService(controlState, registry)
+	resources := NewResourceDiscoveryService(controlState, registry)
+	prompts := NewPromptDiscoveryService(controlState, registry)
 	observability := NewObservabilityService(controlState, registry, nil)
-	automation := NewAutomationService(controlState, registry, discovery)
-	return NewControlPlane(controlState, registry, discovery, observability, automation)
+	automation := NewAutomationService(controlState, registry, tools)
+	return NewControlPlane(controlState, registry, tools, resources, prompts, observability, automation)
 }
 
 type minReadyCall struct {

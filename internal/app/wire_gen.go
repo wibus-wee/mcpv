@@ -49,11 +49,13 @@ func InitializeApplication(ctx context.Context, cfg ServeConfig, logging Logging
 	manager := NewBootstrapManagerProvider(lifecycle, scheduler, catalogState, metadataCache, logger)
 	controlplaneState := provideControlPlaneState(ctx, state, catalogState, scheduler, serverInitializationManager, manager, logger)
 	clientRegistry := controlplane.NewClientRegistry(controlplaneState)
-	discoveryService := controlplane.NewDiscoveryService(controlplaneState, clientRegistry)
+	toolDiscoveryService := controlplane.NewToolDiscoveryService(controlplaneState, clientRegistry)
+	resourceDiscoveryService := controlplane.NewResourceDiscoveryService(controlplaneState, clientRegistry)
+	promptDiscoveryService := controlplane.NewPromptDiscoveryService(controlplaneState, clientRegistry)
 	logBroadcaster := NewLogBroadcaster(appLogging)
 	observabilityService := controlplane.NewObservabilityService(controlplaneState, clientRegistry, logBroadcaster)
-	automationService := controlplane.NewAutomationService(controlplaneState, clientRegistry, discoveryService)
-	controlPlane := controlplane.NewControlPlane(controlplaneState, clientRegistry, discoveryService, observabilityService, automationService)
+	automationService := controlplane.NewAutomationService(controlplaneState, clientRegistry, toolDiscoveryService)
+	controlPlane := controlplane.NewControlPlane(controlplaneState, clientRegistry, toolDiscoveryService, resourceDiscoveryService, promptDiscoveryService, observabilityService, automationService)
 	pluginManager, err := NewPluginManager(logger, metrics)
 	if err != nil {
 		return nil, err

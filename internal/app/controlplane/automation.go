@@ -17,19 +17,19 @@ const (
 )
 
 type AutomationService struct {
-	state     *State
-	registry  *ClientRegistry
-	discovery *DiscoveryService
-	subAgent  domain.SubAgent
-	cache     *domain.SessionCache
+	state    *State
+	registry *ClientRegistry
+	tools    *ToolDiscoveryService
+	subAgent domain.SubAgent
+	cache    *domain.SessionCache
 }
 
-func NewAutomationService(state *State, registry *ClientRegistry, discovery *DiscoveryService) *AutomationService {
+func NewAutomationService(state *State, registry *ClientRegistry, tools *ToolDiscoveryService) *AutomationService {
 	return &AutomationService{
-		state:     state,
-		registry:  registry,
-		discovery: discovery,
-		cache:     domain.NewSessionCache(defaultAutomaticMCPSessionTTL, defaultAutomaticMCPCacheSize),
+		state:    state,
+		registry: registry,
+		tools:    tools,
+		cache:    domain.NewSessionCache(defaultAutomaticMCPSessionTTL, defaultAutomaticMCPCacheSize),
 	}
 }
 
@@ -70,7 +70,7 @@ func (a *AutomationService) AutomaticMCP(ctx context.Context, client string, par
 }
 
 func (a *AutomationService) fallbackAutomaticMCP(ctx context.Context, client string, params domain.AutomaticMCPParams) (domain.AutomaticMCPResult, error) {
-	snapshot, err := a.discovery.ListTools(ctx, client)
+	snapshot, err := a.tools.ListTools(ctx, client)
 	if err != nil {
 		return domain.AutomaticMCPResult{}, err
 	}
@@ -111,11 +111,11 @@ func (a *AutomationService) AutomaticEval(ctx context.Context, client string, pa
 		return nil, err
 	}
 
-	return a.discovery.CallTool(ctx, client, params.ToolName, params.Arguments, params.RoutingKey)
+	return a.tools.CallTool(ctx, client, params.ToolName, params.Arguments, params.RoutingKey)
 }
 
 func (a *AutomationService) getToolDefinition(ctx context.Context, client, name string) (domain.ToolDefinition, error) {
-	snapshot, err := a.discovery.ListTools(ctx, client)
+	snapshot, err := a.tools.ListTools(ctx, client)
 	if err != nil {
 		return domain.ToolDefinition{}, err
 	}
