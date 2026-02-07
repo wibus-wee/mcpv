@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"mcpv/internal/domain"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestErrorStringFormatsDetails(t *testing.T) {
@@ -36,9 +38,7 @@ func TestMapDomainError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			uiErr := MapDomainError(tt.err)
-			if uiErr == nil {
-				t.Fatal("expected non-nil error")
-			}
+			require.NotNil(t, uiErr)
 			if uiErr.Code != tt.code {
 				t.Fatalf("expected code %s, got %s", tt.code, uiErr.Code)
 			}

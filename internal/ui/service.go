@@ -11,35 +11,35 @@ import (
 type ServiceRegistry struct {
 	deps *ServiceDeps
 
-	System    *SystemService
-	Core      *CoreService
-	Discovery *DiscoveryService
-	Log       *LogService
-	Config    *ConfigService
-	Server    *ServerService
-	Runtime   *RuntimeService
-	SubAgent  *SubAgentService
-	Proxy     *ProxyService
-	Debug     *DebugService
-	Plugin    *PluginService
+	System      *SystemService
+	Core        *CoreService
+	Discovery   *DiscoveryService
+	Log         *LogService
+	Config      *ConfigService
+	Server      *ServerService
+	Runtime     *RuntimeService
+	SubAgent    *SubAgentService
+	Proxy       *ProxyService
+	Debug       *DebugService
+	Plugin      *PluginService
 	McpTransfer *McpTransferService
 }
 
 func NewServiceRegistry(coreApp *app.App, logger *zap.Logger) *ServiceRegistry {
 	deps := NewServiceDeps(coreApp, logger)
 	return &ServiceRegistry{
-		deps:      deps,
-		System:    NewSystemService(deps),
-		Core:      NewCoreService(deps),
-		Discovery: NewDiscoveryService(deps),
-		Log:       NewLogService(deps),
-		Config:    NewConfigService(deps),
-		Server:    NewServerService(deps),
-		Runtime:   NewRuntimeService(deps),
-		SubAgent:  NewSubAgentService(deps),
-		Proxy:     NewProxyService(deps),
-		Debug:     NewDebugService(deps),
-		Plugin:    NewPluginService(deps),
+		deps:        deps,
+		System:      NewSystemService(deps),
+		Core:        NewCoreService(deps),
+		Discovery:   NewDiscoveryService(deps),
+		Log:         NewLogService(deps),
+		Config:      NewConfigService(deps),
+		Server:      NewServerService(deps),
+		Runtime:     NewRuntimeService(deps),
+		SubAgent:    NewSubAgentService(deps),
+		Proxy:       NewProxyService(deps),
+		Debug:       NewDebugService(deps),
+		Plugin:      NewPluginService(deps),
 		McpTransfer: NewMcpTransferService(deps),
 	}
 }

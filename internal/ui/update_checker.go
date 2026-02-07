@@ -162,7 +162,9 @@ func (c *UpdateChecker) run() {
 		}
 	}()
 
-	c.checkOnce(context.Background(), true)
+	if _, err := c.checkOnce(context.Background(), true); err != nil {
+		c.logger.Warn("initial update check failed", zap.Error(err))
+	}
 
 	for {
 		c.mu.RLock()
@@ -176,7 +178,9 @@ func (c *UpdateChecker) run() {
 
 		select {
 		case <-ticker.C:
-			c.checkOnce(context.Background(), true)
+			if _, err := c.checkOnce(context.Background(), true); err != nil {
+				c.logger.Warn("periodic update check failed", zap.Error(err))
+			}
 		case <-stop:
 			return
 		}
@@ -189,6 +193,7 @@ func (c *UpdateChecker) restartTicker(opts UpdateCheckOptions) {
 	stop := c.stop
 	c.ticker = nil
 	c.stop = nil
+	c.options = opts
 	c.mu.Unlock()
 
 	if ticker != nil {
@@ -265,7 +270,7 @@ func (c *UpdateChecker) checkOnce(ctx context.Context, notify bool) (UpdateCheck
 	}
 
 	result := UpdateCheckResult{
-		CurrentVersion: currentVersion,
+		CurrentVersion:  currentVersion,
 		UpdateAvailable: updateAvailable,
 	}
 	if updateAvailable {

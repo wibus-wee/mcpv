@@ -241,10 +241,10 @@ type McpTransferIssue struct {
 
 // McpTransferPreview describes the servers available for import.
 type McpTransferPreview struct {
-	Source  string                `json:"source"`
-	Path    string                `json:"path"`
-	Servers []ImportServerSpec    `json:"servers"`
-	Issues  []McpTransferIssue    `json:"issues,omitempty"`
+	Source  string             `json:"source"`
+	Path    string             `json:"path"`
+	Servers []ImportServerSpec `json:"servers"`
+	Issues  []McpTransferIssue `json:"issues,omitempty"`
 }
 
 // McpTransferImportResult reports the import outcome for a transfer.
