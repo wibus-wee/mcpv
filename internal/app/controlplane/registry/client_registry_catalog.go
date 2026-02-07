@@ -1,4 +1,4 @@
-package controlplane
+package registry
 
 import (
 	"context"
@@ -42,7 +42,7 @@ func (r *ClientRegistry) ApplyCatalogUpdate(ctx context.Context, update domain.C
 		return err
 	}
 	if err := r.deactivateSpecs(ctx, specsToStop); err != nil {
-		r.state.logger.Warn("spec deactivation failed", zap.Error(err))
+		r.state.Logger().Warn("spec deactivation failed", zap.Error(err))
 	}
 	r.broadcastActiveClients(finalizeActiveClientSnapshot(snapshot))
 	for _, client := range changedClients {

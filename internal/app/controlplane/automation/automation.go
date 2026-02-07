@@ -1,4 +1,4 @@
-package controlplane
+package automation
 
 import (
 	"context"
@@ -7,6 +7,8 @@ import (
 
 	"go.uber.org/zap"
 
+	"mcpv/internal/app/controlplane/discovery"
+	"mcpv/internal/app/controlplane/registry"
 	"mcpv/internal/domain"
 	"mcpv/internal/infra/mcpcodec"
 )
@@ -16,16 +18,16 @@ const (
 	defaultAutomaticMCPCacheSize  = 10000
 )
 
-type AutomationService struct {
-	state    *State
-	registry *ClientRegistry
-	tools    *ToolDiscoveryService
+type Service struct {
+	state    State
+	registry *registry.ClientRegistry
+	tools    *discovery.ToolDiscoveryService
 	subAgent domain.SubAgent
 	cache    *domain.SessionCache
 }
 
-func NewAutomationService(state *State, registry *ClientRegistry, tools *ToolDiscoveryService) *AutomationService {
-	return &AutomationService{
+func NewAutomationService(state State, registry *registry.ClientRegistry, tools *discovery.ToolDiscoveryService) *Service {
+	return &Service{
 		state:    state,
 		registry: registry,
 		tools:    tools,
@@ -34,21 +36,21 @@ func NewAutomationService(state *State, registry *ClientRegistry, tools *ToolDis
 }
 
 // SetSubAgent sets the active SubAgent implementation.
-func (a *AutomationService) SetSubAgent(agent domain.SubAgent) {
+func (a *Service) SetSubAgent(agent domain.SubAgent) {
 	a.subAgent = agent
 }
 
 // IsSubAgentEnabled reports whether SubAgent is enabled.
-func (a *AutomationService) IsSubAgentEnabled() bool {
+func (a *Service) IsSubAgentEnabled() bool {
 	return a.subAgent != nil
 }
 
 // IsSubAgentEnabledForClient reports whether SubAgent is enabled for a client.
-func (a *AutomationService) IsSubAgentEnabledForClient(client string) bool {
+func (a *Service) IsSubAgentEnabledForClient(client string) bool {
 	if a.subAgent == nil {
 		return false
 	}
-	tags, err := a.registry.resolveClientTags(client)
+	tags, err := a.registry.ResolveClientTags(client)
 	if err != nil {
 		return false
 	}
@@ -61,7 +63,7 @@ func (a *AutomationService) IsSubAgentEnabledForClient(client string) bool {
 }
 
 // AutomaticMCP filters tools using the automatic MCP flow.
-func (a *AutomationService) AutomaticMCP(ctx context.Context, client string, params domain.AutomaticMCPParams) (domain.AutomaticMCPResult, error) {
+func (a *Service) AutomaticMCP(ctx context.Context, client string, params domain.AutomaticMCPParams) (domain.AutomaticMCPResult, error) {
 	if a.subAgent != nil && a.IsSubAgentEnabledForClient(client) {
 		return a.subAgent.SelectToolsForClient(ctx, client, params)
 	}
@@ -69,7 +71,7 @@ func (a *AutomationService) AutomaticMCP(ctx context.Context, client string, par
 	return a.fallbackAutomaticMCP(ctx, client, params)
 }
 
-func (a *AutomationService) fallbackAutomaticMCP(ctx context.Context, client string, params domain.AutomaticMCPParams) (domain.AutomaticMCPResult, error) {
+func (a *Service) fallbackAutomaticMCP(ctx context.Context, client string, params domain.AutomaticMCPParams) (domain.AutomaticMCPResult, error) {
 	snapshot, err := a.tools.ListTools(ctx, client)
 	if err != nil {
 		return domain.AutomaticMCPResult{}, err
@@ -82,7 +84,7 @@ func (a *AutomationService) fallbackAutomaticMCP(ctx context.Context, client str
 	for _, tool := range snapshot.Tools {
 		hash, err := mcpcodec.HashToolDefinition(tool)
 		if err != nil {
-			a.state.logger.Warn("tool hash failed", zap.String("tool", tool.Name), zap.Error(err))
+			a.state.Logger().Warn("tool hash failed", zap.String("tool", tool.Name), zap.Error(err))
 			toolsToSend = append(toolsToSend, domain.CloneToolDefinition(tool))
 			continue
 		}
@@ -106,7 +108,7 @@ func (a *AutomationService) fallbackAutomaticMCP(ctx context.Context, client str
 }
 
 // AutomaticEval evaluates a tool call using the automatic MCP flow.
-func (a *AutomationService) AutomaticEval(ctx context.Context, client string, params domain.AutomaticEvalParams) (json.RawMessage, error) {
+func (a *Service) AutomaticEval(ctx context.Context, client string, params domain.AutomaticEvalParams) (json.RawMessage, error) {
 	if _, err := a.getToolDefinition(ctx, client, params.ToolName); err != nil {
 		return nil, err
 	}
@@ -114,7 +116,7 @@ func (a *AutomationService) AutomaticEval(ctx context.Context, client string, pa
 	return a.tools.CallTool(ctx, client, params.ToolName, params.Arguments, params.RoutingKey)
 }
 
-func (a *AutomationService) getToolDefinition(ctx context.Context, client, name string) (domain.ToolDefinition, error) {
+func (a *Service) getToolDefinition(ctx context.Context, client, name string) (domain.ToolDefinition, error) {
 	snapshot, err := a.tools.ListTools(ctx, client)
 	if err != nil {
 		return domain.ToolDefinition{}, err

@@ -65,7 +65,10 @@ func TestReloadManager_ApplyUpdate_UpdatesRuntimeAndRegistry(t *testing.T) {
 	require.Equal(t, nextState.Summary.SpecRegistry, scheduler.lastRegistry)
 
 	require.Contains(t, scheduler.minReadyCalls, reloadMinReadyCall{specKey: nextSpecKey, minReady: 2})
-	require.Equal(t, 1, registry.specCounts[nextSpecKey])
+	visibleKeys, err := registry.ResolveVisibleSpecKeys("client-1")
+	require.NoError(t, err)
+	require.Contains(t, visibleKeys, nextSpecKey)
+	require.NotContains(t, visibleKeys, prevSpecKey)
 }
 
 func TestReloadManager_ApplyUpdate_RemovesServer(t *testing.T) {

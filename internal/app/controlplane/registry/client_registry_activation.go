@@ -1,4 +1,4 @@
-package controlplane
+package registry
 
 import (
 	"context"
@@ -56,17 +56,19 @@ func (r *ClientRegistry) activateSpecs(ctx context.Context, specKeys []string, c
 	// Perform the actual start operations outside the lock.
 	for _, task := range tasks {
 		causeCtx := domain.WithStartCause(ctx, task.cause)
-		if r.state.initManager != nil {
-			err := r.state.initManager.SetMinReady(task.specKey, task.minReady, task.cause)
+		initManager := r.state.InitManager()
+		if initManager != nil {
+			err := initManager.SetMinReady(task.specKey, task.minReady, task.cause)
 			if err == nil {
 				continue
 			}
-			r.state.logger.Warn("server init manager failed to set min ready", zap.String("specKey", task.specKey), zap.Error(err))
+			r.state.Logger().Warn("server init manager failed to set min ready", zap.String("specKey", task.specKey), zap.Error(err))
 		}
-		if r.state.scheduler == nil {
+		scheduler := r.state.Scheduler()
+		if scheduler == nil {
 			return errors.New("scheduler not configured")
 		}
-		if err := r.state.scheduler.SetDesiredMinReady(causeCtx, task.specKey, task.minReady); err != nil {
+		if err := scheduler.SetDesiredMinReady(causeCtx, task.specKey, task.minReady); err != nil {
 			return err
 		}
 	}
@@ -100,16 +102,18 @@ func (r *ClientRegistry) deactivateSpecs(ctx context.Context, specKeys []string)
 
 	// Perform actual stop outside lock.
 	for _, specKey := range specsToStop {
-		if r.state.initManager != nil {
-			_ = r.state.initManager.SetMinReady(specKey, 0, domain.StartCause{})
+		initManager := r.state.InitManager()
+		if initManager != nil {
+			_ = initManager.SetMinReady(specKey, 0, domain.StartCause{})
 		}
-		if r.state.scheduler == nil {
+		scheduler := r.state.Scheduler()
+		if scheduler == nil {
 			if firstErr == nil {
 				firstErr = errors.New("scheduler not configured")
 			}
 			continue
 		}
-		if err := r.state.scheduler.StopSpec(ctx, specKey, "client inactive"); err != nil && firstErr == nil {
+		if err := scheduler.StopSpec(ctx, specKey, "client inactive"); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}

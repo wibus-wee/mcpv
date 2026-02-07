@@ -1,4 +1,4 @@
-package controlplane
+package observability
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"mcpv/internal/app/controlplane/registry"
 	"mcpv/internal/domain"
 	"mcpv/internal/infra/aggregator"
 	"mcpv/internal/infra/telemetry"
@@ -21,9 +22,9 @@ const (
 	serverInitRefreshInterval    = time.Second
 )
 
-type ObservabilityService struct {
-	state    *State
-	registry *ClientRegistry
+type Service struct {
+	state    State
+	registry *registry.ClientRegistry
 	logs     *telemetry.LogBroadcaster
 
 	runtimeStatusIdx           *aggregator.RuntimeStatusIndex
@@ -32,8 +33,8 @@ type ObservabilityService struct {
 	serverInitWorkerStarted    atomic.Bool
 }
 
-func NewObservabilityService(state *State, registry *ClientRegistry, logs *telemetry.LogBroadcaster) *ObservabilityService {
-	return &ObservabilityService{
+func NewObservabilityService(state State, registry *registry.ClientRegistry, logs *telemetry.LogBroadcaster) *Service {
+	return &Service{
 		state:    state,
 		registry: registry,
 		logs:     logs,
@@ -41,19 +42,19 @@ func NewObservabilityService(state *State, registry *ClientRegistry, logs *telem
 }
 
 // StreamLogs streams logs for a caller.
-func (o *ObservabilityService) StreamLogs(ctx context.Context, client string, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
-	if _, err := o.registry.resolveVisibleSpecKeys(client); err != nil {
+func (o *Service) StreamLogs(ctx context.Context, client string, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
+	if _, err := o.registry.ResolveVisibleSpecKeys(client); err != nil {
 		return closedLogEntryChannel(), err
 	}
 	return o.streamLogs(ctx, minLevel)
 }
 
 // StreamLogsAllServers streams logs across all servers.
-func (o *ObservabilityService) StreamLogsAllServers(ctx context.Context, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
+func (o *Service) StreamLogsAllServers(ctx context.Context, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
 	return o.streamLogs(ctx, minLevel)
 }
 
-func (o *ObservabilityService) streamLogs(ctx context.Context, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
+func (o *Service) streamLogs(ctx context.Context, minLevel domain.LogLevel) (<-chan domain.LogEntry, error) {
 	if o.logs == nil {
 		return closedLogEntryChannel(), nil
 	}
@@ -89,23 +90,26 @@ func (o *ObservabilityService) streamLogs(ctx context.Context, minLevel domain.L
 }
 
 // GetPoolStatus returns current pool status.
-func (o *ObservabilityService) GetPoolStatus(ctx context.Context) ([]domain.PoolInfo, error) {
-	if o.state.scheduler == nil {
+func (o *Service) GetPoolStatus(ctx context.Context) ([]domain.PoolInfo, error) {
+	scheduler := o.state.Scheduler()
+	if scheduler == nil {
 		return nil, nil
 	}
-	return o.state.scheduler.GetPoolStatus(ctx)
+	return scheduler.GetPoolStatus(ctx)
 }
 
 // GetServerInitStatus returns current server init statuses.
-func (o *ObservabilityService) GetServerInitStatus(ctx context.Context) ([]domain.ServerInitStatus, error) {
-	if o.state.initManager == nil {
+func (o *Service) GetServerInitStatus(ctx context.Context) ([]domain.ServerInitStatus, error) {
+	initManager := o.state.InitManager()
+	if initManager == nil {
 		return nil, nil
 	}
-	statuses := o.state.initManager.Statuses(ctx)
+	statuses := initManager.Statuses(ctx)
 
 	// Check bootstrap errors and mark failed servers
-	if o.state.bootstrapManager != nil {
-		progress := o.state.bootstrapManager.GetProgress()
+	bootstrapManager := o.state.BootstrapManager()
+	if bootstrapManager != nil {
+		progress := bootstrapManager.GetProgress()
 		if progress.State == domain.BootstrapFailed || len(progress.Errors) > 0 {
 			for i := range statuses {
 				if err, exists := progress.Errors[statuses[i].SpecKey]; exists && err != "" {
@@ -120,8 +124,8 @@ func (o *ObservabilityService) GetServerInitStatus(ctx context.Context) ([]domai
 }
 
 // WatchRuntimeStatus streams runtime status for a caller.
-func (o *ObservabilityService) WatchRuntimeStatus(ctx context.Context, client string) (<-chan domain.RuntimeStatusSnapshot, error) {
-	if _, err := o.registry.resolveVisibleSpecKeys(client); err != nil {
+func (o *Service) WatchRuntimeStatus(ctx context.Context, client string) (<-chan domain.RuntimeStatusSnapshot, error) {
+	if _, err := o.registry.ResolveVisibleSpecKeys(client); err != nil {
 		return closedRuntimeStatusChannel(), err
 	}
 	if o.runtimeStatusIdx == nil {
@@ -162,7 +166,7 @@ func (o *ObservabilityService) WatchRuntimeStatus(ctx context.Context, client st
 }
 
 // WatchRuntimeStatusAllServers streams runtime status across all servers.
-func (o *ObservabilityService) WatchRuntimeStatusAllServers(ctx context.Context) (<-chan domain.RuntimeStatusSnapshot, error) {
+func (o *Service) WatchRuntimeStatusAllServers(ctx context.Context) (<-chan domain.RuntimeStatusSnapshot, error) {
 	if o.runtimeStatusIdx == nil {
 		return closedRuntimeStatusChannel(), nil
 	}
@@ -170,8 +174,8 @@ func (o *ObservabilityService) WatchRuntimeStatusAllServers(ctx context.Context)
 }
 
 // WatchServerInitStatus streams server init status for a caller.
-func (o *ObservabilityService) WatchServerInitStatus(ctx context.Context, client string) (<-chan domain.ServerInitStatusSnapshot, error) {
-	if _, err := o.registry.resolveVisibleSpecKeys(client); err != nil {
+func (o *Service) WatchServerInitStatus(ctx context.Context, client string) (<-chan domain.ServerInitStatusSnapshot, error) {
+	if _, err := o.registry.ResolveVisibleSpecKeys(client); err != nil {
 		return closedServerInitStatusChannel(), err
 	}
 	if o.serverInitIdx == nil {
@@ -212,7 +216,7 @@ func (o *ObservabilityService) WatchServerInitStatus(ctx context.Context, client
 }
 
 // WatchServerInitStatusAllServers streams server init status across all servers.
-func (o *ObservabilityService) WatchServerInitStatusAllServers(ctx context.Context) (<-chan domain.ServerInitStatusSnapshot, error) {
+func (o *Service) WatchServerInitStatusAllServers(ctx context.Context) (<-chan domain.ServerInitStatusSnapshot, error) {
 	if o.serverInitIdx == nil {
 		return closedServerInitStatusChannel(), nil
 	}
@@ -220,7 +224,7 @@ func (o *ObservabilityService) WatchServerInitStatusAllServers(ctx context.Conte
 }
 
 // SetRuntimeStatusIndex updates the runtime status index.
-func (o *ObservabilityService) SetRuntimeStatusIndex(idx *aggregator.RuntimeStatusIndex) {
+func (o *Service) SetRuntimeStatusIndex(idx *aggregator.RuntimeStatusIndex) {
 	o.runtimeStatusIdx = idx
 	if idx == nil {
 		return
@@ -232,7 +236,7 @@ func (o *ObservabilityService) SetRuntimeStatusIndex(idx *aggregator.RuntimeStat
 }
 
 // SetServerInitIndex updates the server init status index.
-func (o *ObservabilityService) SetServerInitIndex(idx *aggregator.ServerInitIndex) {
+func (o *Service) SetServerInitIndex(idx *aggregator.ServerInitIndex) {
 	o.serverInitIdx = idx
 	if idx == nil {
 		return
@@ -243,33 +247,35 @@ func (o *ObservabilityService) SetServerInitIndex(idx *aggregator.ServerInitInde
 	go o.runServerInitWorker()
 }
 
-func (o *ObservabilityService) runRuntimeStatusWorker() {
+func (o *Service) runRuntimeStatusWorker() {
 	ticker := time.NewTicker(runtimeStatusRefreshInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
-		case <-o.state.ctx.Done():
+		case <-o.state.Context().Done():
 			return
 		case <-ticker.C:
-			if err := o.runtimeStatusIdx.Refresh(o.state.ctx); err != nil {
-				o.state.logger.Warn("runtime status refresh failed", zap.Error(err))
+			ctx := o.state.Context()
+			if err := o.runtimeStatusIdx.Refresh(ctx); err != nil {
+				o.state.Logger().Warn("runtime status refresh failed", zap.Error(err))
 			}
 		}
 	}
 }
 
-func (o *ObservabilityService) runServerInitWorker() {
+func (o *Service) runServerInitWorker() {
 	ticker := time.NewTicker(serverInitRefreshInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
-		case <-o.state.ctx.Done():
+		case <-o.state.Context().Done():
 			return
 		case <-ticker.C:
-			if err := o.serverInitIdx.Refresh(o.state.ctx); err != nil {
-				o.state.logger.Warn("server init status refresh failed", zap.Error(err))
+			ctx := o.state.Context()
+			if err := o.serverInitIdx.Refresh(ctx); err != nil {
+				o.state.Logger().Warn("server init status refresh failed", zap.Error(err))
 			}
 		}
 	}
@@ -329,8 +335,8 @@ func closedServerInitStatusChannel() chan domain.ServerInitStatusSnapshot {
 	return ch
 }
 
-func (o *ObservabilityService) sendFilteredRuntimeStatus(ch chan<- domain.RuntimeStatusSnapshot, client string, snapshot domain.RuntimeStatusSnapshot) {
-	visibleSpecKeys, err := o.registry.resolveVisibleSpecKeys(client)
+func (o *Service) sendFilteredRuntimeStatus(ch chan<- domain.RuntimeStatusSnapshot, client string, snapshot domain.RuntimeStatusSnapshot) {
+	visibleSpecKeys, err := o.registry.ResolveVisibleSpecKeys(client)
 	if err != nil {
 		return
 	}
@@ -341,8 +347,8 @@ func (o *ObservabilityService) sendFilteredRuntimeStatus(ch chan<- domain.Runtim
 	}
 }
 
-func (o *ObservabilityService) sendFilteredServerInitStatus(ch chan<- domain.ServerInitStatusSnapshot, client string, snapshot domain.ServerInitStatusSnapshot) {
-	visibleSpecKeys, err := o.registry.resolveVisibleSpecKeys(client)
+func (o *Service) sendFilteredServerInitStatus(ch chan<- domain.ServerInitStatusSnapshot, client string, snapshot domain.ServerInitStatusSnapshot) {
+	visibleSpecKeys, err := o.registry.ResolveVisibleSpecKeys(client)
 	if err != nil {
 		return
 	}

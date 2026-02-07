@@ -1,4 +1,4 @@
-package controlplane
+package registry
 
 import (
 	"context"
@@ -30,7 +30,7 @@ func (r *ClientRegistry) reapDeadClients(ctx context.Context) {
 
 	for _, client := range clients {
 		if err := r.UnregisterClient(ctx, client); err != nil {
-			r.state.logger.Warn("client reap failed", zap.String("client", client), zap.Error(err))
+			r.state.Logger().Warn("client reap failed", zap.String("client", client), zap.Error(err))
 		}
 	}
 }

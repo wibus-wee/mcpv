@@ -1,22 +1,25 @@
-package controlplane
+package discovery
 
-import "mcpv/internal/domain"
+import (
+	"mcpv/internal/app/controlplane/registry"
+	"mcpv/internal/domain"
+)
 
 type discoverySupport struct {
-	state    *State
-	registry *ClientRegistry
+	state    State
+	registry *registry.ClientRegistry
 }
 
-func newDiscoverySupport(state *State, registry *ClientRegistry) discoverySupport {
+func newDiscoverySupport(state State, registry *registry.ClientRegistry) discoverySupport {
 	return discoverySupport{state: state, registry: registry}
 }
 
 func (d discoverySupport) resolveClientServer(client string) (string, error) {
-	return d.registry.resolveClientServer(client)
+	return d.registry.ResolveClientServer(client)
 }
 
 func (d discoverySupport) resolveVisibleSpecKeys(client string) ([]string, error) {
-	return d.registry.resolveVisibleSpecKeys(client)
+	return d.registry.ResolveVisibleSpecKeys(client)
 }
 
 func (d discoverySupport) visibleServers(visibleSpecKeys []string) (map[string]struct{}, map[string]struct{}) {

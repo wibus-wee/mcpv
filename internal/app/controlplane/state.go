@@ -3,7 +3,6 @@ package controlplane
 import (
 	"context"
 	"sync"
-	"time"
 
 	"go.uber.org/zap"
 
@@ -63,14 +62,6 @@ func NewState(
 	}
 }
 
-type clientState struct {
-	pid           int
-	tags          []string
-	server        string
-	specKeys      []string
-	lastHeartbeat time.Time
-}
-
 func defaultControlPlaneInfo() domain.ControlPlaneInfo {
 	return domain.ControlPlaneInfo{
 		Name:    "mcpv",
@@ -123,6 +114,41 @@ func (s *State) Runtime() domain.RuntimeConfig {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.runtime
+}
+
+// Scheduler returns the configured scheduler.
+func (s *State) Scheduler() domain.Scheduler {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.scheduler
+}
+
+// InitManager returns the server initialization manager.
+func (s *State) InitManager() *bootstrap.ServerInitializationManager {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.initManager
+}
+
+// BootstrapManager returns the bootstrap manager.
+func (s *State) BootstrapManager() *bootstrap.Manager {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.bootstrapManager
+}
+
+// Logger returns the control plane logger.
+func (s *State) Logger() *zap.Logger {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.logger
+}
+
+// Context returns the control plane context.
+func (s *State) Context() context.Context {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.ctx
 }
 
 func copySpecRegistryMap(src map[string]domain.ServerSpec) map[string]domain.ServerSpec {

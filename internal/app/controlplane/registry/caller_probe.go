@@ -1,4 +1,4 @@
-package controlplane
+package registry
 
 type CallerProbe interface {
 	Alive(pid int) bool

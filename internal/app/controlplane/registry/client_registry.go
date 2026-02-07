@@ -1,4 +1,4 @@
-package controlplane
+package registry
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 )
 
 type ClientRegistry struct {
-	state    *State
+	state    State
 	resolver *VisibilityResolver
 	probe    CallerProbe
 
@@ -35,7 +35,7 @@ func isInternalClientName(client string) bool {
 	return client == domain.InternalUIClientName
 }
 
-func NewClientRegistry(state *State) *ClientRegistry {
+func NewClientRegistry(state State) *ClientRegistry {
 	return &ClientRegistry{
 		state:            state,
 		resolver:         NewVisibilityResolver(state),
@@ -64,7 +64,7 @@ func (r *ClientRegistry) StartMonitor(ctx context.Context) {
 	r.mu.Unlock()
 
 	if ctx == nil {
-		ctx = r.state.ctx
+		ctx = r.state.Context()
 	}
 	if ctx == nil {
 		ctx = context.Background()
@@ -188,7 +188,7 @@ func (r *ClientRegistry) RegisterClient(ctx context.Context, client string, pid 
 			return domain.ClientRegistration{}, err
 		}
 		if err := r.deactivateSpecs(ctx, toDeactivate); err != nil {
-			r.state.logger.Warn("spec deactivation failed", zap.Error(err))
+			r.state.Logger().Warn("spec deactivation failed", zap.Error(err))
 		}
 	}
 	if shouldBroadcast {
@@ -230,7 +230,7 @@ func (r *ClientRegistry) UnregisterClient(ctx context.Context, client string) er
 
 	if !internalClient {
 		if err := r.deactivateSpecs(ctx, toDeactivate); err != nil {
-			r.state.logger.Warn("spec deactivation failed", zap.Error(err))
+			r.state.Logger().Warn("spec deactivation failed", zap.Error(err))
 		}
 	}
 	if shouldBroadcast {

@@ -1,6 +1,6 @@
 //go:build darwin || linux
 
-package controlplane
+package registry
 
 import "syscall"
 

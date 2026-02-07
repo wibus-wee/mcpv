@@ -1,10 +1,11 @@
-package controlplane
+package discovery
 
 import (
 	"context"
 	"encoding/json"
 	"sort"
 
+	"mcpv/internal/app/controlplane/registry"
 	"mcpv/internal/domain"
 	"mcpv/internal/infra/hashutil"
 )
@@ -13,7 +14,7 @@ type PromptDiscoveryService struct {
 	discoverySupport
 }
 
-func NewPromptDiscoveryService(state *State, registry *ClientRegistry) *PromptDiscoveryService {
+func NewPromptDiscoveryService(state State, registry *registry.ClientRegistry) *PromptDiscoveryService {
 	return &PromptDiscoveryService{discoverySupport: newDiscoverySupport(state, registry)}
 }
 
@@ -202,7 +203,7 @@ func (d *PromptDiscoveryService) filterPromptSnapshot(snapshot domain.PromptSnap
 		return filtered[i].Name < filtered[j].Name
 	})
 	return domain.PromptSnapshot{
-		ETag:    hashutil.PromptETag(d.state.logger, filtered),
+		ETag:    hashutil.PromptETag(d.state.Logger(), filtered),
 		Prompts: filtered,
 	}
 }

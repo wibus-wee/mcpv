@@ -1,4 +1,4 @@
-package controlplane
+package registry
 
 import (
 	"sort"
@@ -8,10 +8,10 @@ import (
 )
 
 type VisibilityResolver struct {
-	state *State
+	state State
 }
 
-func NewVisibilityResolver(state *State) *VisibilityResolver {
+func NewVisibilityResolver(state State) *VisibilityResolver {
 	return &VisibilityResolver{state: state}
 }
 

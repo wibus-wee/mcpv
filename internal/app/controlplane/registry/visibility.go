@@ -1,4 +1,4 @@
-package controlplane
+package registry
 
 func isVisibleToTags(clientTags []string, serverTags []string) bool {
 	if len(serverTags) == 0 || len(clientTags) == 0 {

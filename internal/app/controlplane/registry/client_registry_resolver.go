@@ -1,4 +1,4 @@
-package controlplane
+package registry
 
 import (
 	"time"
@@ -6,7 +6,7 @@ import (
 	"mcpv/internal/domain"
 )
 
-func (r *ClientRegistry) resolveClientTags(client string) ([]string, error) {
+func (r *ClientRegistry) ResolveClientTags(client string) ([]string, error) {
 	state, ok := r.loadClientState(client)
 	if !ok {
 		return nil, domain.ErrClientNotRegistered
@@ -14,7 +14,7 @@ func (r *ClientRegistry) resolveClientTags(client string) ([]string, error) {
 	return append([]string(nil), state.tags...), nil
 }
 
-func (r *ClientRegistry) resolveClientServer(client string) (string, error) {
+func (r *ClientRegistry) ResolveClientServer(client string) (string, error) {
 	state, ok := r.loadClientState(client)
 	if !ok {
 		return "", domain.ErrClientNotRegistered
@@ -22,7 +22,7 @@ func (r *ClientRegistry) resolveClientServer(client string) (string, error) {
 	return state.server, nil
 }
 
-func (r *ClientRegistry) resolveVisibleSpecKeys(client string) ([]string, error) {
+func (r *ClientRegistry) ResolveVisibleSpecKeys(client string) ([]string, error) {
 	state, ok := r.loadClientState(client)
 	if !ok {
 		return nil, domain.ErrClientNotRegistered

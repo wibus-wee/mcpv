@@ -1,10 +1,11 @@
-package controlplane
+package discovery
 
 import (
 	"context"
 	"encoding/json"
 	"sort"
 
+	"mcpv/internal/app/controlplane/registry"
 	"mcpv/internal/domain"
 	"mcpv/internal/infra/hashutil"
 )
@@ -13,7 +14,7 @@ type ResourceDiscoveryService struct {
 	discoverySupport
 }
 
-func NewResourceDiscoveryService(state *State, registry *ClientRegistry) *ResourceDiscoveryService {
+func NewResourceDiscoveryService(state State, registry *registry.ClientRegistry) *ResourceDiscoveryService {
 	return &ResourceDiscoveryService{discoverySupport: newDiscoverySupport(state, registry)}
 }
 
@@ -202,7 +203,7 @@ func (d *ResourceDiscoveryService) filterResourceSnapshot(snapshot domain.Resour
 		return filtered[i].URI < filtered[j].URI
 	})
 	return domain.ResourceSnapshot{
-		ETag:      hashutil.ResourceETag(d.state.logger, filtered),
+		ETag:      hashutil.ResourceETag(d.state.Logger(), filtered),
 		Resources: filtered,
 	}
 }

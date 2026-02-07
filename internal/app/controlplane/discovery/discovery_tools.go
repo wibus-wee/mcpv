@@ -1,4 +1,4 @@
-package controlplane
+package discovery
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"mcpv/internal/app/controlplane/registry"
 	"mcpv/internal/domain"
 	"mcpv/internal/infra/hashutil"
 )
@@ -16,7 +17,7 @@ type ToolDiscoveryService struct {
 	discoverySupport
 }
 
-func NewToolDiscoveryService(state *State, registry *ClientRegistry) *ToolDiscoveryService {
+func NewToolDiscoveryService(state State, registry *registry.ClientRegistry) *ToolDiscoveryService {
 	return &ToolDiscoveryService{discoverySupport: newDiscoverySupport(state, registry)}
 }
 
@@ -79,7 +80,7 @@ func (d *ToolDiscoveryService) ListToolCatalog(_ context.Context) (domain.ToolCa
 		}
 	}
 
-	return buildToolCatalogSnapshot(d.state.logger, live, cached, cachedAt), nil
+	return buildToolCatalogSnapshot(d.state.Logger(), live, cached, cachedAt), nil
 }
 
 // WatchTools streams tool snapshots for a client.
@@ -257,7 +258,7 @@ func (d *ToolDiscoveryService) filterToolSnapshot(snapshot domain.ToolSnapshot, 
 		return filtered[i].ServerName < filtered[j].ServerName
 	})
 	return domain.ToolSnapshot{
-		ETag:  hashutil.ToolETag(d.state.logger, filtered),
+		ETag:  hashutil.ToolETag(d.state.Logger(), filtered),
 		Tools: filtered,
 	}
 }
@@ -301,7 +302,7 @@ func (d *ToolDiscoveryService) cachedToolSnapshotForServer(serverName string) do
 		return filtered[i].Name < filtered[j].Name
 	})
 	return domain.ToolSnapshot{
-		ETag:  hashutil.ToolETag(d.state.logger, filtered),
+		ETag:  hashutil.ToolETag(d.state.Logger(), filtered),
 		Tools: filtered,
 	}
 }
