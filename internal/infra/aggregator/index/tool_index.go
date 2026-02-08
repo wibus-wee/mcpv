@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
@@ -22,28 +21,8 @@ import (
 
 // ToolIndex aggregates tool metadata across specs and supports routing calls.
 type ToolIndex struct {
-	router               domain.Router
-	specs                map[string]domain.ServerSpec
-	specKeys             map[string]string
-	cfg                  domain.RuntimeConfig
-	metadataCache        *domain.MetadataCache
-	logger               *zap.Logger
-	health               *telemetry.HealthTracker
-	gate                 *core.RefreshGate
-	listChanges          core.ListChangeSubscriber
-	specsMu              sync.RWMutex
-	specKeySet           map[string]struct{}
-	bootstrapWaiter      core.BootstrapWaiter
-	bootstrapWaiterMu    sync.RWMutex
-	bootstrapRefreshOnce sync.Once
-	baseMu               sync.RWMutex
-	baseCtx              context.Context
-	baseCancel           context.CancelFunc
-	serverMu             sync.RWMutex
-	serverSnapshots      map[string]serverToolSnapshot
-
+	base       *BaseIndex[domain.ToolSnapshot, domain.ToolTarget, serverCache, serverToolSnapshot]
 	reqBuilder core.RequestBuilder
-	index      *core.GenericIndex[domain.ToolSnapshot, domain.ToolTarget, serverCache]
 }
 
 type serverCache struct {
@@ -59,78 +38,61 @@ type serverToolSnapshot struct {
 
 // NewToolIndex builds a ToolIndex for the provided runtime configuration.
 func NewToolIndex(rt domain.Router, specs map[string]domain.ServerSpec, specKeys map[string]string, cfg domain.RuntimeConfig, metadataCache *domain.MetadataCache, logger *zap.Logger, health *telemetry.HealthTracker, gate *core.RefreshGate, listChanges core.ListChangeSubscriber) *ToolIndex {
-	if logger == nil {
-		logger = zap.NewNop()
-	}
-	if specKeys == nil {
-		specKeys = map[string]string{}
-	}
-	toolIndex := &ToolIndex{
-		router:          rt,
-		specs:           specs,
-		specKeys:        specKeys,
-		cfg:             cfg,
-		metadataCache:   metadataCache,
-		logger:          logger.Named("tool_index"),
-		health:          health,
-		gate:            gate,
-		listChanges:     listChanges,
-		specKeySet:      core.SpecKeySet(specKeys),
-		serverSnapshots: map[string]serverToolSnapshot{},
-	}
-	toolIndex.index = core.NewGenericIndex(core.GenericIndexOptions[domain.ToolSnapshot, domain.ToolTarget, serverCache]{
+	toolIndex := &ToolIndex{}
+	hooks := BaseHooks[domain.ToolSnapshot, domain.ToolTarget, serverCache]{
 		Name:              "tool_index",
 		LogLabel:          "tool",
+		LoggerName:        "tool_index",
 		FetchErrorMessage: "tool list fetch failed",
-		Specs:             specs,
-		Config:            cfg,
-		Logger:            toolIndex.logger,
-		Health:            health,
-		Gate:              gate,
+		ListChangeKind:    domain.ListChangeTools,
+		ShouldStart:       func(cfg domain.RuntimeConfig) bool { return cfg.ExposeTools },
+		ShouldListChange:  func(cfg domain.RuntimeConfig) bool { return cfg.ExposeTools },
 		EmptySnapshot:     func() domain.ToolSnapshot { return domain.ToolSnapshot{} },
 		CopySnapshot:      copySnapshot,
 		SnapshotETag:      func(snapshot domain.ToolSnapshot) string { return snapshot.ETag },
 		BuildSnapshot:     toolIndex.buildSnapshot,
 		CacheETag:         func(cache serverCache) string { return cache.etag },
-		Fetch:             toolIndex.fetchServerCache,
+		FetchServerCache:  toolIndex.fetchServerCache,
 		OnRefreshError:    toolIndex.refreshErrorDecision,
-		ShouldStart:       func(cfg domain.RuntimeConfig) bool { return cfg.ExposeTools },
-	})
+	}
+	toolIndex.base = NewBaseIndex[domain.ToolSnapshot, domain.ToolTarget, serverCache, serverToolSnapshot](
+		rt,
+		specs,
+		specKeys,
+		cfg,
+		metadataCache,
+		logger,
+		health,
+		gate,
+		listChanges,
+		hooks,
+	)
 	return toolIndex
 }
 
 // Start begins periodic refresh and list change tracking.
 func (a *ToolIndex) Start(ctx context.Context) {
-	baseCtx := a.setBaseContext(ctx)
-	a.index.Start(baseCtx)
-	a.startListChangeListener(baseCtx)
-	a.startBootstrapRefresh(baseCtx)
+	a.base.Start(ctx)
 }
 
 // Stop halts refresh activity and cancels bootstrap waits.
 func (a *ToolIndex) Stop() {
-	a.index.Stop()
-	a.clearBaseContext()
+	a.base.Stop()
 }
 
 // Refresh fetches tool metadata on demand.
 func (a *ToolIndex) Refresh(ctx context.Context) error {
-	return a.index.Refresh(ctx)
+	return a.base.Refresh(ctx)
 }
 
 // Snapshot returns the latest tool snapshot.
 func (a *ToolIndex) Snapshot() domain.ToolSnapshot {
-	return a.index.Snapshot()
+	return a.base.Snapshot()
 }
 
 // SnapshotForServer returns the latest tool snapshot for a server.
 func (a *ToolIndex) SnapshotForServer(serverName string) (domain.ToolSnapshot, bool) {
-	if serverName == "" {
-		return domain.ToolSnapshot{}, false
-	}
-	a.serverMu.RLock()
-	entry, ok := a.serverSnapshots[serverName]
-	a.serverMu.RUnlock()
+	entry, ok := a.base.SnapshotForServer(serverName)
 	if !ok {
 		return domain.ToolSnapshot{}, false
 	}
@@ -139,11 +101,8 @@ func (a *ToolIndex) SnapshotForServer(serverName string) (domain.ToolSnapshot, b
 
 // CachedSnapshot builds a snapshot from metadata cache without touching live instances.
 func (a *ToolIndex) CachedSnapshot() domain.ToolSnapshot {
-	a.specsMu.RLock()
-	specs := a.specs
-	cfg := a.cfg
-	a.specsMu.RUnlock()
-	if a.metadataCache == nil || !cfg.ExposeTools {
+	specs, _, cfg := a.base.SpecsSnapshot()
+	if a.base.MetadataCache() == nil || !cfg.ExposeTools {
 		return domain.ToolSnapshot{}
 	}
 
@@ -168,12 +127,12 @@ func (a *ToolIndex) CachedSnapshot() domain.ToolSnapshot {
 
 // Subscribe streams tool snapshot updates.
 func (a *ToolIndex) Subscribe(ctx context.Context) <-chan domain.ToolSnapshot {
-	return a.index.Subscribe(ctx)
+	return a.base.Subscribe(ctx)
 }
 
 // Resolve locates a tool target by name.
 func (a *ToolIndex) Resolve(name string) (domain.ToolTarget, bool) {
-	return a.index.Resolve(name)
+	return a.base.Resolve(name)
 }
 
 // ResolveForServer locates a tool target for a server by raw tool name.
@@ -181,9 +140,7 @@ func (a *ToolIndex) ResolveForServer(serverName, toolName string) (domain.ToolTa
 	if serverName == "" || toolName == "" {
 		return domain.ToolTarget{}, false
 	}
-	a.serverMu.RLock()
-	entry, ok := a.serverSnapshots[serverName]
-	a.serverMu.RUnlock()
+	entry, ok := a.base.SnapshotForServer(serverName)
 	if !ok {
 		return domain.ToolTarget{}, false
 	}
@@ -193,20 +150,13 @@ func (a *ToolIndex) ResolveForServer(serverName, toolName string) (domain.ToolTa
 
 // SetBootstrapWaiter registers a bootstrap completion hook.
 func (a *ToolIndex) SetBootstrapWaiter(waiter core.BootstrapWaiter) {
-	a.bootstrapWaiterMu.Lock()
-	a.bootstrapWaiter = waiter
-	a.bootstrapWaiterMu.Unlock()
-	if baseCtx := a.baseContext(); baseCtx != nil {
-		a.startBootstrapRefresh(baseCtx)
-	}
+	a.base.SetBootstrapWaiter(waiter)
 }
 
 // CallTool routes a tool call to the owning server.
 func (a *ToolIndex) CallTool(ctx context.Context, name string, args json.RawMessage, routingKey string) (json.RawMessage, error) {
 	// Wait for bootstrap completion if needed
-	a.bootstrapWaiterMu.RLock()
-	waiter := a.bootstrapWaiter
-	a.bootstrapWaiterMu.RUnlock()
+	waiter := a.base.Waiter()
 
 	if waiter != nil {
 		// Create context with 60s timeout for bootstrap wait
@@ -235,7 +185,7 @@ func (a *ToolIndex) CallTool(ctx context.Context, name string, args json.RawMess
 		return nil, err
 	}
 
-	resp, err := a.router.Route(ctx, target.ServerType, target.SpecKey, routingKey, payload)
+	resp, err := a.base.Router().Route(ctx, target.ServerType, target.SpecKey, routingKey, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +213,7 @@ func (a *ToolIndex) CallToolForServer(ctx context.Context, serverName, toolName 
 		return nil, err
 	}
 
-	resp, err := a.router.Route(ctx, target.ServerType, target.SpecKey, routingKey, payload)
+	resp, err := a.base.Router().Route(ctx, target.ServerType, target.SpecKey, routingKey, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -277,155 +227,25 @@ func (a *ToolIndex) CallToolForServer(ctx context.Context, serverName, toolName 
 
 // UpdateSpecs replaces the registry backing the tool index.
 func (a *ToolIndex) UpdateSpecs(specs map[string]domain.ServerSpec, specKeys map[string]string, cfg domain.RuntimeConfig) {
-	if specKeys == nil {
-		specKeys = map[string]string{}
-	}
-	specsCopy := core.CopyServerSpecs(specs)
-	specKeysCopy := core.CopySpecKeys(specKeys)
-	specKeySetCopy := core.SpecKeySet(specKeysCopy)
-
-	a.specsMu.Lock()
-	a.specs = specsCopy
-	a.specKeys = specKeysCopy
-	a.specKeySet = specKeySetCopy
-	a.cfg = cfg
-	a.specsMu.Unlock()
-	a.index.UpdateSpecs(specsCopy, cfg)
+	a.base.UpdateSpecs(specs, specKeys, cfg)
 }
 
 // ApplyRuntimeConfig updates runtime configuration and refresh scheduling.
 func (a *ToolIndex) ApplyRuntimeConfig(cfg domain.RuntimeConfig) {
-	a.specsMu.Lock()
-	prevCfg := a.cfg
-	specsCopy := core.CopyServerSpecs(a.specs)
-	a.cfg = cfg
-	a.specsMu.Unlock()
-	a.index.UpdateSpecs(specsCopy, cfg)
-
-	baseCtx := a.baseContext()
-	if baseCtx == nil {
-		return
-	}
-	if prevCfg.ToolRefreshInterval() != cfg.ToolRefreshInterval() || prevCfg.ExposeTools != cfg.ExposeTools {
-		a.index.Stop()
-		a.index.Start(baseCtx)
-	}
-	if !prevCfg.ExposeTools && cfg.ExposeTools {
-		a.startListChangeListener(baseCtx)
-	}
+	a.base.ApplyRuntimeConfig(cfg)
 }
 
 func (a *ToolIndex) refresh(ctx context.Context) error {
-	return a.index.Refresh(ctx)
-}
-
-func (a *ToolIndex) startListChangeListener(ctx context.Context) {
-	if a.listChanges == nil {
-		return
-	}
-	a.specsMu.RLock()
-	exposeTools := a.cfg.ExposeTools
-	a.specsMu.RUnlock()
-	if !exposeTools {
-		return
-	}
-	ch := a.listChanges.Subscribe(ctx, domain.ListChangeTools)
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case event, ok := <-ch:
-				if !ok {
-					return
-				}
-				a.specsMu.RLock()
-				exposeTools := a.cfg.ExposeTools
-				specs := a.specs
-				specKeySet := a.specKeySet
-				a.specsMu.RUnlock()
-				if !exposeTools {
-					continue
-				}
-				if !core.ListChangeApplies(specs, specKeySet, event) {
-					continue
-				}
-				if err := a.index.Refresh(ctx); err != nil {
-					a.logger.Warn("tool refresh after list change failed", zap.Error(err))
-				}
-			}
-		}
-	}()
-}
-
-func (a *ToolIndex) startBootstrapRefresh(ctx context.Context) {
-	a.bootstrapWaiterMu.RLock()
-	waiter := a.bootstrapWaiter
-	a.bootstrapWaiterMu.RUnlock()
-	if waiter == nil {
-		return
-	}
-	if ctx == nil {
-		return
-	}
-	a.bootstrapRefreshOnce.Do(func() {
-		go func() {
-			if err := waiter(ctx); err != nil {
-				a.logger.Warn("tool bootstrap wait failed", zap.Error(err))
-				return
-			}
-
-			a.specsMu.RLock()
-			cfg := a.cfg
-			a.specsMu.RUnlock()
-			refreshCtx, cancel := core.WithRefreshTimeout(ctx, cfg)
-			defer cancel()
-			if err := a.index.Refresh(refreshCtx); err != nil {
-				a.logger.Warn("tool refresh after bootstrap failed", zap.Error(err))
-			}
-		}()
-	})
-}
-
-func (a *ToolIndex) setBaseContext(ctx context.Context) context.Context {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	a.baseMu.Lock()
-	if a.baseCtx == nil {
-		baseCtx, cancel := context.WithCancel(ctx)
-		a.baseCtx = baseCtx
-		a.baseCancel = cancel
-	}
-	baseCtx := a.baseCtx
-	a.baseMu.Unlock()
-	return baseCtx
-}
-
-func (a *ToolIndex) baseContext() context.Context {
-	a.baseMu.RLock()
-	defer a.baseMu.RUnlock()
-	return a.baseCtx
-}
-
-func (a *ToolIndex) clearBaseContext() {
-	a.baseMu.Lock()
-	if a.baseCancel != nil {
-		a.baseCancel()
-	}
-	a.baseCtx = nil
-	a.baseCancel = nil
-	a.baseMu.Unlock()
+	return a.base.Refresh(ctx)
 }
 
 func (a *ToolIndex) buildSnapshot(cache map[string]serverCache) (domain.ToolSnapshot, map[string]domain.ToolTarget) {
 	merged := make([]domain.ToolDefinition, 0)
 	targets := make(map[string]domain.ToolTarget)
 	serverSnapshots := make(map[string]serverToolSnapshot, len(cache))
-	a.specsMu.RLock()
-	specs := a.specs
-	strategy := a.cfg.ToolNamespaceStrategy
-	a.specsMu.RUnlock()
+	specs, _, cfg := a.base.SpecsSnapshot()
+	strategy := cfg.ToolNamespaceStrategy
+	logger := a.base.Logger()
 
 	serverTypes := core.SortedServerTypes(cache)
 	for _, serverType := range serverTypes {
@@ -442,7 +262,7 @@ func (a *ToolIndex) buildSnapshot(cache map[string]serverCache) (domain.ToolSnap
 			targets: copyToolTargets(server.targets),
 		}
 		if spec.Name == "" {
-			a.logger.Warn("tool snapshot skipped: missing server name", zap.String("serverType", serverType))
+			logger.Warn("tool snapshot skipped: missing server name", zap.String("serverType", serverType))
 		} else {
 			serverSnapshots[spec.Name] = snapshot
 		}
@@ -455,17 +275,17 @@ func (a *ToolIndex) buildSnapshot(cache map[string]serverCache) (domain.ToolSnap
 
 			if existing, exists := targets[displayName]; exists {
 				if strategy != domain.ToolNamespaceStrategyFlat {
-					a.logger.Warn("tool name conflict", zap.String("serverType", serverType), zap.String("tool", tool.Name))
+					logger.Warn("tool name conflict", zap.String("serverType", serverType), zap.String("tool", tool.Name))
 					continue
 				}
 				resolvedName, err := a.resolveFlatConflict(displayName, serverType, targets)
 				if err != nil {
-					a.logger.Warn("tool conflict resolution failed", zap.String("serverType", serverType), zap.String("tool", tool.Name), zap.Error(err))
+					logger.Warn("tool conflict resolution failed", zap.String("serverType", serverType), zap.String("tool", tool.Name), zap.Error(err))
 					continue
 				}
 				renamed, err := renameToolDefinition(toolDef, resolvedName)
 				if err != nil {
-					a.logger.Warn("tool rename failed", zap.String("serverType", serverType), zap.String("tool", tool.Name), zap.Error(err))
+					logger.Warn("tool rename failed", zap.String("serverType", serverType), zap.String("tool", tool.Name), zap.Error(err))
 					continue
 				}
 				toolDef = renamed
@@ -487,18 +307,12 @@ func (a *ToolIndex) buildSnapshot(cache map[string]serverCache) (domain.ToolSnap
 
 	sort.Slice(merged, func(i, j int) bool { return merged[i].Name < merged[j].Name })
 
-	a.storeServerSnapshots(serverSnapshots)
+	a.base.StoreServerSnapshots(serverSnapshots)
 
 	return domain.ToolSnapshot{
 		ETag:  a.hashTools(merged),
 		Tools: merged,
 	}, targets
-}
-
-func (a *ToolIndex) storeServerSnapshots(snapshots map[string]serverToolSnapshot) {
-	a.serverMu.Lock()
-	a.serverSnapshots = snapshots
-	a.serverMu.Unlock()
 }
 
 func copyToolTargets(in map[string]domain.ToolTarget) map[string]domain.ToolTarget {
@@ -552,14 +366,16 @@ func (a *ToolIndex) fetchServerCache(ctx context.Context, serverType string, spe
 }
 
 func (a *ToolIndex) cachedServerCache(serverType string, spec domain.ServerSpec) (serverCache, bool) {
-	if a.metadataCache == nil {
+	metadataCache := a.base.MetadataCache()
+	if metadataCache == nil {
 		return serverCache{}, false
 	}
-	specKey := a.specKeys[serverType]
+	_, specKeys, _ := a.base.SpecsSnapshot()
+	specKey := specKeys[serverType]
 	if specKey == "" {
 		return serverCache{}, false
 	}
-	tools, ok := a.metadataCache.GetTools(specKey)
+	tools, ok := metadataCache.GetTools(specKey)
 	if !ok {
 		return serverCache{}, false
 	}
@@ -567,6 +383,7 @@ func (a *ToolIndex) cachedServerCache(serverType string, spec domain.ServerSpec)
 	allowed := allowedTools(spec)
 	result := make([]domain.ToolDefinition, 0, len(tools))
 	targets := make(map[string]domain.ToolTarget)
+	logger := a.base.Logger()
 
 	for _, tool := range tools {
 		if tool.Name == "" {
@@ -576,11 +393,11 @@ func (a *ToolIndex) cachedServerCache(serverType string, spec domain.ServerSpec)
 			continue
 		}
 		if !mcpcodec.IsObjectSchema(tool.InputSchema) {
-			a.logger.Warn("skip cached tool with invalid input schema", zap.String("serverType", serverType), zap.String("tool", tool.Name))
+			logger.Warn("skip cached tool with invalid input schema", zap.String("serverType", serverType), zap.String("tool", tool.Name))
 			continue
 		}
 		if tool.OutputSchema != nil && !mcpcodec.IsObjectSchema(tool.OutputSchema) {
-			a.logger.Warn("skip cached tool with invalid output schema", zap.String("serverType", serverType), zap.String("tool", tool.Name))
+			logger.Warn("skip cached tool with invalid output schema", zap.String("serverType", serverType), zap.String("tool", tool.Name))
 			continue
 		}
 
@@ -602,7 +419,8 @@ func (a *ToolIndex) cachedServerCache(serverType string, spec domain.ServerSpec)
 }
 
 func (a *ToolIndex) fetchServerTools(ctx context.Context, serverType string, spec domain.ServerSpec) ([]domain.ToolDefinition, map[string]domain.ToolTarget, error) {
-	specKey := a.specKeys[serverType]
+	_, specKeys, _ := a.base.SpecsSnapshot()
+	specKey := specKeys[serverType]
 	if specKey == "" {
 		return nil, nil, fmt.Errorf("missing spec key for server type %q", serverType)
 	}
@@ -614,6 +432,7 @@ func (a *ToolIndex) fetchServerTools(ctx context.Context, serverType string, spe
 	allowed := allowedTools(spec)
 	result := make([]domain.ToolDefinition, 0, len(tools))
 	targets := make(map[string]domain.ToolTarget)
+	logger := a.base.Logger()
 
 	for _, tool := range tools {
 		if tool == nil {
@@ -626,11 +445,11 @@ func (a *ToolIndex) fetchServerTools(ctx context.Context, serverType string, spe
 			continue
 		}
 		if !mcpcodec.IsObjectSchema(tool.InputSchema) {
-			a.logger.Warn("skip tool with invalid input schema", zap.String("serverType", serverType), zap.String("tool", tool.Name))
+			logger.Warn("skip tool with invalid input schema", zap.String("serverType", serverType), zap.String("tool", tool.Name))
 			continue
 		}
 		if tool.OutputSchema != nil && !mcpcodec.IsObjectSchema(tool.OutputSchema) {
-			a.logger.Warn("skip tool with invalid output schema", zap.String("serverType", serverType), zap.String("tool", tool.Name))
+			logger.Warn("skip tool with invalid output schema", zap.String("serverType", serverType), zap.String("tool", tool.Name))
 			continue
 		}
 
@@ -661,7 +480,7 @@ func (a *ToolIndex) fetchTools(ctx context.Context, serverType, specKey string) 
 			return nil, err
 		}
 
-		resp, err := a.router.RouteWithOptions(ctx, serverType, specKey, "", payload, domain.RouteOptions{AllowStart: false})
+		resp, err := a.base.Router().RouteWithOptions(ctx, serverType, specKey, "", payload, domain.RouteOptions{AllowStart: false})
 		if err != nil {
 			return nil, err
 		}
@@ -808,7 +627,7 @@ func marshalToolResult(result *mcp.CallToolResult) (json.RawMessage, error) {
 }
 
 func (a *ToolIndex) hashTools(tools []domain.ToolDefinition) string {
-	return hashutil.ToolETag(a.logger, tools)
+	return hashutil.ToolETag(a.base.Logger(), tools)
 }
 
 func copySnapshot(snapshot domain.ToolSnapshot) domain.ToolSnapshot {

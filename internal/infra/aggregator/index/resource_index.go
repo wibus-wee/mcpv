@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -21,28 +20,8 @@ import (
 
 // ResourceIndex aggregates resource metadata across specs and supports reads.
 type ResourceIndex struct {
-	router               domain.Router
-	specs                map[string]domain.ServerSpec
-	specKeys             map[string]string
-	cfg                  domain.RuntimeConfig
-	metadataCache        *domain.MetadataCache
-	logger               *zap.Logger
-	health               *telemetry.HealthTracker
-	gate                 *core.RefreshGate
-	listChanges          core.ListChangeSubscriber
-	specsMu              sync.RWMutex
-	specKeySet           map[string]struct{}
-	bootstrapWaiter      core.BootstrapWaiter
-	bootstrapWaiterMu    sync.RWMutex
-	bootstrapRefreshOnce sync.Once
-	baseMu               sync.RWMutex
-	baseCtx              context.Context
-	baseCancel           context.CancelFunc
-	serverMu             sync.RWMutex
-	serverSnapshots      map[string]serverResourceSnapshot
-
+	base       *BaseIndex[domain.ResourceSnapshot, domain.ResourceTarget, resourceCache, serverResourceSnapshot]
 	reqBuilder core.RequestBuilder
-	index      *core.GenericIndex[domain.ResourceSnapshot, domain.ResourceTarget, resourceCache]
 }
 
 type resourceCache struct {
@@ -58,78 +37,61 @@ type serverResourceSnapshot struct {
 
 // NewResourceIndex builds a ResourceIndex for the provided runtime configuration.
 func NewResourceIndex(rt domain.Router, specs map[string]domain.ServerSpec, specKeys map[string]string, cfg domain.RuntimeConfig, metadataCache *domain.MetadataCache, logger *zap.Logger, health *telemetry.HealthTracker, gate *core.RefreshGate, listChanges core.ListChangeSubscriber) *ResourceIndex {
-	if logger == nil {
-		logger = zap.NewNop()
-	}
-	if specKeys == nil {
-		specKeys = map[string]string{}
-	}
-	resourceIndex := &ResourceIndex{
-		router:          rt,
-		specs:           specs,
-		specKeys:        specKeys,
-		cfg:             cfg,
-		metadataCache:   metadataCache,
-		logger:          logger.Named("resource_index"),
-		health:          health,
-		gate:            gate,
-		listChanges:     listChanges,
-		specKeySet:      core.SpecKeySet(specKeys),
-		serverSnapshots: map[string]serverResourceSnapshot{},
-	}
-	resourceIndex.index = core.NewGenericIndex(core.GenericIndexOptions[domain.ResourceSnapshot, domain.ResourceTarget, resourceCache]{
+	resourceIndex := &ResourceIndex{}
+	hooks := BaseHooks[domain.ResourceSnapshot, domain.ResourceTarget, resourceCache]{
 		Name:              "resource_index",
 		LogLabel:          "resource",
+		LoggerName:        "resource_index",
 		FetchErrorMessage: "resource list fetch failed",
-		Specs:             specs,
-		Config:            cfg,
-		Logger:            resourceIndex.logger,
-		Health:            health,
-		Gate:              gate,
+		ListChangeKind:    domain.ListChangeResources,
+		ShouldStart:       func(domain.RuntimeConfig) bool { return true },
+		ShouldListChange:  func(domain.RuntimeConfig) bool { return true },
 		EmptySnapshot:     func() domain.ResourceSnapshot { return domain.ResourceSnapshot{} },
 		CopySnapshot:      copyResourceSnapshot,
 		SnapshotETag:      func(snapshot domain.ResourceSnapshot) string { return snapshot.ETag },
 		BuildSnapshot:     resourceIndex.buildSnapshot,
 		CacheETag:         func(cache resourceCache) string { return cache.etag },
-		Fetch:             resourceIndex.fetchServerCache,
+		FetchServerCache:  resourceIndex.fetchServerCache,
 		OnRefreshError:    resourceIndex.refreshErrorDecision,
-		ShouldStart:       func(domain.RuntimeConfig) bool { return true },
-	})
+	}
+	resourceIndex.base = NewBaseIndex[domain.ResourceSnapshot, domain.ResourceTarget, resourceCache, serverResourceSnapshot](
+		rt,
+		specs,
+		specKeys,
+		cfg,
+		metadataCache,
+		logger,
+		health,
+		gate,
+		listChanges,
+		hooks,
+	)
 	return resourceIndex
 }
 
 // Start begins periodic refresh and list change tracking.
 func (a *ResourceIndex) Start(ctx context.Context) {
-	baseCtx := a.setBaseContext(ctx)
-	a.index.Start(baseCtx)
-	a.startListChangeListener(baseCtx)
-	a.startBootstrapRefresh(baseCtx)
+	a.base.Start(ctx)
 }
 
 // Stop halts refresh activity and cancels bootstrap waits.
 func (a *ResourceIndex) Stop() {
-	a.index.Stop()
-	a.clearBaseContext()
+	a.base.Stop()
 }
 
 // Refresh fetches resource metadata on demand.
 func (a *ResourceIndex) Refresh(ctx context.Context) error {
-	return a.index.Refresh(ctx)
+	return a.base.Refresh(ctx)
 }
 
 // Snapshot returns the latest resource snapshot.
 func (a *ResourceIndex) Snapshot() domain.ResourceSnapshot {
-	return a.index.Snapshot()
+	return a.base.Snapshot()
 }
 
 // SnapshotForServer returns the latest resource snapshot for a server.
 func (a *ResourceIndex) SnapshotForServer(serverName string) (domain.ResourceSnapshot, bool) {
-	if serverName == "" {
-		return domain.ResourceSnapshot{}, false
-	}
-	a.serverMu.RLock()
-	entry, ok := a.serverSnapshots[serverName]
-	a.serverMu.RUnlock()
+	entry, ok := a.base.SnapshotForServer(serverName)
 	if !ok {
 		return domain.ResourceSnapshot{}, false
 	}
@@ -138,12 +100,12 @@ func (a *ResourceIndex) SnapshotForServer(serverName string) (domain.ResourceSna
 
 // Subscribe streams resource snapshot updates.
 func (a *ResourceIndex) Subscribe(ctx context.Context) <-chan domain.ResourceSnapshot {
-	return a.index.Subscribe(ctx)
+	return a.base.Subscribe(ctx)
 }
 
 // Resolve locates a resource target by URI.
 func (a *ResourceIndex) Resolve(uri string) (domain.ResourceTarget, bool) {
-	return a.index.Resolve(uri)
+	return a.base.Resolve(uri)
 }
 
 // ResolveForServer locates a resource target for a server by URI.
@@ -151,9 +113,7 @@ func (a *ResourceIndex) ResolveForServer(serverName, uri string) (domain.Resourc
 	if serverName == "" || uri == "" {
 		return domain.ResourceTarget{}, false
 	}
-	a.serverMu.RLock()
-	entry, ok := a.serverSnapshots[serverName]
-	a.serverMu.RUnlock()
+	entry, ok := a.base.SnapshotForServer(serverName)
 	if !ok {
 		return domain.ResourceTarget{}, false
 	}
@@ -163,20 +123,13 @@ func (a *ResourceIndex) ResolveForServer(serverName, uri string) (domain.Resourc
 
 // SetBootstrapWaiter registers a bootstrap completion hook.
 func (a *ResourceIndex) SetBootstrapWaiter(waiter core.BootstrapWaiter) {
-	a.bootstrapWaiterMu.Lock()
-	a.bootstrapWaiter = waiter
-	a.bootstrapWaiterMu.Unlock()
-	if baseCtx := a.baseContext(); baseCtx != nil {
-		a.startBootstrapRefresh(baseCtx)
-	}
+	a.base.SetBootstrapWaiter(waiter)
 }
 
 // ReadResource routes a resource read to the owning server.
 func (a *ResourceIndex) ReadResource(ctx context.Context, uri string) (json.RawMessage, error) {
 	// Wait for bootstrap completion if needed
-	a.bootstrapWaiterMu.RLock()
-	waiter := a.bootstrapWaiter
-	a.bootstrapWaiterMu.RUnlock()
+	waiter := a.base.Waiter()
 
 	if waiter != nil {
 		// Create context with 60s timeout for bootstrap wait
@@ -204,7 +157,7 @@ func (a *ResourceIndex) ReadResource(ctx context.Context, uri string) (json.RawM
 		return nil, err
 	}
 
-	resp, err := a.router.Route(ctx, target.ServerType, target.SpecKey, "", payload)
+	resp, err := a.base.Router().Route(ctx, target.ServerType, target.SpecKey, "", payload)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +184,7 @@ func (a *ResourceIndex) ReadResourceForServer(ctx context.Context, serverName, u
 		return nil, err
 	}
 
-	resp, err := a.router.Route(ctx, target.ServerType, target.SpecKey, "", payload)
+	resp, err := a.base.Router().Route(ctx, target.ServerType, target.SpecKey, "", payload)
 	if err != nil {
 		return nil, err
 	}
@@ -245,146 +198,20 @@ func (a *ResourceIndex) ReadResourceForServer(ctx context.Context, serverName, u
 
 // UpdateSpecs replaces the registry backing the resource index.
 func (a *ResourceIndex) UpdateSpecs(specs map[string]domain.ServerSpec, specKeys map[string]string, cfg domain.RuntimeConfig) {
-	if specKeys == nil {
-		specKeys = map[string]string{}
-	}
-	if specs == nil {
-		specs = map[string]domain.ServerSpec{}
-	}
-	specsCopy := make(map[string]domain.ServerSpec, len(specs))
-	for key, value := range specs {
-		specsCopy[key] = value
-	}
-	specKeysCopy := make(map[string]string, len(specKeys))
-	for key, value := range specKeys {
-		specKeysCopy[key] = value
-	}
-	specKeySetCopy := core.SpecKeySet(specKeysCopy)
-
-	a.specsMu.Lock()
-	a.specs = specsCopy
-	a.specKeys = specKeysCopy
-	a.specKeySet = specKeySetCopy
-	a.cfg = cfg
-	a.specsMu.Unlock()
-	a.index.UpdateSpecs(specsCopy, cfg)
+	a.base.UpdateSpecs(specs, specKeys, cfg)
 }
 
 // ApplyRuntimeConfig updates runtime configuration and refresh scheduling.
 func (a *ResourceIndex) ApplyRuntimeConfig(cfg domain.RuntimeConfig) {
-	a.specsMu.Lock()
-	prevCfg := a.cfg
-	specsCopy := core.CopyServerSpecs(a.specs)
-	a.cfg = cfg
-	a.specsMu.Unlock()
-	a.index.UpdateSpecs(specsCopy, cfg)
-
-	baseCtx := a.baseContext()
-	if baseCtx == nil {
-		return
-	}
-	if prevCfg.ToolRefreshInterval() != cfg.ToolRefreshInterval() {
-		a.index.Stop()
-		a.index.Start(baseCtx)
-	}
-}
-
-func (a *ResourceIndex) startListChangeListener(ctx context.Context) {
-	if a.listChanges == nil {
-		return
-	}
-	ch := a.listChanges.Subscribe(ctx, domain.ListChangeResources)
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case event, ok := <-ch:
-				if !ok {
-					return
-				}
-				a.specsMu.RLock()
-				specs := a.specs
-				specKeySet := a.specKeySet
-				a.specsMu.RUnlock()
-				if !core.ListChangeApplies(specs, specKeySet, event) {
-					continue
-				}
-				if err := a.index.Refresh(ctx); err != nil {
-					a.logger.Warn("resource refresh after list change failed", zap.Error(err))
-				}
-			}
-		}
-	}()
-}
-
-func (a *ResourceIndex) startBootstrapRefresh(ctx context.Context) {
-	a.bootstrapWaiterMu.RLock()
-	waiter := a.bootstrapWaiter
-	a.bootstrapWaiterMu.RUnlock()
-	if waiter == nil {
-		return
-	}
-	if ctx == nil {
-		return
-	}
-	a.bootstrapRefreshOnce.Do(func() {
-		go func() {
-			if err := waiter(ctx); err != nil {
-				a.logger.Warn("resource bootstrap wait failed", zap.Error(err))
-				return
-			}
-
-			a.specsMu.RLock()
-			cfg := a.cfg
-			a.specsMu.RUnlock()
-			refreshCtx, cancel := core.WithRefreshTimeout(ctx, cfg)
-			defer cancel()
-			if err := a.index.Refresh(refreshCtx); err != nil {
-				a.logger.Warn("resource refresh after bootstrap failed", zap.Error(err))
-			}
-		}()
-	})
-}
-
-func (a *ResourceIndex) setBaseContext(ctx context.Context) context.Context {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	a.baseMu.Lock()
-	if a.baseCtx == nil {
-		baseCtx, cancel := context.WithCancel(ctx)
-		a.baseCtx = baseCtx
-		a.baseCancel = cancel
-	}
-	baseCtx := a.baseCtx
-	a.baseMu.Unlock()
-	return baseCtx
-}
-
-func (a *ResourceIndex) baseContext() context.Context {
-	a.baseMu.RLock()
-	defer a.baseMu.RUnlock()
-	return a.baseCtx
-}
-
-func (a *ResourceIndex) clearBaseContext() {
-	a.baseMu.Lock()
-	if a.baseCancel != nil {
-		a.baseCancel()
-	}
-	a.baseCtx = nil
-	a.baseCancel = nil
-	a.baseMu.Unlock()
+	a.base.ApplyRuntimeConfig(cfg)
 }
 
 func (a *ResourceIndex) buildSnapshot(cache map[string]resourceCache) (domain.ResourceSnapshot, map[string]domain.ResourceTarget) {
 	merged := make([]domain.ResourceDefinition, 0)
 	targets := make(map[string]domain.ResourceTarget)
 	serverSnapshots := make(map[string]serverResourceSnapshot, len(cache))
-	a.specsMu.RLock()
-	specs := a.specs
-	a.specsMu.RUnlock()
+	specs, _, _ := a.base.SpecsSnapshot()
+	logger := a.base.Logger()
 
 	serverTypes := core.SortedServerTypes(cache)
 	for _, serverType := range serverTypes {
@@ -401,7 +228,7 @@ func (a *ResourceIndex) buildSnapshot(cache map[string]resourceCache) (domain.Re
 			targets: copyResourceTargets(server.targets),
 		}
 		if spec.Name == "" {
-			a.logger.Warn("resource snapshot skipped: missing server name", zap.String("serverType", serverType))
+			logger.Warn("resource snapshot skipped: missing server name", zap.String("serverType", serverType))
 		} else {
 			serverSnapshots[spec.Name] = snapshot
 		}
@@ -409,7 +236,7 @@ func (a *ResourceIndex) buildSnapshot(cache map[string]resourceCache) (domain.Re
 		for _, resource := range resources {
 			target := server.targets[resource.URI]
 			if _, exists := targets[resource.URI]; exists {
-				a.logger.Warn("resource uri conflict", zap.String("serverType", serverType), zap.String("uri", resource.URI))
+				logger.Warn("resource uri conflict", zap.String("serverType", serverType), zap.String("uri", resource.URI))
 				continue
 			}
 			targets[resource.URI] = target
@@ -419,18 +246,12 @@ func (a *ResourceIndex) buildSnapshot(cache map[string]resourceCache) (domain.Re
 
 	sort.Slice(merged, func(i, j int) bool { return merged[i].URI < merged[j].URI })
 
-	a.storeServerSnapshots(serverSnapshots)
+	a.base.StoreServerSnapshots(serverSnapshots)
 
 	return domain.ResourceSnapshot{
 		ETag:      a.hashResources(merged),
 		Resources: merged,
 	}, targets
-}
-
-func (a *ResourceIndex) storeServerSnapshots(snapshots map[string]serverResourceSnapshot) {
-	a.serverMu.Lock()
-	a.serverSnapshots = snapshots
-	a.serverMu.Unlock()
 }
 
 func copyResourceTargets(in map[string]domain.ResourceTarget) map[string]domain.ResourceTarget {
@@ -468,16 +289,16 @@ func (a *ResourceIndex) fetchServerCache(ctx context.Context, serverType string,
 }
 
 func (a *ResourceIndex) cachedServerCache(serverType string, spec domain.ServerSpec) (resourceCache, bool) {
-	if a.metadataCache == nil {
+	metadataCache := a.base.MetadataCache()
+	if metadataCache == nil {
 		return resourceCache{}, false
 	}
-	a.specsMu.RLock()
-	specKey := a.specKeys[serverType]
-	a.specsMu.RUnlock()
+	_, specKeys, _ := a.base.SpecsSnapshot()
+	specKey := specKeys[serverType]
 	if specKey == "" {
 		return resourceCache{}, false
 	}
-	resources, ok := a.metadataCache.GetResources(specKey)
+	resources, ok := metadataCache.GetResources(specKey)
 	if !ok {
 		return resourceCache{}, false
 	}
@@ -505,9 +326,8 @@ func (a *ResourceIndex) cachedServerCache(serverType string, spec domain.ServerS
 }
 
 func (a *ResourceIndex) fetchServerResources(ctx context.Context, serverType string, spec domain.ServerSpec) ([]domain.ResourceDefinition, map[string]domain.ResourceTarget, error) {
-	a.specsMu.RLock()
-	specKey := a.specKeys[serverType]
-	a.specsMu.RUnlock()
+	_, specKeys, _ := a.base.SpecsSnapshot()
+	specKey := specKeys[serverType]
 	if specKey == "" {
 		return nil, nil, fmt.Errorf("missing spec key for server type %q", serverType)
 	}
@@ -553,7 +373,7 @@ func (a *ResourceIndex) fetchResources(ctx context.Context, serverType, specKey 
 			return nil, err
 		}
 
-		resp, err := a.router.RouteWithOptions(ctx, serverType, specKey, "", payload, domain.RouteOptions{AllowStart: false})
+		resp, err := a.base.Router().RouteWithOptions(ctx, serverType, specKey, "", payload, domain.RouteOptions{AllowStart: false})
 		if err != nil {
 			return nil, err
 		}
@@ -623,7 +443,7 @@ func marshalReadResourceResult(result *mcp.ReadResourceResult) (json.RawMessage,
 }
 
 func (a *ResourceIndex) hashResources(resources []domain.ResourceDefinition) string {
-	return hashutil.ResourceETag(a.logger, resources)
+	return hashutil.ResourceETag(a.base.Logger(), resources)
 }
 
 func copyResourceSnapshot(snapshot domain.ResourceSnapshot) domain.ResourceSnapshot {

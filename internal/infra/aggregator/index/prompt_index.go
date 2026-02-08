@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -21,28 +20,8 @@ import (
 
 // PromptIndex aggregates prompt metadata across specs and supports prompt calls.
 type PromptIndex struct {
-	router               domain.Router
-	specs                map[string]domain.ServerSpec
-	specKeys             map[string]string
-	cfg                  domain.RuntimeConfig
-	metadataCache        *domain.MetadataCache
-	logger               *zap.Logger
-	health               *telemetry.HealthTracker
-	gate                 *core.RefreshGate
-	listChanges          core.ListChangeSubscriber
-	specsMu              sync.RWMutex
-	specKeySet           map[string]struct{}
-	bootstrapWaiter      core.BootstrapWaiter
-	bootstrapWaiterMu    sync.RWMutex
-	bootstrapRefreshOnce sync.Once
-	baseMu               sync.RWMutex
-	baseCtx              context.Context
-	baseCancel           context.CancelFunc
-	serverMu             sync.RWMutex
-	serverSnapshots      map[string]serverPromptSnapshot
-
+	base       *BaseIndex[domain.PromptSnapshot, domain.PromptTarget, promptCache, serverPromptSnapshot]
 	reqBuilder core.RequestBuilder
-	index      *core.GenericIndex[domain.PromptSnapshot, domain.PromptTarget, promptCache]
 }
 
 type promptCache struct {
@@ -58,78 +37,61 @@ type serverPromptSnapshot struct {
 
 // NewPromptIndex builds a PromptIndex for the provided runtime configuration.
 func NewPromptIndex(rt domain.Router, specs map[string]domain.ServerSpec, specKeys map[string]string, cfg domain.RuntimeConfig, metadataCache *domain.MetadataCache, logger *zap.Logger, health *telemetry.HealthTracker, gate *core.RefreshGate, listChanges core.ListChangeSubscriber) *PromptIndex {
-	if logger == nil {
-		logger = zap.NewNop()
-	}
-	if specKeys == nil {
-		specKeys = map[string]string{}
-	}
-	promptIndex := &PromptIndex{
-		router:          rt,
-		specs:           specs,
-		specKeys:        specKeys,
-		cfg:             cfg,
-		metadataCache:   metadataCache,
-		logger:          logger.Named("prompt_index"),
-		health:          health,
-		gate:            gate,
-		listChanges:     listChanges,
-		specKeySet:      core.SpecKeySet(specKeys),
-		serverSnapshots: map[string]serverPromptSnapshot{},
-	}
-	promptIndex.index = core.NewGenericIndex(core.GenericIndexOptions[domain.PromptSnapshot, domain.PromptTarget, promptCache]{
+	promptIndex := &PromptIndex{}
+	hooks := BaseHooks[domain.PromptSnapshot, domain.PromptTarget, promptCache]{
 		Name:              "prompt_index",
 		LogLabel:          "prompt",
+		LoggerName:        "prompt_index",
 		FetchErrorMessage: "prompt list fetch failed",
-		Specs:             specs,
-		Config:            cfg,
-		Logger:            promptIndex.logger,
-		Health:            health,
-		Gate:              gate,
+		ListChangeKind:    domain.ListChangePrompts,
+		ShouldStart:       func(domain.RuntimeConfig) bool { return true },
+		ShouldListChange:  func(domain.RuntimeConfig) bool { return true },
 		EmptySnapshot:     func() domain.PromptSnapshot { return domain.PromptSnapshot{} },
 		CopySnapshot:      copyPromptSnapshot,
 		SnapshotETag:      func(snapshot domain.PromptSnapshot) string { return snapshot.ETag },
 		BuildSnapshot:     promptIndex.buildSnapshot,
 		CacheETag:         func(cache promptCache) string { return cache.etag },
-		Fetch:             promptIndex.fetchServerCache,
+		FetchServerCache:  promptIndex.fetchServerCache,
 		OnRefreshError:    promptIndex.refreshErrorDecision,
-		ShouldStart:       func(domain.RuntimeConfig) bool { return true },
-	})
+	}
+	promptIndex.base = NewBaseIndex[domain.PromptSnapshot, domain.PromptTarget, promptCache, serverPromptSnapshot](
+		rt,
+		specs,
+		specKeys,
+		cfg,
+		metadataCache,
+		logger,
+		health,
+		gate,
+		listChanges,
+		hooks,
+	)
 	return promptIndex
 }
 
 // Start begins periodic refresh and list change tracking.
 func (a *PromptIndex) Start(ctx context.Context) {
-	baseCtx := a.setBaseContext(ctx)
-	a.index.Start(baseCtx)
-	a.startListChangeListener(baseCtx)
-	a.startBootstrapRefresh(baseCtx)
+	a.base.Start(ctx)
 }
 
 // Stop halts refresh activity and cancels bootstrap waits.
 func (a *PromptIndex) Stop() {
-	a.index.Stop()
-	a.clearBaseContext()
+	a.base.Stop()
 }
 
 // Refresh fetches prompt metadata on demand.
 func (a *PromptIndex) Refresh(ctx context.Context) error {
-	return a.index.Refresh(ctx)
+	return a.base.Refresh(ctx)
 }
 
 // Snapshot returns the latest prompt snapshot.
 func (a *PromptIndex) Snapshot() domain.PromptSnapshot {
-	return a.index.Snapshot()
+	return a.base.Snapshot()
 }
 
 // SnapshotForServer returns the latest prompt snapshot for a server.
 func (a *PromptIndex) SnapshotForServer(serverName string) (domain.PromptSnapshot, bool) {
-	if serverName == "" {
-		return domain.PromptSnapshot{}, false
-	}
-	a.serverMu.RLock()
-	entry, ok := a.serverSnapshots[serverName]
-	a.serverMu.RUnlock()
+	entry, ok := a.base.SnapshotForServer(serverName)
 	if !ok {
 		return domain.PromptSnapshot{}, false
 	}
@@ -138,12 +100,12 @@ func (a *PromptIndex) SnapshotForServer(serverName string) (domain.PromptSnapsho
 
 // Subscribe streams prompt snapshot updates.
 func (a *PromptIndex) Subscribe(ctx context.Context) <-chan domain.PromptSnapshot {
-	return a.index.Subscribe(ctx)
+	return a.base.Subscribe(ctx)
 }
 
 // Resolve locates a prompt target by name.
 func (a *PromptIndex) Resolve(name string) (domain.PromptTarget, bool) {
-	return a.index.Resolve(name)
+	return a.base.Resolve(name)
 }
 
 // ResolveForServer locates a prompt target for a server by raw prompt name.
@@ -151,9 +113,7 @@ func (a *PromptIndex) ResolveForServer(serverName, promptName string) (domain.Pr
 	if serverName == "" || promptName == "" {
 		return domain.PromptTarget{}, false
 	}
-	a.serverMu.RLock()
-	entry, ok := a.serverSnapshots[serverName]
-	a.serverMu.RUnlock()
+	entry, ok := a.base.SnapshotForServer(serverName)
 	if !ok {
 		return domain.PromptTarget{}, false
 	}
@@ -163,20 +123,13 @@ func (a *PromptIndex) ResolveForServer(serverName, promptName string) (domain.Pr
 
 // SetBootstrapWaiter registers a bootstrap completion hook.
 func (a *PromptIndex) SetBootstrapWaiter(waiter core.BootstrapWaiter) {
-	a.bootstrapWaiterMu.Lock()
-	a.bootstrapWaiter = waiter
-	a.bootstrapWaiterMu.Unlock()
-	if baseCtx := a.baseContext(); baseCtx != nil {
-		a.startBootstrapRefresh(baseCtx)
-	}
+	a.base.SetBootstrapWaiter(waiter)
 }
 
 // GetPrompt routes a prompt request to the owning server.
 func (a *PromptIndex) GetPrompt(ctx context.Context, name string, args json.RawMessage) (json.RawMessage, error) {
 	// Wait for bootstrap completion if needed
-	a.bootstrapWaiterMu.RLock()
-	waiter := a.bootstrapWaiter
-	a.bootstrapWaiterMu.RUnlock()
+	waiter := a.base.Waiter()
 
 	if waiter != nil {
 		// Create context with 60s timeout for bootstrap wait
@@ -212,7 +165,7 @@ func (a *PromptIndex) GetPrompt(ctx context.Context, name string, args json.RawM
 		return nil, err
 	}
 
-	resp, err := a.router.Route(ctx, target.ServerType, target.SpecKey, "", payload)
+	resp, err := a.base.Router().Route(ctx, target.ServerType, target.SpecKey, "", payload)
 	if err != nil {
 		return nil, err
 	}
@@ -247,7 +200,7 @@ func (a *PromptIndex) GetPromptForServer(ctx context.Context, serverName, prompt
 		return nil, err
 	}
 
-	resp, err := a.router.Route(ctx, target.ServerType, target.SpecKey, "", payload)
+	resp, err := a.base.Router().Route(ctx, target.ServerType, target.SpecKey, "", payload)
 	if err != nil {
 		return nil, err
 	}
@@ -261,138 +214,21 @@ func (a *PromptIndex) GetPromptForServer(ctx context.Context, serverName, prompt
 
 // UpdateSpecs replaces the registry backing the prompt index.
 func (a *PromptIndex) UpdateSpecs(specs map[string]domain.ServerSpec, specKeys map[string]string, cfg domain.RuntimeConfig) {
-	if specKeys == nil {
-		specKeys = map[string]string{}
-	}
-	specsCopy := core.CopyServerSpecs(specs)
-	specKeysCopy := core.CopySpecKeys(specKeys)
-	specKeySetCopy := core.SpecKeySet(specKeysCopy)
-
-	a.specsMu.Lock()
-	a.specs = specsCopy
-	a.specKeys = specKeysCopy
-	a.specKeySet = specKeySetCopy
-	a.cfg = cfg
-	a.specsMu.Unlock()
-	a.index.UpdateSpecs(specsCopy, cfg)
+	a.base.UpdateSpecs(specs, specKeys, cfg)
 }
 
 // ApplyRuntimeConfig updates runtime configuration and refresh scheduling.
 func (a *PromptIndex) ApplyRuntimeConfig(cfg domain.RuntimeConfig) {
-	a.specsMu.Lock()
-	prevCfg := a.cfg
-	specsCopy := core.CopyServerSpecs(a.specs)
-	a.cfg = cfg
-	a.specsMu.Unlock()
-	a.index.UpdateSpecs(specsCopy, cfg)
-
-	baseCtx := a.baseContext()
-	if baseCtx == nil {
-		return
-	}
-	if prevCfg.ToolRefreshInterval() != cfg.ToolRefreshInterval() {
-		a.index.Stop()
-		a.index.Start(baseCtx)
-	}
-}
-
-func (a *PromptIndex) startListChangeListener(ctx context.Context) {
-	if a.listChanges == nil {
-		return
-	}
-	ch := a.listChanges.Subscribe(ctx, domain.ListChangePrompts)
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case event, ok := <-ch:
-				if !ok {
-					return
-				}
-				a.specsMu.RLock()
-				specs := a.specs
-				specKeySet := a.specKeySet
-				a.specsMu.RUnlock()
-				if !core.ListChangeApplies(specs, specKeySet, event) {
-					continue
-				}
-				if err := a.index.Refresh(ctx); err != nil {
-					a.logger.Warn("prompt refresh after list change failed", zap.Error(err))
-				}
-			}
-		}
-	}()
-}
-
-func (a *PromptIndex) startBootstrapRefresh(ctx context.Context) {
-	a.bootstrapWaiterMu.RLock()
-	waiter := a.bootstrapWaiter
-	a.bootstrapWaiterMu.RUnlock()
-	if waiter == nil {
-		return
-	}
-	if ctx == nil {
-		return
-	}
-	a.bootstrapRefreshOnce.Do(func() {
-		go func() {
-			if err := waiter(ctx); err != nil {
-				a.logger.Warn("prompt bootstrap wait failed", zap.Error(err))
-				return
-			}
-
-			a.specsMu.RLock()
-			cfg := a.cfg
-			a.specsMu.RUnlock()
-			refreshCtx, cancel := core.WithRefreshTimeout(ctx, cfg)
-			defer cancel()
-			if err := a.index.Refresh(refreshCtx); err != nil {
-				a.logger.Warn("prompt refresh after bootstrap failed", zap.Error(err))
-			}
-		}()
-	})
-}
-
-func (a *PromptIndex) setBaseContext(ctx context.Context) context.Context {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	a.baseMu.Lock()
-	if a.baseCtx == nil {
-		baseCtx, cancel := context.WithCancel(ctx)
-		a.baseCtx = baseCtx
-		a.baseCancel = cancel
-	}
-	baseCtx := a.baseCtx
-	a.baseMu.Unlock()
-	return baseCtx
-}
-
-func (a *PromptIndex) baseContext() context.Context {
-	a.baseMu.RLock()
-	defer a.baseMu.RUnlock()
-	return a.baseCtx
-}
-
-func (a *PromptIndex) clearBaseContext() {
-	a.baseMu.Lock()
-	if a.baseCancel != nil {
-		a.baseCancel()
-	}
-	a.baseCtx = nil
-	a.baseCancel = nil
-	a.baseMu.Unlock()
+	a.base.ApplyRuntimeConfig(cfg)
 }
 
 func (a *PromptIndex) buildSnapshot(cache map[string]promptCache) (domain.PromptSnapshot, map[string]domain.PromptTarget) {
 	merged := make([]domain.PromptDefinition, 0)
 	targets := make(map[string]domain.PromptTarget)
 	serverSnapshots := make(map[string]serverPromptSnapshot, len(cache))
-	a.specsMu.RLock()
-	specs := a.specs
-	strategy := a.cfg.ToolNamespaceStrategy
-	a.specsMu.RUnlock()
+	specs, _, cfg := a.base.SpecsSnapshot()
+	strategy := cfg.ToolNamespaceStrategy
+	logger := a.base.Logger()
 
 	serverTypes := core.SortedServerTypes(cache)
 	for _, serverType := range serverTypes {
@@ -409,7 +245,7 @@ func (a *PromptIndex) buildSnapshot(cache map[string]promptCache) (domain.Prompt
 			targets: copyPromptTargets(server.targets),
 		}
 		if spec.Name == "" {
-			a.logger.Warn("prompt snapshot skipped: missing server name", zap.String("serverType", serverType))
+			logger.Warn("prompt snapshot skipped: missing server name", zap.String("serverType", serverType))
 		} else {
 			serverSnapshots[spec.Name] = snapshot
 		}
@@ -422,12 +258,12 @@ func (a *PromptIndex) buildSnapshot(cache map[string]promptCache) (domain.Prompt
 
 			if existing, exists := targets[displayName]; exists {
 				if strategy != domain.ToolNamespaceStrategyFlat {
-					a.logger.Warn("prompt name conflict", zap.String("serverType", serverType), zap.String("prompt", prompt.Name))
+					logger.Warn("prompt name conflict", zap.String("serverType", serverType), zap.String("prompt", prompt.Name))
 					continue
 				}
 				resolvedName, err := a.resolveFlatConflict(displayName, serverType, targets)
 				if err != nil {
-					a.logger.Warn("prompt conflict resolution failed", zap.String("serverType", serverType), zap.String("prompt", prompt.Name), zap.Error(err))
+					logger.Warn("prompt conflict resolution failed", zap.String("serverType", serverType), zap.String("prompt", prompt.Name), zap.Error(err))
 					continue
 				}
 				promptDef = renamePromptDefinition(promptDef, resolvedName)
@@ -446,18 +282,12 @@ func (a *PromptIndex) buildSnapshot(cache map[string]promptCache) (domain.Prompt
 
 	sort.Slice(merged, func(i, j int) bool { return merged[i].Name < merged[j].Name })
 
-	a.storeServerSnapshots(serverSnapshots)
+	a.base.StoreServerSnapshots(serverSnapshots)
 
 	return domain.PromptSnapshot{
 		ETag:    a.hashPrompts(merged),
 		Prompts: merged,
 	}, targets
-}
-
-func (a *PromptIndex) storeServerSnapshots(snapshots map[string]serverPromptSnapshot) {
-	a.serverMu.Lock()
-	a.serverSnapshots = snapshots
-	a.serverMu.Unlock()
 }
 
 func copyPromptTargets(in map[string]domain.PromptTarget) map[string]domain.PromptTarget {
@@ -514,14 +344,16 @@ func (a *PromptIndex) fetchServerCache(ctx context.Context, serverType string, s
 }
 
 func (a *PromptIndex) cachedServerCache(serverType string, spec domain.ServerSpec) (promptCache, bool) {
-	if a.metadataCache == nil {
+	metadataCache := a.base.MetadataCache()
+	if metadataCache == nil {
 		return promptCache{}, false
 	}
-	specKey := a.specKeys[serverType]
+	_, specKeys, _ := a.base.SpecsSnapshot()
+	specKey := specKeys[serverType]
 	if specKey == "" {
 		return promptCache{}, false
 	}
-	prompts, ok := a.metadataCache.GetPrompts(specKey)
+	prompts, ok := metadataCache.GetPrompts(specKey)
 	if !ok {
 		return promptCache{}, false
 	}
@@ -550,7 +382,8 @@ func (a *PromptIndex) cachedServerCache(serverType string, spec domain.ServerSpe
 }
 
 func (a *PromptIndex) fetchServerPrompts(ctx context.Context, serverType string, spec domain.ServerSpec) ([]domain.PromptDefinition, map[string]domain.PromptTarget, error) {
-	specKey := a.specKeys[serverType]
+	_, specKeys, _ := a.base.SpecsSnapshot()
+	specKey := specKeys[serverType]
 	if specKey == "" {
 		return nil, nil, fmt.Errorf("missing spec key for server type %q", serverType)
 	}
@@ -596,7 +429,7 @@ func (a *PromptIndex) fetchPrompts(ctx context.Context, serverType, specKey stri
 			return nil, err
 		}
 
-		resp, err := a.router.RouteWithOptions(ctx, serverType, specKey, "", payload, domain.RouteOptions{AllowStart: false})
+		resp, err := a.base.Router().RouteWithOptions(ctx, serverType, specKey, "", payload, domain.RouteOptions{AllowStart: false})
 		if err != nil {
 			return nil, err
 		}
@@ -673,7 +506,7 @@ func marshalPromptResult(result *mcp.GetPromptResult) (json.RawMessage, error) {
 }
 
 func (a *PromptIndex) hashPrompts(prompts []domain.PromptDefinition) string {
-	return hashutil.PromptETag(a.logger, prompts)
+	return hashutil.PromptETag(a.base.Logger(), prompts)
 }
 
 func copyPromptSnapshot(snapshot domain.PromptSnapshot) domain.PromptSnapshot {
