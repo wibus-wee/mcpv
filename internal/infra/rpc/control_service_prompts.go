@@ -3,7 +3,7 @@ package rpc
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	"fmt"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -46,7 +46,7 @@ func (s *ControlService) ListPrompts(ctx context.Context, req *controlv1.ListPro
 			return out, page.NextCursor, err
 		},
 		func(err error) error {
-			return mapListError("list prompts", err)
+			return statusFromError("list prompts", err)
 		},
 	)
 	if err != nil {
@@ -79,11 +79,9 @@ func (s *ControlService) WatchPrompts(req *controlv1.WatchPromptsRequest, stream
 		func(last string, snapshot domain.PromptSnapshot) bool {
 			return last == snapshot.ETag
 		},
-		func(snapshot domain.PromptSnapshot) (*controlv1.PromptsSnapshot, error) {
-			return toProtoPromptsSnapshot(snapshot)
-		},
+		toProtoPromptsSnapshot,
 		func(err error) error {
-			return mapClientError("watch prompts", err)
+			return statusFromError("watch prompts", err)
 		},
 		stream.Send,
 	)
@@ -114,11 +112,7 @@ func (s *ControlService) GetPrompt(ctx context.Context, req *controlv1.GetPrompt
 		result, err = s.control.GetPrompt(ctx, client, promptName, req.GetArgumentsJson())
 	}
 	if err != nil {
-		var rej domain.GovernanceRejection
-		if errors.As(err, &rej) {
-			return nil, mapGovernanceError(err)
-		}
-		return nil, mapGetPromptError(promptName, err)
+		return nil, statusFromError(fmt.Sprintf("get prompt %s", promptName), err)
 	}
 	if len(result) == 0 {
 		return nil, status.Error(codes.Internal, "get prompt: empty result")

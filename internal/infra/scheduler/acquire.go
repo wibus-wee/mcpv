@@ -16,7 +16,7 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 	}
 	spec, ok := s.specForKey(specKey)
 	if !ok {
-		return nil, ErrUnknownSpecKey
+		return nil, wrapSchedulerError("scheduler acquire", ErrUnknownSpecKey)
 	}
 
 	state := s.getPool(specKey, spec)
@@ -31,7 +31,7 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 			serverType := state.spec.Name
 			state.mu.Unlock()
 			s.observePoolAcquireFailure(serverType, acquireErr)
-			return nil, acquireErr
+			return nil, wrapSchedulerError("scheduler acquire", acquireErr)
 		}
 
 		if state.startInFlight {
@@ -50,7 +50,7 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 			state.mu.Unlock()
 			s.observePoolWait(serverType, waitDuration, waitOutcome)
 			if err != nil {
-				return nil, err
+				return nil, wrapSchedulerError("scheduler acquire", err)
 			}
 			continue
 		}
@@ -71,7 +71,7 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 			state.mu.Unlock()
 			s.observePoolWait(serverType, waitDuration, waitOutcome)
 			if err != nil {
-				return nil, err
+				return nil, wrapSchedulerError("scheduler acquire", err)
 			}
 			continue
 		}
@@ -130,7 +130,7 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 			state.signalWaiterLocked()
 			state.mu.Unlock()
 			s.observePoolAcquireFailure(state.spec.Name, err)
-			return nil, fmt.Errorf("start instance: %w", err)
+			return nil, wrapSchedulerError("scheduler acquire", fmt.Errorf("start instance: %w", err))
 		}
 		tracked := &trackedInstance{instance: newInst}
 		state.mu.Lock()
@@ -142,7 +142,7 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 			s.observeInstanceStop(state.spec.Name, stopErr)
 			s.recordInstanceStop(state)
 			s.observePoolAcquireFailure(state.spec.Name, ErrNoCapacity)
-			return nil, ErrNoCapacity
+			return nil, wrapSchedulerError("scheduler acquire", ErrNoCapacity)
 		}
 
 		// For singleton, check if we already have an instance
@@ -160,7 +160,7 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 				return inst, nil
 			}
 			s.observePoolAcquireFailure(state.spec.Name, err)
-			return nil, ErrNoCapacity
+			return nil, wrapSchedulerError("scheduler acquire", ErrNoCapacity)
 		}
 
 		state.instances = append(state.instances, tracked)
@@ -183,11 +183,11 @@ func (s *BasicScheduler) AcquireReady(ctx context.Context, specKey, routingKey s
 		ctx = context.Background()
 	}
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return nil, wrapSchedulerError("scheduler acquire ready", err)
 	}
 	spec, ok := s.specForKey(specKey)
 	if !ok {
-		return nil, ErrUnknownSpecKey
+		return nil, wrapSchedulerError("scheduler acquire ready", ErrUnknownSpecKey)
 	}
 
 	state := s.getPool(specKey, spec)
@@ -199,7 +199,7 @@ func (s *BasicScheduler) AcquireReady(ctx context.Context, specKey, routingKey s
 		return inst, nil
 	}
 	s.observePoolAcquireFailure(state.spec.Name, err)
-	return inst, err
+	return inst, wrapSchedulerError("scheduler acquire ready", err)
 }
 
 // Release marks an instance as idle and updates pool state.

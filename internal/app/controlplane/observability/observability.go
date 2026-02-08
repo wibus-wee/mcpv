@@ -28,7 +28,7 @@ type Service struct {
 	registry *registry.ClientRegistry
 	logs     *telemetry.LogBroadcaster
 
-	idxMu                     sync.RWMutex
+	idxMu                      sync.RWMutex
 	runtimeStatusIdx           *aggregator.RuntimeStatusIndex
 	serverInitIdx              *aggregator.ServerInitIndex
 	runtimeStatusWorkerStarted atomic.Bool

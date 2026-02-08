@@ -17,7 +17,7 @@ func (s *ControlService) TasksGet(ctx context.Context, req *controlv1.TasksGetRe
 	}
 	task, err := s.control.GetTask(ctx, req.GetCaller(), req.GetTaskId())
 	if err != nil {
-		return nil, mapTaskError("get task", err)
+		return nil, statusFromError("get task", err)
 	}
 	return &controlv1.TasksGetResponse{Task: toProtoTask(task)}, nil
 }
@@ -25,7 +25,7 @@ func (s *ControlService) TasksGet(ctx context.Context, req *controlv1.TasksGetRe
 func (s *ControlService) TasksList(ctx context.Context, req *controlv1.TasksListRequest) (*controlv1.TasksListResponse, error) {
 	page, err := s.control.ListTasks(ctx, req.GetCaller(), req.GetCursor(), int(req.GetLimit()))
 	if err != nil {
-		return nil, mapTaskError("list tasks", err)
+		return nil, statusFromError("list tasks", err)
 	}
 	tasks := make([]*controlv1.Task, 0, len(page.Tasks))
 	for _, task := range page.Tasks {
@@ -43,7 +43,7 @@ func (s *ControlService) TasksResult(ctx context.Context, req *controlv1.TasksRe
 	}
 	result, err := s.control.GetTaskResult(ctx, req.GetCaller(), req.GetTaskId())
 	if err != nil {
-		return nil, mapTaskError("get task result", err)
+		return nil, statusFromError("get task result", err)
 	}
 	return &controlv1.TasksResultResponse{
 		Result: toProtoTaskResult(result),
@@ -56,7 +56,7 @@ func (s *ControlService) TasksCancel(ctx context.Context, req *controlv1.TasksCa
 	}
 	task, err := s.control.CancelTask(ctx, req.GetCaller(), req.GetTaskId())
 	if err != nil {
-		return nil, mapTaskError("cancel task", err)
+		return nil, statusFromError("cancel task", err)
 	}
 	return &controlv1.TasksCancelResponse{Task: toProtoTask(task)}, nil
 }

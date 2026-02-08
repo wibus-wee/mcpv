@@ -98,7 +98,7 @@ func TestSnapshot_NilContext(t *testing.T) {
 	}
 	provider.state.Store(state)
 
-	snap, err := provider.Snapshot(nil)
+	snap, err := provider.Snapshot(nil) //nolint:staticcheck
 	require.NoError(t, err)
 	assert.Equal(t, state.Revision, snap.Revision)
 }

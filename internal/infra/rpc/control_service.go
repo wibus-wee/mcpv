@@ -2,13 +2,11 @@ package rpc
 
 import (
 	"context"
-	"errors"
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"mcpv/internal/domain"
 	"mcpv/internal/infra/governance"
 	controlv1 "mcpv/pkg/api/control/v1"
 )
@@ -36,7 +34,7 @@ func NewControlService(control ControlPlaneAPI, executor *governance.Executor, l
 func (s *ControlService) GetInfo(ctx context.Context, _ *controlv1.GetInfoRequest) (*controlv1.GetInfoResponse, error) {
 	info, err := s.control.Info(ctx)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "get info: %v", err)
+		return nil, statusFromError("get info", err)
 	}
 	return &controlv1.GetInfoResponse{
 		Name:    info.Name,
@@ -58,7 +56,7 @@ func (s *ControlService) RegisterCaller(ctx context.Context, req *controlv1.Regi
 	}
 	registration, err := s.control.RegisterClient(ctx, client, int(req.GetPid()), req.GetTags(), req.GetServer())
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "register caller: %v", err)
+		return nil, statusFromError("register caller", err)
 	}
 	return &controlv1.RegisterCallerResponse{
 		Profile: registration.Client,
@@ -71,10 +69,7 @@ func (s *ControlService) UnregisterCaller(ctx context.Context, req *controlv1.Un
 		return nil, status.Error(codes.InvalidArgument, "client is required")
 	}
 	if err := s.control.UnregisterClient(ctx, client); err != nil {
-		if errors.Is(err, domain.ErrClientNotRegistered) {
-			return nil, status.Error(codes.FailedPrecondition, "client not registered")
-		}
-		return nil, status.Errorf(codes.Internal, "unregister caller: %v", err)
+		return nil, statusFromError("unregister caller", err)
 	}
 	return &controlv1.UnregisterCallerResponse{}, nil
 }

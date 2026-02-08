@@ -20,7 +20,7 @@ func (s *ControlService) StreamLogs(req *controlv1.StreamLogsRequest, stream con
 	}
 	entries, err := s.control.StreamLogs(ctx, client, minLevel)
 	if err != nil {
-		return mapClientError("stream logs", err)
+		return statusFromError("stream logs", err)
 	}
 
 	for {
@@ -68,7 +68,7 @@ func (s *ControlService) WatchRuntimeStatus(req *controlv1.WatchRuntimeStatusReq
 			return toProtoRuntimeStatusSnapshot(snapshot), nil
 		},
 		func(err error) error {
-			return mapClientError("watch runtime status", err)
+			return statusFromError("watch runtime status", err)
 		},
 		stream.Send,
 	)
@@ -100,7 +100,7 @@ func (s *ControlService) WatchServerInitStatus(req *controlv1.WatchServerInitSta
 			return toProtoServerInitStatusSnapshot(snapshot), nil
 		},
 		func(err error) error {
-			return mapClientError("watch server init status", err)
+			return statusFromError("watch server init status", err)
 		},
 		stream.Send,
 	)

@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -51,7 +50,7 @@ func NewServer(control ControlPlaneAPI, executor *governance.Executor, cfg domai
 // Run starts the server and blocks until it stops or the context is canceled.
 func (s *Server) Run(ctx context.Context) error {
 	if s.control == nil {
-		return errors.New("control plane is nil")
+		return domain.E(domain.CodeFailedPrecond, "rpc server", "control plane is nil", nil)
 	}
 	if ctx == nil {
 		ctx = context.Background()

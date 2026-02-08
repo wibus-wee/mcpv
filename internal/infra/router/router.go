@@ -60,7 +60,7 @@ func (r *BasicRouter) RouteWithOptions(ctx context.Context, serverType, specKey,
 
 	method, isCall, err := extractMethod(payload)
 	if err != nil {
-		decodeErr := fmt.Errorf("decode request: %w", err)
+		decodeErr := domain.Wrap(domain.CodeInvalidArgument, "route decode", err)
 		routeErr := domain.NewRouteError(domain.RouteStageDecode, decodeErr)
 		r.logRouteError(serverType, "", nil, start, routeErr)
 		return nil, routeErr
@@ -88,7 +88,8 @@ func (r *BasicRouter) RouteWithOptions(ctx context.Context, serverType, specKey,
 
 	if inst.Conn() == nil {
 		err := fmt.Errorf("%w: instance has no connection: %s", domain.ErrConnectionClosed, inst.ID())
-		routeErr := domain.NewRouteError(domain.RouteStageCall, err)
+		callErr := domain.Wrap(domain.CodeUnavailable, "route call", err)
+		routeErr := domain.NewRouteError(domain.RouteStageCall, callErr)
 		r.logRouteError(serverType, method, inst, start, routeErr)
 		return nil, routeErr
 	}
@@ -106,7 +107,7 @@ func (r *BasicRouter) RouteWithOptions(ctx context.Context, serverType, specKey,
 	resp, err := inst.Conn().Call(callCtx, payload)
 	inst.RecordCall(time.Since(callStarted), err)
 	if err != nil {
-		callErr := fmt.Errorf("call request: %w", err)
+		callErr := domain.Wrap(domain.CodeUnavailable, "route call", err)
 		routeErr := domain.NewRouteError(domain.RouteStageCall, callErr)
 		r.logRouteError(serverType, method, inst, start, routeErr)
 		return nil, routeErr

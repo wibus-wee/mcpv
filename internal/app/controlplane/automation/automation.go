@@ -20,12 +20,12 @@ const (
 )
 
 type Service struct {
-	state    State
-	registry *registry.ClientRegistry
-	tools    *discovery.ToolDiscoveryService
+	state      State
+	registry   *registry.ClientRegistry
+	tools      *discovery.ToolDiscoveryService
 	subAgentMu sync.RWMutex
-	subAgent domain.SubAgent
-	cache    *domain.SessionCache
+	subAgent   domain.SubAgent
+	cache      *domain.SessionCache
 }
 
 func NewAutomationService(state State, registry *registry.ClientRegistry, tools *discovery.ToolDiscoveryService) *Service {

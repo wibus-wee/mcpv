@@ -20,6 +20,26 @@ import (
 	"mcpv/internal/infra/telemetry"
 )
 
+func wrapLifecycleStartError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if code, ok := domain.CodeFrom(err); ok {
+		return domain.Wrap(code, "lifecycle start", err)
+	}
+	return domain.Wrap(domain.CodeUnavailable, "lifecycle start", err)
+}
+
+func wrapLifecycleStopError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if code, ok := domain.CodeFrom(err); ok {
+		return domain.Wrap(code, "lifecycle stop", err)
+	}
+	return domain.Wrap(domain.CodeInternal, "lifecycle stop", err)
+}
+
 type Manager struct {
 	launcher  domain.Launcher
 	transport domain.Transport
@@ -97,7 +117,7 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 			telemetry.DurationField(time.Since(started)),
 			zap.Error(err),
 		)
-		return nil, err
+		return nil, wrapLifecycleStartError(err)
 	}
 
 	startCtx, cancelStart := context.WithCancel(baseCtx)
@@ -132,7 +152,7 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 				telemetry.DurationField(time.Since(started)),
 				zap.Error(err),
 			)
-			return nil, fmt.Errorf("start launcher: %w", err)
+			return nil, wrapLifecycleStartError(fmt.Errorf("start launcher: %w", err))
 		}
 		if streams.Reader == nil || streams.Writer == nil {
 			err := errors.New("launcher returned nil streams")
@@ -146,7 +166,7 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 			if stop != nil {
 				_ = stop(ctx)
 			}
-			return nil, err
+			return nil, wrapLifecycleStartError(err)
 		}
 		if stop == nil {
 			stop = func(context.Context) error { return nil }
@@ -170,7 +190,7 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 		if stop != nil {
 			_ = stop(ctx)
 		}
-		return nil, fmt.Errorf("connect transport: %w", err)
+		return nil, wrapLifecycleStartError(fmt.Errorf("connect transport: %w", err))
 	}
 	if conn == nil {
 		err := errors.New("transport returned nil connection")
@@ -184,7 +204,7 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 		if stop != nil {
 			_ = stop(ctx)
 		}
-		return nil, err
+		return nil, wrapLifecycleStartError(err)
 	}
 
 	instance := domain.NewInstance(domain.InstanceOptions{
@@ -221,7 +241,7 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 				)
 			}
 		}
-		return nil, fmt.Errorf("initialize: %w", err)
+		return nil, wrapLifecycleStartError(fmt.Errorf("initialize: %w", err))
 	}
 	if setter, ok := conn.(interface {
 		SetCapabilities(domain.ServerCapabilities)
@@ -356,7 +376,7 @@ func (m *Manager) notifyInitialized(ctx context.Context, conn domain.Conn, spec 
 
 func (m *Manager) StopInstance(ctx context.Context, instance *domain.Instance, reason string) error {
 	if instance == nil {
-		return errors.New("instance is nil")
+		return wrapLifecycleStopError(errors.New("instance is nil"))
 	}
 
 	started := time.Now()
@@ -371,7 +391,7 @@ func (m *Manager) StopInstance(ctx context.Context, instance *domain.Instance, r
 	m.mu.Unlock()
 
 	if conn == nil && stop == nil {
-		return fmt.Errorf("unknown instance: %s", instanceID)
+		return wrapLifecycleStopError(fmt.Errorf("unknown instance: %s", instanceID))
 	}
 
 	var closeErr error
@@ -399,10 +419,10 @@ func (m *Manager) StopInstance(ctx context.Context, instance *domain.Instance, r
 		}
 	}
 	if stopErr != nil {
-		return fmt.Errorf("stop instance %s: %w", instanceID, errors.Join(stopErr, closeErr))
+		return wrapLifecycleStopError(fmt.Errorf("stop instance %s: %w", instanceID, errors.Join(stopErr, closeErr)))
 	}
 	if closeErr != nil {
-		return fmt.Errorf("close instance %s: %w", instanceID, closeErr)
+		return wrapLifecycleStopError(fmt.Errorf("close instance %s: %w", instanceID, closeErr))
 	}
 
 	instance.SetState(domain.InstanceStateStopped)

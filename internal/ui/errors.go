@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -54,11 +55,41 @@ func MapDomainError(err error) *Error {
 		return NewError(ErrCodePromptNotFound, "Prompt not found")
 	case errors.Is(err, domain.ErrInvalidCursor):
 		return NewError(ErrCodeInvalidCursor, "Invalid pagination cursor")
+	case errors.Is(err, context.Canceled):
+		return NewError(ErrCodeOperationCancelled, "Operation cancelled")
 	case errors.Is(err, domain.ErrClientNotRegistered):
 		// This shouldn't happen in UI layer, but handle it gracefully.
 		return NewError(ErrCodeInternal, "Internal error: client not registered")
+	}
+
+	if code, ok := domain.CodeFrom(err); ok {
+		return NewError(mapDomainCodeToUI(code), "Operation failed")
+	}
+	return NewErrorWithDetails(ErrCodeInternal, "Internal error", err.Error())
+}
+
+func mapDomainCodeToUI(code domain.ErrorCode) string {
+	switch code {
+	case domain.CodeInvalidArgument:
+		return ErrCodeInvalidRequest
+	case domain.CodeNotFound:
+		return ErrCodeNotFound
+	case domain.CodeFailedPrecond:
+		return ErrCodeInvalidState
+	case domain.CodePermissionDenied, domain.CodeUnauthenticated:
+		return ErrCodeInvalidState
+	case domain.CodeNotImplemented:
+		return ErrCodeNotImplemented
+	case domain.CodeCanceled:
+		return ErrCodeOperationCancelled
+	case domain.CodeDeadlineExceeded:
+		return ErrCodeCoreFailed
+	case domain.CodeUnavailable:
+		return ErrCodeCoreFailed
+	case domain.CodeInternal:
+		return ErrCodeInternal
 	default:
-		return NewErrorWithDetails(ErrCodeInternal, "Internal error", err.Error())
+		return ErrCodeInternal
 	}
 }
 

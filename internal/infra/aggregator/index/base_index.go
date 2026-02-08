@@ -48,12 +48,12 @@ type BaseIndex[Snapshot any, Target any, Cache any, ServerSnapshot any] struct {
 	specKeySet      map[string]struct{}
 	bootstrapWaiter core.BootstrapWaiter
 	// bootstrapMu guards bootstrapWaiter/bootstrapOnce.
-	bootstrapMu     sync.RWMutex
-	bootstrapOnce   sync.Once
+	bootstrapMu   sync.RWMutex
+	bootstrapOnce sync.Once
 	// baseMu guards baseCtx/baseCancel.
-	baseMu          sync.RWMutex
-	baseCtx         context.Context
-	baseCancel      context.CancelFunc
+	baseMu     sync.RWMutex
+	baseCtx    context.Context
+	baseCancel context.CancelFunc
 	// serverMu guards serverSnapshots.
 	serverMu        sync.RWMutex
 	serverSnapshots map[string]ServerSnapshot

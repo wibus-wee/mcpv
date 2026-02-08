@@ -3,7 +3,6 @@ package rpc
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"google.golang.org/grpc/codes"
@@ -37,7 +36,7 @@ func (s *ControlService) ListTools(ctx context.Context, req *controlv1.ListTools
 			return out, "", err
 		},
 		func(err error) error {
-			return mapClientError("list tools", err)
+			return statusFromError("list tools", err)
 		},
 	)
 	if err != nil {
@@ -69,11 +68,9 @@ func (s *ControlService) WatchTools(req *controlv1.WatchToolsRequest, stream con
 		func(last string, snapshot domain.ToolSnapshot) bool {
 			return last != "" && last == snapshot.ETag
 		},
-		func(snapshot domain.ToolSnapshot) (*controlv1.ToolsSnapshot, error) {
-			return toProtoSnapshot(snapshot)
-		},
+		toProtoSnapshot,
 		func(err error) error {
-			return mapClientError("watch tools", err)
+			return statusFromError("watch tools", err)
 		},
 		stream.Send,
 	)
@@ -105,11 +102,7 @@ func (s *ControlService) CallTool(ctx context.Context, req *controlv1.CallToolRe
 		result, err = s.control.CallTool(ctx, client, toolName, req.GetArgumentsJson(), req.GetRoutingKey())
 	}
 	if err != nil {
-		var rej domain.GovernanceRejection
-		if errors.As(err, &rej) {
-			return nil, mapGovernanceError(err)
-		}
-		return nil, mapCallToolError(toolName, err)
+		return nil, statusFromError(fmt.Sprintf("call tool %s", toolName), err)
 	}
 	if len(result) == 0 {
 		return nil, status.Error(codes.Internal, "call tool: empty result")
@@ -135,7 +128,7 @@ func (s *ControlService) CallToolTask(ctx context.Context, req *controlv1.CallTo
 	client := req.GetCaller()
 	task, err := s.control.CallToolTask(ctx, client, req.GetName(), req.GetArgumentsJson(), req.GetRoutingKey(), opts)
 	if err != nil {
-		return nil, mapCallToolError(req.GetName(), err)
+		return nil, statusFromError(fmt.Sprintf("call tool task %s", req.GetName()), err)
 	}
 	return &controlv1.CallToolTaskResponse{
 		Task: toProtoTask(task),
@@ -164,7 +157,7 @@ func (s *ControlService) AutomaticMCP(ctx context.Context, req *controlv1.Automa
 
 	result, err := s.control.AutomaticMCP(ctx, client, params)
 	if err != nil {
-		return nil, mapClientError("automatic_mcp", err)
+		return nil, statusFromError("automatic_mcp", err)
 	}
 
 	resp, err := toProtoAutomaticMCPResponse(result)
@@ -216,11 +209,7 @@ func (s *ControlService) AutomaticEval(ctx context.Context, req *controlv1.Autom
 		result, err = s.control.AutomaticEval(ctx, client, params)
 	}
 	if err != nil {
-		var rej domain.GovernanceRejection
-		if errors.As(err, &rej) {
-			return nil, mapGovernanceError(err)
-		}
-		return nil, mapCallToolError(req.GetToolName(), err)
+		return nil, statusFromError(fmt.Sprintf("automatic_eval %s", req.GetToolName()), err)
 	}
 
 	return &controlv1.AutomaticEvalResponse{

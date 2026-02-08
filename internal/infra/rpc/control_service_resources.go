@@ -3,7 +3,7 @@ package rpc
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"strings"
 
 	"google.golang.org/grpc/codes"
@@ -47,7 +47,7 @@ func (s *ControlService) ListResources(ctx context.Context, req *controlv1.ListR
 			return out, page.NextCursor, err
 		},
 		func(err error) error {
-			return mapListError("list resources", err)
+			return statusFromError("list resources", err)
 		},
 	)
 	if err != nil {
@@ -80,11 +80,9 @@ func (s *ControlService) WatchResources(req *controlv1.WatchResourcesRequest, st
 		func(last string, snapshot domain.ResourceSnapshot) bool {
 			return last == snapshot.ETag
 		},
-		func(snapshot domain.ResourceSnapshot) (*controlv1.ResourcesSnapshot, error) {
-			return toProtoResourcesSnapshot(snapshot)
-		},
+		toProtoResourcesSnapshot,
 		func(err error) error {
-			return mapClientError("watch resources", err)
+			return statusFromError("watch resources", err)
 		},
 		stream.Send,
 	)
@@ -121,11 +119,7 @@ func (s *ControlService) ReadResource(ctx context.Context, req *controlv1.ReadRe
 		result, err = s.control.ReadResource(ctx, client, uri)
 	}
 	if err != nil {
-		var rej domain.GovernanceRejection
-		if errors.As(err, &rej) {
-			return nil, mapGovernanceError(err)
-		}
-		return nil, mapReadResourceError(uri, err)
+		return nil, statusFromError(fmt.Sprintf("read resource %s", uri), err)
 	}
 	if len(result) == 0 {
 		return nil, status.Error(codes.Internal, "read resource: empty result")

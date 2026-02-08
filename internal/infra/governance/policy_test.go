@@ -333,7 +333,7 @@ func TestChain_NilHandling(t *testing.T) {
 		chain := NewChain(policy)
 		req := domain.GovernanceRequest{Method: "test"}
 
-		_, err := chain.Request(nil, req)
+		_, err := chain.Request(nil, req) //nolint:staticcheck
 		require.NoError(t, err)
 	})
 }
@@ -724,10 +724,10 @@ func TestPipelinePolicy_NilHandling(t *testing.T) {
 		policy := &PipelinePolicy{}
 		req := domain.GovernanceRequest{Method: "test"}
 
-		_, err := policy.Request(nil, req)
+		_, err := policy.Request(nil, req) //nolint:staticcheck
 		require.NoError(t, err)
 
-		_, err = policy.Response(nil, req)
+		_, err = policy.Response(context.Background(), req)
 		require.NoError(t, err)
 	})
 }
@@ -744,10 +744,10 @@ func TestExecutor_NilContext(t *testing.T) {
 	executor := NewExecutorWithPolicies(policy)
 	req := domain.GovernanceRequest{Method: "test"}
 
-	_, err := executor.Request(nil, req)
+	_, err := executor.Request(nil, req) //nolint:staticcheck
 	require.NoError(t, err)
 
-	_, err = executor.Response(nil, req)
+	_, err = executor.Response(nil, req) //nolint:staticcheck
 	require.NoError(t, err)
 
 	next := func(ctx context.Context, _ domain.GovernanceRequest) (json.RawMessage, error) {
@@ -757,4 +757,3 @@ func TestExecutor_NilContext(t *testing.T) {
 	_, err = executor.Execute(nil, req, next) //nolint:staticcheck
 	require.NoError(t, err)
 }
-

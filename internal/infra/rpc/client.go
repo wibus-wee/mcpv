@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -118,7 +117,7 @@ func waitForReady(ctx context.Context, conn *grpc.ClientConn) error {
 		case connectivity.Ready:
 			return nil
 		case connectivity.Shutdown:
-			return errors.New("grpc connection shut down")
+			return domain.E(domain.CodeUnavailable, "rpc client", "grpc connection shut down", nil)
 		}
 	}
 }

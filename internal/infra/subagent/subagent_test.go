@@ -129,7 +129,7 @@ func TestSelectToolsForClient_LLMFiltering(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			model := &mockChatModel{
-				generateFunc: func(_ context.Context, messages []*schema.Message) (*schema.Message, error) {
+				generateFunc: func(_ context.Context, _ []*schema.Message) (*schema.Message, error) {
 					if tt.llmError != nil {
 						return nil, tt.llmError
 					}
@@ -565,27 +565,27 @@ func toolNames(tools []domain.ToolDefinition) []string {
 // mockMetrics implements domain.Metrics for testing.
 type mockMetrics struct{}
 
-func (m *mockMetrics) ObserveRoute(_ domain.RouteMetric)                                {}
-func (m *mockMetrics) AddInflightRoutes(_ string, _ int)                                {}
-func (m *mockMetrics) ObservePoolWait(_ string, _ time.Duration, _ domain.PoolWaitOutcome) {}
-func (m *mockMetrics) ObserveInstanceStart(_ string, _ time.Duration, _ error)          {}
-func (m *mockMetrics) ObserveInstanceStartCause(_ string, _ domain.StartCauseReason)    {}
-func (m *mockMetrics) ObserveInstanceStop(_ string, _ error)                            {}
-func (m *mockMetrics) SetStartingInstances(_ string, _ int)                             {}
-func (m *mockMetrics) SetActiveInstances(_ string, _ int)                               {}
-func (m *mockMetrics) SetPoolCapacityRatio(_ string, _ float64)                         {}
-func (m *mockMetrics) SetPoolWaiters(_ string, _ int)                                   {}
-func (m *mockMetrics) ObservePoolAcquireFailure(_ string, _ domain.AcquireFailureReason) {}
-func (m *mockMetrics) ObserveSubAgentTokens(_ string, _ string, _ int)                  {}
-func (m *mockMetrics) ObserveSubAgentLatency(_ string, _ string, _ time.Duration)       {}
-func (m *mockMetrics) ObserveSubAgentFilterPrecision(_ string, _ string, _ float64)     {}
+func (m *mockMetrics) ObserveRoute(_ domain.RouteMetric)                                       {}
+func (m *mockMetrics) AddInflightRoutes(_ string, _ int)                                       {}
+func (m *mockMetrics) ObservePoolWait(_ string, _ time.Duration, _ domain.PoolWaitOutcome)     {}
+func (m *mockMetrics) ObserveInstanceStart(_ string, _ time.Duration, _ error)                 {}
+func (m *mockMetrics) ObserveInstanceStartCause(_ string, _ domain.StartCauseReason)           {}
+func (m *mockMetrics) ObserveInstanceStop(_ string, _ error)                                   {}
+func (m *mockMetrics) SetStartingInstances(_ string, _ int)                                    {}
+func (m *mockMetrics) SetActiveInstances(_ string, _ int)                                      {}
+func (m *mockMetrics) SetPoolCapacityRatio(_ string, _ float64)                                {}
+func (m *mockMetrics) SetPoolWaiters(_ string, _ int)                                          {}
+func (m *mockMetrics) ObservePoolAcquireFailure(_ string, _ domain.AcquireFailureReason)       {}
+func (m *mockMetrics) ObserveSubAgentTokens(_ string, _ string, _ int)                         {}
+func (m *mockMetrics) ObserveSubAgentLatency(_ string, _ string, _ time.Duration)              {}
+func (m *mockMetrics) ObserveSubAgentFilterPrecision(_ string, _ string, _ float64)            {}
 func (m *mockMetrics) RecordReloadSuccess(_ domain.CatalogUpdateSource, _ domain.ReloadAction) {}
 func (m *mockMetrics) RecordReloadFailure(_ domain.CatalogUpdateSource, _ domain.ReloadAction) {}
 func (m *mockMetrics) RecordReloadRestart(_ domain.CatalogUpdateSource, _ domain.ReloadAction) {}
-func (m *mockMetrics) ObserveReloadApply(_ domain.ReloadApplyMetric)                    {}
-func (m *mockMetrics) ObserveReloadRollback(_ domain.ReloadRollbackMetric)              {}
-func (m *mockMetrics) RecordGovernanceOutcome(_ domain.GovernanceOutcomeMetric)         {}
-func (m *mockMetrics) RecordGovernanceRejection(_ domain.GovernanceRejectionMetric)     {}
-func (m *mockMetrics) RecordPluginStart(_ domain.PluginStartMetric)                     {}
-func (m *mockMetrics) RecordPluginHandshake(_ domain.PluginHandshakeMetric)             {}
-func (m *mockMetrics) SetPluginRunning(_ domain.PluginCategory, _ string, _ bool)       {}
+func (m *mockMetrics) ObserveReloadApply(_ domain.ReloadApplyMetric)                           {}
+func (m *mockMetrics) ObserveReloadRollback(_ domain.ReloadRollbackMetric)                     {}
+func (m *mockMetrics) RecordGovernanceOutcome(_ domain.GovernanceOutcomeMetric)                {}
+func (m *mockMetrics) RecordGovernanceRejection(_ domain.GovernanceRejectionMetric)            {}
+func (m *mockMetrics) RecordPluginStart(_ domain.PluginStartMetric)                            {}
+func (m *mockMetrics) RecordPluginHandshake(_ domain.PluginHandshakeMetric)                    {}
+func (m *mockMetrics) SetPluginRunning(_ domain.PluginCategory, _ string, _ bool)              {}

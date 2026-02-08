@@ -13,6 +13,10 @@ linters:
     staticcheck:
       # https://staticcheck.io/docs/options#checks
       checks: [ "all" ]
+    forbidigo:
+      forbid:
+        - pattern: ^errors\.New$
+          msg: "use domain.E/domain.Wrap for rpc errors instead of errors.New"
 
   enable:
     - bodyclose
@@ -72,6 +76,9 @@ linters:
           - bodyclose
           - noctx
           - musttag
+      - path-except: "^internal/infra/rpc/"
+        linters:
+          - forbidigo
       - linters:
         - revive
         path: '(utils|common|types)/*'

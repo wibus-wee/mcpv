@@ -204,7 +204,7 @@ func (m *Manager) Apply(ctx context.Context, specs []domain.PluginSpec) error {
 	}
 
 	if len(applyErrs) > 0 {
-		return errors.New(strings.Join(applyErrs, "; "))
+		return domain.Wrap(domain.CodeFailedPrecond, "plugin apply", errors.New(strings.Join(applyErrs, "; ")))
 	}
 	return nil
 }

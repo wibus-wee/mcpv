@@ -16,7 +16,7 @@ func (s *BasicScheduler) SetDesiredMinReady(ctx context.Context, specKey string,
 	}
 	spec, ok := s.specForKey(specKey)
 	if !ok {
-		return ErrUnknownSpecKey
+		return wrapSchedulerError("scheduler min ready", ErrUnknownSpecKey)
 	}
 
 	state := s.getPool(specKey, spec)
@@ -101,7 +101,7 @@ func (s *BasicScheduler) SetDesiredMinReady(ctx context.Context, specKey string,
 			firstErr = err
 		}
 	}
-	return firstErr
+	return wrapSchedulerError("scheduler min ready", firstErr)
 }
 
 // StopSpec stops instances for the given spec key.
@@ -109,7 +109,7 @@ func (s *BasicScheduler) StopSpec(ctx context.Context, specKey, reason string) e
 	spec, ok := s.specForKey(specKey)
 	state := s.poolByKey(specKey)
 	if !ok && state == nil {
-		return ErrUnknownSpecKey
+		return wrapSchedulerError("scheduler stop spec", ErrUnknownSpecKey)
 	}
 	if state == nil {
 		state = s.getPool(specKey, spec)

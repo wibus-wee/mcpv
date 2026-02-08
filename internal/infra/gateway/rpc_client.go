@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"mcpv/internal/domain"
 	controlv1 "mcpv/pkg/api/control/v1"
 )
 
@@ -39,7 +40,7 @@ func (g *Gateway) callTool(ctx context.Context, name string, args json.RawMessag
 		}
 	}
 	if resp == nil || len(resp.GetResultJson()) == 0 {
-		return nil, errors.New("empty call tool response")
+		return nil, domain.Wrap(domain.CodeInternal, "gateway call tool", errors.New("empty call tool response"))
 	}
 	return resp, nil
 }
@@ -72,7 +73,7 @@ func (g *Gateway) getPrompt(ctx context.Context, name string, args json.RawMessa
 		}
 	}
 	if resp == nil || len(resp.GetResultJson()) == 0 {
-		return nil, errors.New("empty get prompt response")
+		return nil, domain.Wrap(domain.CodeInternal, "gateway get prompt", errors.New("empty get prompt response"))
 	}
 	return resp, nil
 }
@@ -103,7 +104,7 @@ func (g *Gateway) readResource(ctx context.Context, uri string) (*controlv1.Read
 		}
 	}
 	if resp == nil || len(resp.GetResultJson()) == 0 {
-		return nil, errors.New("empty read resource response")
+		return nil, domain.Wrap(domain.CodeInternal, "gateway read resource", errors.New("empty read resource response"))
 	}
 	return resp, nil
 }
