@@ -1,4 +1,4 @@
-package plugin
+package manager
 
 import (
 	"context"
@@ -40,7 +40,7 @@ func TestPluginSystemE2E(t *testing.T) {
 	metrics := telemetry.NewNoopMetrics()
 
 	// Initialize plugin manager
-	manager, err := NewManager(ManagerOptions{
+	manager, err := NewManager(Options{
 		Logger:  logger,
 		RootDir: rootDir,
 	})
@@ -368,7 +368,7 @@ func TestPluginManagerLifecycle(t *testing.T) {
 	t.Cleanup(func() { _ = os.RemoveAll(rootDir) })
 
 	logger := zap.NewNop()
-	manager, err := NewManager(ManagerOptions{
+	manager, err := NewManager(Options{
 		Logger:  logger,
 		RootDir: rootDir,
 	})
@@ -448,7 +448,7 @@ func buildDemoPluginBinary(t *testing.T) string {
 	defer cancel()
 
 	// Build from cmd/demo-plugin
-	projectRoot := filepath.Join("..", "..", "..")
+	projectRoot := filepath.Join("..", "..", "..", "..")
 	cmd := exec.CommandContext(ctx, "go", "build", "-o", binPath, "./cmd/demo-plugin")
 	cmd.Dir = projectRoot
 	cmd.Env = os.Environ()

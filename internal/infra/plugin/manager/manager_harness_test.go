@@ -1,4 +1,4 @@
-package plugin
+package manager
 
 import (
 	"context"
@@ -24,7 +24,7 @@ func TestPluginManagerHarness(t *testing.T) {
 	rootDir := filepath.Join("/tmp", fmt.Sprintf("mcpv-harness-%d", time.Now().UnixNano()))
 	require.NoError(t, os.MkdirAll(rootDir, 0o700))
 	t.Cleanup(func() { _ = os.RemoveAll(rootDir) })
-	manager, err := NewManager(ManagerOptions{Logger: zap.NewNop(), RootDir: rootDir})
+	manager, err := NewManager(Options{Logger: zap.NewNop(), RootDir: rootDir})
 	require.NoError(t, err)
 	t.Cleanup(func() { manager.Stop(context.Background()) })
 
@@ -61,7 +61,7 @@ func buildFakePluginBinary(t *testing.T) string {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "go", "build", "-o", binPath, "./internal/infra/plugin/testdata/fakeplugin")
-	cmd.Dir = filepath.Join("..", "..", "..")
+	cmd.Dir = filepath.Join("..", "..", "..", "..")
 	cmd.Env = os.Environ()
 	output, err := cmd.CombinedOutput()
 	require.NoErrorf(t, err, "build plugin: %s", string(output))

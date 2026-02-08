@@ -3,7 +3,6 @@ package controlplane
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sort"
 	"sync/atomic"
 	"time"
@@ -11,11 +10,12 @@ import (
 	"go.uber.org/zap"
 
 	"mcpv/internal/app/bootstrap"
+	reloadpkg "mcpv/internal/app/controlplane/reload"
 	appRuntime "mcpv/internal/app/runtime"
 	"mcpv/internal/domain"
 	"mcpv/internal/infra/notifications"
 	"mcpv/internal/infra/pipeline"
-	"mcpv/internal/infra/plugin"
+	pluginmanager "mcpv/internal/infra/plugin/manager"
 	"mcpv/internal/infra/telemetry"
 )
 
@@ -26,7 +26,7 @@ type ReloadManager struct {
 	registry      *ClientRegistry
 	scheduler     domain.Scheduler
 	startup       *bootstrap.ServerStartupOrchestrator
-	pluginManager *plugin.Manager
+	pluginManager *pluginmanager.Manager
 	pipeline      *pipeline.Engine
 	metrics       domain.Metrics
 	health        *telemetry.HealthTracker
@@ -34,23 +34,10 @@ type ReloadManager struct {
 	listChanges   *notifications.ListChangeHub
 	coreLogger    *zap.Logger
 	logger        *zap.Logger
-	observer      *reloadObserver
-	transaction   *reloadTransaction
+	observer      *reloadpkg.Observer
+	transaction   *reloadpkg.Transaction
 	appliedRev    atomic.Uint64
 	started       atomic.Bool
-}
-
-type reloadApplyError struct {
-	stage string
-	err   error
-}
-
-func (e reloadApplyError) Error() string {
-	return fmt.Sprintf("%s: %v", e.stage, e.err)
-}
-
-func (e reloadApplyError) Unwrap() error {
-	return e.err
 }
 
 // NewReloadManager constructs a reload manager.
@@ -60,7 +47,7 @@ func NewReloadManager(
 	registry *ClientRegistry,
 	scheduler domain.Scheduler,
 	startup *bootstrap.ServerStartupOrchestrator,
-	pluginManager *plugin.Manager,
+	pluginManager *pluginmanager.Manager,
 	pipelineEngine *pipeline.Engine,
 	metrics domain.Metrics,
 	health *telemetry.HealthTracker,
@@ -73,8 +60,8 @@ func NewReloadManager(
 	}
 	coreLogger := logger
 	reloadLogger := logger.Named("reload")
-	observer := newReloadObserver(metrics, coreLogger, reloadLogger)
-	transaction := newReloadTransaction(observer, reloadLogger)
+	observer := reloadpkg.NewObserver(metrics, coreLogger, reloadLogger)
+	transaction := reloadpkg.NewTransaction(observer, reloadLogger)
 	return &ReloadManager{
 		provider:      provider,
 		state:         state,
@@ -115,35 +102,35 @@ func (m *ReloadManager) Reload(ctx context.Context) error {
 	}
 	prev, err := m.provider.Snapshot(ctx)
 	if err != nil {
-		m.observer.recordReloadFailure(domain.CatalogUpdateSourceManual, domain.ReloadActionEntry)
+		m.observer.RecordReloadFailure(domain.CatalogUpdateSourceManual, domain.ReloadActionEntry)
 		return err
 	}
 	if err := m.provider.Reload(ctx); err != nil {
 		if errors.Is(err, domain.ErrReloadRestartRequired) {
-			m.observer.recordReloadRestart(domain.CatalogUpdateSourceManual, domain.ReloadActionEntry)
+			m.observer.RecordReloadRestart(domain.CatalogUpdateSourceManual, domain.ReloadActionEntry)
 		} else {
-			m.observer.recordReloadFailure(domain.CatalogUpdateSourceManual, domain.ReloadActionEntry)
+			m.observer.RecordReloadFailure(domain.CatalogUpdateSourceManual, domain.ReloadActionEntry)
 		}
 		return err
 	}
 	if !m.started.Load() {
-		m.observer.recordReloadSuccess(domain.CatalogUpdateSourceManual, domain.ReloadActionEntry)
+		m.observer.RecordReloadSuccess(domain.CatalogUpdateSourceManual, domain.ReloadActionEntry)
 		return nil
 	}
 	next, err := m.provider.Snapshot(ctx)
 	if err != nil {
-		m.observer.recordReloadFailure(domain.CatalogUpdateSourceManual, domain.ReloadActionEntry)
+		m.observer.RecordReloadFailure(domain.CatalogUpdateSourceManual, domain.ReloadActionEntry)
 		return err
 	}
 	if next.Revision == prev.Revision {
-		m.observer.recordReloadSuccess(domain.CatalogUpdateSourceManual, domain.ReloadActionEntry)
+		m.observer.RecordReloadSuccess(domain.CatalogUpdateSourceManual, domain.ReloadActionEntry)
 		return nil
 	}
 	if err := m.waitForRevision(ctx, next.Revision); err != nil {
-		m.observer.recordReloadFailure(domain.CatalogUpdateSourceManual, domain.ReloadActionEntry)
+		m.observer.RecordReloadFailure(domain.CatalogUpdateSourceManual, domain.ReloadActionEntry)
 		return err
 	}
-	m.observer.recordReloadSuccess(domain.CatalogUpdateSourceManual, domain.ReloadActionEntry)
+	m.observer.RecordReloadSuccess(domain.CatalogUpdateSourceManual, domain.ReloadActionEntry)
 	return nil
 }
 
@@ -161,16 +148,16 @@ func (m *ReloadManager) run(ctx context.Context, updates <-chan domain.CatalogUp
 			}
 			started := time.Now()
 			if err := m.applyUpdate(ctx, update); err != nil {
-				m.observer.recordReloadFailure(update.Source, domain.ReloadActionEntry)
-				m.observer.recordReloadActionFailures(update.Source, update.Diff)
+				m.observer.RecordReloadFailure(update.Source, domain.ReloadActionEntry)
+				m.observer.RecordReloadActionFailures(update.Source, update.Diff)
 				m.logger.Warn("config reload apply failed", zap.Error(err))
 				duration := time.Since(started)
-				m.observer.handleApplyError(update, err, duration)
+				m.observer.HandleApplyError(update, err, duration)
 				continue
 			}
 			duration := time.Since(started)
-			reloadMode := resolveReloadMode(update.Snapshot.Summary.Runtime.ReloadMode)
-			m.observer.observeReloadApply(reloadMode, domain.ReloadApplyResultSuccess, "none", duration)
+			reloadMode := reloadpkg.ResolveMode(update.Snapshot.Summary.Runtime.ReloadMode)
+			m.observer.ObserveReloadApply(reloadMode, domain.ReloadApplyResultSuccess, "none", duration)
 			m.logger.Info("config reload applied",
 				zap.Uint64("revision", update.Snapshot.Revision),
 				zap.Int("servers", update.Snapshot.Summary.TotalServers),
@@ -187,12 +174,6 @@ func (m *ReloadManager) run(ctx context.Context, updates <-chan domain.CatalogUp
 	}
 }
 
-type reloadStep struct {
-	name     string
-	apply    func(context.Context) error
-	rollback func(context.Context) error
-}
-
 func (m *ReloadManager) applyUpdate(ctx context.Context, update domain.CatalogUpdate) error {
 	started := time.Now()
 	prevSnapshot, err := m.currentSnapshot()
@@ -201,8 +182,8 @@ func (m *ReloadManager) applyUpdate(ctx context.Context, update domain.CatalogUp
 	}
 	diff := update.Diff
 	if diff.RuntimeDiff.RequiresRestart() {
-		m.observer.recordReloadRestart(update.Source, domain.ReloadActionEntry)
-		return reloadApplyError{stage: "restart_required", err: domain.ErrReloadRestartRequired}
+		m.observer.RecordReloadRestart(update.Source, domain.ReloadActionEntry)
+		return reloadpkg.ApplyError{Stage: "restart_required", Err: domain.ErrReloadRestartRequired}
 	}
 
 	addedServers := serverNamesForSpecKeys(update.Snapshot.Catalog, diff.AddedSpecKeys)
@@ -213,26 +194,26 @@ func (m *ReloadManager) applyUpdate(ctx context.Context, update domain.CatalogUp
 	runtimeOnly := diff.IsRuntimeOnly()
 
 	steps := m.buildReloadSteps(prevSnapshot, update)
-	reloadMode := resolveReloadMode(update.Snapshot.Summary.Runtime.ReloadMode)
-	if err := m.transaction.apply(ctx, steps, reloadMode); err != nil {
+	reloadMode := reloadpkg.ResolveMode(update.Snapshot.Summary.Runtime.ReloadMode)
+	if err := m.transaction.Apply(ctx, steps, reloadMode); err != nil {
 		return err
 	}
 
 	m.refreshRuntime(ctx, update, m.state.RuntimeState())
 
-	m.observer.recordReloadSuccess(update.Source, domain.ReloadActionEntry)
+	m.observer.RecordReloadSuccess(update.Source, domain.ReloadActionEntry)
 	for range update.Diff.AddedSpecKeys {
-		m.observer.recordReloadSuccess(update.Source, domain.ReloadActionServerAdd)
+		m.observer.RecordReloadSuccess(update.Source, domain.ReloadActionServerAdd)
 	}
 	for range update.Diff.RemovedSpecKeys {
-		m.observer.recordReloadSuccess(update.Source, domain.ReloadActionServerRemove)
+		m.observer.RecordReloadSuccess(update.Source, domain.ReloadActionServerRemove)
 	}
 	for range update.Diff.UpdatedSpecKeys {
-		m.observer.recordReloadSuccess(update.Source, domain.ReloadActionServerUpdate)
+		m.observer.RecordReloadSuccess(update.Source, domain.ReloadActionServerUpdate)
 	}
 	for range update.Diff.ReplacedSpecKeys {
-		m.observer.recordReloadSuccess(update.Source, domain.ReloadActionServerReplace)
-		m.observer.recordReloadRestart(update.Source, domain.ReloadActionServerReplace)
+		m.observer.RecordReloadSuccess(update.Source, domain.ReloadActionServerReplace)
+		m.observer.RecordReloadRestart(update.Source, domain.ReloadActionServerReplace)
 	}
 
 	m.logger.Info("config reload applied",
@@ -258,16 +239,16 @@ func (m *ReloadManager) applyUpdate(ctx context.Context, update domain.CatalogUp
 	return nil
 }
 
-func (m *ReloadManager) buildReloadSteps(prev domain.CatalogState, update domain.CatalogUpdate) []reloadStep {
+func (m *ReloadManager) buildReloadSteps(prev domain.CatalogState, update domain.CatalogUpdate) []reloadpkg.Step {
 	diff := update.Diff
 	runtimeOnly := diff.IsRuntimeOnly()
 	reverseDiff := domain.DiffCatalogStates(update.Snapshot, prev)
 
-	steps := make([]reloadStep, 0, 2)
+	steps := make([]reloadpkg.Step, 0, 2)
 	if !runtimeOnly || m.startup != nil {
-		steps = append(steps, reloadStep{
-			name: "scheduler_apply",
-			apply: func(ctx context.Context) error {
+		steps = append(steps, reloadpkg.Step{
+			Name: "scheduler_apply",
+			Apply: func(ctx context.Context) error {
 				if !runtimeOnly && m.scheduler != nil {
 					if err := m.scheduler.ApplyCatalogDiff(ctx, diff, update.Snapshot.Summary.SpecRegistry); err != nil {
 						if rollbackErr := m.scheduler.ApplyCatalogDiff(ctx, reverseDiff, prev.Summary.SpecRegistry); rollbackErr != nil {
@@ -281,7 +262,7 @@ func (m *ReloadManager) buildReloadSteps(prev domain.CatalogState, update domain
 				}
 				return nil
 			},
-			rollback: func(ctx context.Context) error {
+			Rollback: func(ctx context.Context) error {
 				var rollbackErr error
 				if !runtimeOnly && m.scheduler != nil {
 					if err := m.scheduler.ApplyCatalogDiff(ctx, reverseDiff, prev.Summary.SpecRegistry); err != nil {
@@ -300,9 +281,9 @@ func (m *ReloadManager) buildReloadSteps(prev domain.CatalogState, update domain
 	if diff.PluginsChanged && (m.pluginManager != nil || m.pipeline != nil) {
 		prevPlugins := prev.Summary.Plugins
 		nextPlugins := update.Snapshot.Summary.Plugins
-		steps = append(steps, reloadStep{
-			name: "plugins",
-			apply: func(ctx context.Context) error {
+		steps = append(steps, reloadpkg.Step{
+			Name: "plugins",
+			Apply: func(ctx context.Context) error {
 				if m.pluginManager != nil {
 					if err := m.pluginManager.Apply(ctx, nextPlugins); err != nil {
 						if rollbackErr := m.pluginManager.Apply(ctx, prevPlugins); rollbackErr != nil {
@@ -316,7 +297,7 @@ func (m *ReloadManager) buildReloadSteps(prev domain.CatalogState, update domain
 				}
 				return nil
 			},
-			rollback: func(ctx context.Context) error {
+			Rollback: func(ctx context.Context) error {
 				var rollbackErr error
 				if m.pipeline != nil {
 					m.pipeline.Update(prevPlugins)
@@ -336,7 +317,7 @@ func (m *ReloadManager) buildReloadSteps(prev domain.CatalogState, update domain
 	return steps
 }
 
-func (m *ReloadManager) buildStateRegistryStep(prev domain.CatalogState, update domain.CatalogUpdate, reverseDiff domain.CatalogDiff) reloadStep {
+func (m *ReloadManager) buildStateRegistryStep(prev domain.CatalogState, update domain.CatalogUpdate, reverseDiff domain.CatalogDiff) reloadpkg.Step {
 	diff := update.Diff
 	prevRuntime := m.state.RuntimeState()
 	runtime := prevRuntime
@@ -352,9 +333,9 @@ func (m *ReloadManager) buildStateRegistryStep(prev domain.CatalogState, update 
 		Source:   update.Source,
 	}
 
-	return reloadStep{
-		name: "state_registry",
-		apply: func(ctx context.Context) error {
+	return reloadpkg.Step{
+		Name: "state_registry",
+		Apply: func(ctx context.Context) error {
 			if shouldUpdateRuntime {
 				runtime.UpdateCatalog(update.Snapshot.Catalog, update.Snapshot.Summary.ServerSpecKeys, update.Snapshot.Summary.Runtime)
 			}
@@ -374,7 +355,7 @@ func (m *ReloadManager) buildStateRegistryStep(prev domain.CatalogState, update 
 			}
 			return nil
 		},
-		rollback: func(ctx context.Context) error {
+		Rollback: func(ctx context.Context) error {
 			var rollbackErr error
 			if shouldUpdateRuntime {
 				runtime.UpdateCatalog(prev.Catalog, prev.Summary.ServerSpecKeys, prev.Summary.Runtime)
@@ -390,13 +371,13 @@ func (m *ReloadManager) buildStateRegistryStep(prev domain.CatalogState, update 
 	}
 }
 
-func (m *ReloadManager) buildRuntimeConfigStep(prev, next domain.RuntimeConfig) reloadStep {
-	return reloadStep{
-		name: "runtime_config",
-		apply: func(ctx context.Context) error {
+func (m *ReloadManager) buildRuntimeConfigStep(prev, next domain.RuntimeConfig) reloadpkg.Step {
+	return reloadpkg.Step{
+		Name: "runtime_config",
+		Apply: func(ctx context.Context) error {
 			return m.applyRuntimeConfig(ctx, prev, next)
 		},
-		rollback: func(ctx context.Context) error {
+		Rollback: func(ctx context.Context) error {
 			return m.applyRuntimeConfig(ctx, next, prev)
 		},
 	}
@@ -519,11 +500,4 @@ func diffChangedFields(diff domain.CatalogDiff) []string {
 		fields = append(fields, "plugins")
 	}
 	return fields
-}
-
-func resolveReloadMode(mode domain.ReloadMode) domain.ReloadMode {
-	if mode == "" {
-		return domain.DefaultReloadMode
-	}
-	return mode
 }

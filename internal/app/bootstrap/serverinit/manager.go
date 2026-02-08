@@ -1,4 +1,4 @@
-package bootstrap
+package serverinit
 
 import (
 	"context"
@@ -10,11 +10,12 @@ import (
 
 	"go.uber.org/zap"
 
+	"mcpv/internal/app/bootstrap/activation"
 	"mcpv/internal/domain"
 )
 
-// ServerInitializationManager coordinates async server initialization.
-type ServerInitializationManager struct {
+// Manager coordinates async server initialization.
+type Manager struct {
 	scheduler domain.Scheduler
 	specs     map[string]domain.ServerSpec
 	runtime   domain.RuntimeConfig
@@ -34,12 +35,12 @@ type ServerInitializationManager struct {
 	started bool
 }
 
-// NewServerInitializationManager constructs a server initialization manager.
-func NewServerInitializationManager(
+// NewManager constructs a server initialization manager.
+func NewManager(
 	scheduler domain.Scheduler,
 	state *domain.CatalogState,
 	logger *zap.Logger,
-) *ServerInitializationManager {
+) *Manager {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -50,7 +51,7 @@ func NewServerInitializationManager(
 
 	retryBase, retryMax, maxRetries := resolveServerInitRetry(runtime)
 
-	return &ServerInitializationManager{
+	return &Manager{
 		scheduler:  scheduler,
 		specs:      specs,
 		runtime:    runtime,
@@ -66,7 +67,7 @@ func NewServerInitializationManager(
 }
 
 // ApplyCatalogState updates the manager with a new catalog state.
-func (m *ServerInitializationManager) ApplyCatalogState(state *domain.CatalogState) {
+func (m *Manager) ApplyCatalogState(state *domain.CatalogState) {
 	summary := state.Summary
 	specs := summary.SpecRegistry
 	runtime := summary.Runtime
@@ -83,7 +84,7 @@ func (m *ServerInitializationManager) ApplyCatalogState(state *domain.CatalogSta
 	m.maxRetries = maxRetries
 
 	for specKey, spec := range specs {
-		minReady := BaselineMinReady(runtime, spec)
+		minReady := activation.BaselineMinReady(runtime, spec)
 		status, ok := m.statuses[specKey]
 		if !ok {
 			added = append(added, specKey)
@@ -115,7 +116,7 @@ func (m *ServerInitializationManager) ApplyCatalogState(state *domain.CatalogSta
 		}
 		m.targets[specKey] = minReady
 		if minReady > 0 {
-			m.causes[specKey] = PolicyStartCause(runtime, spec, minReady)
+			m.causes[specKey] = activation.PolicyStartCause(runtime, spec, minReady)
 		} else {
 			delete(m.causes, specKey)
 		}
@@ -156,7 +157,7 @@ func resolveServerInitRetry(runtime domain.RuntimeConfig) (time.Duration, time.D
 }
 
 // Start begins background initialization work.
-func (m *ServerInitializationManager) Start(ctx context.Context) {
+func (m *Manager) Start(ctx context.Context) {
 	m.mu.Lock()
 	if m.started {
 		m.mu.Unlock()
@@ -168,7 +169,7 @@ func (m *ServerInitializationManager) Start(ctx context.Context) {
 	m.ctx, m.cancel = context.WithCancel(ctx)
 	now := time.Now()
 	for specKey, spec := range m.specs {
-		minReady := BaselineMinReady(m.runtime, spec)
+		minReady := activation.BaselineMinReady(m.runtime, spec)
 		m.targets[specKey] = minReady
 		m.statuses[specKey] = domain.ServerInitStatus{
 			SpecKey:     specKey,
@@ -189,7 +190,7 @@ func (m *ServerInitializationManager) Start(ctx context.Context) {
 }
 
 // Stop stops background initialization work.
-func (m *ServerInitializationManager) Stop() {
+func (m *Manager) Stop() {
 	m.mu.Lock()
 	cancel := m.cancel
 	m.cancel = nil
@@ -200,7 +201,7 @@ func (m *ServerInitializationManager) Stop() {
 }
 
 // SetMinReady updates min-ready settings for a spec.
-func (m *ServerInitializationManager) SetMinReady(specKey string, minReady int, cause domain.StartCause) error {
+func (m *Manager) SetMinReady(specKey string, minReady int, cause domain.StartCause) error {
 	m.mu.Lock()
 	if !m.started {
 		m.mu.Unlock()
@@ -219,7 +220,7 @@ func (m *ServerInitializationManager) SetMinReady(specKey string, minReady int, 
 	if minReady > 0 {
 		if cause.Reason == "" {
 			if spec, ok := m.specs[specKey]; ok {
-				cause = PolicyStartCause(m.runtime, spec, minReady)
+				cause = activation.PolicyStartCause(m.runtime, spec, minReady)
 			}
 		}
 		m.causes[specKey] = cause
@@ -250,7 +251,7 @@ func (m *ServerInitializationManager) SetMinReady(specKey string, minReady int, 
 }
 
 // RetrySpec requests a retry for a spec initialization.
-func (m *ServerInitializationManager) RetrySpec(specKey string) error {
+func (m *Manager) RetrySpec(specKey string) error {
 	m.mu.Lock()
 	if !m.started {
 		m.mu.Unlock()
@@ -277,7 +278,7 @@ func (m *ServerInitializationManager) RetrySpec(specKey string) error {
 }
 
 // Statuses returns the current init status snapshot.
-func (m *ServerInitializationManager) Statuses(ctx context.Context) []domain.ServerInitStatus {
+func (m *Manager) Statuses(ctx context.Context) []domain.ServerInitStatus {
 	m.mu.Lock()
 	scheduler := m.scheduler
 	result := make([]domain.ServerInitStatus, 0, len(m.statuses))
@@ -345,7 +346,7 @@ func (m *ServerInitializationManager) Statuses(ctx context.Context) []domain.Ser
 	return result
 }
 
-func (m *ServerInitializationManager) ensureWorker(specKey string) {
+func (m *Manager) ensureWorker(specKey string) {
 	m.mu.Lock()
 	if _, ok := m.running[specKey]; ok {
 		m.mu.Unlock()
@@ -358,7 +359,7 @@ func (m *ServerInitializationManager) ensureWorker(specKey string) {
 	go m.runSpec(ctx, specKey)
 }
 
-func (m *ServerInitializationManager) runSpec(ctx context.Context, specKey string) {
+func (m *Manager) runSpec(ctx context.Context, specKey string) {
 	defer func() {
 		m.mu.Lock()
 		delete(m.running, specKey)
@@ -482,7 +483,7 @@ func (m *ServerInitializationManager) runSpec(ctx context.Context, specKey strin
 	}
 }
 
-func (m *ServerInitializationManager) applyResult(specKey string, target, ready, failed int, err error) {
+func (m *Manager) applyResult(specKey string, target, ready, failed int, err error) {
 	state := domain.ServerInitStarting
 	switch {
 	case target == 0 && err == nil && failed == 0:
@@ -543,7 +544,7 @@ func deriveInitState(status domain.ServerInitStatus, ready, failed int) domain.S
 	}
 }
 
-func (m *ServerInitializationManager) snapshot(ctx context.Context, specKey string) (int, int, error) {
+func (m *Manager) snapshot(ctx context.Context, specKey string) (int, int, error) {
 	m.mu.Lock()
 	scheduler := m.scheduler
 	m.mu.Unlock()
@@ -585,7 +586,7 @@ func (m *ServerInitializationManager) snapshot(ctx context.Context, specKey stri
 	return 0, 0, nil
 }
 
-func (m *ServerInitializationManager) updateStatus(specKey string, mutate func(*domain.ServerInitStatus)) {
+func (m *Manager) updateStatus(specKey string, mutate func(*domain.ServerInitStatus)) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -597,27 +598,27 @@ func (m *ServerInitializationManager) updateStatus(specKey string, mutate func(*
 	m.statuses[specKey] = status
 }
 
-func (m *ServerInitializationManager) getStatus(specKey string) (domain.ServerInitStatus, bool) {
+func (m *Manager) getStatus(specKey string) (domain.ServerInitStatus, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	status, ok := m.statuses[specKey]
 	return status, ok
 }
 
-func (m *ServerInitializationManager) target(specKey string) int {
+func (m *Manager) target(specKey string) int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.targets[specKey]
 }
 
-func (m *ServerInitializationManager) startCause(specKey string) (domain.StartCause, bool) {
+func (m *Manager) startCause(specKey string) (domain.StartCause, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	cause, ok := m.causes[specKey]
 	return cause, ok
 }
 
-func (m *ServerInitializationManager) nextRetryCount(prev domain.ServerInitStatus, ready, failed int, err error) int {
+func (m *Manager) nextRetryCount(prev domain.ServerInitStatus, ready, failed int, err error) int {
 	if ready > prev.Ready {
 		return 0
 	}
@@ -628,7 +629,7 @@ func (m *ServerInitializationManager) nextRetryCount(prev domain.ServerInitStatu
 	return retryCount
 }
 
-func (m *ServerInitializationManager) nextRetryDelay(retryCount int) time.Duration {
+func (m *Manager) nextRetryDelay(retryCount int) time.Duration {
 	if retryCount < 1 {
 		retryCount = 1
 	}

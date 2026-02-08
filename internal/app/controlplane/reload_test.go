@@ -11,9 +11,10 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"mcpv/internal/app/bootstrap"
+	"mcpv/internal/app/bootstrap/serverinit"
 	"mcpv/internal/app/runtime"
 	"mcpv/internal/domain"
-	"mcpv/internal/infra/plugin"
+	pluginmanager "mcpv/internal/infra/plugin/manager"
 )
 
 func TestReloadManager_ApplyUpdate_UpdatesRuntimeAndRegistry(t *testing.T) {
@@ -42,7 +43,7 @@ func TestReloadManager_ApplyUpdate_UpdatesRuntimeAndRegistry(t *testing.T) {
 	require.NotEqual(t, prevSpecKey, nextSpecKey)
 
 	scheduler := &schedulerStub{}
-	initManager := bootstrap.NewServerInitializationManager(scheduler, &prevState, zap.NewNop())
+	initManager := serverinit.NewManager(scheduler, &prevState, zap.NewNop())
 	startup := bootstrap.NewServerStartupOrchestrator(initManager, nil, zap.NewNop())
 	runtimeState := runtime.NewStateFromSpecKeys(prevState.Summary.ServerSpecKeys)
 	state := NewState(context.Background(), runtimeState, scheduler, startup, &prevState, zap.NewNop())
@@ -143,7 +144,7 @@ func TestReloadManager_ApplyUpdate_PluginApplyFailureRetainsState(t *testing.T) 
 	state := NewState(context.Background(), runtime.NewStateFromSpecKeys(prevState.Summary.ServerSpecKeys), scheduler, nil, &prevState, zap.NewNop())
 	registry := NewClientRegistry(state)
 
-	pluginManager, err := plugin.NewManager(plugin.ManagerOptions{Logger: zap.NewNop(), RootDir: t.TempDir()})
+	pluginManager, err := pluginmanager.NewManager(pluginmanager.Options{Logger: zap.NewNop(), RootDir: t.TempDir()})
 	require.NoError(t, err)
 	t.Cleanup(func() { pluginManager.Stop(context.Background()) })
 
@@ -247,10 +248,10 @@ func TestReloadManager_HandleApplyError_StrictPanics(t *testing.T) {
 	logger := zap.New(zapcore.NewNopCore(), zap.WithFatalHook(zapcore.WriteThenPanic))
 	manager := NewReloadManager(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, zap.NewNop())
 	manager.coreLogger = logger
-	manager.observer.coreLogger = logger
+	manager.observer.SetCoreLogger(logger)
 
 	require.Panics(t, func() {
-		manager.observer.handleApplyError(update, errors.New("apply failed"), 10*time.Millisecond)
+		manager.observer.HandleApplyError(update, errors.New("apply failed"), 10*time.Millisecond)
 	})
 }
 
@@ -271,10 +272,10 @@ func TestReloadManager_HandleApplyError_LenientDoesNotPanic(t *testing.T) {
 	logger := zap.New(zapcore.NewNopCore(), zap.WithFatalHook(zapcore.WriteThenPanic))
 	manager := NewReloadManager(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, zap.NewNop())
 	manager.coreLogger = logger
-	manager.observer.coreLogger = logger
+	manager.observer.SetCoreLogger(logger)
 
 	require.NotPanics(t, func() {
-		manager.observer.handleApplyError(update, errors.New("apply failed"), 10*time.Millisecond)
+		manager.observer.HandleApplyError(update, errors.New("apply failed"), 10*time.Millisecond)
 	})
 }
 

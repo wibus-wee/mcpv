@@ -1,4 +1,4 @@
-package bootstrap
+package metadata
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.uber.org/zap"
 
+	"mcpv/internal/app/bootstrap/activation"
 	"mcpv/internal/domain"
 	"mcpv/internal/infra/hashutil"
 	"mcpv/internal/infra/mcpcodec"
@@ -47,8 +48,8 @@ type bootstrapTarget struct {
 	spec    domain.ServerSpec
 }
 
-// ManagerOptions configures the Manager.
-type ManagerOptions struct {
+// Options configures the Manager.
+type Options struct {
 	Scheduler   domain.Scheduler
 	Lifecycle   domain.Lifecycle
 	Specs       map[string]domain.ServerSpec
@@ -62,7 +63,7 @@ type ManagerOptions struct {
 }
 
 // NewManager creates a new Manager.
-func NewManager(opts ManagerOptions) *Manager {
+func NewManager(opts Options) *Manager {
 	logger := opts.Logger
 	if logger == nil {
 		logger = zap.NewNop()
@@ -286,7 +287,7 @@ func (m *Manager) bootstrapOne(ctx context.Context, specKey string, spec domain.
 }
 
 func (m *Manager) shouldWaitForReady(spec domain.ServerSpec) bool {
-	mode := ResolveActivationMode(m.runtime, spec)
+	mode := activation.ResolveActivationMode(m.runtime, spec)
 	if mode == domain.ActivationAlwaysOn {
 		return true
 	}

@@ -7,7 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"mcpv/internal/app/bootstrap"
+	"mcpv/internal/app/bootstrap/activation"
 	"mcpv/internal/domain"
 )
 
@@ -44,8 +44,8 @@ func (r *ClientRegistry) activateSpecs(ctx context.Context, specKeys []string, c
 		if !ok {
 			return errors.New("unknown spec key " + specKey)
 		}
-		minReady := bootstrap.ActiveMinReady(spec)
-		cause := bootstrap.ClientStartCause(runtime, spec, client, minReady)
+		minReady := activation.ActiveMinReady(spec)
+		cause := activation.ClientStartCause(runtime, spec, client, minReady)
 		tasks = append(tasks, activationTask{
 			specKey:  specKey,
 			minReady: minReady,
@@ -93,7 +93,7 @@ func (r *ClientRegistry) deactivateSpecs(ctx context.Context, specKeys []string)
 			continue
 		}
 		spec, ok := registry[specKey]
-		if ok && bootstrap.ResolveActivationMode(runtime, spec) == domain.ActivationAlwaysOn {
+		if ok && activation.ResolveActivationMode(runtime, spec) == domain.ActivationAlwaysOn {
 			continue
 		}
 		specsToStop = append(specsToStop, specKey)

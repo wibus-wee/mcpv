@@ -6,20 +6,22 @@ import (
 
 	"go.uber.org/zap"
 
+	"mcpv/internal/app/bootstrap/metadata"
+	"mcpv/internal/app/bootstrap/serverinit"
 	"mcpv/internal/domain"
 )
 
 // ServerStartupOrchestrator coordinates bootstrap metadata fetches and server init.
 type ServerStartupOrchestrator struct {
-	initManager      *ServerInitializationManager
-	bootstrapManager *Manager
+	initManager      *serverinit.Manager
+	bootstrapManager *metadata.Manager
 	logger           *zap.Logger
 }
 
 // NewServerStartupOrchestrator constructs a startup orchestrator.
 func NewServerStartupOrchestrator(
-	initManager *ServerInitializationManager,
-	bootstrapManager *Manager,
+	initManager *serverinit.Manager,
+	bootstrapManager *metadata.Manager,
 	logger *zap.Logger,
 ) *ServerStartupOrchestrator {
 	if logger == nil {

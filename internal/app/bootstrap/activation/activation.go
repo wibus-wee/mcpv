@@ -1,4 +1,4 @@
-package bootstrap
+package activation
 
 import "mcpv/internal/domain"
 

@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"mcpv/internal/app/controlplane"
-	"mcpv/internal/infra/plugin"
+	pluginmanager "mcpv/internal/infra/plugin/manager"
 	"mcpv/internal/infra/telemetry"
 )
 
@@ -101,7 +101,7 @@ func (a *App) setApplication(application *Application) {
 }
 
 // GetPluginStatus returns the runtime status of all configured plugins.
-func (a *App) GetPluginStatus() []plugin.Status {
+func (a *App) GetPluginStatus() []pluginmanager.Status {
 	a.mu.RLock()
 	application := a.application
 	a.mu.RUnlock()

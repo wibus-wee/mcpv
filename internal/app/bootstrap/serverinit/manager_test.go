@@ -1,4 +1,4 @@
-package bootstrap
+package serverinit
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	"mcpv/internal/domain"
 )
 
-func TestServerInitializationManager_Ready(t *testing.T) {
+func TestManager_Ready(t *testing.T) {
 	spec := domain.ServerSpec{Name: "alpha", MinReady: 1, ActivationMode: domain.ActivationAlwaysOn}
 	specKey := specKeyFor(t, spec)
 	scheduler := newInitSchedulerStub(map[string][]setResult{
@@ -23,7 +23,7 @@ func TestServerInitializationManager_Ready(t *testing.T) {
 		},
 	})
 
-	manager := NewServerInitializationManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop())
+	manager := NewManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop())
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -34,7 +34,7 @@ func TestServerInitializationManager_Ready(t *testing.T) {
 	require.Equal(t, "", status.LastError)
 }
 
-func TestServerInitializationManager_DegradedThenReady(t *testing.T) {
+func TestManager_DegradedThenReady(t *testing.T) {
 	spec := domain.ServerSpec{Name: "beta", MinReady: 2, ActivationMode: domain.ActivationAlwaysOn}
 	specKey := specKeyFor(t, spec)
 	scheduler := newInitSchedulerStub(map[string][]setResult{
@@ -44,7 +44,7 @@ func TestServerInitializationManager_DegradedThenReady(t *testing.T) {
 		},
 	})
 
-	manager := NewServerInitializationManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop())
+	manager := NewManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop())
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -55,7 +55,7 @@ func TestServerInitializationManager_DegradedThenReady(t *testing.T) {
 	require.Empty(t, status.LastError)
 }
 
-func TestServerInitializationManager_Cancelled(t *testing.T) {
+func TestManager_Cancelled(t *testing.T) {
 	spec := domain.ServerSpec{Name: "gamma", MinReady: 1, ActivationMode: domain.ActivationAlwaysOn}
 	specKey := specKeyFor(t, spec)
 	scheduler := newInitSchedulerStub(map[string][]setResult{
@@ -64,7 +64,7 @@ func TestServerInitializationManager_Cancelled(t *testing.T) {
 		},
 	})
 
-	manager := NewServerInitializationManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop())
+	manager := NewManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop())
 	ctx, cancel := context.WithCancel(context.Background())
 
 	manager.Start(ctx)
@@ -74,7 +74,7 @@ func TestServerInitializationManager_Cancelled(t *testing.T) {
 	require.Contains(t, status.LastError, "context canceled")
 }
 
-func TestServerInitializationManager_SuspendsAfterRetries(t *testing.T) {
+func TestManager_SuspendsAfterRetries(t *testing.T) {
 	spec := domain.ServerSpec{Name: "delta", MinReady: 1, ActivationMode: domain.ActivationAlwaysOn}
 	specKey := specKeyFor(t, spec)
 	scheduler := newInitSchedulerStub(map[string][]setResult{
@@ -84,7 +84,7 @@ func TestServerInitializationManager_SuspendsAfterRetries(t *testing.T) {
 		},
 	})
 
-	manager := NewServerInitializationManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop())
+	manager := NewManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop())
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -95,7 +95,7 @@ func TestServerInitializationManager_SuspendsAfterRetries(t *testing.T) {
 	require.Contains(t, status.LastError, "retry limit reached")
 }
 
-func TestServerInitializationManager_RetrySpecResets(t *testing.T) {
+func TestManager_RetrySpecResets(t *testing.T) {
 	spec := domain.ServerSpec{Name: "epsilon", MinReady: 1, ActivationMode: domain.ActivationAlwaysOn}
 	specKey := specKeyFor(t, spec)
 	scheduler := newInitSchedulerStub(map[string][]setResult{
@@ -106,7 +106,7 @@ func TestServerInitializationManager_RetrySpecResets(t *testing.T) {
 		},
 	})
 
-	manager := NewServerInitializationManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop())
+	manager := NewManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop())
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -121,7 +121,7 @@ func TestServerInitializationManager_RetrySpecResets(t *testing.T) {
 	require.Equal(t, 0, status.RetryCount)
 }
 
-func TestServerInitializationManager_OnDemandReadyWithoutInstances(t *testing.T) {
+func TestManager_OnDemandReadyWithoutInstances(t *testing.T) {
 	// On-demand server with minReady=0 should report ready immediately
 	// because the spec/metadata is loaded successfully, no instances needed.
 	spec := domain.ServerSpec{Name: "ondemand", MinReady: 0, ActivationMode: domain.ActivationOnDemand}
@@ -134,7 +134,7 @@ func TestServerInitializationManager_OnDemandReadyWithoutInstances(t *testing.T)
 
 	runtime := initRuntimeConfig(2)
 	runtime.DefaultActivationMode = domain.ActivationOnDemand
-	manager := NewServerInitializationManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, runtime), zap.NewNop())
+	manager := NewManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, runtime), zap.NewNop())
 	ctx := t.Context()
 
 	manager.Start(ctx)
@@ -146,7 +146,7 @@ func TestServerInitializationManager_OnDemandReadyWithoutInstances(t *testing.T)
 	require.Empty(t, status.LastError)
 }
 
-func waitForStatus(t *testing.T, manager *ServerInitializationManager, specKey string, state domain.ServerInitState, ready int) domain.ServerInitStatus {
+func waitForStatus(t *testing.T, manager *Manager, specKey string, state domain.ServerInitState, ready int) domain.ServerInitStatus {
 	t.Helper()
 
 	deadline := time.Now().Add(2 * time.Second)

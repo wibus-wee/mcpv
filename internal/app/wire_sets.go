@@ -7,6 +7,7 @@ import (
 	"github.com/google/wire"
 
 	"mcpv/internal/app/bootstrap"
+	"mcpv/internal/app/bootstrap/serverinit"
 	appCatalog "mcpv/internal/app/catalog"
 	"mcpv/internal/app/controlplane"
 	"mcpv/internal/domain"
@@ -45,7 +46,7 @@ var ReloadableAppSet = wire.NewSet(
 	NewScheduler,
 	domain.NewMetadataCache,
 	NewBootstrapManagerProvider,
-	bootstrap.NewServerInitializationManager,
+	serverinit.NewManager,
 	bootstrap.NewServerStartupOrchestrator,
 	newRuntimeState,
 	provideControlPlaneState,

@@ -10,7 +10,7 @@ import (
 	"mcpv/internal/app/bootstrap"
 	"mcpv/internal/app/controlplane"
 	"mcpv/internal/domain"
-	"mcpv/internal/infra/plugin"
+	pluginmanager "mcpv/internal/infra/plugin/manager"
 	"mcpv/internal/infra/rpc"
 	"mcpv/internal/infra/telemetry"
 )
@@ -33,7 +33,7 @@ type Application struct {
 	controlPlane  *controlplane.ControlPlane
 	rpcServer     *rpc.Server
 	reloadManager *controlplane.ReloadManager
-	pluginManager *plugin.Manager
+	pluginManager *pluginmanager.Manager
 }
 
 // ApplicationOptions captures dependencies and settings for Application.
@@ -51,7 +51,7 @@ type ApplicationOptions struct {
 	ControlPlane      *controlplane.ControlPlane
 	RPCServer         *rpc.Server
 	ReloadManager     *controlplane.ReloadManager
-	PluginManager     *plugin.Manager
+	PluginManager     *pluginmanager.Manager
 }
 
 // NewApplication constructs the core application runtime.
@@ -184,7 +184,7 @@ func (a *Application) Run() error {
 }
 
 // GetPluginStatus returns the runtime status of all configured plugins.
-func (a *Application) GetPluginStatus() []plugin.Status {
+func (a *Application) GetPluginStatus() []pluginmanager.Status {
 	if a.pluginManager == nil {
 		return nil
 	}

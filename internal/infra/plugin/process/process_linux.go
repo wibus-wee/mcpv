@@ -1,6 +1,6 @@
-//go:build darwin
+//go:build linux
 
-package plugin
+package process
 
 import (
 	"os"
@@ -8,9 +8,10 @@ import (
 	"syscall"
 )
 
-func setupProcessHandling(cmd *exec.Cmd) processCleanup {
+func Setup(cmd *exec.Cmd) Cleanup {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true,
+		Setpgid:   true,
+		Pdeathsig: syscall.SIGKILL,
 	}
 	cmd.Cancel = func() error {
 		return killProcessGroup(cmd.Process)

@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"mcpv/internal/app/bootstrap"
+	"mcpv/internal/app/bootstrap/metadata"
 	"mcpv/internal/app/controlplane"
 	"mcpv/internal/app/runtime"
 	"mcpv/internal/domain"
@@ -16,7 +17,7 @@ import (
 	"mcpv/internal/infra/lifecycle"
 	"mcpv/internal/infra/notifications"
 	"mcpv/internal/infra/pipeline"
-	"mcpv/internal/infra/plugin"
+	pluginmanager "mcpv/internal/infra/plugin/manager"
 	"mcpv/internal/infra/probe"
 	"mcpv/internal/infra/rpc"
 	"mcpv/internal/infra/sampling"
@@ -87,15 +88,15 @@ func NewLifecycleManager(ctx context.Context, launcher domain.Launcher, transpor
 }
 
 // NewPluginManager constructs the governance plugin manager.
-func NewPluginManager(logger *zap.Logger, metrics domain.Metrics) (*plugin.Manager, error) {
-	return plugin.NewManager(plugin.ManagerOptions{
+func NewPluginManager(logger *zap.Logger, metrics domain.Metrics) (*pluginmanager.Manager, error) {
+	return pluginmanager.NewManager(pluginmanager.Options{
 		Logger:  logger,
 		Metrics: metrics,
 	})
 }
 
 // NewPipelineEngine constructs the governance pipeline engine and applies initial specs.
-func NewPipelineEngine(state *domain.CatalogState, manager *plugin.Manager, metrics domain.Metrics, logger *zap.Logger) (*pipeline.Engine, error) {
+func NewPipelineEngine(state *domain.CatalogState, manager *pluginmanager.Manager, metrics domain.Metrics, logger *zap.Logger) (*pipeline.Engine, error) {
 	engine := pipeline.NewEngine(manager, logger, metrics)
 	if state == nil || manager == nil {
 		return engine, nil
@@ -166,7 +167,7 @@ func NewBootstrapManagerProvider(
 	state *domain.CatalogState,
 	cache *domain.MetadataCache,
 	logger *zap.Logger,
-) *bootstrap.Manager {
+) *metadata.Manager {
 	summary := state.Summary
 	runtime := summary.Runtime
 
@@ -185,7 +186,7 @@ func NewBootstrapManagerProvider(
 
 	timeout := runtime.BootstrapTimeout()
 
-	return bootstrap.NewManager(bootstrap.ManagerOptions{
+	return metadata.NewManager(metadata.Options{
 		Scheduler:   scheduler,
 		Lifecycle:   lifecycle,
 		Specs:       summary.SpecRegistry,

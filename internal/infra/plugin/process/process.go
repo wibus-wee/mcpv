@@ -1,4 +1,4 @@
-package plugin
+package process
 
 import (
 	"context"
@@ -6,9 +6,9 @@ import (
 	"os/exec"
 )
 
-type processCleanup func()
+type Cleanup func()
 
-func waitForProcess(ctx context.Context, cmd *exec.Cmd) error {
+func Wait(ctx context.Context, cmd *exec.Cmd) error {
 	if cmd == nil {
 		return nil
 	}
