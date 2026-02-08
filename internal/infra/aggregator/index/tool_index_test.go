@@ -483,7 +483,7 @@ type callErrorRouter struct {
 	err   error
 }
 
-func (c *callErrorRouter) Route(_ context.Context, serverType, _, _ string, payload json.RawMessage) (json.RawMessage, error) {
+func (c *callErrorRouter) Route(_ context.Context, _, _, _ string, payload json.RawMessage) (json.RawMessage, error) {
 	msg, err := jsonrpc.DecodeMessage(payload)
 	if err != nil {
 		return nil, err

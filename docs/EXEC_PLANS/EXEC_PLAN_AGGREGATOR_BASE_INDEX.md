@@ -30,6 +30,7 @@ Eliminate large-scale duplication across tool/prompt/resource indexes by extract
 
 - Outcome: Tool/Prompt/Resource indexes now delegate lifecycle/list-change/bootstrap logic to BaseIndex with type-specific hooks.
 - Outcome: Duplicate fields and methods removed; indexes focus on cache/build/resolve/call logic.
+- Outcome: BaseIndex is embedded to promote common methods, removing wrapper boilerplate.
 - Outcome: `go test ./internal/infra/aggregator/...` passes.
 
 ## Context and Orientation
