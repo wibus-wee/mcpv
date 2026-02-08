@@ -16,24 +16,31 @@ import (
 
 func (s *ControlService) ListTools(ctx context.Context, req *controlv1.ListToolsRequest) (*controlv1.ListToolsResponse, error) {
 	client := req.GetCaller()
-	if err := s.guard.applyRequest(ctx, domain.GovernanceRequest{
-		Method: "tools/list",
-		Caller: client,
-	}, "list tools", nil); err != nil {
-		return nil, err
-	}
-	snapshot, err := s.control.ListTools(ctx, client)
+	protoSnapshot, _, err := guardedList(
+		ctx,
+		&s.guard,
+		domain.GovernanceRequest{
+			Method: "tools/list",
+			Caller: client,
+		},
+		domain.GovernanceRequest{
+			Method: "tools/list",
+			Caller: client,
+		},
+		"list tools",
+		nil,
+		func(ctx context.Context) (domain.ToolSnapshot, error) {
+			return s.control.ListTools(ctx, client)
+		},
+		func(snapshot domain.ToolSnapshot) (*controlv1.ToolsSnapshot, string, error) {
+			out, err := toProtoSnapshot(snapshot)
+			return out, "", err
+		},
+		func(err error) error {
+			return mapClientError("list tools", err)
+		},
+	)
 	if err != nil {
-		return nil, mapClientError("list tools", err)
-	}
-	protoSnapshot, err := toProtoSnapshot(snapshot)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "list tools: %v", err)
-	}
-	if err := s.guard.applyProtoResponse(ctx, domain.GovernanceRequest{
-		Method: "tools/list",
-		Caller: client,
-	}, "list tools", protoSnapshot); err != nil {
 		return nil, err
 	}
 	return &controlv1.ListToolsResponse{
@@ -44,52 +51,32 @@ func (s *ControlService) ListTools(ctx context.Context, req *controlv1.ListTools
 func (s *ControlService) WatchTools(req *controlv1.WatchToolsRequest, stream controlv1.ControlPlaneService_WatchToolsServer) error {
 	ctx := stream.Context()
 	client := req.GetCaller()
-
-	if err := s.guard.applyRequest(ctx, domain.GovernanceRequest{
-		Method: "tools/list",
-		Caller: client,
-	}, "watch tools", nil); err != nil {
-		return err
-	}
-
-	// WatchTools atomically subscribes and returns the initial snapshot,
-	// eliminating the race condition between ListTools and subscription.
-	updates, err := s.control.WatchTools(ctx, client)
-	if err != nil {
-		return mapClientError("watch tools", err)
-	}
-
-	// Client's lastETag enables incremental sync optimization
-	lastETag := req.GetLastEtag()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case snapshot, ok := <-updates:
-			if !ok {
-				return nil
-			}
-			// Skip if client already has this version
-			if lastETag != "" && lastETag == snapshot.ETag {
-				continue
-			}
-			protoSnapshot, err := toProtoSnapshot(snapshot)
-			if err != nil {
-				return status.Errorf(codes.Internal, "watch tools: %v", err)
-			}
-			if err := s.guard.applyProtoResponse(ctx, domain.GovernanceRequest{
-				Method: "tools/list",
-				Caller: client,
-			}, "watch tools", protoSnapshot); err != nil {
-				return err
-			}
-			if err := stream.Send(protoSnapshot); err != nil {
-				return err
-			}
-			lastETag = snapshot.ETag
-		}
-	}
+	return guardedWatch(
+		ctx,
+		&s.guard,
+		domain.GovernanceRequest{
+			Method: "tools/list",
+			Caller: client,
+		},
+		"watch tools",
+		req.GetLastEtag(),
+		func(ctx context.Context) (<-chan domain.ToolSnapshot, error) {
+			return s.control.WatchTools(ctx, client)
+		},
+		func(snapshot domain.ToolSnapshot) string {
+			return snapshot.ETag
+		},
+		func(last string, snapshot domain.ToolSnapshot) bool {
+			return last != "" && last == snapshot.ETag
+		},
+		func(snapshot domain.ToolSnapshot) (*controlv1.ToolsSnapshot, error) {
+			return toProtoSnapshot(snapshot)
+		},
+		func(err error) error {
+			return mapClientError("watch tools", err)
+		},
+		stream.Send,
+	)
 }
 
 func (s *ControlService) CallTool(ctx context.Context, req *controlv1.CallToolRequest) (*controlv1.CallToolResponse, error) {

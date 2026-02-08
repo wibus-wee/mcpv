@@ -1,6 +1,9 @@
 package observability
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -27,9 +30,14 @@ func TestFilterRuntimeStatusSnapshot_FiltersAndSorts(t *testing.T) {
 		{SpecKey: "a", ServerName: "server-a", Stats: domain.PoolStats{Total: 1}},
 		{SpecKey: "b", ServerName: "server-b", Stats: domain.PoolStats{Total: 2}},
 	}
+	data, err := json.Marshal(expected)
+	require.NoError(t, err)
+	sum := sha256.Sum256(data)
+	expectedETag := hex.EncodeToString(sum[:])
+
 	require.Equal(t, now, filtered.GeneratedAt)
 	require.Equal(t, expected, filtered.Statuses)
-	require.Equal(t, runtimeStatusETag(expected), filtered.ETag)
+	require.Equal(t, expectedETag, filtered.ETag)
 }
 
 func TestFilterRuntimeStatusSnapshot_EmptyVisibility(t *testing.T) {

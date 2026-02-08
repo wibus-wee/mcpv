@@ -1,6 +1,8 @@
 package rpc
 
 import (
+	"context"
+
 	"mcpv/internal/domain"
 	controlv1 "mcpv/pkg/api/control/v1"
 )
@@ -42,79 +44,64 @@ func (s *ControlService) StreamLogs(req *controlv1.StreamLogsRequest, stream con
 
 func (s *ControlService) WatchRuntimeStatus(req *controlv1.WatchRuntimeStatusRequest, stream controlv1.ControlPlaneService_WatchRuntimeStatusServer) error {
 	ctx := stream.Context()
-	lastETag := req.GetLastEtag()
 
 	client := req.GetCaller()
-	if err := s.guard.applyRequest(ctx, domain.GovernanceRequest{
-		Method: "mcpv/runtime/watch",
-		Caller: client,
-	}, "watch runtime status", nil); err != nil {
-		return err
-	}
-	updates, err := s.control.WatchRuntimeStatus(ctx, client)
-	if err != nil {
-		return mapClientError("watch runtime status", err)
-	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case snapshot, ok := <-updates:
-			if !ok {
-				return nil
-			}
-			if lastETag == snapshot.ETag {
-				continue
-			}
-			protoSnapshot := toProtoRuntimeStatusSnapshot(snapshot)
-			if err := s.guard.applyProtoResponse(ctx, domain.GovernanceRequest{
-				Method: "mcpv/runtime/watch",
-				Caller: client,
-			}, "watch runtime status", protoSnapshot); err != nil {
-				return err
-			}
-			if err := stream.Send(protoSnapshot); err != nil {
-				return err
-			}
-			lastETag = snapshot.ETag
-		}
-	}
+	return guardedWatch(
+		ctx,
+		&s.guard,
+		domain.GovernanceRequest{
+			Method: "mcpv/runtime/watch",
+			Caller: client,
+		},
+		"watch runtime status",
+		req.GetLastEtag(),
+		func(ctx context.Context) (<-chan domain.RuntimeStatusSnapshot, error) {
+			return s.control.WatchRuntimeStatus(ctx, client)
+		},
+		func(snapshot domain.RuntimeStatusSnapshot) string {
+			return snapshot.ETag
+		},
+		func(last string, snapshot domain.RuntimeStatusSnapshot) bool {
+			return last == snapshot.ETag
+		},
+		func(snapshot domain.RuntimeStatusSnapshot) (*controlv1.RuntimeStatusSnapshot, error) {
+			return toProtoRuntimeStatusSnapshot(snapshot), nil
+		},
+		func(err error) error {
+			return mapClientError("watch runtime status", err)
+		},
+		stream.Send,
+	)
 }
 
 func (s *ControlService) WatchServerInitStatus(req *controlv1.WatchServerInitStatusRequest, stream controlv1.ControlPlaneService_WatchServerInitStatusServer) error {
 	ctx := stream.Context()
 
 	client := req.GetCaller()
-	if err := s.guard.applyRequest(ctx, domain.GovernanceRequest{
-		Method: "mcpv/server_init/watch",
-		Caller: client,
-	}, "watch server init status", nil); err != nil {
-		return err
-	}
-	updates, err := s.control.WatchServerInitStatus(ctx, client)
-	if err != nil {
-		return mapClientError("watch server init status", err)
-	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case snapshot, ok := <-updates:
-			if !ok {
-				return nil
-			}
-			protoSnapshot := toProtoServerInitStatusSnapshot(snapshot)
-			if err := s.guard.applyProtoResponse(ctx, domain.GovernanceRequest{
-				Method: "mcpv/server_init/watch",
-				Caller: client,
-			}, "watch server init status", protoSnapshot); err != nil {
-				return err
-			}
-			if err := stream.Send(protoSnapshot); err != nil {
-				return err
-			}
-		}
-	}
+	return guardedWatch(
+		ctx,
+		&s.guard,
+		domain.GovernanceRequest{
+			Method: "mcpv/server_init/watch",
+			Caller: client,
+		},
+		"watch server init status",
+		"",
+		func(ctx context.Context) (<-chan domain.ServerInitStatusSnapshot, error) {
+			return s.control.WatchServerInitStatus(ctx, client)
+		},
+		func(domain.ServerInitStatusSnapshot) string {
+			return ""
+		},
+		func(string, domain.ServerInitStatusSnapshot) bool {
+			return false
+		},
+		func(snapshot domain.ServerInitStatusSnapshot) (*controlv1.ServerInitStatusSnapshot, error) {
+			return toProtoServerInitStatusSnapshot(snapshot), nil
+		},
+		func(err error) error {
+			return mapClientError("watch server init status", err)
+		},
+		stream.Send,
+	)
 }

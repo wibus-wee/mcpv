@@ -5,12 +5,156 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"mcpv/internal/domain"
 )
+
+const toolDefinitionSchema = `{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["name", "inputSchema"],
+  "properties": {
+    "_meta": { "$ref": "#/$defs/meta" },
+    "annotations": { "$ref": "#/$defs/toolAnnotations" },
+    "description": { "type": "string" },
+    "inputSchema": { "type": "object" },
+    "name": { "type": "string" },
+    "outputSchema": { "type": "object" },
+    "title": { "type": "string" },
+    "icons": { "type": "array", "items": { "$ref": "#/$defs/icon" } }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "meta": {
+      "type": "object"
+    },
+    "toolAnnotations": {
+      "type": "object",
+      "properties": {
+        "idempotentHint": { "type": "boolean" },
+        "readOnlyHint": { "type": "boolean" },
+        "destructiveHint": { "type": ["boolean", "null"] },
+        "openWorldHint": { "type": ["boolean", "null"] },
+        "title": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "icon": {
+      "type": "object",
+      "required": ["src"],
+      "properties": {
+        "src": { "type": "string" },
+        "mimeType": { "type": "string" },
+        "sizes": { "type": "array", "items": { "type": "string" } },
+        "theme": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  }
+}`
+
+const resourceDefinitionSchema = `{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["uri", "name"],
+  "properties": {
+    "_meta": { "$ref": "#/$defs/meta" },
+    "annotations": { "$ref": "#/$defs/annotations" },
+    "description": { "type": "string" },
+    "mimeType": { "type": "string" },
+    "name": { "type": "string" },
+    "size": { "type": "integer" },
+    "title": { "type": "string" },
+    "uri": { "type": "string" },
+    "icons": { "type": "array", "items": { "$ref": "#/$defs/icon" } }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "meta": {
+      "type": "object"
+    },
+    "annotations": {
+      "type": "object",
+      "properties": {
+        "audience": { "type": "array", "items": { "type": "string" } },
+        "lastModified": { "type": "string" },
+        "priority": { "type": "number" }
+      },
+      "additionalProperties": true
+    },
+    "icon": {
+      "type": "object",
+      "required": ["src"],
+      "properties": {
+        "src": { "type": "string" },
+        "mimeType": { "type": "string" },
+        "sizes": { "type": "array", "items": { "type": "string" } },
+        "theme": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  }
+}`
+
+const promptDefinitionSchema = `{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["name"],
+  "properties": {
+    "_meta": { "$ref": "#/$defs/meta" },
+    "arguments": { "type": "array", "items": { "$ref": "#/$defs/promptArgument" } },
+    "description": { "type": "string" },
+    "name": { "type": "string" },
+    "title": { "type": "string" },
+    "icons": { "type": "array", "items": { "$ref": "#/$defs/icon" } }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "meta": {
+      "type": "object"
+    },
+    "promptArgument": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "required": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "icon": {
+      "type": "object",
+      "required": ["src"],
+      "properties": {
+        "src": { "type": "string" },
+        "mimeType": { "type": "string" },
+        "sizes": { "type": "array", "items": { "type": "string" } },
+        "theme": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  }
+}`
+
+func validateAgainstSchema(t *testing.T, schemaJSON string, payload []byte) {
+	t.Helper()
+
+	var schema jsonschema.Schema
+	require.NoError(t, json.Unmarshal([]byte(schemaJSON), &schema))
+
+	resolved, err := schema.Resolve(nil)
+	require.NoError(t, err)
+
+	var decoded any
+	require.NoError(t, json.Unmarshal(payload, &decoded))
+	require.NoError(t, resolved.Validate(decoded))
+}
 
 // TestHashToolDefinition_Deterministic verifies that hashing is deterministic.
 func TestHashToolDefinition_Deterministic(t *testing.T) {
@@ -105,6 +249,7 @@ func TestHashToolDefinition_Concurrent(t *testing.T) {
 
 	const goroutines = 100
 	hashes := make([]string, goroutines)
+	errs := make([]error, goroutines)
 	var wg sync.WaitGroup
 	wg.Add(goroutines)
 
@@ -112,12 +257,16 @@ func TestHashToolDefinition_Concurrent(t *testing.T) {
 		go func(idx int) {
 			defer wg.Done()
 			hash, err := HashToolDefinition(tool)
-			require.NoError(t, err)
 			hashes[idx] = hash
+			errs[idx] = err
 		}(i)
 	}
 
 	wg.Wait()
+
+	for i, err := range errs {
+		require.NoError(t, err, "hash error at index %d", i)
+	}
 
 	// All hashes should be identical
 	expectedHash := hashes[0]
@@ -227,6 +376,7 @@ func TestRoundTrip_ToolDefinition(t *testing.T) {
 	data, err := MarshalToolDefinition(original)
 	require.NoError(t, err)
 	require.NotEmpty(t, data)
+	validateAgainstSchema(t, toolDefinitionSchema, data)
 
 	// Unmarshal back from MCP JSON
 	var mcpTool mcp.Tool
@@ -296,6 +446,7 @@ func TestRoundTrip_ResourceDefinition(t *testing.T) {
 	data, err := MarshalResourceDefinition(original)
 	require.NoError(t, err)
 	require.NotEmpty(t, data)
+	validateAgainstSchema(t, resourceDefinitionSchema, data)
 
 	// Unmarshal back from MCP JSON
 	var mcpResource mcp.Resource
@@ -361,6 +512,7 @@ func TestRoundTrip_PromptDefinition(t *testing.T) {
 	data, err := MarshalPromptDefinition(original)
 	require.NoError(t, err)
 	require.NotEmpty(t, data)
+	validateAgainstSchema(t, promptDefinitionSchema, data)
 
 	// Unmarshal back from MCP JSON
 	var mcpPrompt mcp.Prompt
@@ -712,21 +864,36 @@ func TestMetaConversion(t *testing.T) {
 		}
 		data, err := MarshalToolDefinition(tool)
 		require.NoError(t, err)
-		assert.NotEmpty(t, data)
+		require.NotEmpty(t, data)
+
+		var mcpTool mcp.Tool
+		require.NoError(t, json.Unmarshal(data, &mcpTool))
+		assert.Nil(t, mcpTool.Meta)
+
+		roundtripped := ToolFromMCP(&mcpTool)
+		assert.Nil(t, roundtripped.Meta)
 	})
 
 	t.Run("meta with nested objects", func(t *testing.T) {
+		expected := domain.Meta{
+			"nested": map[string]any{
+				"key": "value",
+			},
+		}
 		tool := domain.ToolDefinition{
 			Name: "test",
-			Meta: domain.Meta{
-				"nested": map[string]any{
-					"key": "value",
-				},
-			},
+			Meta: expected,
 		}
 		data, err := MarshalToolDefinition(tool)
 		require.NoError(t, err)
-		assert.NotEmpty(t, data)
+		require.NotEmpty(t, data)
+
+		var mcpTool mcp.Tool
+		require.NoError(t, json.Unmarshal(data, &mcpTool))
+
+		roundtripped := ToolFromMCP(&mcpTool)
+		require.NotNil(t, roundtripped.Meta)
+		assert.Equal(t, expected, roundtripped.Meta)
 	})
 }
 
@@ -739,7 +906,14 @@ func TestAnnotationsConversion(t *testing.T) {
 		}
 		data, err := MarshalResourceDefinition(resource)
 		require.NoError(t, err)
-		assert.NotEmpty(t, data)
+		require.NotEmpty(t, data)
+
+		var mcpResource mcp.Resource
+		require.NoError(t, json.Unmarshal(data, &mcpResource))
+		assert.Nil(t, mcpResource.Annotations)
+
+		roundtripped := ResourceFromMCP(&mcpResource)
+		assert.Nil(t, roundtripped.Annotations)
 	})
 
 	t.Run("empty audience handled", func(t *testing.T) {
@@ -751,7 +925,15 @@ func TestAnnotationsConversion(t *testing.T) {
 		}
 		data, err := MarshalResourceDefinition(resource)
 		require.NoError(t, err)
-		assert.NotEmpty(t, data)
+		require.NotEmpty(t, data)
+
+		var mcpResource mcp.Resource
+		require.NoError(t, json.Unmarshal(data, &mcpResource))
+		require.NotNil(t, mcpResource.Annotations)
+
+		roundtripped := ResourceFromMCP(&mcpResource)
+		require.NotNil(t, roundtripped.Annotations)
+		assert.Empty(t, roundtripped.Annotations.Audience)
 	})
 }
 
@@ -764,7 +946,14 @@ func TestToolAnnotationsConversion(t *testing.T) {
 		}
 		data, err := MarshalToolDefinition(tool)
 		require.NoError(t, err)
-		assert.NotEmpty(t, data)
+		require.NotEmpty(t, data)
+
+		var mcpTool mcp.Tool
+		require.NoError(t, json.Unmarshal(data, &mcpTool))
+		assert.Nil(t, mcpTool.Annotations)
+
+		roundtripped := ToolFromMCP(&mcpTool)
+		assert.Nil(t, roundtripped.Annotations)
 	})
 
 	t.Run("tool annotations with nil hints", func(t *testing.T) {
@@ -778,7 +967,16 @@ func TestToolAnnotationsConversion(t *testing.T) {
 		}
 		data, err := MarshalToolDefinition(tool)
 		require.NoError(t, err)
-		assert.NotEmpty(t, data)
+		require.NotEmpty(t, data)
+
+		var mcpTool mcp.Tool
+		require.NoError(t, json.Unmarshal(data, &mcpTool))
+
+		roundtripped := ToolFromMCP(&mcpTool)
+		require.NotNil(t, roundtripped.Annotations)
+		assert.True(t, roundtripped.Annotations.IdempotentHint)
+		assert.Nil(t, roundtripped.Annotations.DestructiveHint)
+		assert.Nil(t, roundtripped.Annotations.OpenWorldHint)
 	})
 }
 
@@ -791,7 +989,14 @@ func TestPromptArgumentsConversion(t *testing.T) {
 		}
 		data, err := MarshalPromptDefinition(prompt)
 		require.NoError(t, err)
-		assert.NotEmpty(t, data)
+		require.NotEmpty(t, data)
+
+		var mcpPrompt mcp.Prompt
+		require.NoError(t, json.Unmarshal(data, &mcpPrompt))
+		assert.Nil(t, mcpPrompt.Arguments)
+
+		roundtripped := PromptFromMCP(&mcpPrompt)
+		assert.Nil(t, roundtripped.Arguments)
 	})
 
 	t.Run("nil arguments handled", func(t *testing.T) {
@@ -801,6 +1006,13 @@ func TestPromptArgumentsConversion(t *testing.T) {
 		}
 		data, err := MarshalPromptDefinition(prompt)
 		require.NoError(t, err)
-		assert.NotEmpty(t, data)
+		require.NotEmpty(t, data)
+
+		var mcpPrompt mcp.Prompt
+		require.NoError(t, json.Unmarshal(data, &mcpPrompt))
+		assert.Nil(t, mcpPrompt.Arguments)
+
+		roundtripped := PromptFromMCP(&mcpPrompt)
+		assert.Nil(t, roundtripped.Arguments)
 	})
 }

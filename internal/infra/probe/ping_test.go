@@ -128,10 +128,10 @@ func TestPingProbe_TimeoutHandling(t *testing.T) {
 			err := probe.Ping(context.Background(), conn)
 
 			if tt.expectTimeout {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), "context deadline exceeded")
+				require.Error(t, err)
+				assert.ErrorIs(t, err, context.DeadlineExceeded)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -355,7 +355,7 @@ func TestPingProbe_ContextCancellation(t *testing.T) {
 
 	err := probe.Ping(ctx, conn)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "context canceled")
+	assert.ErrorIs(t, err, context.Canceled)
 }
 
 // TestPingProbe_RequestFormat verifies ping request format.

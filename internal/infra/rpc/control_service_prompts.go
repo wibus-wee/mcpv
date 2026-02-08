@@ -15,85 +15,78 @@ import (
 func (s *ControlService) ListPrompts(ctx context.Context, req *controlv1.ListPromptsRequest) (*controlv1.ListPromptsResponse, error) {
 	client := req.GetCaller()
 	cursor := req.GetCursor()
-	if err := s.guard.applyRequest(ctx, domain.GovernanceRequest{
-		Method:      "prompts/list",
-		Caller:      client,
-		RequestJSON: mustMarshalJSON(map[string]string{"cursor": cursor}),
-	}, "list prompts", func(raw []byte) error {
-		var params struct {
-			Cursor string `json:"cursor"`
-		}
-		if err := json.Unmarshal(raw, &params); err != nil {
-			return err
-		}
-		cursor = params.Cursor
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	page, err := s.control.ListPrompts(ctx, client, cursor)
+	promptsSnapshot, nextCursor, err := guardedList(
+		ctx,
+		&s.guard,
+		domain.GovernanceRequest{
+			Method:      "prompts/list",
+			Caller:      client,
+			RequestJSON: mustMarshalJSON(map[string]string{"cursor": cursor}),
+		},
+		domain.GovernanceRequest{
+			Method: "prompts/list",
+			Caller: client,
+		},
+		"list prompts",
+		func(raw []byte) error {
+			var params struct {
+				Cursor string `json:"cursor"`
+			}
+			if err := json.Unmarshal(raw, &params); err != nil {
+				return err
+			}
+			cursor = params.Cursor
+			return nil
+		},
+		func(ctx context.Context) (domain.PromptPage, error) {
+			return s.control.ListPrompts(ctx, client, cursor)
+		},
+		func(page domain.PromptPage) (*controlv1.PromptsSnapshot, string, error) {
+			out, err := toProtoPromptsSnapshot(page.Snapshot)
+			return out, page.NextCursor, err
+		},
+		func(err error) error {
+			return mapListError("list prompts", err)
+		},
+	)
 	if err != nil {
-		return nil, mapListError("list prompts", err)
-	}
-	promptsSnapshot, err := toProtoPromptsSnapshot(page.Snapshot)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "list prompts: %v", err)
-	}
-	if err := s.guard.applyProtoResponse(ctx, domain.GovernanceRequest{
-		Method: "prompts/list",
-		Caller: client,
-	}, "list prompts", promptsSnapshot); err != nil {
 		return nil, err
 	}
 	return &controlv1.ListPromptsResponse{
 		Snapshot:   promptsSnapshot,
-		NextCursor: page.NextCursor,
+		NextCursor: nextCursor,
 	}, nil
 }
 
 func (s *ControlService) WatchPrompts(req *controlv1.WatchPromptsRequest, stream controlv1.ControlPlaneService_WatchPromptsServer) error {
 	ctx := stream.Context()
-	lastETag := req.GetLastEtag()
-
 	client := req.GetCaller()
-	if err := s.guard.applyRequest(ctx, domain.GovernanceRequest{
-		Method: "prompts/list",
-		Caller: client,
-	}, "watch prompts", nil); err != nil {
-		return err
-	}
-	updates, err := s.control.WatchPrompts(ctx, client)
-	if err != nil {
-		return mapClientError("watch prompts", err)
-	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case snapshot, ok := <-updates:
-			if !ok {
-				return nil
-			}
-			if lastETag == snapshot.ETag {
-				continue
-			}
-			protoSnapshot, err := toProtoPromptsSnapshot(snapshot)
-			if err != nil {
-				return status.Errorf(codes.Internal, "watch prompts: %v", err)
-			}
-			if err := s.guard.applyProtoResponse(ctx, domain.GovernanceRequest{
-				Method: "prompts/list",
-				Caller: client,
-			}, "watch prompts", protoSnapshot); err != nil {
-				return err
-			}
-			if err := stream.Send(protoSnapshot); err != nil {
-				return err
-			}
-			lastETag = snapshot.ETag
-		}
-	}
+	return guardedWatch(
+		ctx,
+		&s.guard,
+		domain.GovernanceRequest{
+			Method: "prompts/list",
+			Caller: client,
+		},
+		"watch prompts",
+		req.GetLastEtag(),
+		func(ctx context.Context) (<-chan domain.PromptSnapshot, error) {
+			return s.control.WatchPrompts(ctx, client)
+		},
+		func(snapshot domain.PromptSnapshot) string {
+			return snapshot.ETag
+		},
+		func(last string, snapshot domain.PromptSnapshot) bool {
+			return last == snapshot.ETag
+		},
+		func(snapshot domain.PromptSnapshot) (*controlv1.PromptsSnapshot, error) {
+			return toProtoPromptsSnapshot(snapshot)
+		},
+		func(err error) error {
+			return mapClientError("watch prompts", err)
+		},
+		stream.Send,
+	)
 }
 
 func (s *ControlService) GetPrompt(ctx context.Context, req *controlv1.GetPromptRequest) (*controlv1.GetPromptResponse, error) {

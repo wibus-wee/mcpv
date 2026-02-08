@@ -16,85 +16,78 @@ import (
 func (s *ControlService) ListResources(ctx context.Context, req *controlv1.ListResourcesRequest) (*controlv1.ListResourcesResponse, error) {
 	client := req.GetCaller()
 	cursor := req.GetCursor()
-	if err := s.guard.applyRequest(ctx, domain.GovernanceRequest{
-		Method:      "resources/list",
-		Caller:      client,
-		RequestJSON: mustMarshalJSON(map[string]string{"cursor": cursor}),
-	}, "list resources", func(raw []byte) error {
-		var params struct {
-			Cursor string `json:"cursor"`
-		}
-		if err := json.Unmarshal(raw, &params); err != nil {
-			return err
-		}
-		cursor = params.Cursor
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	page, err := s.control.ListResources(ctx, client, cursor)
+	resourcesSnapshot, nextCursor, err := guardedList(
+		ctx,
+		&s.guard,
+		domain.GovernanceRequest{
+			Method:      "resources/list",
+			Caller:      client,
+			RequestJSON: mustMarshalJSON(map[string]string{"cursor": cursor}),
+		},
+		domain.GovernanceRequest{
+			Method: "resources/list",
+			Caller: client,
+		},
+		"list resources",
+		func(raw []byte) error {
+			var params struct {
+				Cursor string `json:"cursor"`
+			}
+			if err := json.Unmarshal(raw, &params); err != nil {
+				return err
+			}
+			cursor = params.Cursor
+			return nil
+		},
+		func(ctx context.Context) (domain.ResourcePage, error) {
+			return s.control.ListResources(ctx, client, cursor)
+		},
+		func(page domain.ResourcePage) (*controlv1.ResourcesSnapshot, string, error) {
+			out, err := toProtoResourcesSnapshot(page.Snapshot)
+			return out, page.NextCursor, err
+		},
+		func(err error) error {
+			return mapListError("list resources", err)
+		},
+	)
 	if err != nil {
-		return nil, mapListError("list resources", err)
-	}
-	resourcesSnapshot, err := toProtoResourcesSnapshot(page.Snapshot)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "list resources: %v", err)
-	}
-	if err := s.guard.applyProtoResponse(ctx, domain.GovernanceRequest{
-		Method: "resources/list",
-		Caller: client,
-	}, "list resources", resourcesSnapshot); err != nil {
 		return nil, err
 	}
 	return &controlv1.ListResourcesResponse{
 		Snapshot:   resourcesSnapshot,
-		NextCursor: page.NextCursor,
+		NextCursor: nextCursor,
 	}, nil
 }
 
 func (s *ControlService) WatchResources(req *controlv1.WatchResourcesRequest, stream controlv1.ControlPlaneService_WatchResourcesServer) error {
 	ctx := stream.Context()
-	lastETag := req.GetLastEtag()
-
 	client := req.GetCaller()
-	if err := s.guard.applyRequest(ctx, domain.GovernanceRequest{
-		Method: "resources/list",
-		Caller: client,
-	}, "watch resources", nil); err != nil {
-		return err
-	}
-	updates, err := s.control.WatchResources(ctx, client)
-	if err != nil {
-		return mapClientError("watch resources", err)
-	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case snapshot, ok := <-updates:
-			if !ok {
-				return nil
-			}
-			if lastETag == snapshot.ETag {
-				continue
-			}
-			protoSnapshot, err := toProtoResourcesSnapshot(snapshot)
-			if err != nil {
-				return status.Errorf(codes.Internal, "watch resources: %v", err)
-			}
-			if err := s.guard.applyProtoResponse(ctx, domain.GovernanceRequest{
-				Method: "resources/list",
-				Caller: client,
-			}, "watch resources", protoSnapshot); err != nil {
-				return err
-			}
-			if err := stream.Send(protoSnapshot); err != nil {
-				return err
-			}
-			lastETag = snapshot.ETag
-		}
-	}
+	return guardedWatch(
+		ctx,
+		&s.guard,
+		domain.GovernanceRequest{
+			Method: "resources/list",
+			Caller: client,
+		},
+		"watch resources",
+		req.GetLastEtag(),
+		func(ctx context.Context) (<-chan domain.ResourceSnapshot, error) {
+			return s.control.WatchResources(ctx, client)
+		},
+		func(snapshot domain.ResourceSnapshot) string {
+			return snapshot.ETag
+		},
+		func(last string, snapshot domain.ResourceSnapshot) bool {
+			return last == snapshot.ETag
+		},
+		func(snapshot domain.ResourceSnapshot) (*controlv1.ResourcesSnapshot, error) {
+			return toProtoResourcesSnapshot(snapshot)
+		},
+		func(err error) error {
+			return mapClientError("watch resources", err)
+		},
+		stream.Send,
+	)
 }
 
 func (s *ControlService) ReadResource(ctx context.Context, req *controlv1.ReadResourceRequest) (*controlv1.ReadResourceResponse, error) {

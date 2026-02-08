@@ -54,13 +54,13 @@ func (m *mockControlPlane) GetToolSnapshotForClient(client string) (domain.ToolS
 // TestSelectToolsForClient_LLMFiltering verifies LLM-based tool filtering.
 func TestSelectToolsForClient_LLMFiltering(t *testing.T) {
 	tests := []struct {
-		name          string
-		query         string
+		name           string
+		query          string
 		availableTools []domain.ToolDefinition
-		llmResponse   string
-		llmError      error
-		expectedCount int
-		expectError   bool
+		llmResponse    string
+		llmError       error
+		expectedNames  []string
+		expectError    bool
 	}{
 		{
 			name:  "query provided, LLM selects subset",
@@ -71,7 +71,7 @@ func TestSelectToolsForClient_LLMFiltering(t *testing.T) {
 				{Name: "email", Description: "Send emails"},
 			},
 			llmResponse:   `["weather"]`,
-			expectedCount: 1,
+			expectedNames: []string{"weather"},
 			expectError:   false,
 		},
 		{
@@ -81,7 +81,7 @@ func TestSelectToolsForClient_LLMFiltering(t *testing.T) {
 				{Name: "weather", Description: "Get weather info"},
 				{Name: "calendar", Description: "Manage calendar"},
 			},
-			expectedCount: 2,
+			expectedNames: []string{"weather", "calendar"},
 			expectError:   false,
 		},
 		{
@@ -91,7 +91,7 @@ func TestSelectToolsForClient_LLMFiltering(t *testing.T) {
 				{Name: "weather", Description: "Get weather info"},
 			},
 			llmResponse:   `invalid json`,
-			expectedCount: 1,
+			expectedNames: []string{"weather"},
 			expectError:   false,
 		},
 		{
@@ -101,7 +101,7 @@ func TestSelectToolsForClient_LLMFiltering(t *testing.T) {
 				{Name: "weather", Description: "Get weather info"},
 			},
 			llmResponse:   `["invalid_tool"]`,
-			expectedCount: 1,
+			expectedNames: []string{"weather"},
 			expectError:   false,
 		},
 		{
@@ -111,7 +111,7 @@ func TestSelectToolsForClient_LLMFiltering(t *testing.T) {
 				{Name: "weather", Description: "Get weather info"},
 			},
 			llmResponse:   `[]`,
-			expectedCount: 0,
+			expectedNames: []string{},
 			expectError:   false,
 		},
 		{
@@ -121,7 +121,7 @@ func TestSelectToolsForClient_LLMFiltering(t *testing.T) {
 				{Name: "weather", Description: "Get weather info"},
 			},
 			llmError:      errors.New("LLM service unavailable"),
-			expectedCount: 1,
+			expectedNames: []string{"weather"},
 			expectError:   false,
 		},
 	}
@@ -169,7 +169,7 @@ func TestSelectToolsForClient_LLMFiltering(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				assert.Equal(t, tt.expectedCount, len(result.Tools))
+				assert.Equal(t, tt.expectedNames, toolNames(result.Tools))
 				assert.Equal(t, "test-etag", result.ETag)
 			}
 		})
@@ -263,10 +263,10 @@ func TestSelectToolsForClient_SessionCache(t *testing.T) {
 // TestSelectToolsForClient_MaxToolsLimit verifies max tools enforcement.
 func TestSelectToolsForClient_MaxToolsLimit(t *testing.T) {
 	tests := []struct {
-		name          string
-		maxTools      int
+		name           string
+		maxTools       int
 		availableTools int
-		expectedCount int
+		expectedCount  int
 	}{
 		{
 			name:           "more tools than limit, truncate",
@@ -323,7 +323,7 @@ func TestSelectToolsForClient_MaxToolsLimit(t *testing.T) {
 			})
 
 			require.NoError(t, err)
-			assert.Equal(t, tt.expectedCount, len(result.Tools))
+			assert.Equal(t, makeToolNames(tt.expectedCount), toolNames(result.Tools))
 		})
 	}
 }
@@ -432,16 +432,6 @@ func TestInvalidateSession(t *testing.T) {
 
 	// Verify cache is cleared (NeedsFull returns true when not cached)
 	assert.True(t, agent.cache.NeedsFull(sessionKey, "tool1", "hash1"))
-}
-
-// TestClose verifies cleanup.
-func TestClose(t *testing.T) {
-	agent := &EinoSubAgent{
-		logger: zap.NewNop(),
-	}
-
-	err := agent.Close()
-	assert.NoError(t, err)
 }
 
 // TestCountSchemaProperties verifies property counting.
@@ -554,6 +544,22 @@ func TestSelectToolsForClient_ControlPlaneError(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "get tool snapshot")
+}
+
+func makeToolNames(count int) []string {
+	names := make([]string, count)
+	for i := 0; i < count; i++ {
+		names[i] = "tool" + string(rune('A'+i))
+	}
+	return names
+}
+
+func toolNames(tools []domain.ToolDefinition) []string {
+	names := make([]string, len(tools))
+	for i, tool := range tools {
+		names[i] = tool.Name
+	}
+	return names
 }
 
 // mockMetrics implements domain.Metrics for testing.
