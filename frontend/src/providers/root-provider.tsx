@@ -85,7 +85,7 @@ function WailsEventsBridge() {
   const stopRef = useRef<(() => void) | null>(null)
   const logStreamToken = useAtomValue(logStreamTokenAtom)
   const router = useRouter()
-  const location = useRouterState({ select: state => state.location })
+  const pathname = useRouterState({ select: state => state.location.pathname })
   const logQueueRef = useRef<LogEntry[]>([])
   const logFlushTimerRef = useRef<number | null>(null)
   const lastTrackedPathRef = useRef<string | null>(null)
@@ -139,13 +139,13 @@ function WailsEventsBridge() {
   }, [router])
 
   useEffect(() => {
-    const path = location.pathname
+    const path = pathname
     if (!path || lastTrackedPathRef.current === path) {
       return
     }
     lastTrackedPathRef.current = path
     trackPageView(path, document.title)
-  }, [location.pathname])
+  }, [pathname])
 
   // Listen for core:state events from backend
   useEffect(() => {

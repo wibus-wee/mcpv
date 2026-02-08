@@ -5,7 +5,7 @@
 import umami from '@umami/node'
 import { atom } from 'jotai'
 
-import { createAtomHooks, jotaiStore } from './jotai'
+import { createAtomAccessor, createAtomHooks, jotaiStore } from './jotai'
 
 const STORAGE_KEY = 'mcpv-analytics-enabled'
 const UMAMI_WEBSITE_ID = import.meta.env.VITE_UMAMI_WEBSITE_ID || '__UMAMI_WEBSITE_ID__'
@@ -24,9 +24,9 @@ export const [
   useAnalyticsEnabled,
   useSetAnalyticsEnabled,
   useAnalyticsEnabledValue,
-  getAnalyticsEnabled,
-  setAnalyticsEnabled,
 ] = createAtomHooks(analyticsEnabledAtom)
+
+export const [getAnalyticsEnabled, setAnalyticsEnabled] = createAtomAccessor(analyticsEnabledAtom)
 
 let initialized = false
 
