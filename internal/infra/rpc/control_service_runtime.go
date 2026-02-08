@@ -46,62 +46,54 @@ func (s *ControlService) WatchRuntimeStatus(req *controlv1.WatchRuntimeStatusReq
 	ctx := stream.Context()
 
 	client := req.GetCaller()
-	return guardedWatch(
-		ctx,
-		&s.guard,
-		domain.GovernanceRequest{
+	return guardedWatch(guardedWatchPlan[domain.RuntimeStatusSnapshot, *controlv1.RuntimeStatusSnapshot]{
+		ctx:   ctx,
+		guard: &s.guard,
+		request: domain.GovernanceRequest{
 			Method: "mcpv/runtime/watch",
 			Caller: client,
 		},
-		"watch runtime status",
-		req.GetLastEtag(),
-		func(ctx context.Context) (<-chan domain.RuntimeStatusSnapshot, error) {
+		op:       "watch runtime status",
+		lastETag: req.GetLastEtag(),
+		subscribe: func(ctx context.Context) (<-chan domain.RuntimeStatusSnapshot, error) {
 			return s.control.WatchRuntimeStatus(ctx, client)
 		},
-		func(snapshot domain.RuntimeStatusSnapshot) string {
+		etag: func(snapshot domain.RuntimeStatusSnapshot) string {
 			return snapshot.ETag
 		},
-		func(last string, snapshot domain.RuntimeStatusSnapshot) bool {
-			return last == snapshot.ETag
-		},
-		func(snapshot domain.RuntimeStatusSnapshot) (*controlv1.RuntimeStatusSnapshot, error) {
+		toProto: func(snapshot domain.RuntimeStatusSnapshot) (*controlv1.RuntimeStatusSnapshot, error) {
 			return toProtoRuntimeStatusSnapshot(snapshot), nil
 		},
-		func(err error) error {
+		mapError: func(err error) error {
 			return statusFromError("watch runtime status", err)
 		},
-		stream.Send,
-	)
+		send: stream.Send,
+	})
 }
 
 func (s *ControlService) WatchServerInitStatus(req *controlv1.WatchServerInitStatusRequest, stream controlv1.ControlPlaneService_WatchServerInitStatusServer) error {
 	ctx := stream.Context()
 
 	client := req.GetCaller()
-	return guardedWatch(
-		ctx,
-		&s.guard,
-		domain.GovernanceRequest{
+	return guardedWatch(guardedWatchPlan[domain.ServerInitStatusSnapshot, *controlv1.ServerInitStatusSnapshot]{
+		ctx:   ctx,
+		guard: &s.guard,
+		request: domain.GovernanceRequest{
 			Method: "mcpv/server_init/watch",
 			Caller: client,
 		},
-		"watch server init status",
-		"",
-		func(ctx context.Context) (<-chan domain.ServerInitStatusSnapshot, error) {
+		op:       "watch server init status",
+		lastETag: "",
+		subscribe: func(ctx context.Context) (<-chan domain.ServerInitStatusSnapshot, error) {
 			return s.control.WatchServerInitStatus(ctx, client)
 		},
-		func(domain.ServerInitStatusSnapshot) string {
-			return ""
-		},
-		func(string, domain.ServerInitStatusSnapshot) bool {
-			return false
-		},
-		func(snapshot domain.ServerInitStatusSnapshot) (*controlv1.ServerInitStatusSnapshot, error) {
+		etag: nil,
+		toProto: func(snapshot domain.ServerInitStatusSnapshot) (*controlv1.ServerInitStatusSnapshot, error) {
 			return toProtoServerInitStatusSnapshot(snapshot), nil
 		},
-		func(err error) error {
+		mapError: func(err error) error {
 			return statusFromError("watch server init status", err)
 		},
-		stream.Send,
-	)
+		send: stream.Send,
+	})
 }

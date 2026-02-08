@@ -15,30 +15,30 @@ import (
 
 func (s *ControlService) ListTools(ctx context.Context, req *controlv1.ListToolsRequest) (*controlv1.ListToolsResponse, error) {
 	client := req.GetCaller()
-	protoSnapshot, _, err := guardedList(
-		ctx,
-		&s.guard,
-		domain.GovernanceRequest{
+	protoSnapshot, _, err := guardedList(guardedListPlan[domain.ToolSnapshot, *controlv1.ToolsSnapshot]{
+		ctx:   ctx,
+		guard: &s.guard,
+		request: domain.GovernanceRequest{
 			Method: "tools/list",
 			Caller: client,
 		},
-		domain.GovernanceRequest{
+		responseRequest: domain.GovernanceRequest{
 			Method: "tools/list",
 			Caller: client,
 		},
-		"list tools",
-		nil,
-		func(ctx context.Context) (domain.ToolSnapshot, error) {
+		op:     "list tools",
+		mutate: nil,
+		call: func(ctx context.Context) (domain.ToolSnapshot, error) {
 			return s.control.ListTools(ctx, client)
 		},
-		func(snapshot domain.ToolSnapshot) (*controlv1.ToolsSnapshot, string, error) {
+		toProto: func(snapshot domain.ToolSnapshot) (*controlv1.ToolsSnapshot, string, error) {
 			out, err := toProtoSnapshot(snapshot)
 			return out, "", err
 		},
-		func(err error) error {
+		mapError: func(err error) error {
 			return statusFromError("list tools", err)
 		},
-	)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -50,30 +50,27 @@ func (s *ControlService) ListTools(ctx context.Context, req *controlv1.ListTools
 func (s *ControlService) WatchTools(req *controlv1.WatchToolsRequest, stream controlv1.ControlPlaneService_WatchToolsServer) error {
 	ctx := stream.Context()
 	client := req.GetCaller()
-	return guardedWatch(
-		ctx,
-		&s.guard,
-		domain.GovernanceRequest{
+	return guardedWatch(guardedWatchPlan[domain.ToolSnapshot, *controlv1.ToolsSnapshot]{
+		ctx:   ctx,
+		guard: &s.guard,
+		request: domain.GovernanceRequest{
 			Method: "tools/list",
 			Caller: client,
 		},
-		"watch tools",
-		req.GetLastEtag(),
-		func(ctx context.Context) (<-chan domain.ToolSnapshot, error) {
+		op:       "watch tools",
+		lastETag: req.GetLastEtag(),
+		subscribe: func(ctx context.Context) (<-chan domain.ToolSnapshot, error) {
 			return s.control.WatchTools(ctx, client)
 		},
-		func(snapshot domain.ToolSnapshot) string {
+		etag: func(snapshot domain.ToolSnapshot) string {
 			return snapshot.ETag
 		},
-		func(last string, snapshot domain.ToolSnapshot) bool {
-			return last != "" && last == snapshot.ETag
-		},
-		toProtoSnapshot,
-		func(err error) error {
+		toProto: toProtoSnapshot,
+		mapError: func(err error) error {
 			return statusFromError("watch tools", err)
 		},
-		stream.Send,
-	)
+		send: stream.Send,
+	})
 }
 
 func (s *ControlService) CallTool(ctx context.Context, req *controlv1.CallToolRequest) (*controlv1.CallToolResponse, error) {

@@ -15,20 +15,20 @@ import (
 func (s *ControlService) ListPrompts(ctx context.Context, req *controlv1.ListPromptsRequest) (*controlv1.ListPromptsResponse, error) {
 	client := req.GetCaller()
 	cursor := req.GetCursor()
-	promptsSnapshot, nextCursor, err := guardedList(
-		ctx,
-		&s.guard,
-		domain.GovernanceRequest{
+	promptsSnapshot, nextCursor, err := guardedList(guardedListPlan[domain.PromptPage, *controlv1.PromptsSnapshot]{
+		ctx:   ctx,
+		guard: &s.guard,
+		request: domain.GovernanceRequest{
 			Method:      "prompts/list",
 			Caller:      client,
 			RequestJSON: mustMarshalJSON(map[string]string{"cursor": cursor}),
 		},
-		domain.GovernanceRequest{
+		responseRequest: domain.GovernanceRequest{
 			Method: "prompts/list",
 			Caller: client,
 		},
-		"list prompts",
-		func(raw []byte) error {
+		op: "list prompts",
+		mutate: func(raw []byte) error {
 			var params struct {
 				Cursor string `json:"cursor"`
 			}
@@ -38,17 +38,17 @@ func (s *ControlService) ListPrompts(ctx context.Context, req *controlv1.ListPro
 			cursor = params.Cursor
 			return nil
 		},
-		func(ctx context.Context) (domain.PromptPage, error) {
+		call: func(ctx context.Context) (domain.PromptPage, error) {
 			return s.control.ListPrompts(ctx, client, cursor)
 		},
-		func(page domain.PromptPage) (*controlv1.PromptsSnapshot, string, error) {
+		toProto: func(page domain.PromptPage) (*controlv1.PromptsSnapshot, string, error) {
 			out, err := toProtoPromptsSnapshot(page.Snapshot)
 			return out, page.NextCursor, err
 		},
-		func(err error) error {
+		mapError: func(err error) error {
 			return statusFromError("list prompts", err)
 		},
-	)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -61,30 +61,27 @@ func (s *ControlService) ListPrompts(ctx context.Context, req *controlv1.ListPro
 func (s *ControlService) WatchPrompts(req *controlv1.WatchPromptsRequest, stream controlv1.ControlPlaneService_WatchPromptsServer) error {
 	ctx := stream.Context()
 	client := req.GetCaller()
-	return guardedWatch(
-		ctx,
-		&s.guard,
-		domain.GovernanceRequest{
+	return guardedWatch(guardedWatchPlan[domain.PromptSnapshot, *controlv1.PromptsSnapshot]{
+		ctx:   ctx,
+		guard: &s.guard,
+		request: domain.GovernanceRequest{
 			Method: "prompts/list",
 			Caller: client,
 		},
-		"watch prompts",
-		req.GetLastEtag(),
-		func(ctx context.Context) (<-chan domain.PromptSnapshot, error) {
+		op:       "watch prompts",
+		lastETag: req.GetLastEtag(),
+		subscribe: func(ctx context.Context) (<-chan domain.PromptSnapshot, error) {
 			return s.control.WatchPrompts(ctx, client)
 		},
-		func(snapshot domain.PromptSnapshot) string {
+		etag: func(snapshot domain.PromptSnapshot) string {
 			return snapshot.ETag
 		},
-		func(last string, snapshot domain.PromptSnapshot) bool {
-			return last == snapshot.ETag
-		},
-		toProtoPromptsSnapshot,
-		func(err error) error {
+		toProto: toProtoPromptsSnapshot,
+		mapError: func(err error) error {
 			return statusFromError("watch prompts", err)
 		},
-		stream.Send,
-	)
+		send: stream.Send,
+	})
 }
 
 func (s *ControlService) GetPrompt(ctx context.Context, req *controlv1.GetPromptRequest) (*controlv1.GetPromptResponse, error) {

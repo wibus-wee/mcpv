@@ -16,20 +16,20 @@ import (
 func (s *ControlService) ListResources(ctx context.Context, req *controlv1.ListResourcesRequest) (*controlv1.ListResourcesResponse, error) {
 	client := req.GetCaller()
 	cursor := req.GetCursor()
-	resourcesSnapshot, nextCursor, err := guardedList(
-		ctx,
-		&s.guard,
-		domain.GovernanceRequest{
+	resourcesSnapshot, nextCursor, err := guardedList(guardedListPlan[domain.ResourcePage, *controlv1.ResourcesSnapshot]{
+		ctx:   ctx,
+		guard: &s.guard,
+		request: domain.GovernanceRequest{
 			Method:      "resources/list",
 			Caller:      client,
 			RequestJSON: mustMarshalJSON(map[string]string{"cursor": cursor}),
 		},
-		domain.GovernanceRequest{
+		responseRequest: domain.GovernanceRequest{
 			Method: "resources/list",
 			Caller: client,
 		},
-		"list resources",
-		func(raw []byte) error {
+		op: "list resources",
+		mutate: func(raw []byte) error {
 			var params struct {
 				Cursor string `json:"cursor"`
 			}
@@ -39,17 +39,17 @@ func (s *ControlService) ListResources(ctx context.Context, req *controlv1.ListR
 			cursor = params.Cursor
 			return nil
 		},
-		func(ctx context.Context) (domain.ResourcePage, error) {
+		call: func(ctx context.Context) (domain.ResourcePage, error) {
 			return s.control.ListResources(ctx, client, cursor)
 		},
-		func(page domain.ResourcePage) (*controlv1.ResourcesSnapshot, string, error) {
+		toProto: func(page domain.ResourcePage) (*controlv1.ResourcesSnapshot, string, error) {
 			out, err := toProtoResourcesSnapshot(page.Snapshot)
 			return out, page.NextCursor, err
 		},
-		func(err error) error {
+		mapError: func(err error) error {
 			return statusFromError("list resources", err)
 		},
-	)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -62,30 +62,27 @@ func (s *ControlService) ListResources(ctx context.Context, req *controlv1.ListR
 func (s *ControlService) WatchResources(req *controlv1.WatchResourcesRequest, stream controlv1.ControlPlaneService_WatchResourcesServer) error {
 	ctx := stream.Context()
 	client := req.GetCaller()
-	return guardedWatch(
-		ctx,
-		&s.guard,
-		domain.GovernanceRequest{
+	return guardedWatch(guardedWatchPlan[domain.ResourceSnapshot, *controlv1.ResourcesSnapshot]{
+		ctx:   ctx,
+		guard: &s.guard,
+		request: domain.GovernanceRequest{
 			Method: "resources/list",
 			Caller: client,
 		},
-		"watch resources",
-		req.GetLastEtag(),
-		func(ctx context.Context) (<-chan domain.ResourceSnapshot, error) {
+		op:       "watch resources",
+		lastETag: req.GetLastEtag(),
+		subscribe: func(ctx context.Context) (<-chan domain.ResourceSnapshot, error) {
 			return s.control.WatchResources(ctx, client)
 		},
-		func(snapshot domain.ResourceSnapshot) string {
+		etag: func(snapshot domain.ResourceSnapshot) string {
 			return snapshot.ETag
 		},
-		func(last string, snapshot domain.ResourceSnapshot) bool {
-			return last == snapshot.ETag
-		},
-		toProtoResourcesSnapshot,
-		func(err error) error {
+		toProto: toProtoResourcesSnapshot,
+		mapError: func(err error) error {
 			return statusFromError("watch resources", err)
 		},
-		stream.Send,
-	)
+		send: stream.Send,
+	})
 }
 
 func (s *ControlService) ReadResource(ctx context.Context, req *controlv1.ReadResourceRequest) (*controlv1.ReadResourceResponse, error) {
