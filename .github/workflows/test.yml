@@ -2,13 +2,22 @@ name: "Tester"
 
 on:
   workflow_call:
+    inputs:
+      go:
+        required: true
+        type: boolean
+      web:
+        required: true
+        type: boolean
   workflow_dispatch: {}
 
 jobs:
   go-test:
     name: Go Test
     uses: ./.github/workflows/go-test.yml
+    if: ${{ inputs.go == true || github.event_name == 'workflow_dispatch' }}
 
   web-test:
     name: Web Test
     uses: ./.github/workflows/web-test.yml
+    if: ${{ inputs.web == true || github.event_name == 'workflow_dispatch' }}

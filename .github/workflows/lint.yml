@@ -2,6 +2,13 @@ name: "Linter"
 
 on:
   workflow_call:
+    inputs:
+      go:
+        required: true
+        type: boolean
+      web:
+        required: true
+        type: boolean
   workflow_dispatch: {}
 
 permissions:
@@ -12,7 +19,9 @@ jobs:
   go-lint:
     name: Go Lint
     uses: ./.github/workflows/go-lint.yml
+    if: ${{ inputs.go == true || github.event_name == 'workflow_dispatch' }}
 
   web-lint:
     name: Web Lint
     uses: ./.github/workflows/web-lint.yml
+    if: ${{ inputs.web == true || github.event_name == 'workflow_dispatch' }}

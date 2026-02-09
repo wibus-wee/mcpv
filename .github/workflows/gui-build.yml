@@ -2,12 +2,20 @@ name: "GUI Wails Build"
 
 on:
   workflow_call:
+    inputs:
+      go:
+        required: true
+        type: boolean
+      web:
+        required: true
+        type: boolean
   workflow_dispatch: {}
 
 jobs:
   build-gui:
     name: Build GUI (desktop)
     runs-on: ${{ matrix.os }}
+    if: ${{ inputs.go == true || inputs.web == true || github.event_name == 'workflow_dispatch' }}
     strategy:
       matrix:
         include:

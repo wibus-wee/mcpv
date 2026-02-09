@@ -2,12 +2,17 @@ name: "CLI Multi-Platform Build"
 
 on:
   workflow_call:
+    inputs:
+      go:
+        required: true
+        type: boolean
   workflow_dispatch: {}
 
 jobs:
   build-cli:
     name: Build CLI (mcpv & mcpvmcp)
     runs-on: ${{ matrix.os }}
+    if: ${{ inputs.go == true || github.event_name == 'workflow_dispatch' }}
     strategy:
       matrix:
         include:

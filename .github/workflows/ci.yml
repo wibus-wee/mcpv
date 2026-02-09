@@ -14,22 +14,63 @@ permissions:
   actions: read         # Required for test coverage to download artifacts
 
 jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.filter.outputs.go }}
+      web: ${{ steps.filter.outputs.web }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Filter paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            go:
+              - '**/*.go'
+              - 'go.mod'
+              - 'go.sum'
+              - '.golangci.yml'
+              - 'cmd/**'
+              - 'internal/**'
+              - 'pkg/**'
+              - 'proto/**'
+            web:
+              - 'frontend/**'
+
   lint:
     name: Lint
     uses: ./.github/workflows/lint.yml
+    needs: changes
+    with:
+      go: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.go == 'true' }}
+      web: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.web == 'true' }}
 
   test:
     name: Test
     uses: ./.github/workflows/test.yml
+    needs: changes
+    with:
+      go: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.go == 'true' }}
+      web: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.web == 'true' }}
 
   cli-build:
     name: CLI Build
     uses: ./.github/workflows/cli-build.yml
-    needs: test
+    needs: [changes, test]
+    with:
+      go: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.go == 'true' }}
     secrets: inherit
 
   gui-build:
     name: GUI Build
     uses: ./.github/workflows/gui-build.yml
-    needs: test
+    needs: [changes, test]
+    with:
+      go: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.go == 'true' }}
+      web: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.web == 'true' }}
     secrets: inherit

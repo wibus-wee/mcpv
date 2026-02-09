@@ -16,7 +16,7 @@
 
 [![Go Version](https://img.shields.io/badge/Go-1.25+-00ADD8?style=flat&logo=go)](https://go.dev)
 [![Wails](https://img.shields.io/badge/UI-Wails3-red.svg)](https://wails.io)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 ## 🚀 What is mcpv?
 
@@ -79,13 +79,10 @@ The project is under active development:
 
 ## 📄 License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the [Apache License 2.0](LICENSE).
 
 ## ✏️ Author
 
-mcpv © Wibus, Released under MIT. Created on Dec 21, 2025.
+mcpv © Wibus, Released under Apache License 2.0. Created on Dec 21, 2025.
 
 > [Personal Website](http://wibus.ren/) · [Blog](https://blog.wibus.ren/) · GitHub [@wibus-wee](https://github.com/wibus-wee/) · Telegram [@wibus✪](https://t.me/wibus_wee)
-
----
-<p align="center">Powered by Golang & 💖</p>
