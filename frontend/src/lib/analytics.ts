@@ -142,6 +142,7 @@ export const AnalyticsEvents = {
   CONNECT_IDE_TAB_CHANGE: 'connect_ide_tab_change',
   CONNECT_IDE_COPY: 'connect_ide_copy',
   CONNECT_IDE_INSTALL_CURSOR: 'connect_ide_install_cursor',
+  CONNECT_IDE_OPTION_CHANGE: 'connect_ide_option_change',
   PLUGIN_INSTALL: 'plugin_install',
   PLUGIN_REMOVE: 'plugin_remove',
 } as const

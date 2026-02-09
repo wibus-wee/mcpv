@@ -1,3 +1,7 @@
+// Input: None (pure utility functions)
+// Output: mcpvmcp command and config builders with support for server/tag modes and build options
+// Position: Utility library for generating IDE connection configs and CLI snippets
+
 export type ClientTarget = 'cursor' | 'claude' | 'vscode' | 'codex'
 export type SelectorMode = 'server' | 'tag'
 
@@ -8,18 +12,25 @@ export type SelectorConfig = {
   value: string
 }
 
-const buildArgs = (selector: SelectorConfig, rpc = defaultRpcAddress) => {
+export type BuildOptions = {
+  launchUIOnFail?: boolean
+}
+
+const buildArgs = (selector: SelectorConfig, rpc = defaultRpcAddress, options: BuildOptions = {}) => {
   const args = selector.mode === 'tag'
     ? ['--tag', selector.value]
     : [selector.value]
   if (rpc && rpc !== defaultRpcAddress) {
     args.push('--rpc', rpc)
   }
+  if (options.launchUIOnFail) {
+    args.push('--launch-ui-on-fail')
+  }
   return args
 }
 
-export function buildMcpCommand(path: string, selector: SelectorConfig, rpc = defaultRpcAddress) {
-  const args = buildArgs(selector, rpc)
+export function buildMcpCommand(path: string, selector: SelectorConfig, rpc = defaultRpcAddress, options: BuildOptions = {}) {
+  const args = buildArgs(selector, rpc, options)
   return [path, ...args].join(' ')
 }
 
@@ -28,10 +39,11 @@ export function buildClientConfig(
   path: string,
   selector: SelectorConfig,
   rpc = defaultRpcAddress,
+  options: BuildOptions = {},
 ) {
   const base = {
     command: path,
-    args: buildArgs(selector, rpc),
+    args: buildArgs(selector, rpc, options),
   }
 
   const serverName = selector.mode === 'server'
@@ -52,16 +64,17 @@ export function buildCliSnippet(
   selector: SelectorConfig,
   rpc = defaultRpcAddress,
   tool: 'claude' | 'codex',
+  options: BuildOptions = {},
 ) {
-  const args = buildArgs(selector, rpc).map(arg => (arg.includes(' ') ? `"${arg}"` : arg)).join(' ')
+  const args = buildArgs(selector, rpc, options).map(arg => (arg.includes(' ') ? `"${arg}"` : arg)).join(' ')
   if (tool === 'claude') {
     return `claude mcp add --transport stdio mcpv -- ${path} ${args}`
   }
   return `codex mcp add mcpv -- ${path} ${args}`
 }
 
-export function buildTomlConfig(path: string, selector: SelectorConfig, rpc = defaultRpcAddress) {
-  const args = buildArgs(selector, rpc)
+export function buildTomlConfig(path: string, selector: SelectorConfig, rpc = defaultRpcAddress, options: BuildOptions = {}) {
+  const args = buildArgs(selector, rpc, options)
   const argsArray = `args = ${JSON.stringify(args)}`
   const serverName = selector.mode === 'server'
     ? selector.value

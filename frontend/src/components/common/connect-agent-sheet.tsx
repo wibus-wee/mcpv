@@ -1,5 +1,5 @@
 // Input: motion/react, lucide-react icons, UI components, server hooks, analytics, mcpvmcp config helpers
-// Output: ConnectIdeSheet component for IDE connection presets
+// Output: ConnectIdeSheet component for IDE connection presets with launchUIOnFail toggle
 // Position: Shared UI component for configuring IDE connections in the app
 
 import {
@@ -21,6 +21,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Sheet,
   SheetContent,
@@ -30,13 +31,14 @@ import {
   SheetPanel,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useMcpvmcpPath } from '@/hooks/use-mcpvmcp-path'
 import { useRpcAddress } from '@/hooks/use-rpc-address'
 import { AnalyticsEvents, track } from '@/lib/analytics'
-import type { SelectorMode } from '@/lib/mcpvmcp'
+import type { BuildOptions, SelectorMode } from '@/lib/mcpvmcp'
 import { buildClientConfig, buildCliSnippet, buildTomlConfig } from '@/lib/mcpvmcp'
 import { useServers } from '@/modules/servers/hooks'
 
@@ -44,7 +46,8 @@ import { useSidebar } from '../ui/sidebar'
 
 type ClientTab = 'cursor' | 'claude' | 'vscode' | 'codex'
 
-type PresetBlock = { title: string, value: string }
+type DisplayType = 'textarea' | 'input'
+type PresetBlock = { title: string, value: string, displayType: DisplayType }
 
 const clientMeta: Record<ClientTab, { title: string, Icon: React.ComponentType<any> }> = {
   cursor: { title: 'Cursor', Icon: MousePointerClickIcon },
@@ -145,10 +148,32 @@ function InstallInCursorButton({
   )
 }
 
+function AutoHeightTextarea({ value }: { value: string }) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.style.height = 'auto'
+      ref.current.style.height = `${ref.current.scrollHeight}px`
+    }
+  }, [value])
+
+  return (
+    <Textarea
+      ref={ref}
+      readOnly
+      value={value}
+      className="font-mono text-xs resize-none"
+      style={{ minHeight: '6rem', overflow: 'hidden' }}
+    />
+  )
+}
+
 export function ConnectIdeSheet() {
   const [open, setOpen] = useState(false)
   const [selectorMode, setSelectorMode] = useState<SelectorMode>('server')
   const [selectorValue, setSelectorValue] = useState('')
+  const [launchUIOnFail, setLaunchUIOnFail] = useState(false)
   const { path } = useMcpvmcpPath()
   const { rpcAddress } = useRpcAddress()
   const { data: servers } = useServers()
@@ -163,8 +188,8 @@ export function ConnectIdeSheet() {
   const tagOptions = useMemo(() => {
     const set = new Set<string>()
       ; (servers ?? []).forEach((server) => {
-      server.tags?.forEach(tag => set.add(tag))
-    })
+        server.tags?.forEach(tag => set.add(tag))
+      })
     return Array.from(set).sort((a, b) => a.localeCompare(b))
   }, [servers])
 
@@ -186,42 +211,52 @@ export function ConnectIdeSheet() {
       ? selector.value
       : `mcpv-${selector.value || 'tag'}`, [selector])
 
+  const buildOptions = useMemo<BuildOptions>(() => ({
+    launchUIOnFail,
+  }), [launchUIOnFail])
+
   const configByClient = useMemo<Record<ClientTab, PresetBlock[]>>(
     () => ({
       cursor: [
         {
           title: 'Cursor config (json)',
-          value: buildClientConfig('cursor', path, selector, rpcAddress),
+          value: buildClientConfig('cursor', path, selector, rpcAddress, buildOptions),
+          displayType: 'textarea',
         },
       ],
       vscode: [
         {
           title: 'VS Code config (json)',
-          value: buildClientConfig('vscode', path, selector, rpcAddress),
+          value: buildClientConfig('vscode', path, selector, rpcAddress, buildOptions),
+          displayType: 'textarea',
         },
       ],
       claude: [
         {
           title: 'Claude CLI (stdio)',
-          value: buildCliSnippet(path, selector, rpcAddress, 'claude'),
+          value: buildCliSnippet(path, selector, rpcAddress, 'claude', buildOptions),
+          displayType: 'input',
         },
         {
           title: 'Claude config (json)',
-          value: buildClientConfig('claude', path, selector, rpcAddress),
+          value: buildClientConfig('claude', path, selector, rpcAddress, buildOptions),
+          displayType: 'textarea',
         },
       ],
       codex: [
         {
           title: 'Codex CLI (stdio)',
-          value: buildCliSnippet(path, selector, rpcAddress, 'codex'),
+          value: buildCliSnippet(path, selector, rpcAddress, 'codex', buildOptions),
+          displayType: 'input',
         },
         {
           title: 'Codex config (config.toml)',
-          value: buildTomlConfig(path, selector, rpcAddress),
+          value: buildTomlConfig(path, selector, rpcAddress, buildOptions),
+          displayType: 'textarea',
         },
       ],
     }),
-    [path, selector, rpcAddress],
+    [path, selector, rpcAddress, buildOptions],
   )
 
   const suggestions = useMemo(() =>
@@ -247,12 +282,12 @@ export function ConnectIdeSheet() {
           animate={{ opacity: sidebar.open ? 1 : 0, width: sidebar.open ? 'auto' : 0 }}
           transition={{ duration: 0.2 }}
         >
-          Connect IDE
+          Connect Agent
         </m.span>
       </Button>
       <SheetContent side="right" showCloseButton>
         <SheetHeader>
-          <SheetTitle>Connect your IDE</SheetTitle>
+          <SheetTitle>Connect your Agent</SheetTitle>
           <SheetDescription>Copy ready-to-use commands or config snippets for common clients.</SheetDescription>
         </SheetHeader>
         <SheetPanel className="space-y-6">
@@ -330,6 +365,30 @@ export function ConnectIdeSheet() {
           </div>
 
           <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="launch-ui-on-fail" className="text-sm font-medium">
+                  Launch UI on connection failure
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Automatically launch MCPV UI when a client fails to connect because the mcpv isn't running.
+                </p>
+              </div>
+              <Switch
+                id="launch-ui-on-fail"
+                checked={launchUIOnFail}
+                onCheckedChange={(checked) => {
+                  setLaunchUIOnFail(checked)
+                  track(AnalyticsEvents.CONNECT_IDE_OPTION_CHANGE, {
+                    option: 'launchUIOnFail',
+                    value: checked,
+                  })
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-3">
             <p className="text-sm font-medium">Client presets</p>
             <Tabs
               defaultValue="cursor"
@@ -380,7 +439,11 @@ export function ConnectIdeSheet() {
                           <CopyButton text={block.value} client={key} blockTitle={block.title} />
                         </CardHeader>
                         <CardContent className="space-y-2">
-                          <Textarea readOnly value={block.value} className="font-mono text-xs min-h-[160px]" />
+                          {block.displayType === 'input' ? (
+                            <Input readOnly value={block.value} className="font-mono text-xs" />
+                          ) : (
+                            <AutoHeightTextarea value={block.value} />
+                          )}
                         </CardContent>
                       </Card>
                     ))}

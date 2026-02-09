@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import { m } from 'motion/react'
 
-import { ConnectIdeSheet } from '@/components/common/connect-ide-sheet'
+import { ConnectIdeSheet } from '@/components/common/connect-agent-sheet'
 import { NavItem } from '@/components/common/nav-item'
 import {
   Sidebar,
@@ -41,10 +41,10 @@ const navItems: NavItem[] = [
   },
   ...isDev
     ? [{
-        path: '/plugins',
-        label: 'Plugins',
-        icon: PlugIcon,
-      }]
+      path: '/plugins',
+      label: 'Plugins',
+      icon: PlugIcon,
+    }]
     : [],
   {
     path: '/logs',
