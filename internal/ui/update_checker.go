@@ -15,6 +15,8 @@ import (
 	"golang.org/x/mod/semver"
 
 	"mcpv/internal/buildinfo"
+	"mcpv/internal/ui/events"
+	"mcpv/internal/ui/types"
 )
 
 const (
@@ -44,7 +46,7 @@ type UpdateChecker struct {
 	wails  *application.App
 	client *http.Client
 
-	options UpdateCheckOptions
+	options types.UpdateCheckOptions
 
 	ticker *time.Ticker
 	stop   chan struct{}
@@ -59,7 +61,7 @@ type UpdateChecker struct {
 }
 
 // NewUpdateChecker creates a new UpdateChecker with options.
-func NewUpdateChecker(logger *zap.Logger, opts UpdateCheckOptions) *UpdateChecker {
+func NewUpdateChecker(logger *zap.Logger, opts types.UpdateCheckOptions) *UpdateChecker {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -82,14 +84,14 @@ func (c *UpdateChecker) SetWailsApp(wails *application.App) {
 }
 
 // Options returns the current update checker options.
-func (c *UpdateChecker) Options() UpdateCheckOptions {
+func (c *UpdateChecker) Options() types.UpdateCheckOptions {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.options
 }
 
 // SetOptions updates the checker options and returns the normalized value.
-func (c *UpdateChecker) SetOptions(opts UpdateCheckOptions) UpdateCheckOptions {
+func (c *UpdateChecker) SetOptions(opts types.UpdateCheckOptions) types.UpdateCheckOptions {
 	normalized := normalizeUpdateOptions(opts)
 
 	c.mu.Lock()
@@ -118,7 +120,7 @@ func (c *UpdateChecker) Start() {
 		c.mu.Unlock()
 		return
 	}
-	interval := c.options.interval()
+	interval := updateInterval(c.options)
 	c.ticker = time.NewTicker(interval)
 	c.stop = make(chan struct{})
 	c.done = make(chan struct{})
@@ -148,7 +150,7 @@ func (c *UpdateChecker) Stop() {
 }
 
 // CheckNow performs an immediate update check.
-func (c *UpdateChecker) CheckNow(ctx context.Context) (UpdateCheckResult, error) {
+func (c *UpdateChecker) CheckNow(ctx context.Context) (types.UpdateCheckResult, error) {
 	return c.checkOnce(ctx, true)
 }
 
@@ -187,7 +189,7 @@ func (c *UpdateChecker) run() {
 	}
 }
 
-func (c *UpdateChecker) restartTicker(opts UpdateCheckOptions) {
+func (c *UpdateChecker) restartTicker(opts types.UpdateCheckOptions) {
 	c.mu.Lock()
 	ticker := c.ticker
 	stop := c.stop
@@ -206,7 +208,7 @@ func (c *UpdateChecker) restartTicker(opts UpdateCheckOptions) {
 	c.Start()
 }
 
-func (c *UpdateChecker) checkOnce(ctx context.Context, notify bool) (UpdateCheckResult, error) {
+func (c *UpdateChecker) checkOnce(ctx context.Context, notify bool) (types.UpdateCheckResult, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -216,13 +218,13 @@ func (c *UpdateChecker) checkOnce(ctx context.Context, notify bool) (UpdateCheck
 
 	currentVersion := strings.TrimSpace(buildinfo.Version)
 	if isDevelopmentBuild() {
-		return UpdateCheckResult{
+		return types.UpdateCheckResult{
 			CurrentVersion:  currentVersion,
 			UpdateAvailable: false,
 		}, nil
 	}
 	if !isVersionComparable(currentVersion) {
-		return UpdateCheckResult{
+		return types.UpdateCheckResult{
 			CurrentVersion:  currentVersion,
 			UpdateAvailable: false,
 		}, nil
@@ -249,19 +251,19 @@ func (c *UpdateChecker) checkOnce(ctx context.Context, notify bool) (UpdateCheck
 		if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 			c.logger.Warn("update check failed", zap.Error(err))
 		}
-		return UpdateCheckResult{CurrentVersion: currentVersion}, err
+		return types.UpdateCheckResult{CurrentVersion: currentVersion}, err
 	}
 	if latest.TagName == "" || latest.HTMLURL == "" {
-		return UpdateCheckResult{CurrentVersion: currentVersion}, nil
+		return types.UpdateCheckResult{CurrentVersion: currentVersion}, nil
 	}
 
 	updateAvailable, compareErr := isUpdateAvailable(currentVersion, latest.TagName)
 	if compareErr != nil {
 		c.logger.Debug("version compare failed", zap.String("current", currentVersion), zap.String("latest", latest.TagName), zap.Error(compareErr))
-		return UpdateCheckResult{CurrentVersion: currentVersion}, nil
+		return types.UpdateCheckResult{CurrentVersion: currentVersion}, nil
 	}
 
-	release := UpdateRelease{
+	release := types.UpdateRelease{
 		Version:     latest.TagName,
 		Name:        latest.Name,
 		URL:         latest.HTMLURL,
@@ -269,7 +271,7 @@ func (c *UpdateChecker) checkOnce(ctx context.Context, notify bool) (UpdateCheck
 		Prerelease:  latest.Prerelease,
 	}
 
-	result := UpdateCheckResult{
+	result := types.UpdateCheckResult{
 		CurrentVersion:  currentVersion,
 		UpdateAvailable: updateAvailable,
 	}
@@ -288,7 +290,7 @@ func (c *UpdateChecker) checkOnce(ctx context.Context, notify bool) (UpdateCheck
 		c.mu.Unlock()
 
 		if !alreadyNotified {
-			emitUpdateAvailable(wails, UpdateAvailableEvent{
+			events.EmitUpdateAvailable(wails, events.UpdateAvailableEvent{
 				CurrentVersion: currentVersion,
 				Latest:         release,
 			})
@@ -419,14 +421,14 @@ func userAgent() string {
 	return fmt.Sprintf("mcpv/%s", version)
 }
 
-func normalizeUpdateOptions(opts UpdateCheckOptions) UpdateCheckOptions {
+func normalizeUpdateOptions(opts types.UpdateCheckOptions) types.UpdateCheckOptions {
 	if opts.IntervalHours <= 0 {
 		opts.IntervalHours = int(defaultUpdateInterval / time.Hour)
 	}
 	return opts
 }
 
-func (opts UpdateCheckOptions) interval() time.Duration {
+func updateInterval(opts types.UpdateCheckOptions) time.Duration {
 	if opts.IntervalHours <= 0 {
 		return defaultUpdateInterval
 	}

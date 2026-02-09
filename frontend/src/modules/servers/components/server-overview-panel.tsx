@@ -2,7 +2,7 @@
 // Output: Server overview panel showing health, stats
 // Position: Overview panel component for server module
 
-import type { ServerDetail } from '@bindings/mcpv/internal/ui'
+import type { ServerDetail } from '@bindings/mcpv/internal/ui/types'
 import {
   ActivityIcon,
   ClockIcon,

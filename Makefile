@@ -2,7 +2,7 @@ MACOS_MIN ?= 11.0
 GO ?= go
 PROTOC ?= protoc
 CONFIG ?= .
-WAILS ?= wails3
+WAILS ?= $(BIN_DIR)/wails3
 VERSION ?= dev
 BUILD ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 LDFLAGS := -X mcpv/internal/buildinfo.Version=$(VERSION) -X mcpv/internal/buildinfo.Build=$(BUILD)
@@ -16,6 +16,8 @@ export CGO_CFLAGS=-mmacosx-version-min=$(MACOS_MIN)
 export CGO_CXXFLAGS=-mmacosx-version-min=$(MACOS_MIN)
 export CGO_LDFLAGS=-mmacosx-version-min=$(MACOS_MIN)
 
+install-toolchain:
+	$(MAKE) $(WIRE) $(WAILS)
 
 build:
 	mkdir -p bin/core
@@ -51,10 +53,11 @@ proto:
 		proto/mcpv/control/v1/control.proto \
 		proto/mcpv/plugin/v1/plugin.proto
 
-tools: $(WIRE)
-
 $(WIRE):
 	GOBIN=$(BIN_DIR) $(GO) install github.com/google/wire/cmd/wire@latest
+
+$(WAILS):
+	GOBIN=$(BIN_DIR) $(GO) install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-alpha.70
 
 wire:
 	$(WIRE) ./internal/app

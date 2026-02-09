@@ -2,7 +2,7 @@
 // Output: Compact server list for master-detail layout left pane
 // Position: Left panel in servers master-detail layout
 
-import type { ServerSummary } from '@bindings/mcpv/internal/ui'
+import type { ServerSummary } from '@bindings/mcpv/internal/ui/types'
 import { ServerIcon, WrenchIcon } from 'lucide-react'
 import { AnimatePresence, m } from 'motion/react'
 import { memo } from 'react'

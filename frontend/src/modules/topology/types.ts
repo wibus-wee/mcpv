@@ -7,7 +7,7 @@ import type {
   ServerDetail,
   ServerRuntimeStatus,
   ServerSummary,
-} from '@bindings/mcpv/internal/ui'
+} from '@bindings/mcpv/internal/ui/types'
 import type { Node } from '@xyflow/react'
 
 export type ClientNodeData = {

@@ -2,8 +2,8 @@
 // Output: Core state hooks and actions with CoreStatus type
 // Position: Shared core state accessors for app-wide status
 
-import type { CoreStateResponse } from '@bindings/mcpv/internal/ui'
-import { CoreService } from '@bindings/mcpv/internal/ui'
+import type { CoreStateResponse } from '@bindings/mcpv/internal/ui/types'
+import { CoreService } from '@bindings/mcpv/internal/ui/services'
 import { useCallback } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 

@@ -126,7 +126,7 @@ frontend/bindings/
 ## 前端使用
 
 ```typescript
-import { CoreService, SystemService } from '@bindings/mcpv/internal/ui'
+import { CoreService, SystemService } from '@bindings/mcpv/internal/ui/services'
 
 const version = await SystemService.GetVersion()
 const state = await CoreService.GetCoreState()
@@ -134,7 +134,7 @@ const state = await CoreService.GetCoreState()
 
 ## 开发流程
 
-1. **修改 Go Service**（如 `internal/ui/*_service.go`）
+1. **修改 Go Service**（如 `internal/ui/services/*_service.go`）
 2. **重新生成 bindings**：`make wails-bindings`
 3. **前端使用新的 bindings**
 

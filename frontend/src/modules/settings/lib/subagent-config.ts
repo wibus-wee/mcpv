@@ -1,4 +1,4 @@
-import type { SubAgentConfigDetail } from '@bindings/mcpv/internal/ui'
+import type { SubAgentConfigDetail } from '@bindings/mcpv/internal/ui/types'
 
 export const SUBAGENT_PROVIDER_OPTIONS = [
   { value: 'openai', label: 'OpenAI' },

@@ -2,7 +2,7 @@
 // Output: Data table with sorting, filtering, and row selection
 // Position: Main table component for servers page
 
-import type { ActiveClient, ServerRuntimeStatus, ServerSummary } from '@bindings/mcpv/internal/ui'
+import type { ActiveClient, ServerRuntimeStatus, ServerSummary } from '@bindings/mcpv/internal/ui/types'
 import type { ColumnDef, ColumnFiltersState, ExpandedState, SortingState } from '@tanstack/react-table'
 import {
   flexRender,

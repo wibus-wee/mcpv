@@ -1,5 +1,5 @@
 // Shared tool schema parsing utilities
-import type { ResourceEntry, ToolEntry } from '@bindings/mcpv/internal/ui'
+import type { ResourceEntry, ToolEntry } from '@bindings/mcpv/internal/ui/types'
 
 export interface ToolSchema {
   name?: string

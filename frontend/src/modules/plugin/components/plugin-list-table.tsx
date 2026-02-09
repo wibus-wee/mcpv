@@ -2,7 +2,7 @@
 // Output: Data table with plugin list and actions
 // Position: Main table component for plugins page
 
-import type { PluginListEntry } from '@bindings/mcpv/internal/ui'
+import type { PluginListEntry } from '@bindings/mcpv/internal/ui/types'
 import { AlertCircleIcon, CheckCircleIcon, MapPinIcon, MinusCircleIcon, PencilIcon } from 'lucide-react'
 import { useCallback, useState } from 'react'
 

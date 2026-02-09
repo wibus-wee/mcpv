@@ -2,7 +2,7 @@
 // Output: ToolDetailPanel component showing tool details inline
 // Position: Right panel in master-detail tools layout
 
-import type { ToolEntry } from '@bindings/mcpv/internal/ui'
+import type { ToolEntry } from '@bindings/mcpv/internal/ui/types'
 import { CheckIcon, ChevronDownIcon, CodeIcon, CopyIcon, WrenchIcon } from 'lucide-react'
 import { m } from 'motion/react'
 import { useState } from 'react'

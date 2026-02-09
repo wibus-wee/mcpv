@@ -12,6 +12,8 @@ import (
 
 	"mcpv/internal/app"
 	"mcpv/internal/app/controlplane"
+	"mcpv/internal/ui/events"
+	"mcpv/internal/ui/types"
 )
 
 // CoreState represents the lifecycle state of the Core.
@@ -70,7 +72,7 @@ func (m *Manager) Start(ctx context.Context) error {
 }
 
 // StartWithOptions starts Core with explicit configuration overrides.
-func (m *Manager) StartWithOptions(ctx context.Context, opts StartCoreOptions) error {
+func (m *Manager) StartWithOptions(ctx context.Context, opts types.StartCoreOptions) error {
 	configPath, observability := resolveStartOptions(opts, m.configPath)
 	return m.startWithConfig(ctx, configPath, observability)
 }
@@ -120,7 +122,7 @@ func (m *Manager) startWithConfig(ctx context.Context, configPath string, observ
 
 	m.mu.Unlock()
 
-	emitCoreState(wails, string(CoreStateStarting), nil)
+	events.EmitCoreState(wails, string(CoreStateStarting), nil)
 
 	// Start Core in background
 	go m.runCore(cfg)
@@ -128,7 +130,7 @@ func (m *Manager) startWithConfig(ctx context.Context, configPath string, observ
 	return nil
 }
 
-func resolveStartOptions(opts StartCoreOptions, fallback string) (string, *app.ObservabilityOptions) {
+func resolveStartOptions(opts types.StartCoreOptions, fallback string) (string, *app.ObservabilityOptions) {
 	mode := strings.ToLower(strings.TrimSpace(opts.Mode))
 	configPath := strings.TrimSpace(opts.ConfigPath)
 	if configPath == "" {
@@ -191,8 +193,8 @@ func (m *Manager) runCore(cfg app.ServeConfig) {
 			m.controlPlane = nil
 			m.mu.Unlock()
 
-			emitCoreState(wails, string(CoreStateError), err)
-			emitError(wails, ErrCodeCoreFailed, "Core panic", err.Error())
+			events.EmitCoreState(wails, string(CoreStateError), err)
+			events.EmitError(wails, ErrCodeCoreFailed, "Core panic", err.Error())
 		}
 	}()
 
@@ -225,10 +227,10 @@ func (m *Manager) runCore(cfg app.ServeConfig) {
 	m.mu.Unlock()
 
 	if emitState == CoreStateError {
-		emitCoreState(wails, string(CoreStateError), emitErr)
-		emitError(wails, ErrCodeCoreFailed, "Core failed", emitErr.Error())
+		events.EmitCoreState(wails, string(CoreStateError), emitErr)
+		events.EmitError(wails, ErrCodeCoreFailed, "Core failed", emitErr.Error())
 	} else {
-		emitCoreState(wails, string(CoreStateStopped), nil)
+		events.EmitCoreState(wails, string(CoreStateStopped), nil)
 	}
 }
 
@@ -255,12 +257,12 @@ func (m *Manager) onCoreReady() {
 	m.mu.Unlock()
 
 	// Emit running state
-	event := CoreStateEvent{
+	event := events.CoreStateEvent{
 		State:  string(CoreStateRunning),
 		Uptime: uptime,
 	}
 	if wails != nil {
-		wails.Event.Emit(EventCoreState, event)
+		wails.Event.Emit(events.EventCoreState, event)
 	}
 
 	// Auto-start Watch subscriptions
@@ -288,11 +290,11 @@ func (m *Manager) startWatchers() {
 	go func() {
 		updates, err := cp.WatchRuntimeStatusAllServers(ctx)
 		if err != nil {
-			emitError(wails, ErrCodeInternal, "Failed to start runtime status watcher", err.Error())
+			events.EmitError(wails, ErrCodeInternal, "Failed to start runtime status watcher", err.Error())
 			return
 		}
 		for snapshot := range updates {
-			emitRuntimeStatusUpdated(wails, snapshot)
+			events.EmitRuntimeStatusUpdated(wails, snapshot)
 		}
 	}()
 
@@ -300,11 +302,11 @@ func (m *Manager) startWatchers() {
 	go func() {
 		updates, err := cp.WatchServerInitStatusAllServers(ctx)
 		if err != nil {
-			emitError(wails, ErrCodeInternal, "Failed to start server init status watcher", err.Error())
+			events.EmitError(wails, ErrCodeInternal, "Failed to start server init status watcher", err.Error())
 			return
 		}
 		for snapshot := range updates {
-			emitServerInitUpdated(wails, snapshot)
+			events.EmitServerInitUpdated(wails, snapshot)
 		}
 	}()
 
@@ -312,11 +314,11 @@ func (m *Manager) startWatchers() {
 	go func() {
 		updates, err := cp.WatchActiveClients(ctx)
 		if err != nil {
-			emitError(wails, ErrCodeInternal, "Failed to start active clients watcher", err.Error())
+			events.EmitError(wails, ErrCodeInternal, "Failed to start active clients watcher", err.Error())
 			return
 		}
 		for snapshot := range updates {
-			emitActiveClientsUpdated(wails, snapshot)
+			events.EmitActiveClientsUpdated(wails, snapshot)
 		}
 	}()
 }
@@ -336,7 +338,7 @@ func (m *Manager) Stop() error {
 	m.watchersCancel = nil
 	m.mu.Unlock()
 
-	emitCoreState(wails, string(CoreStateStopping), nil)
+	events.EmitCoreState(wails, string(CoreStateStopping), nil)
 
 	// Cancel all active watchers
 	m.state.CancelAllWatches()
@@ -533,6 +535,6 @@ func (m *Manager) HandleDeepLink(rawURL string) error {
 	wails := m.wails
 	m.mu.RUnlock()
 
-	emitDeepLink(wails, link)
+	events.EmitDeepLink(wails, link.Path(), link.Params())
 	return nil
 }

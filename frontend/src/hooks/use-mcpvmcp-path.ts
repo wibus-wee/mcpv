@@ -1,4 +1,4 @@
-import { SystemService } from '@bindings/mcpv/internal/ui'
+import { SystemService } from '@bindings/mcpv/internal/ui/services'
 import useSWR from 'swr'
 
 const fallbackPath = 'mcpvmcp'

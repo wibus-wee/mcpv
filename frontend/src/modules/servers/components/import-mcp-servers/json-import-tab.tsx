@@ -1,5 +1,5 @@
-import type { ImportMcpServersRequest } from '@bindings/mcpv/internal/ui'
-import { ConfigService } from '@bindings/mcpv/internal/ui'
+import type { ImportMcpServersRequest } from '@bindings/mcpv/internal/ui/types'
+import { ConfigService } from '@bindings/mcpv/internal/ui/services'
 import { AlertCircleIcon, ChevronDownIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'

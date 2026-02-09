@@ -11,8 +11,8 @@ import type {
   ServerRuntimeStatus,
   ServerSummary,
   ToolEntry,
-} from '@bindings/mcpv/internal/ui'
-import { ConfigService, DiscoveryService, RuntimeService, ServerService } from '@bindings/mcpv/internal/ui'
+} from '@bindings/mcpv/internal/ui/types'
+import { ConfigService, DiscoveryService, RuntimeService, ServerService } from '@bindings/mcpv/internal/ui/services'
 import { useCallback, useMemo, useState } from 'react'
 import useSWR from 'swr'
 

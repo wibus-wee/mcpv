@@ -1,4 +1,4 @@
-import type { ImportServerSpec, McpTransferPreview } from '@bindings/mcpv/internal/ui'
+import type { ImportServerSpec, McpTransferPreview } from '@bindings/mcpv/internal/ui/types'
 
 type TransferStatus = 'idle' | 'loading' | 'ready' | 'missing' | 'error' | 'empty'
 

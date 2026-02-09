@@ -1,4 +1,4 @@
-import type { RuntimeConfigDetail } from '@bindings/mcpv/internal/ui'
+import type { RuntimeConfigDetail } from '@bindings/mcpv/internal/ui/types'
 
 export const BOOTSTRAP_MODE_OPTIONS = [
   { value: 'metadata', label: 'Metadata' },

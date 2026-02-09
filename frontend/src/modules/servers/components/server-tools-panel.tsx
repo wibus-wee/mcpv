@@ -2,7 +2,7 @@
 // Output: ServerToolsPanel component with master-detail layout for browsing tools
 // Position: Tab panel within servers page for Tools tab
 
-import type { ToolEntry } from '@bindings/mcpv/internal/ui'
+import type { ToolEntry } from '@bindings/mcpv/internal/ui/types'
 import { SearchIcon, WrenchIcon } from 'lucide-react'
 import { AnimatePresence, m } from 'motion/react'
 import { useMemo, useState } from 'react'

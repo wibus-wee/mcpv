@@ -12,6 +12,8 @@ import (
 	"mcpv/internal/app"
 	"mcpv/internal/infra/telemetry"
 	"mcpv/internal/ui"
+	"mcpv/internal/ui/services"
+	"mcpv/internal/ui/types"
 )
 
 func main() {
@@ -29,7 +31,7 @@ func main() {
 	}
 
 	uiLogger := logger.With(zap.String(telemetry.FieldLogSource, telemetry.LogSourceUI))
-	serviceRegistry := ui.NewServiceRegistry(coreApp, uiLogger)
+	serviceRegistry := services.NewServiceRegistry(coreApp, uiLogger)
 	manager := ui.NewManager(nil, coreApp, configPath)
 	serviceRegistry.SetManager(manager)
 
@@ -53,7 +55,7 @@ func main() {
 	serviceRegistry.SetWailsApp(wailsApp)
 	manager.SetWailsApp(wailsApp)
 
-	updateChecker := ui.NewUpdateChecker(uiLogger, ui.UpdateCheckOptions{
+	updateChecker := ui.NewUpdateChecker(uiLogger, types.UpdateCheckOptions{
 		IntervalHours:     24,
 		IncludePrerelease: false,
 	})

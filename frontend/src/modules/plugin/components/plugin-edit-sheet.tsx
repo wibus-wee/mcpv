@@ -2,7 +2,7 @@
 // Output: Sheet component for adding/editing plugin configurations
 // Position: Overlay sheet triggered from plugin list
 
-import type { PluginListEntry } from '@bindings/mcpv/internal/ui'
+import type { PluginListEntry } from '@bindings/mcpv/internal/ui/types'
 import { PlusIcon, SaveIcon } from 'lucide-react'
 import { m } from 'motion/react'
 import { useCallback, useEffect, useState } from 'react'

@@ -7,7 +7,7 @@ import type {
   ServerDetail,
   ServerRuntimeStatus,
   ServerSummary,
-} from '@bindings/mcpv/internal/ui'
+} from '@bindings/mcpv/internal/ui/types'
 import type { Edge } from '@xyflow/react'
 import { MarkerType } from '@xyflow/react'
 import ELK from 'elkjs/lib/elk.bundled.js'

@@ -1,5 +1,5 @@
-import type { BootstrapProgressResponse } from '@bindings/mcpv/internal/ui'
-import { CoreService, DiscoveryService } from '@bindings/mcpv/internal/ui'
+import type { BootstrapProgressResponse } from '@bindings/mcpv/internal/ui/types'
+import { CoreService, DiscoveryService } from '@bindings/mcpv/internal/ui/services'
 import useSWR from 'swr'
 
 import { swrPresets } from '@/lib/swr-config'

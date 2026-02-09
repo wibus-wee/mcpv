@@ -2,7 +2,7 @@
 // Output: AboutPage component with animated background, app icon (confetti on long press), name, description, and made by
 // Position: About module page content for the /about route
 
-import { CoreService } from '@bindings/mcpv/internal/ui'
+import { CoreService } from '@bindings/mcpv/internal/ui/services'
 import { confetti } from '@tsparticles/confetti'
 import { HeartHandshakeIcon } from 'lucide-react'
 import { m } from 'motion/react'

@@ -2,8 +2,8 @@
 // Output: Sheet component for adding/editing server configurations with guidance
 // Position: Overlay sheet triggered from server list or config panel
 
-import type { ServerDetail } from '@bindings/mcpv/internal/ui'
-import { ServerService } from '@bindings/mcpv/internal/ui'
+import { ServerService } from '@bindings/mcpv/internal/ui/services'
+import type { ServerDetail } from '@bindings/mcpv/internal/ui/types'
 import { AlertTriangleIcon, ChevronDownIcon, InfoIcon, PlusIcon, SaveIcon } from 'lucide-react'
 import { m } from 'motion/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -201,10 +201,18 @@ export function ServerEditSheet({
     if (!open) return
 
     if (server) {
-      const envString = formatEnvironmentVariables(server.env ?? {})
+      // Filter out undefined values from env and headers
+      const env = Object.fromEntries(
+        Object.entries(server.env ?? {}).filter(([_, value]) => value !== undefined),
+      ) as Record<string, string>
+      const headers = Object.fromEntries(
+        Object.entries(server.http?.headers ?? {}).filter(([_, value]) => value !== undefined),
+      ) as Record<string, string>
+
+      const envString = formatEnvironmentVariables(env)
       const argsString = server.cmd.length > 1 ? formatCommaSeparated(server.cmd.slice(1)) : ''
       const exposeToolsString = formatCommaSeparated(server.exposeTools ?? [])
-      const httpHeadersString = formatEnvironmentVariables(server.http?.headers ?? {})
+      const httpHeadersString = formatEnvironmentVariables(headers)
 
       reset({
         name: server.name,
@@ -293,10 +301,10 @@ export function ServerEditSheet({
         exposeTools,
         http: data.transport === 'streamable_http'
           ? {
-              endpoint: data.endpoint.trim(),
-              headers: httpHeaders,
-              maxRetries: data.httpMaxRetries,
-            }
+            endpoint: data.endpoint.trim(),
+            headers: httpHeaders,
+            maxRetries: data.httpMaxRetries,
+          }
           : null,
       }
 
@@ -461,8 +469,8 @@ export function ServerEditSheet({
                         validate: value => (
                           transport === 'stdio'
                             ? (value?.trim()
-                                ? true
-                                : SERVER_FORM_VALIDATION.cmdRequired)
+                              ? true
+                              : SERVER_FORM_VALIDATION.cmdRequired)
                             : true
                         ),
                       })}
@@ -538,8 +546,8 @@ export function ServerEditSheet({
                         validate: value => (
                           transport === 'streamable_http'
                             ? (value?.trim()
-                                ? true
-                                : SERVER_FORM_VALIDATION.endpointRequired)
+                              ? true
+                              : SERVER_FORM_VALIDATION.endpointRequired)
                             : true
                         ),
                       })}
@@ -856,17 +864,17 @@ export function ServerEditSheet({
                 ? 'Saving...'
                 : isEdit
                   ? (
-                      <>
-                        <SaveIcon className="mr-2 size-4" />
-                        Save Changes
-                      </>
-                    )
+                    <>
+                      <SaveIcon className="mr-2 size-4" />
+                      Save Changes
+                    </>
+                  )
                   : (
-                      <>
-                        <PlusIcon className="mr-2 size-4" />
-                        Add Server
-                      </>
-                    )}
+                    <>
+                      <PlusIcon className="mr-2 size-4" />
+                      Add Server
+                    </>
+                  )}
           </Button>
         </SheetFooter>
       </SheetContent>

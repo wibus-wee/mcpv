@@ -2,7 +2,7 @@
 // Output: ServersPage component - Full-width table with expandable rows and right-side drawer
 // Position: Main page for servers module
 
-import type { ServerSummary } from '@bindings/mcpv/internal/ui'
+import type { ServerSummary } from '@bindings/mcpv/internal/ui/types'
 import { m } from 'motion/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 

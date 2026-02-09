@@ -1,4 +1,4 @@
-import type { InstanceStatus, ServerDetail } from '@bindings/mcpv/internal/ui'
+import type { InstanceStatus, ServerDetail } from '@bindings/mcpv/internal/ui/types'
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatRelativeTime } from '@/lib/time'

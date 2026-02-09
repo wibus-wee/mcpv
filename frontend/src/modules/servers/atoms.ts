@@ -5,7 +5,7 @@
 import type {
   ConfigModeResponse,
   ServerDetail,
-} from '@bindings/mcpv/internal/ui'
+} from '@bindings/mcpv/internal/ui/types'
 import { atom } from 'jotai'
 
 // Config mode and path

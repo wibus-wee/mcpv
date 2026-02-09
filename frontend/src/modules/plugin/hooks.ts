@@ -1,5 +1,5 @@
-import type { PluginListEntry, PluginMetrics } from '@bindings/mcpv/internal/ui'
-import { PluginService } from '@bindings/mcpv/internal/ui'
+import { PluginService } from '@bindings/mcpv/internal/ui/services'
+import type { PluginListEntry, PluginMetrics } from '@bindings/mcpv/internal/ui/types'
 import { useCallback, useMemo } from 'react'
 import useSWR from 'swr'
 
@@ -18,7 +18,7 @@ export function usePluginList() {
 }
 
 export function usePluginMetrics() {
-  return useSWR<Record<string, PluginMetrics>>(
+  return useSWR<Record<string, PluginMetrics | undefined>>(
     swrKeys.pluginMetrics,
     () => PluginService.GetPluginMetrics(),
     {

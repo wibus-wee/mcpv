@@ -2,7 +2,7 @@
 // Output: ServersList component - unified list with search, tag filters, collapsible sections
 // Position: Left panel in servers page layout
 
-import type { ServerSummary } from '@bindings/mcpv/internal/ui'
+import type { ServerSummary } from '@bindings/mcpv/internal/ui/types'
 import { FilterIcon, SearchIcon, ServerIcon, TagIcon } from 'lucide-react'
 import { AnimatePresence, m } from 'motion/react'
 import { useEffect, useMemo, useState } from 'react'

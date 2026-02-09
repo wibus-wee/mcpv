@@ -2,7 +2,7 @@
 // Output: SubAgent settings card using compound component pattern
 // Position: Settings page SubAgent section
 
-import type { SubAgentConfigDetail } from '@bindings/mcpv/internal/ui'
+import type { SubAgentConfigDetail } from '@bindings/mcpv/internal/ui/types'
 import { AlertCircleIcon, AlertTriangleIcon, TagIcon, XIcon } from 'lucide-react'
 import type * as React from 'react'
 import type { UseFormReturn } from 'react-hook-form'

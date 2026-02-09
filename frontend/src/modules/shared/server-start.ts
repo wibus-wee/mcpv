@@ -1,4 +1,4 @@
-import type { StartCause } from '@bindings/mcpv/internal/ui'
+import type { StartCause } from '@bindings/mcpv/internal/ui/types'
 
 export function formatStartReason(
   cause?: StartCause | null,

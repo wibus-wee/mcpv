@@ -1,4 +1,4 @@
-import type { ServerDetail } from '@bindings/mcpv/internal/ui'
+import type { ServerDetail } from '@bindings/mcpv/internal/ui/types'
 import type { ReactNode } from 'react'
 
 import { cn } from '@/lib/utils'

@@ -2,7 +2,7 @@
 // Output: DashboardPage component - main dashboard view with insights
 // Position: Main dashboard page in dashboard module
 
-import { DebugService } from '@bindings/mcpv/internal/ui'
+import { DebugService } from '@bindings/mcpv/internal/ui/services'
 import {
   AlertCircleIcon,
   FileDownIcon,
