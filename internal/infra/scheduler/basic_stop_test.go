@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -159,6 +160,30 @@ func TestBasicScheduler_ReleaseClosesDrainDone(t *testing.T) {
 	require.Eventually(t, func() bool {
 		return lc.stops() == 1
 	}, 500*time.Millisecond, 20*time.Millisecond)
+}
+
+func TestTrackedInstance_CloseDrainDoneConcurrent(t *testing.T) {
+	inst := &trackedInstance{
+		drainDone: make(chan struct{}),
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		inst.closeDrainDone()
+	}()
+	go func() {
+		defer wg.Done()
+		inst.closeDrainDone()
+	}()
+	wg.Wait()
+
+	select {
+	case <-inst.drainDone:
+	default:
+		t.Fatal("expected drainDone to be closed")
+	}
 }
 
 func TestStopSpec_SerialStopPerformance(t *testing.T) {

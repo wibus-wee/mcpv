@@ -57,9 +57,19 @@ type BasicScheduler struct {
 }
 
 type trackedInstance struct {
-	instance  *domain.Instance
-	drainOnce sync.Once
-	drainDone chan struct{}
+	instance       *domain.Instance
+	drainOnce      sync.Once
+	drainDone      chan struct{}
+	drainCloseOnce sync.Once
+}
+
+func (t *trackedInstance) closeDrainDone() {
+	if t == nil || t.drainDone == nil {
+		return
+	}
+	t.drainCloseOnce.Do(func() {
+		close(t.drainDone)
+	})
 }
 
 type stickyBinding struct {

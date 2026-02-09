@@ -239,12 +239,8 @@ func (s *BasicScheduler) Release(_ context.Context, instance *domain.Instance) e
 	state.mu.Unlock()
 	s.observePoolStats(state)
 
-	if triggerDrain != nil && triggerDrain.drainDone != nil {
-		select {
-		case <-triggerDrain.drainDone:
-		default:
-			close(triggerDrain.drainDone)
-		}
+	if triggerDrain != nil {
+		triggerDrain.closeDrainDone()
 	}
 	return nil
 }

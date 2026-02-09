@@ -64,11 +64,7 @@ func (s *BasicScheduler) startDrain(specKey string, inst *trackedInstance, timeo
 		busy := inst.instance.BusyCount()
 		state.mu.Unlock()
 		if busy == 0 {
-			select {
-			case <-inst.drainDone:
-			default:
-				close(inst.drainDone)
-			}
+			inst.closeDrainDone()
 		}
 	})
 }
