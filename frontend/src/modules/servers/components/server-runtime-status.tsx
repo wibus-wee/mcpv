@@ -2,8 +2,8 @@
 // Output: Runtime status summary and instance detail components
 // Position: Runtime status display component for server instances
 
-import type { ServerInitStatus, ServerRuntimeStatus } from '@bindings/mcpv/internal/ui/types'
 import { RuntimeService } from '@bindings/mcpv/internal/ui/services'
+import type { ServerInitStatus, ServerRuntimeStatus } from '@bindings/mcpv/internal/ui/types'
 import { useState } from 'react'
 
 import { ServerStateBadge, ServerStateCountBadge } from '@/components/custom/status-badge'

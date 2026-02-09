@@ -301,10 +301,10 @@ export function ServerEditSheet({
         exposeTools,
         http: data.transport === 'streamable_http'
           ? {
-            endpoint: data.endpoint.trim(),
-            headers: httpHeaders,
-            maxRetries: data.httpMaxRetries,
-          }
+              endpoint: data.endpoint.trim(),
+              headers: httpHeaders,
+              maxRetries: data.httpMaxRetries,
+            }
           : null,
       }
 
@@ -469,8 +469,8 @@ export function ServerEditSheet({
                         validate: value => (
                           transport === 'stdio'
                             ? (value?.trim()
-                              ? true
-                              : SERVER_FORM_VALIDATION.cmdRequired)
+                                ? true
+                                : SERVER_FORM_VALIDATION.cmdRequired)
                             : true
                         ),
                       })}
@@ -546,8 +546,8 @@ export function ServerEditSheet({
                         validate: value => (
                           transport === 'streamable_http'
                             ? (value?.trim()
-                              ? true
-                              : SERVER_FORM_VALIDATION.endpointRequired)
+                                ? true
+                                : SERVER_FORM_VALIDATION.endpointRequired)
                             : true
                         ),
                       })}
@@ -864,17 +864,17 @@ export function ServerEditSheet({
                 ? 'Saving...'
                 : isEdit
                   ? (
-                    <>
-                      <SaveIcon className="mr-2 size-4" />
-                      Save Changes
-                    </>
-                  )
+                      <>
+                        <SaveIcon className="mr-2 size-4" />
+                        Save Changes
+                      </>
+                    )
                   : (
-                    <>
-                      <PlusIcon className="mr-2 size-4" />
-                      Add Server
-                    </>
-                  )}
+                      <>
+                        <PlusIcon className="mr-2 size-4" />
+                        Add Server
+                      </>
+                    )}
           </Button>
         </SheetFooter>
       </SheetContent>

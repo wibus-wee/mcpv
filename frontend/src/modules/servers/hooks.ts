@@ -2,6 +2,7 @@
 // Output: Combined data hooks for servers module
 // Position: Data layer for unified servers module
 
+import { ConfigService, DiscoveryService, RuntimeService, ServerService } from '@bindings/mcpv/internal/ui/services'
 import type {
   ActiveClient,
   ConfigModeResponse,
@@ -12,7 +13,6 @@ import type {
   ServerSummary,
   ToolEntry,
 } from '@bindings/mcpv/internal/ui/types'
-import { ConfigService, DiscoveryService, RuntimeService, ServerService } from '@bindings/mcpv/internal/ui/services'
 import { useCallback, useMemo, useState } from 'react'
 import useSWR from 'swr'
 

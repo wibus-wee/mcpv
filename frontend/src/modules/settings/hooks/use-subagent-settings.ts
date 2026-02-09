@@ -2,13 +2,13 @@
 // Output: subagent settings state + model fetch helpers
 // Position: Settings SubAgent hook
 
+import { ProxyService, SubAgentService } from '@bindings/mcpv/internal/ui/services'
 import type {
   ActiveClient,
   ServerSummary,
   SubAgentConfigDetail,
   UpdateSubAgentConfigRequest,
 } from '@bindings/mcpv/internal/ui/types'
-import { ProxyService, SubAgentService } from '@bindings/mcpv/internal/ui/services'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import useSWR from 'swr'

@@ -4,13 +4,13 @@
 
 'use client'
 
+import { LogService } from '@bindings/mcpv/internal/ui/services'
 import type {
   ActiveClient,
   CoreStateResponse,
   ServerInitStatus,
   ServerRuntimeStatus,
 } from '@bindings/mcpv/internal/ui/types'
-import { LogService } from '@bindings/mcpv/internal/ui/services'
 import { useRouter, useRouterState } from '@tanstack/react-router'
 import { Events } from '@wailsio/runtime'
 import { Provider, useAtomValue } from 'jotai'

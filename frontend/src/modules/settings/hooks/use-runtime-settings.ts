@@ -2,8 +2,8 @@
 // Output: runtime settings state + save handler
 // Position: Settings runtime hook
 
-import type { RuntimeConfigDetail } from '@bindings/mcpv/internal/ui/types'
 import { ConfigService } from '@bindings/mcpv/internal/ui/services'
+import type { RuntimeConfigDetail } from '@bindings/mcpv/internal/ui/types'
 import { useEffect, useMemo, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import useSWR, { useSWRConfig } from 'swr'

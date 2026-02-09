@@ -1,5 +1,5 @@
-import type { ImportMcpServersRequest, McpTransferIssue } from '@bindings/mcpv/internal/ui/types'
 import { ConfigService, McpTransferService } from '@bindings/mcpv/internal/ui/services'
+import type { ImportMcpServersRequest, McpTransferIssue } from '@bindings/mcpv/internal/ui/types'
 import {
   AlertCircleIcon,
   ArrowDownToLineIcon,

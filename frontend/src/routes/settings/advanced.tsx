@@ -2,8 +2,8 @@
 // Output: Advanced settings page with telemetry toggle
 // Position: /settings/advanced route
 
-import type { UpdateCheckOptions } from '@bindings/mcpv/internal/ui/types'
 import { SystemService } from '@bindings/mcpv/internal/ui/services'
+import type { UpdateCheckOptions } from '@bindings/mcpv/internal/ui/types'
 import { createFileRoute } from '@tanstack/react-router'
 import { useCallback, useMemo } from 'react'
 import useSWR from 'swr'
