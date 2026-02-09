@@ -10,15 +10,15 @@ import { useEffect, useRef, useState } from 'react'
 const ease: Easing = [0.16, 1, 0.3, 1]
 
 const rotatingPhrases = [
-  'one\nworkspace.',
-  'effortless\ncreativity.',
-  'focused\nproductivity.',
-  'seamless\ncollaboration.',
-  'intuitive\ncontrol.',
+  'one workspace.',
+  'effortless creativity.',
+  'focused productivity.',
+  'seamless collaboration.',
+  'intuitive control.',
 ]
 
-const ROTATE_INTERVAL = 2400
-const TOTAL_CYCLES = rotatingPhrases.length * 2 - 1 // loop twice then land on index 0
+const ROTATE_INTERVAL = 1800
+const TOTAL_CYCLES = rotatingPhrases.length * 2 // loop twice then land on index 0
 
 const fadeUp = {
   hidden: { opacity: 0, y: 32, filter: 'blur(12px)' },
@@ -117,42 +117,41 @@ function ScreenshotCard() {
 }
 
 function RotatingText() {
-  const [index, setIndex] = useState(1)
+  const [index, setIndex] = useState(0) // 从第一个开始
   const [tick, setTick] = useState(0)
   const stopped = tick >= TOTAL_CYCLES
 
   useEffect(() => {
     if (stopped) return
+    const delay = ROTATE_INTERVAL
     const id = setTimeout(() => {
       setIndex(prev => (prev + 1) % rotatingPhrases.length)
       setTick(prev => prev + 1)
-    }, ROTATE_INTERVAL)
+    }, delay)
     return () => clearTimeout(id)
   }, [tick, stopped])
 
   return (
-    <span className="relative inline-grid items-end">
-      <span className="max-w-full wrap-break-word col-start-1 row-start-1 overflow-hidden">
-        <AnimatePresence mode="popLayout" initial={false}>
-          <motion.span
-            key={rotatingPhrases[index]}
-            initial={{ y: '100%', opacity: 0, filter: 'blur(8px)' }}
-            animate={{ y: 0, opacity: 1, filter: 'blur(0px)' }}
-            exit={{ y: '-100%', opacity: 0, filter: 'blur(8px)' }}
-            transition={{ duration: 0.5, ease }}
-            className="inline-block bg-linear-to-r from-neutral-400 via-neutral-500 to-neutral-700 dark:from-neutral-300 dark:via-neutral-400 dark:to-neutral-600 bg-clip-text text-transparent whitespace-pre-line"
-          >
-            {rotatingPhrases[index]}
-          </motion.span>
-        </AnimatePresence>
-      </span>
+    <span className="relative inline-grid h-[1.1em] items-end align-baseline overflow-hidden">
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.span
+          key={rotatingPhrases[index]}
+          initial={{ y: '100%', opacity: 0, filter: 'blur(8px)' }}
+          animate={{ y: 0, opacity: 1, filter: 'blur(0px)' }}
+          exit={{ y: '-100%', opacity: 0, filter: 'blur(8px)' }}
+          transition={{ duration: 0.5, ease }}
+          className="col-start-1 row-start-1 inline-block leading-[1.1] bg-linear-to-r from-neutral-400 via-neutral-500 to-neutral-700 dark:from-neutral-300 dark:via-neutral-400 dark:to-neutral-600 bg-clip-text text-transparent whitespace-pre-line"
+        >
+          {rotatingPhrases[index]}
+        </motion.span>
+      </AnimatePresence>
     </span>
   )
 }
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden pb-20 pt-8 h-[calc(100vh-4rem)] flex items-center">
+    <section className="relative overflow-hidden pb-20 pt-24 min-h-[calc(100vh-4rem)]">
       {/* ambient background */}
       <div className="pointer-events-none absolute inset-0">
         <FloatingOrb
@@ -185,11 +184,10 @@ export function Hero() {
       </div>
 
       <div className="relative mx-auto max-w-6xl px-6">
-
-        {/* main grid */}
-        <div className="grid items-center gap-14 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
-          {/* left column */}
-          <div className="text-center lg:text-left">
+        {/* main stack */}
+        <div className="flex flex-col items-center gap-12 lg:gap-16">
+          {/* header block */}
+          <div className="text-center">
             <motion.div
               variants={fadeUp}
               initial="hidden"
@@ -221,11 +219,9 @@ export function Hero() {
               initial="hidden"
               animate="visible"
               custom={2}
-              className="mx-auto max-w-3xl text-pretty font-[family-name:var(--font-home-display)] text-4xl font-semibold tracking-[-0.04em] text-fd-foreground sm:text-5xl md:text-[3.5rem] md:leading-[1.1] lg:mx-0 relative"
+              className="mx-auto max-w-3xl text-pretty font-[family-name:var(--font-home-display)] text-4xl font-semibold tracking-[-0.04em] text-fd-foreground sm:text-5xl md:text-[3.5rem] md:leading-[1.1] relative"
             >
-              Your
-              {' '}
-              MCP stack,
+              Your entire MCP stack,
               <br />
               <RotatingText />
             </motion.h1>
@@ -235,7 +231,7 @@ export function Hero() {
               initial="hidden"
               animate="visible"
               custom={3}
-              className="mx-auto mt-6 max-w-lg text-pretty text-[15px] leading-relaxed text-fd-muted-foreground sm:text-base lg:mx-0"
+              className="mx-auto mt-6 max-w-lg text-pretty text-[15px] leading-relaxed text-fd-muted-foreground sm:text-base"
             >
               Elastic runtime, unified gateway, and live observability for every
               MCP server — managed from a desktop app. No terminal sprawl,
@@ -248,13 +244,13 @@ export function Hero() {
               initial="hidden"
               animate="visible"
               custom={4}
-              className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start"
+              className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center"
             >
               <Link
                 href="https://github.com/wibus-wee/mcpv/releases"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group relative inline-flex h-12 items-center justify-center gap-2.5 overflow-hidden rounded-2xl bg-fd-foreground px-7 text-sm font-medium text-fd-background transition-all hover:shadow-[0_8px_30px_-8px_rgba(20,184,166,0.4)] hover:brightness-105"
+                className="group relative inline-flex h-12 items-center justify-center gap-2.5 overflow-hidden rounded-2xl bg-fd-foreground px-7 text-sm font-medium text-fd-background transition-[box-shadow,filter] duration-200 hover:shadow-[0_8px_30px_-8px_rgba(20,184,166,0.4)] hover:brightness-105"
               >
                 <span className="relative flex items-center gap-2.5">
                   <Download className="h-4 w-4" />
@@ -264,7 +260,7 @@ export function Hero() {
               </Link>
               <Link
                 href="/docs"
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-fd-border/60 bg-fd-background/80 px-6 text-sm font-medium text-fd-muted-foreground backdrop-blur-sm transition-all hover:border-fd-border hover:text-fd-foreground"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-fd-border/60 bg-fd-background/80 px-6 text-sm font-medium text-fd-muted-foreground backdrop-blur-sm transition-[border-color,color] duration-200 hover:border-fd-border hover:text-fd-foreground"
               >
                 <BookOpen className="h-4 w-4" />
                 Documentation
@@ -272,12 +268,12 @@ export function Hero() {
             </motion.div>
           </div>
 
-          {/* right column — screenshot showcase */}
+          {/* screenshot showcase */}
           <motion.div
-            initial={{ opacity: 0, y: 28, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ delay: 0.3, duration: 0.9, ease }}
-            className="group relative mx-auto w-full"
+            initial={{ opacity: 0, y: 28, scale: 0.97, filter: 'blur(12px)' }}
+            animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+            transition={{ delay: 0.55, duration: 0.9, ease }}
+            className="group relative mx-auto w-full max-w-5xl"
           >
             {/* glow ring behind card */}
             <div className="absolute -inset-6 rounded-[40px] bg-gradient-to-br from-teal-500/[0.08] via-transparent to-sky-500/[0.06] blur-2xl" />

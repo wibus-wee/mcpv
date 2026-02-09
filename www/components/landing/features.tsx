@@ -1,3 +1,5 @@
+'use client'
+
 import {
   Activity,
   Boxes,
@@ -10,6 +12,9 @@ import {
   ShieldCheck,
   Zap,
 } from 'lucide-react'
+import { motion } from 'motion/react'
+
+import { AnimateInView, StaggerChildren, staggerItem } from '@/components/landing/animate-in-view'
 
 const features = [
   {
@@ -85,22 +90,29 @@ export function Features() {
   return (
     <section className="relative py-24 sm:py-28">
       <div className="mx-auto max-w-6xl px-6">
-        <div className="mb-10 flex items-end justify-between gap-8">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-600">
-              Capabilities
-            </p>
-            <h2 className="mt-3 max-w-2xl font-[family-name:var(--font-home-display)] text-3xl font-semibold tracking-[-0.03em] text-fd-foreground sm:text-4xl">
-              Designed for developers running MCP servers as serious infrastructure.
-            </h2>
+        <AnimateInView>
+          <div className="mb-10 flex items-end justify-between gap-8">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-600">
+                Capabilities
+              </p>
+              <h2 className="mt-3 max-w-2xl font-[family-name:var(--font-home-display)] text-3xl font-semibold tracking-[-0.03em] text-fd-foreground sm:text-4xl">
+                Designed for developers running MCP servers as serious infrastructure.
+              </h2>
+            </div>
           </div>
-        </div>
+        </AnimateInView>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StaggerChildren
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+          staggerDelay={0.07}
+          delay={0.15}
+        >
           {features.map(feature => (
-            <article
+            <motion.article
               key={feature.title}
-              className="group rounded-2xl border border-fd-border/70 bg-fd-card/55 p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-fd-border hover:bg-fd-card/90"
+              variants={staggerItem}
+              className="group rounded-2xl border border-fd-border/70 bg-fd-card/55 p-6 transition-[border-color,background-color,translate] duration-200 hover:-translate-y-0.5 hover:border-fd-border hover:bg-fd-card/90"
             >
               <feature.icon
                 className="mb-4 h-5 w-5 text-fd-muted-foreground transition-colors group-hover:text-teal-600"
@@ -112,9 +124,9 @@ export function Features() {
               <p className="mt-2 text-sm leading-relaxed text-fd-muted-foreground">
                 {feature.description}
               </p>
-            </article>
+            </motion.article>
           ))}
-        </div>
+        </StaggerChildren>
       </div>
     </section>
   )

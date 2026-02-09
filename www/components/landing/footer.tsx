@@ -1,5 +1,8 @@
+'use client'
+
 import Image from 'next/image'
 import Link from 'next/link'
+import { AnimateInView } from '@/components/landing/animate-in-view'
 
 const columns = [
   {
@@ -23,7 +26,7 @@ export function Footer() {
 
   return (
     <footer className="border-t border-fd-border/65 pb-10 pt-14">
-      <div className="mx-auto max-w-6xl px-6">
+      <AnimateInView className="mx-auto max-w-6xl px-6">
         <div className="grid gap-10 md:grid-cols-[1.3fr_1fr]">
           <div>
             <Link
@@ -68,7 +71,7 @@ export function Footer() {
           <p>Copyright {year} mcpv</p>
           <p>Apache License 2.0</p>
         </div>
-      </div>
+      </AnimateInView>
     </footer>
   )
 }
