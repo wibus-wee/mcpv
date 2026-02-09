@@ -136,10 +136,11 @@ function RotatingText() {
       <AnimatePresence mode="popLayout" initial={false}>
         <motion.span
           key={rotatingPhrases[index]}
-          initial={{ y: '100%', opacity: 0, filter: 'blur(8px)' }}
+          initial={{ y: '70%', opacity: 0, filter: 'blur(10px)' }}
           animate={{ y: 0, opacity: 1, filter: 'blur(0px)' }}
-          exit={{ y: '-100%', opacity: 0, filter: 'blur(8px)' }}
-          transition={{ duration: 0.5, ease }}
+          exit={{ y: '-70%', opacity: 0, filter: 'blur(10px)' }}
+          transition={{ duration: 0.75, ease }}
+          style={{ willChange: 'transform, filter' }}
           className="col-start-1 row-start-1 inline-block leading-[1.1] bg-linear-to-r from-neutral-400 via-neutral-500 to-neutral-700 dark:from-neutral-300 dark:via-neutral-400 dark:to-neutral-600 bg-clip-text text-transparent whitespace-pre-line"
         >
           {rotatingPhrases[index]}
