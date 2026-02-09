@@ -3,7 +3,6 @@ package gateway
 import (
 	"context"
 	"errors"
-	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -30,6 +29,7 @@ type Gateway struct {
 	registry        *toolRegistry
 	resources       *resourceRegistry
 	prompts         *promptRegistry
+	callerPID       int64
 	registered      atomic.Bool
 	subAgentEnabled atomic.Bool
 	toolsReadyCh    chan struct{}
@@ -51,6 +51,7 @@ func NewGateway(cfg rpc.ClientConfig, caller string, tags []string, serverName s
 		tags:           tags,
 		serverName:     serverName,
 		logger:         logger.Named("gateway"),
+		callerPID:      resolveCallerPID(),
 		toolsReadyCh:   make(chan struct{}),
 		toolsReadyWait: defaultToolsReadyWait,
 	}
@@ -113,7 +114,7 @@ func (g *Gateway) run(ctx context.Context, runner func(context.Context) error) e
 	}
 	go g.syncResources(runCtx)
 	go g.syncPrompts(runCtx)
-	go newLogBridge(g.server, g.clients, g.caller, g.tags, g.serverName, g.logger).Run(runCtx)
+	go newLogBridge(g.server, g.clients, g.caller, g.tags, g.serverName, g.callerPID, g.logger).Run(runCtx)
 
 	err := runner(runCtx)
 	g.clients.close()
@@ -143,7 +144,7 @@ func (g *Gateway) registerCaller(ctx context.Context) error {
 	}
 	resp, err := client.Control().RegisterCaller(ctx, &controlv1.RegisterCallerRequest{
 		Caller: g.caller,
-		Pid:    int64(os.Getpid()),
+		Pid:    g.callerPID,
 		Tags:   append([]string(nil), g.tags...),
 		Server: g.serverName,
 	})

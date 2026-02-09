@@ -3,7 +3,6 @@ package gateway
 import (
 	"context"
 	"encoding/json"
-	"os"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -21,10 +20,11 @@ type logBridge struct {
 	caller     string
 	tags       []string
 	serverName string
+	callerPID  int64
 	logger     *zap.Logger
 }
 
-func newLogBridge(server *mcp.Server, clients *clientManager, caller string, tags []string, serverName string, logger *zap.Logger) *logBridge {
+func newLogBridge(server *mcp.Server, clients *clientManager, caller string, tags []string, serverName string, callerPID int64, logger *zap.Logger) *logBridge {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -34,6 +34,7 @@ func newLogBridge(server *mcp.Server, clients *clientManager, caller string, tag
 		caller:     caller,
 		tags:       tags,
 		serverName: serverName,
+		callerPID:  callerPID,
 		logger:     logger.Named("log_bridge"),
 	}
 }
@@ -100,7 +101,7 @@ func (b *logBridge) registerCaller(ctx context.Context) error {
 	}
 	_, err = client.Control().RegisterCaller(ctx, &controlv1.RegisterCallerRequest{
 		Caller: b.caller,
-		Pid:    int64(os.Getpid()),
+		Pid:    b.callerPID,
 		Tags:   append([]string(nil), b.tags...),
 		Server: b.serverName,
 	})
