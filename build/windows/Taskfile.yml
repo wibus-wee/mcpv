@@ -13,7 +13,7 @@ vars:
 
   # Docker image for cross-compilation with CGO (used when CGO_ENABLED=1 on non-Windows)
   CROSS_IMAGE: wails-cross
-  CLI_NAME: '{{.CLI_NAME | default "mcpdmcp"}}'
+  CLI_NAME: '{{.CLI_NAME | default "mcpvmcp"}}'
   WAILS: '{{.WAILS | default (printf "%s/bin/wails3" .ROOT_DIR)}}'
 
   # Version configuration - aligned with root Makefile

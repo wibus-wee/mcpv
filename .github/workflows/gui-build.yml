@@ -14,33 +14,23 @@ on:
 jobs:
   build-gui:
     name: Build GUI (desktop)
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-latest
     if: ${{ inputs.go == true || inputs.web == true || github.event_name == 'workflow_dispatch' }}
-    strategy:
-      matrix:
-        include:
-          # - os: ubuntu-latest
-          #   platform: linux/amd64
-          - os: macos-latest
-            platform: darwin/amd64
-          - os: macos-latest
-            platform: darwin/arm64
-          # - os: windows-latest
-          #   platform: windows/amd64
     env:
       VERSION: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'dev' }}
       BUILD: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install linux dependencies
-        uses: awalsh128/cache-apt-pkgs-action@latest
-        if: matrix.os == 'ubuntu-latest'
+      - name: Setup Go
+        uses: actions/setup-go@v5
         with:
-          packages: libgtk-3-dev libwebkit2gtk-4.1-dev build-essential pkg-config xvfb x11-xserver-utils at-spi2-core xdg-desktop-portal-gtk
-          version: 1.0
+          go-version: '1.25'
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Install toolchain
+        run: make install-toolchain
+
+      - name: Use Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -49,7 +39,7 @@ jobs:
       - name: Install pnpm + dependencies
         uses: pnpm/action-setup@v4
         with:
-          run_install: true
+          run_install: false
           version: latest
 
       - name: Cache pnpm modules
@@ -58,32 +48,17 @@ jobs:
           cache-name: cache-pnpm-modules
         with:
           path: ~/.pnpm-store
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ matrix.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-${{ matrix.os }}-
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
-
-      - name: Generate Wails bindings
-        run: make wails-bindings
-
-      - name: Build frontend bundle
-        working-directory: frontend
-        run: pnpm run build
+            ${{ runner.os }}-build-${{ env.cache-name }}-
 
       - name: Build desktop app
         run: |
-          VERSION=${{ env.VERSION }} BUILD=${{ env.BUILD }} make wails-package
+          VERSION=${{ env.VERSION }} BUILD=${{ env.BUILD }} ./bin/wails3 task darwin:package:universal
         shell: bash
 
       - name: Upload GUI artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: gui-${{ matrix.os }}-${{ contains(matrix.platform, 'arm64') && 'arm64' || 'amd64' }}
+          name: gui-macos-universal
           path: ./bin/mcpvui.app

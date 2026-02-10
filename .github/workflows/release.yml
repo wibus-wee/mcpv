@@ -1,0 +1,77 @@
+name: "Release"
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release macOS (universal)
+    runs-on: macos-latest
+    env:
+      VERSION: ${{ github.ref_name }}
+      BUILD: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          package-manager-cache: false
+
+      - name: Install pnpm + dependencies
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+          version: latest
+
+      - name: Install toolchain
+        run: make install-toolchain
+
+      - name: Build GUI (universal)
+        run: |
+          VERSION=${{ env.VERSION }} BUILD=${{ env.BUILD }} ./bin/wails3 task darwin:package:universal
+        shell: bash
+
+      - name: Build CLI binaries (universal)
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          LDFLAGS="-X mcpv/internal/buildinfo.Version=${{ env.VERSION }} -X mcpv/internal/buildinfo.Build=${{ env.BUILD }}"
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "$LDFLAGS" -o dist/mcpv-amd64 ./cmd/mcpv
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "$LDFLAGS" -o dist/mcpv-arm64 ./cmd/mcpv
+          lipo -create -output dist/mcpv dist/mcpv-amd64 dist/mcpv-arm64
+          rm dist/mcpv-amd64 dist/mcpv-arm64
+
+          if [ ! -f bin/mcpvmcp ]; then
+            echo "mcpvmcp not found in bin/ (expected from Wails build)" >&2
+            exit 1
+          fi
+          cp bin/mcpvmcp dist/mcpvmcp
+
+          (cd dist && zip -9 -r "mcpv-${VERSION}-macos-universal.zip" mcpv)
+          (cd dist && zip -9 -r "mcpvmcp-${VERSION}-macos-universal.zip" mcpvmcp)
+          (cd dist && zip -9 -r "mcpv-cli-${VERSION}-macos-universal.zip" mcpv mcpvmcp)
+        shell: bash
+
+      - name: Package DMG
+        run: |
+          chmod +x scripts/release/make-dmg.sh
+          scripts/release/make-dmg.sh "bin/mcpvui.app" "dist/mcpvui-${{ env.VERSION }}-macos-universal.dmg" "mcpvui"
+        shell: bash
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: dist/*
