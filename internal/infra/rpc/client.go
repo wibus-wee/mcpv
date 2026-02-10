@@ -52,6 +52,8 @@ func Dial(ctx context.Context, cfg ClientConfig) (*Client, error) {
 
 	opts := []grpc.DialOption{
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
+		grpc.WithChainUnaryInterceptor(requestContextUnaryClientInterceptor()),
+		grpc.WithChainStreamInterceptor(requestContextStreamClientInterceptor()),
 	}
 
 	if cfg.MaxRecvMsgSize > 0 || cfg.MaxSendMsgSize > 0 {

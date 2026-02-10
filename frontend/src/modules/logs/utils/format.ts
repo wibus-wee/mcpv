@@ -10,6 +10,9 @@ const HIDDEN_FIELD_KEYS = new Set([
   'serverType',
   'stream',
   'timestamp',
+  'request_id',
+  'trace_id',
+  'span_id',
 ])
 
 /**

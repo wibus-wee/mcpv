@@ -14,6 +14,9 @@ const (
 	FieldDurationMs = "duration_ms"
 	FieldLogSource  = "log_source"
 	FieldLogStream  = "stream"
+	FieldRequestID  = "request_id"
+	FieldTraceID    = "trace_id"
+	FieldSpanID     = "span_id"
 )
 
 const (
@@ -52,4 +55,16 @@ func StateField(state string) zap.Field {
 
 func DurationField(duration time.Duration) zap.Field {
 	return zap.Int64(FieldDurationMs, duration.Milliseconds())
+}
+
+func RequestIDField(value string) zap.Field {
+	return zap.String(FieldRequestID, value)
+}
+
+func TraceIDField(value string) zap.Field {
+	return zap.String(FieldTraceID, value)
+}
+
+func SpanIDField(value string) zap.Field {
+	return zap.String(FieldSpanID, value)
 }

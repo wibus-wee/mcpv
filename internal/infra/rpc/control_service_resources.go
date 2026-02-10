@@ -19,15 +19,15 @@ func (s *ControlService) ListResources(ctx context.Context, req *controlv1.ListR
 	resourcesSnapshot, nextCursor, err := guardedList(guardedListPlan[domain.ResourcePage, *controlv1.ResourcesSnapshot]{
 		ctx:   ctx,
 		guard: &s.guard,
-		request: domain.GovernanceRequest{
+		request: withRequestMetadata(ctx, domain.GovernanceRequest{
 			Method:      "resources/list",
 			Caller:      client,
 			RequestJSON: mustMarshalJSON(map[string]string{"cursor": cursor}),
-		},
-		responseRequest: domain.GovernanceRequest{
+		}),
+		responseRequest: withRequestMetadata(ctx, domain.GovernanceRequest{
 			Method: "resources/list",
 			Caller: client,
-		},
+		}),
 		op: "list resources",
 		mutate: func(raw []byte) error {
 			var params struct {
@@ -65,10 +65,10 @@ func (s *ControlService) WatchResources(req *controlv1.WatchResourcesRequest, st
 	return guardedWatch(guardedWatchPlan[domain.ResourceSnapshot, *controlv1.ResourcesSnapshot]{
 		ctx:   ctx,
 		guard: &s.guard,
-		request: domain.GovernanceRequest{
+		request: withRequestMetadata(ctx, domain.GovernanceRequest{
 			Method: "resources/list",
 			Caller: client,
-		},
+		}),
 		op:       "watch resources",
 		lastETag: req.GetLastEtag(),
 		subscribe: func(ctx context.Context) (<-chan domain.ResourceSnapshot, error) {
@@ -94,12 +94,12 @@ func (s *ControlService) ReadResource(ctx context.Context, req *controlv1.ReadRe
 	var result json.RawMessage
 	var err error
 	if s.executor != nil {
-		result, err = s.executor.Execute(ctx, domain.GovernanceRequest{
+		result, err = s.executor.Execute(ctx, withRequestMetadata(ctx, domain.GovernanceRequest{
 			Method:      "resources/read",
 			Caller:      client,
 			ResourceURI: uri,
 			RequestJSON: mustMarshalJSON(map[string]string{"uri": uri}),
-		}, func(nextCtx context.Context, govReq domain.GovernanceRequest) (json.RawMessage, error) {
+		}), func(nextCtx context.Context, govReq domain.GovernanceRequest) (json.RawMessage, error) {
 			target := uri
 			if len(govReq.RequestJSON) > 0 {
 				var params struct {

@@ -31,6 +31,14 @@ With `mcpv`, you can manage MCP servers like containers: **On-demand startup, Sc
 - **GUI Support (`mcpvui`)**: A desktop client built with Wails 3. Features real-time log streaming, tool inspection, resource browsing, and intuitive configuration editing.
 - **Single Config File**: Server-centric configuration with tag-based visibility. Configure MCP servers with optional tags and filter toolsets for clients like VSCode, Cursor, or specific projects based on tag matching.
 
+## 🛠 Quick Start
+
+> Note: `mcpv` is currently in early development. The installation package is only available for macOS. Windows and Linux versions are coming soon.
+
+Download the latest release from the [Releases](https://github.com/wibus-wee/mcpv/releases) page.
+
+Run the *mcpv.app* and follow the on-screen instructions to set up your MCP servers.
+
 ## 🏗 Architecture
 
 The project is designed with a three-layer architecture for maximum decoupling:
@@ -39,9 +47,6 @@ The project is designed with a three-layer architecture for maximum decoupling:
 2.  **Gateway (`mcpvmcp`)**: The protocol bridge. Acts as a standard MCP server to communicate with AI clients (e.g., Claude Desktop, Cursor).
 3.  **App (`mcpvui`)**: The Wails-driven GUI for configuration, real-time monitoring, and core lifecycle hosting.
 
-## 🛠 Quick Start
-
-WIP.
 
 ## 🔗 References
 

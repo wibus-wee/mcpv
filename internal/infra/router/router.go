@@ -62,12 +62,12 @@ func (r *BasicRouter) RouteWithOptions(ctx context.Context, serverType, specKey,
 	if err != nil {
 		decodeErr := domain.Wrap(domain.CodeInvalidArgument, "route decode", err)
 		routeErr := domain.NewRouteError(domain.RouteStageDecode, decodeErr)
-		r.logRouteError(serverType, "", nil, start, routeErr)
+		r.logRouteError(ctx, serverType, "", nil, start, routeErr)
 		return nil, routeErr
 	}
 	if method == "" || !isCall {
 		routeErr := domain.NewRouteError(domain.RouteStageValidate, domain.ErrInvalidRequest)
-		r.logRouteError(serverType, method, nil, start, routeErr)
+		r.logRouteError(ctx, serverType, method, nil, start, routeErr)
 		return nil, routeErr
 	}
 
@@ -80,7 +80,7 @@ func (r *BasicRouter) RouteWithOptions(ctx context.Context, serverType, specKey,
 	if err != nil {
 		routeErr := domain.NewRouteError(domain.RouteStageAcquire, err)
 		if opts.AllowStart || !errors.Is(err, domain.ErrNoReadyInstance) {
-			r.logRouteError(serverType, method, nil, start, routeErr)
+			r.logRouteError(ctx, serverType, method, nil, start, routeErr)
 		}
 		return nil, routeErr
 	}
@@ -90,7 +90,7 @@ func (r *BasicRouter) RouteWithOptions(ctx context.Context, serverType, specKey,
 		err := fmt.Errorf("%w: instance has no connection: %s", domain.ErrConnectionClosed, inst.ID())
 		callErr := domain.Wrap(domain.CodeUnavailable, "route call", err)
 		routeErr := domain.NewRouteError(domain.RouteStageCall, callErr)
-		r.logRouteError(serverType, method, inst, start, routeErr)
+		r.logRouteError(ctx, serverType, method, inst, start, routeErr)
 		return nil, routeErr
 	}
 
@@ -108,7 +108,7 @@ func (r *BasicRouter) RouteWithOptions(ctx context.Context, serverType, specKey,
 	if err != nil {
 		callErr := domain.Wrap(domain.CodeUnavailable, "route call", err)
 		routeErr := domain.NewRouteError(domain.RouteStageCall, callErr)
-		r.logRouteError(serverType, method, inst, start, routeErr)
+		r.logRouteError(ctx, serverType, method, inst, start, routeErr)
 		return nil, routeErr
 	}
 
@@ -119,7 +119,8 @@ func (r *BasicRouter) timeoutDuration() time.Duration {
 	return time.Duration(r.timeout.Load())
 }
 
-func (r *BasicRouter) logRouteError(serverType, method string, inst *domain.Instance, start time.Time, err error) {
+func (r *BasicRouter) logRouteError(ctx context.Context, serverType, method string, inst *domain.Instance, start time.Time, err error) {
+	logger := telemetry.LoggerWithRequest(ctx, r.logger)
 	fields := []zap.Field{
 		telemetry.EventField(telemetry.EventRouteError),
 		telemetry.ServerTypeField(serverType),
@@ -135,7 +136,7 @@ func (r *BasicRouter) logRouteError(serverType, method string, inst *domain.Inst
 			telemetry.StateField(string(inst.State())),
 		)
 	}
-	r.logger.Warn("route failed", fields...)
+	logger.Warn("route failed", fields...)
 }
 
 func extractMethod(payload json.RawMessage) (string, bool, error) {

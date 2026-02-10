@@ -93,6 +93,8 @@ func (s *Server) Run(ctx context.Context) error {
 
 	serverOpts := []grpc.ServerOption{
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+		grpc.ChainUnaryInterceptor(requestContextUnaryServerInterceptor()),
+		grpc.ChainStreamInterceptor(requestContextStreamServerInterceptor()),
 		grpc.MaxRecvMsgSize(s.cfg.MaxRecvMsgSize),
 		grpc.MaxSendMsgSize(s.cfg.MaxSendMsgSize),
 	}

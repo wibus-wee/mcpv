@@ -51,6 +51,15 @@ export function LogDetailPanel({
 
   const visibleFields = getVisibleFields(log.fields)
   const duration = typeof log.fields.duration_ms === 'number' ? log.fields.duration_ms : null
+  const requestId = typeof log.fields.request_id === 'string'
+    ? log.fields.request_id
+    : undefined
+  const traceId = typeof log.fields.trace_id === 'string'
+    ? log.fields.trace_id
+    : undefined
+  const spanId = typeof log.fields.span_id === 'string'
+    ? log.fields.span_id
+    : undefined
 
   return (
     <div className="flex h-full w-full flex-col border-l bg-background">
@@ -100,26 +109,57 @@ export function LogDetailPanel({
           {/* General Metadata */}
           <MetadataSection title="">
             <MetadataRow
-              label="Request ID"
+              label="Log ID"
               value={log.id}
+              copyKey="id"
               onCopy={handleCopy}
               isCopied={copiedField === 'id'}
             />
+            {requestId && (
+              <MetadataRow
+                label="Request ID"
+                value={requestId}
+                copyKey="request_id"
+                onCopy={handleCopy}
+                isCopied={copiedField === 'request_id'}
+              />
+            )}
+            {traceId && (
+              <MetadataRow
+                label="Trace ID"
+                value={traceId}
+                copyKey="trace_id"
+                onCopy={handleCopy}
+                isCopied={copiedField === 'trace_id'}
+              />
+            )}
+            {spanId && (
+              <MetadataRow
+                label="Span ID"
+                value={spanId}
+                copyKey="span_id"
+                onCopy={handleCopy}
+                isCopied={copiedField === 'span_id'}
+              />
+            )}
             <MetadataRow
               label="Path"
               value={log.logger || '/'}
+              copyKey="path"
               onCopy={handleCopy}
               isCopied={copiedField === 'path'}
             />
             <MetadataRow
               label="Host"
               value={log.serverType || 'localhost'}
+              copyKey="host"
               onCopy={handleCopy}
               isCopied={copiedField === 'host'}
             />
             <MetadataRow
               label="Source"
               value={log.source}
+              copyKey="source"
               onCopy={handleCopy}
               isCopied={copiedField === 'source'}
             />
@@ -127,6 +167,7 @@ export function LogDetailPanel({
               <MetadataRow
                 label="Stream"
                 value={log.stream}
+                copyKey="stream"
                 onCopy={handleCopy}
                 isCopied={copiedField === 'stream'}
               />
@@ -185,11 +226,13 @@ function MetadataSection({
 function MetadataRow({
   label,
   value,
+  copyKey,
   onCopy,
   isCopied,
 }: {
   label: string
   value: string
+  copyKey?: string
   onCopy?: (key: string, value: string) => void
   isCopied?: boolean
 }) {
@@ -203,7 +246,7 @@ function MetadataRow({
             variant="ghost"
             size="icon-xs"
             className="size-5 shrink-0 opacity-0 group-hover:opacity-100"
-            onClick={() => onCopy(label, value)}
+            onClick={() => onCopy(copyKey ?? label, value)}
           >
             {isCopied ? (
               <CheckIcon className="size-3" />

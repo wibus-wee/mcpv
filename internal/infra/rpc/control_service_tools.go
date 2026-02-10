@@ -18,14 +18,14 @@ func (s *ControlService) ListTools(ctx context.Context, req *controlv1.ListTools
 	protoSnapshot, _, err := guardedList(guardedListPlan[domain.ToolSnapshot, *controlv1.ToolsSnapshot]{
 		ctx:   ctx,
 		guard: &s.guard,
-		request: domain.GovernanceRequest{
+		request: withRequestMetadata(ctx, domain.GovernanceRequest{
 			Method: "tools/list",
 			Caller: client,
-		},
-		responseRequest: domain.GovernanceRequest{
+		}),
+		responseRequest: withRequestMetadata(ctx, domain.GovernanceRequest{
 			Method: "tools/list",
 			Caller: client,
-		},
+		}),
 		op:     "list tools",
 		mutate: nil,
 		call: func(ctx context.Context) (domain.ToolSnapshot, error) {
@@ -53,10 +53,10 @@ func (s *ControlService) WatchTools(req *controlv1.WatchToolsRequest, stream con
 	return guardedWatch(guardedWatchPlan[domain.ToolSnapshot, *controlv1.ToolsSnapshot]{
 		ctx:   ctx,
 		guard: &s.guard,
-		request: domain.GovernanceRequest{
+		request: withRequestMetadata(ctx, domain.GovernanceRequest{
 			Method: "tools/list",
 			Caller: client,
-		},
+		}),
 		op:       "watch tools",
 		lastETag: req.GetLastEtag(),
 		subscribe: func(ctx context.Context) (<-chan domain.ToolSnapshot, error) {
@@ -82,13 +82,13 @@ func (s *ControlService) CallTool(ctx context.Context, req *controlv1.CallToolRe
 	var result json.RawMessage
 	var err error
 	if s.executor != nil {
-		result, err = s.executor.Execute(ctx, domain.GovernanceRequest{
+		result, err = s.executor.Execute(ctx, withRequestMetadata(ctx, domain.GovernanceRequest{
 			Method:      "tools/call",
 			Caller:      client,
 			ToolName:    toolName,
 			RoutingKey:  req.GetRoutingKey(),
 			RequestJSON: req.GetArgumentsJson(),
-		}, func(nextCtx context.Context, govReq domain.GovernanceRequest) (json.RawMessage, error) {
+		}), func(nextCtx context.Context, govReq domain.GovernanceRequest) (json.RawMessage, error) {
 			args := govReq.RequestJSON
 			if len(args) == 0 {
 				args = req.GetArgumentsJson()
@@ -141,12 +141,12 @@ func (s *ControlService) AutomaticMCP(ctx context.Context, req *controlv1.Automa
 		ForceRefresh: req.GetForceRefresh(),
 	}
 
-	if err := s.guard.applyRequest(ctx, domain.GovernanceRequest{
+	if err := s.guard.applyRequest(ctx, withRequestMetadata(ctx, domain.GovernanceRequest{
 		Method:      "tools/call",
 		Caller:      client,
 		ToolName:    "mcpv.automatic_mcp",
 		RequestJSON: mustMarshalJSON(params),
-	}, "automatic_mcp", func(raw []byte) error {
+	}), "automatic_mcp", func(raw []byte) error {
 		return json.Unmarshal(raw, &params)
 	}); err != nil {
 		return nil, err
@@ -161,11 +161,11 @@ func (s *ControlService) AutomaticMCP(ctx context.Context, req *controlv1.Automa
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "automatic_mcp: %v", err)
 	}
-	if err := s.guard.applyProtoResponse(ctx, domain.GovernanceRequest{
+	if err := s.guard.applyProtoResponse(ctx, withRequestMetadata(ctx, domain.GovernanceRequest{
 		Method:   "tools/call",
 		Caller:   client,
 		ToolName: "mcpv.automatic_mcp",
-	}, "automatic_mcp", resp); err != nil {
+	}), "automatic_mcp", resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -187,13 +187,13 @@ func (s *ControlService) AutomaticEval(ctx context.Context, req *controlv1.Autom
 	var result json.RawMessage
 	var err error
 	if s.executor != nil {
-		result, err = s.executor.Execute(ctx, domain.GovernanceRequest{
+		result, err = s.executor.Execute(ctx, withRequestMetadata(ctx, domain.GovernanceRequest{
 			Method:      "tools/call",
 			Caller:      client,
 			ToolName:    "mcpv.automatic_eval",
 			RoutingKey:  params.RoutingKey,
 			RequestJSON: mustMarshalJSON(params),
-		}, func(nextCtx context.Context, govReq domain.GovernanceRequest) (json.RawMessage, error) {
+		}), func(nextCtx context.Context, govReq domain.GovernanceRequest) (json.RawMessage, error) {
 			evalParams := params
 			if len(govReq.RequestJSON) > 0 {
 				if err := json.Unmarshal(govReq.RequestJSON, &evalParams); err != nil {

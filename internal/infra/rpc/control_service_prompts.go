@@ -18,15 +18,15 @@ func (s *ControlService) ListPrompts(ctx context.Context, req *controlv1.ListPro
 	promptsSnapshot, nextCursor, err := guardedList(guardedListPlan[domain.PromptPage, *controlv1.PromptsSnapshot]{
 		ctx:   ctx,
 		guard: &s.guard,
-		request: domain.GovernanceRequest{
+		request: withRequestMetadata(ctx, domain.GovernanceRequest{
 			Method:      "prompts/list",
 			Caller:      client,
 			RequestJSON: mustMarshalJSON(map[string]string{"cursor": cursor}),
-		},
-		responseRequest: domain.GovernanceRequest{
+		}),
+		responseRequest: withRequestMetadata(ctx, domain.GovernanceRequest{
 			Method: "prompts/list",
 			Caller: client,
-		},
+		}),
 		op: "list prompts",
 		mutate: func(raw []byte) error {
 			var params struct {
@@ -64,10 +64,10 @@ func (s *ControlService) WatchPrompts(req *controlv1.WatchPromptsRequest, stream
 	return guardedWatch(guardedWatchPlan[domain.PromptSnapshot, *controlv1.PromptsSnapshot]{
 		ctx:   ctx,
 		guard: &s.guard,
-		request: domain.GovernanceRequest{
+		request: withRequestMetadata(ctx, domain.GovernanceRequest{
 			Method: "prompts/list",
 			Caller: client,
-		},
+		}),
 		op:       "watch prompts",
 		lastETag: req.GetLastEtag(),
 		subscribe: func(ctx context.Context) (<-chan domain.PromptSnapshot, error) {
@@ -93,12 +93,12 @@ func (s *ControlService) GetPrompt(ctx context.Context, req *controlv1.GetPrompt
 	var result json.RawMessage
 	var err error
 	if s.executor != nil {
-		result, err = s.executor.Execute(ctx, domain.GovernanceRequest{
+		result, err = s.executor.Execute(ctx, withRequestMetadata(ctx, domain.GovernanceRequest{
 			Method:      "prompts/get",
 			Caller:      client,
 			PromptName:  promptName,
 			RequestJSON: req.GetArgumentsJson(),
-		}, func(nextCtx context.Context, govReq domain.GovernanceRequest) (json.RawMessage, error) {
+		}), func(nextCtx context.Context, govReq domain.GovernanceRequest) (json.RawMessage, error) {
 			args := govReq.RequestJSON
 			if len(args) == 0 {
 				args = req.GetArgumentsJson()

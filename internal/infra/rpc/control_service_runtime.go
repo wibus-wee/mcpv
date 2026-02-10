@@ -11,11 +11,11 @@ func (s *ControlService) StreamLogs(req *controlv1.StreamLogsRequest, stream con
 	ctx := stream.Context()
 	minLevel := fromProtoLogLevel(req.GetMinLevel())
 	client := req.GetCaller()
-	if err := s.guard.applyRequest(ctx, domain.GovernanceRequest{
+	if err := s.guard.applyRequest(ctx, withRequestMetadata(ctx, domain.GovernanceRequest{
 		Method:      "logging/subscribe",
 		Caller:      client,
 		RequestJSON: mustMarshalJSON(map[string]any{"minLevel": string(minLevel)}),
-	}, "stream logs", nil); err != nil {
+	}), "stream logs", nil); err != nil {
 		return err
 	}
 	entries, err := s.control.StreamLogs(ctx, client, minLevel)
@@ -49,10 +49,10 @@ func (s *ControlService) WatchRuntimeStatus(req *controlv1.WatchRuntimeStatusReq
 	return guardedWatch(guardedWatchPlan[domain.RuntimeStatusSnapshot, *controlv1.RuntimeStatusSnapshot]{
 		ctx:   ctx,
 		guard: &s.guard,
-		request: domain.GovernanceRequest{
+		request: withRequestMetadata(ctx, domain.GovernanceRequest{
 			Method: "mcpv/runtime/watch",
 			Caller: client,
-		},
+		}),
 		op:       "watch runtime status",
 		lastETag: req.GetLastEtag(),
 		subscribe: func(ctx context.Context) (<-chan domain.RuntimeStatusSnapshot, error) {
@@ -78,10 +78,10 @@ func (s *ControlService) WatchServerInitStatus(req *controlv1.WatchServerInitSta
 	return guardedWatch(guardedWatchPlan[domain.ServerInitStatusSnapshot, *controlv1.ServerInitStatusSnapshot]{
 		ctx:   ctx,
 		guard: &s.guard,
-		request: domain.GovernanceRequest{
+		request: withRequestMetadata(ctx, domain.GovernanceRequest{
 			Method: "mcpv/server_init/watch",
 			Caller: client,
-		},
+		}),
 		op:       "watch server init status",
 		lastETag: "",
 		subscribe: func(ctx context.Context) (<-chan domain.ServerInitStatusSnapshot, error) {

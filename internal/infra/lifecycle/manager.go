@@ -107,11 +107,12 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 	if ctx == nil {
 		ctx = baseCtx
 	}
+	logger := telemetry.LoggerWithRequest(ctx, m.logger)
 
 	started := time.Now()
 	var spawnedAt time.Time
 	attemptID, _ := diagnostics.AttemptIDFromContext(ctx)
-	m.logger.Info("instance start attempt",
+	logger.Info("instance start attempt",
 		telemetry.EventField(telemetry.EventStartAttempt),
 		telemetry.ServerTypeField(spec.Name),
 	)
@@ -119,7 +120,7 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 	transportKind := domain.NormalizeTransport(spec.Transport)
 	if !domain.IsSupportedProtocolVersion(transportKind, spec.ProtocolVersion) {
 		err := fmt.Errorf("%w: %s", domain.ErrUnsupportedProtocol, spec.ProtocolVersion)
-		m.logger.Error("instance start failed",
+		logger.Error("instance start failed",
 			telemetry.EventField(telemetry.EventStartFailure),
 			telemetry.ServerTypeField(spec.Name),
 			telemetry.DurationField(time.Since(started)),
@@ -154,7 +155,7 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 		streams, stop, err = m.launcher.Start(startCtx, specKey, spec)
 		if err != nil {
 			cancelStart()
-			m.logger.Error("instance start failed",
+			logger.Error("instance start failed",
 				telemetry.EventField(telemetry.EventStartFailure),
 				telemetry.ServerTypeField(spec.Name),
 				telemetry.DurationField(time.Since(started)),
@@ -165,7 +166,7 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 		if streams.Reader == nil || streams.Writer == nil {
 			err := errors.New("launcher returned nil streams")
 			cancelStart()
-			m.logger.Error("instance start failed",
+			logger.Error("instance start failed",
 				telemetry.EventField(telemetry.EventStartFailure),
 				telemetry.ServerTypeField(spec.Name),
 				telemetry.DurationField(time.Since(started)),
@@ -189,7 +190,7 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 	conn, err := m.transport.Connect(startCtx, specKey, spec, streams)
 	if err != nil {
 		cancelStart()
-		m.logger.Error("instance connect failed",
+		logger.Error("instance connect failed",
 			telemetry.EventField(telemetry.EventStartFailure),
 			telemetry.ServerTypeField(spec.Name),
 			telemetry.DurationField(time.Since(started)),
@@ -203,7 +204,7 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 	if conn == nil {
 		err := errors.New("transport returned nil connection")
 		cancelStart()
-		m.logger.Error("instance start failed",
+		logger.Error("instance start failed",
 			telemetry.EventField(telemetry.EventStartFailure),
 			telemetry.ServerTypeField(spec.Name),
 			telemetry.DurationField(time.Since(started)),
@@ -229,21 +230,21 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 	caps, err := m.initializeWithRetry(ctx, conn, specKey, spec, attemptID)
 	if err != nil {
 		cancelStart()
-		m.logger.Error("instance initialize failed",
+		logger.Error("instance initialize failed",
 			telemetry.EventField(telemetry.EventInitializeFailure),
 			telemetry.ServerTypeField(spec.Name),
 			telemetry.DurationField(time.Since(started)),
 			zap.Error(err),
 		)
 		if closeErr := conn.Close(); closeErr != nil {
-			m.logger.Warn("instance close after init failure failed",
+			logger.Warn("instance close after init failure failed",
 				telemetry.ServerTypeField(spec.Name),
 				zap.Error(closeErr),
 			)
 		}
 		if stop != nil {
 			if stopErr := stop(ctx); stopErr != nil {
-				m.logger.Warn("instance stop after init failure failed",
+				logger.Warn("instance stop after init failure failed",
 					telemetry.ServerTypeField(spec.Name),
 					zap.Error(stopErr),
 				)
@@ -267,7 +268,7 @@ func (m *Manager) StartInstance(ctx context.Context, specKey string, spec domain
 	m.stops[instance.ID()] = stop
 	m.mu.Unlock()
 
-	m.logger.Info("instance started",
+	logger.Info("instance started",
 		telemetry.EventField(telemetry.EventStartSuccess),
 		telemetry.ServerTypeField(spec.Name),
 		telemetry.InstanceIDField(instance.ID()),
@@ -299,6 +300,7 @@ func (m *Manager) initializeWithRetry(ctx context.Context, conn domain.Conn, spe
 		MaxRetries: initializeRetryCount,
 	}
 
+	logger := telemetry.LoggerWithRequest(ctx, m.logger)
 	err := retry.Retry(ctx, policy, func(ctx context.Context) error {
 		attempt++
 		result, initErr := m.initialize(ctx, conn, specKey, spec, attemptID, attempt)
@@ -308,7 +310,7 @@ func (m *Manager) initializeWithRetry(ctx context.Context, conn domain.Conn, spe
 		}
 		lastErr = initErr
 		if policy.MaxRetries < 0 || attempt <= policy.MaxRetries {
-			m.logger.Debug("initialize retry failed",
+			logger.Debug("initialize retry failed",
 				zap.String("server", spec.Name),
 				zap.Int("attempt", attempt),
 				zap.Error(initErr),
@@ -476,6 +478,7 @@ func (m *Manager) notifyInitialized(ctx context.Context, conn domain.Conn, specK
 	if !ok {
 		return
 	}
+	logger := telemetry.LoggerWithRequest(ctx, m.logger)
 	started := time.Now()
 	m.recordEvent(diagnostics.Event{
 		SpecKey:    specKey,
@@ -498,7 +501,7 @@ func (m *Manager) notifyInitialized(ctx context.Context, conn domain.Conn, specK
 			Duration:   time.Since(started),
 			Error:      err.Error(),
 		})
-		m.logger.Debug("send initialized notification failed",
+		logger.Debug("send initialized notification failed",
 			telemetry.ServerTypeField(spec.Name),
 			zap.Error(err),
 		)
@@ -519,6 +522,7 @@ func (m *Manager) StopInstance(ctx context.Context, instance *domain.Instance, r
 	if instance == nil {
 		return wrapLifecycleStopError(errors.New("instance is nil"))
 	}
+	logger := telemetry.LoggerWithRequest(ctx, m.logger)
 
 	started := time.Now()
 	instanceID := instance.ID()
@@ -539,7 +543,7 @@ func (m *Manager) StopInstance(ctx context.Context, instance *domain.Instance, r
 	if conn != nil {
 		if err := conn.Close(); err != nil {
 			closeErr = err
-			m.logger.Warn("instance close failed",
+			logger.Warn("instance close failed",
 				telemetry.ServerTypeField(spec.Name),
 				telemetry.InstanceIDField(instanceID),
 				zap.Error(err),
@@ -550,7 +554,7 @@ func (m *Manager) StopInstance(ctx context.Context, instance *domain.Instance, r
 	if stop != nil {
 		if err := stop(ctx); err != nil {
 			stopErr = err
-			m.logger.Error("instance stop failed",
+			logger.Error("instance stop failed",
 				telemetry.EventField(telemetry.EventStopFailure),
 				telemetry.ServerTypeField(spec.Name),
 				telemetry.InstanceIDField(instanceID),
@@ -567,7 +571,7 @@ func (m *Manager) StopInstance(ctx context.Context, instance *domain.Instance, r
 	}
 
 	instance.SetState(domain.InstanceStateStopped)
-	m.logger.Info("instance stopped",
+	logger.Info("instance stopped",
 		telemetry.EventField(telemetry.EventStopSuccess),
 		telemetry.ServerTypeField(spec.Name),
 		telemetry.InstanceIDField(instanceID),
