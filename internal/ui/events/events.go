@@ -216,6 +216,19 @@ func EmitRuntimeStatusUpdated(app *application.App, snapshot domain.RuntimeStatu
 				Failed:       s.Stats.Failed,
 			},
 			Metrics: metrics,
+			Diagnostics: types.PoolDiagnostics{
+				Starting:           s.Diagnostics.Starting,
+				StartInFlight:      s.Diagnostics.StartInFlight,
+				Waiters:            s.Diagnostics.Waiters,
+				LastStartAttemptAt: formatTimestamp(s.Diagnostics.LastStartAttemptAt),
+				LastStartError:     s.Diagnostics.LastStartError,
+				LastStartErrorAt:   formatTimestamp(s.Diagnostics.LastStartErrorAt),
+				LastAcquireError:   s.Diagnostics.LastAcquireError,
+				LastAcquireErrorAt: formatTimestamp(s.Diagnostics.LastAcquireErrorAt),
+				LastAcquireReason:  string(s.Diagnostics.LastAcquireReason),
+				LastStartCause:     mapping.MapStartCause(s.Diagnostics.LastStartCause),
+				LastStartCauseAt:   formatTimestamp(s.Diagnostics.LastStartCauseAt),
+			},
 		})
 	}
 	event := RuntimeStatusUpdatedEvent{
@@ -232,14 +245,23 @@ func EmitServerInitUpdated(app *application.App, snapshot domain.ServerInitStatu
 	statuses := make([]types.ServerInitStatus, 0, len(snapshot.Statuses))
 	for _, s := range snapshot.Statuses {
 		statuses = append(statuses, types.ServerInitStatus{
-			SpecKey:    s.SpecKey,
-			ServerName: s.ServerName,
-			MinReady:   s.MinReady,
-			Ready:      s.Ready,
-			Failed:     s.Failed,
-			State:      string(s.State),
-			LastError:  s.LastError,
-			UpdatedAt:  formatTimestamp(s.UpdatedAt),
+			SpecKey:          s.SpecKey,
+			ServerName:       s.ServerName,
+			MinReady:         s.MinReady,
+			Ready:            s.Ready,
+			Failed:           s.Failed,
+			State:            string(s.State),
+			LastError:        s.LastError,
+			RetryCount:       s.RetryCount,
+			NextRetryAt:      formatTimestamp(s.NextRetryAt),
+			UpdatedAt:        formatTimestamp(s.UpdatedAt),
+			AttemptStartedAt: formatTimestamp(s.AttemptStartedAt),
+			AttemptEndedAt:   formatTimestamp(s.AttemptEndedAt),
+			AttemptStep:      s.AttemptStep,
+			AttemptError:     s.AttemptError,
+			AttemptReady:     s.AttemptReady,
+			AttemptFailed:    s.AttemptFailed,
+			AttemptTarget:    s.AttemptTarget,
 		})
 	}
 	event := ServerInitUpdatedEvent{

@@ -10,6 +10,7 @@ import (
 
 	"mcpv/internal/domain"
 	"mcpv/internal/infra/telemetry"
+	"mcpv/internal/infra/telemetry/diagnostics"
 )
 
 var (
@@ -25,11 +26,12 @@ var (
 
 // Options configures the basic scheduler.
 type Options struct {
-	Probe        domain.HealthProbe
-	PingInterval time.Duration
-	Logger       *zap.Logger
-	Metrics      domain.Metrics
-	Health       *telemetry.HealthTracker
+	Probe            domain.HealthProbe
+	PingInterval     time.Duration
+	Logger           *zap.Logger
+	Metrics          domain.Metrics
+	Health           *telemetry.HealthTracker
+	DiagnosticsProbe diagnostics.Probe
 }
 
 // BasicScheduler orchestrates instance lifecycle and routing policies.
@@ -45,6 +47,7 @@ type BasicScheduler struct {
 	logger  *zap.Logger
 	metrics domain.Metrics
 	health  *telemetry.HealthTracker
+	diag    diagnostics.Probe
 
 	mu         sync.Mutex
 	idleTicker *time.Ticker
@@ -78,23 +81,31 @@ type stickyBinding struct {
 }
 
 type poolState struct {
-	mu            sync.Mutex
-	spec          domain.ServerSpec
-	specKey       string
-	minReady      int
-	starting      int
-	startCount    int
-	stopCount     int
-	startInFlight bool
-	startCancel   context.CancelFunc
-	generation    uint64
-	signalSeq     uint64
-	instances     []*trackedInstance
-	draining      []*trackedInstance
-	sticky        map[string]*stickyBinding
-	rrIndex       int
-	waitCond      *sync.Cond
-	waiters       int
+	mu                 sync.Mutex
+	spec               domain.ServerSpec
+	specKey            string
+	minReady           int
+	starting           int
+	startCount         int
+	stopCount          int
+	startInFlight      bool
+	startCancel        context.CancelFunc
+	generation         uint64
+	signalSeq          uint64
+	instances          []*trackedInstance
+	draining           []*trackedInstance
+	sticky             map[string]*stickyBinding
+	rrIndex            int
+	waitCond           *sync.Cond
+	waiters            int
+	lastStartAttemptAt time.Time
+	lastStartError     string
+	lastStartErrorAt   time.Time
+	lastAcquireError   string
+	lastAcquireErrorAt time.Time
+	lastAcquireReason  domain.AcquireFailureReason
+	lastStartCause     *domain.StartCause
+	lastStartCauseAt   time.Time
 }
 
 type stopCandidate struct {
@@ -115,6 +126,10 @@ func NewBasicScheduler(lifecycle domain.Lifecycle, specs map[string]domain.Serve
 	if logger == nil {
 		logger = zap.NewNop()
 	}
+	diag := opts.DiagnosticsProbe
+	if diag == nil {
+		diag = diagnostics.NoopProbe{}
+	}
 	return &BasicScheduler{
 		lifecycle: lifecycle,
 		specs:     cloneSpecRegistry(specs),
@@ -123,6 +138,7 @@ func NewBasicScheduler(lifecycle domain.Lifecycle, specs map[string]domain.Serve
 		logger:    logger.Named("scheduler"),
 		metrics:   opts.Metrics,
 		health:    opts.Health,
+		diag:      diag,
 		stopIdle:  make(chan struct{}),
 		stopPing:  make(chan struct{}),
 	}, nil

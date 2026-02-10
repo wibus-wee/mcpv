@@ -26,6 +26,8 @@ var CoreInfraSet = wire.NewSet(
 	NewLogging,
 	NewLogger,
 	NewLogBroadcaster,
+	NewDiagnosticsHub,
+	NewDiagnosticsProbe,
 	NewMetricsRegistry,
 	NewMetrics,
 	NewHealthTracker,

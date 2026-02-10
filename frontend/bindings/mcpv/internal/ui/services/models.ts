@@ -30,6 +30,12 @@ export type DebugSnapshotResponse = types$0.DebugSnapshotResponse;
 export const DeleteServerRequest = types$0.DeleteServerRequest;
 export type DeleteServerRequest = types$0.DeleteServerRequest;
 
+export const DiagnosticsBundleResponse = types$0.DiagnosticsBundleResponse;
+export type DiagnosticsBundleResponse = types$0.DiagnosticsBundleResponse;
+
+export const DiagnosticsExportOptions = types$0.DiagnosticsExportOptions;
+export type DiagnosticsExportOptions = types$0.DiagnosticsExportOptions;
+
 export const ImportMcpServersRequest = types$0.ImportMcpServersRequest;
 export type ImportMcpServersRequest = types$0.ImportMcpServersRequest;
 

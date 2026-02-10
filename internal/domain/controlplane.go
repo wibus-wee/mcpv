@@ -156,11 +156,12 @@ type RuntimeStatusSnapshot struct {
 
 // ServerRuntimeStatus contains the runtime status of a server and its instances.
 type ServerRuntimeStatus struct {
-	SpecKey    string               `json:"specKey"`
-	ServerName string               `json:"serverName"`
-	Instances  []InstanceStatusInfo `json:"instances"`
-	Stats      PoolStats            `json:"stats"`
-	Metrics    PoolMetrics          `json:"metrics"`
+	SpecKey     string               `json:"specKey"`
+	ServerName  string               `json:"serverName"`
+	Instances   []InstanceStatusInfo `json:"instances"`
+	Stats       PoolStats            `json:"stats"`
+	Metrics     PoolMetrics          `json:"metrics"`
+	Diagnostics PoolDiagnostics      `json:"diagnostics"`
 }
 
 // InstanceStatusInfo represents the status of a single server instance.

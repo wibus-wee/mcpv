@@ -128,11 +128,12 @@ func (idx *RuntimeStatusIndex) Refresh(ctx context.Context) error {
 		}
 
 		statuses = append(statuses, domain.ServerRuntimeStatus{
-			SpecKey:    pool.SpecKey,
-			ServerName: pool.ServerName,
-			Instances:  instances,
-			Stats:      stats,
-			Metrics:    pool.Metrics,
+			SpecKey:     pool.SpecKey,
+			ServerName:  pool.ServerName,
+			Instances:   instances,
+			Stats:       stats,
+			Metrics:     pool.Metrics,
+			Diagnostics: pool.Diagnostics,
 		})
 	}
 

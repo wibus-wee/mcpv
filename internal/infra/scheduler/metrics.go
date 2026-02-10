@@ -40,14 +40,28 @@ func (s *BasicScheduler) GetPoolStatus(_ context.Context) ([]domain.PoolInfo, er
 
 		minReady := entry.state.minReady
 		serverName := entry.state.spec.Name
+		diagnostics := domain.PoolDiagnostics{
+			Starting:           entry.state.starting,
+			StartInFlight:      entry.state.startInFlight,
+			Waiters:            entry.state.waiters,
+			LastStartAttemptAt: entry.state.lastStartAttemptAt,
+			LastStartError:     entry.state.lastStartError,
+			LastStartErrorAt:   entry.state.lastStartErrorAt,
+			LastAcquireError:   entry.state.lastAcquireError,
+			LastAcquireErrorAt: entry.state.lastAcquireErrorAt,
+			LastAcquireReason:  entry.state.lastAcquireReason,
+			LastStartCause:     entry.state.lastStartCause,
+			LastStartCauseAt:   entry.state.lastStartCauseAt,
+		}
 		entry.state.mu.Unlock()
 
 		result = append(result, domain.PoolInfo{
-			SpecKey:    entry.specKey,
-			ServerName: serverName,
-			MinReady:   minReady,
-			Instances:  instances,
-			Metrics:    metrics,
+			SpecKey:     entry.specKey,
+			ServerName:  serverName,
+			MinReady:    minReady,
+			Instances:   instances,
+			Metrics:     metrics,
+			Diagnostics: diagnostics,
 		})
 	}
 

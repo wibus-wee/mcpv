@@ -150,6 +150,19 @@ func mapPoolInfo(pool domain.PoolInfo) types.ServerRuntimeStatus {
 		Instances:  instances,
 		Stats:      stats,
 		Metrics:    metrics,
+		Diagnostics: types.PoolDiagnostics{
+			Starting:           pool.Diagnostics.Starting,
+			StartInFlight:      pool.Diagnostics.StartInFlight,
+			Waiters:            pool.Diagnostics.Waiters,
+			LastStartAttemptAt: formatTimeUTC(pool.Diagnostics.LastStartAttemptAt),
+			LastStartError:     pool.Diagnostics.LastStartError,
+			LastStartErrorAt:   formatTimeUTC(pool.Diagnostics.LastStartErrorAt),
+			LastAcquireError:   pool.Diagnostics.LastAcquireError,
+			LastAcquireErrorAt: formatTimeUTC(pool.Diagnostics.LastAcquireErrorAt),
+			LastAcquireReason:  string(pool.Diagnostics.LastAcquireReason),
+			LastStartCause:     MapStartCause(pool.Diagnostics.LastStartCause),
+			LastStartCauseAt:   formatTimeUTC(pool.Diagnostics.LastStartCauseAt),
+		},
 	}
 }
 
@@ -160,18 +173,32 @@ func MapServerInitStatuses(statuses []domain.ServerInitStatus) []types.ServerIni
 			nextRetryAt = status.NextRetryAt.UTC().Format(time.RFC3339Nano)
 		}
 		return types.ServerInitStatus{
-			SpecKey:     status.SpecKey,
-			ServerName:  status.ServerName,
-			MinReady:    status.MinReady,
-			Ready:       status.Ready,
-			Failed:      status.Failed,
-			State:       string(status.State),
-			LastError:   status.LastError,
-			RetryCount:  status.RetryCount,
-			NextRetryAt: nextRetryAt,
-			UpdatedAt:   status.UpdatedAt.UTC().Format(time.RFC3339Nano),
+			SpecKey:          status.SpecKey,
+			ServerName:       status.ServerName,
+			MinReady:         status.MinReady,
+			Ready:            status.Ready,
+			Failed:           status.Failed,
+			State:            string(status.State),
+			LastError:        status.LastError,
+			RetryCount:       status.RetryCount,
+			NextRetryAt:      nextRetryAt,
+			UpdatedAt:        status.UpdatedAt.UTC().Format(time.RFC3339Nano),
+			AttemptStartedAt: formatTimeUTC(status.AttemptStartedAt),
+			AttemptEndedAt:   formatTimeUTC(status.AttemptEndedAt),
+			AttemptStep:      status.AttemptStep,
+			AttemptError:     status.AttemptError,
+			AttemptReady:     status.AttemptReady,
+			AttemptFailed:    status.AttemptFailed,
+			AttemptTarget:    status.AttemptTarget,
 		}
 	})
+}
+
+func formatTimeUTC(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+	return value.UTC().Format(time.RFC3339Nano)
 }
 
 func MapActiveClients(clients []domain.ActiveClient) []types.ActiveClient {

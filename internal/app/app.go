@@ -1,15 +1,18 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"sync"
 
+	"github.com/prometheus/common/expfmt"
 	"go.uber.org/zap"
 
 	"mcpv/internal/app/controlplane"
 	pluginmanager "mcpv/internal/infra/plugin/manager"
 	"mcpv/internal/infra/telemetry"
+	"mcpv/internal/infra/telemetry/diagnostics"
 )
 
 // App wires core services and provides lifecycle entry points.
@@ -120,4 +123,37 @@ func (a *App) IsPluginRunning(name string) bool {
 		return false
 	}
 	return application.IsPluginRunning(name)
+}
+
+// MetricsText exports the current Prometheus metrics in text format.
+func (a *App) MetricsText() (string, error) {
+	a.mu.RLock()
+	application := a.application
+	a.mu.RUnlock()
+	if application == nil || application.registry == nil {
+		return "", errors.New("metrics registry not available")
+	}
+	families, err := application.registry.Gather()
+	if err != nil {
+		return "", err
+	}
+	var buf bytes.Buffer
+	encoder := expfmt.NewEncoder(&buf, expfmt.NewFormat(expfmt.TypeTextPlain))
+	for _, family := range families {
+		if err := encoder.Encode(family); err != nil {
+			return "", err
+		}
+	}
+	return buf.String(), nil
+}
+
+// Diagnostics returns the diagnostics hub if available.
+func (a *App) Diagnostics() *diagnostics.Hub {
+	a.mu.RLock()
+	application := a.application
+	a.mu.RUnlock()
+	if application == nil {
+		return nil
+	}
+	return application.Diagnostics()
 }

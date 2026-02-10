@@ -15,6 +15,7 @@ import (
 	"mcpv/internal/app/runtime"
 	"mcpv/internal/domain"
 	pluginmanager "mcpv/internal/infra/plugin/manager"
+	"mcpv/internal/infra/telemetry/diagnostics"
 )
 
 func TestReloadManager_ApplyUpdate_UpdatesRuntimeAndRegistry(t *testing.T) {
@@ -43,7 +44,7 @@ func TestReloadManager_ApplyUpdate_UpdatesRuntimeAndRegistry(t *testing.T) {
 	require.NotEqual(t, prevSpecKey, nextSpecKey)
 
 	scheduler := &schedulerStub{}
-	initManager := serverinit.NewManager(scheduler, &prevState, zap.NewNop())
+	initManager := serverinit.NewManager(scheduler, &prevState, zap.NewNop(), diagnostics.NoopProbe{})
 	startup := bootstrap.NewServerStartupOrchestrator(initManager, nil, zap.NewNop())
 	runtimeState := runtime.NewStateFromSpecKeys(prevState.Summary.ServerSpecKeys)
 	state := NewState(context.Background(), runtimeState, scheduler, startup, &prevState, zap.NewNop())

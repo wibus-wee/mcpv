@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"mcpv/internal/domain"
+	"mcpv/internal/infra/telemetry/diagnostics"
 )
 
 func TestManager_Ready(t *testing.T) {
@@ -23,7 +24,7 @@ func TestManager_Ready(t *testing.T) {
 		},
 	})
 
-	manager := NewManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop())
+	manager := NewManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop(), diagnostics.NoopProbe{})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -44,7 +45,7 @@ func TestManager_DegradedThenReady(t *testing.T) {
 		},
 	})
 
-	manager := NewManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop())
+	manager := NewManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop(), diagnostics.NoopProbe{})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -64,7 +65,7 @@ func TestManager_Cancelled(t *testing.T) {
 		},
 	})
 
-	manager := NewManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop())
+	manager := NewManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop(), diagnostics.NoopProbe{})
 	ctx, cancel := context.WithCancel(context.Background())
 
 	manager.Start(ctx)
@@ -84,7 +85,7 @@ func TestManager_SuspendsAfterRetries(t *testing.T) {
 		},
 	})
 
-	manager := NewManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop())
+	manager := NewManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop(), diagnostics.NoopProbe{})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -106,7 +107,7 @@ func TestManager_RetrySpecResets(t *testing.T) {
 		},
 	})
 
-	manager := NewManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop())
+	manager := NewManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, initRuntimeConfig(2)), zap.NewNop(), diagnostics.NoopProbe{})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -134,7 +135,7 @@ func TestManager_OnDemandReadyWithoutInstances(t *testing.T) {
 
 	runtime := initRuntimeConfig(2)
 	runtime.DefaultActivationMode = domain.ActivationOnDemand
-	manager := NewManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, runtime), zap.NewNop())
+	manager := NewManager(scheduler, newTestState(map[string]domain.ServerSpec{spec.Name: spec}, runtime), zap.NewNop(), diagnostics.NoopProbe{})
 	ctx := t.Context()
 
 	manager.Start(ctx)

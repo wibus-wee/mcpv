@@ -13,6 +13,7 @@ import (
 	"go.uber.org/zap"
 
 	"mcpv/internal/domain"
+	"mcpv/internal/infra/telemetry/diagnostics"
 )
 
 func TestManager_StartInstance_Success(t *testing.T) {
@@ -23,7 +24,7 @@ func TestManager_StartInstance_Success(t *testing.T) {
 			resp: json.RawMessage(`{"jsonrpc":"2.0","id":"mcpv-init","result":{"protocolVersion":"2025-11-25","serverInfo":{"name":"srv"},"capabilities":{}}}`),
 		},
 	}
-	mgr := NewManager(context.Background(), launcher, transport, zap.NewNop())
+	mgr := NewManager(context.Background(), launcher, transport, diagnostics.NoopProbe{}, zap.NewNop())
 
 	spec := domain.ServerSpec{
 		Name:            "svc",
@@ -54,7 +55,7 @@ func TestManager_StartInstance_DetachesFromCallerContext(t *testing.T) {
 			resp: json.RawMessage(`{"jsonrpc":"2.0","id":"mcpv-init","result":{"protocolVersion":"2025-11-25","serverInfo":{"name":"srv"},"capabilities":{}}}`),
 		},
 	}
-	mgr := NewManager(context.Background(), launcher, transport, zap.NewNop())
+	mgr := NewManager(context.Background(), launcher, transport, diagnostics.NoopProbe{}, zap.NewNop())
 
 	spec := domain.ServerSpec{
 		Name:            "svc",
@@ -88,7 +89,7 @@ func TestManager_StartInstance_ProtocolMismatch(t *testing.T) {
 			resp: json.RawMessage(`{"jsonrpc":"2.0","id":"mcpv-init","result":{"protocolVersion":"2024-01-01","serverInfo":{"name":"srv"},"capabilities":{}}}`),
 		},
 	}
-	mgr := NewManager(context.Background(), launcher, transport, zap.NewNop())
+	mgr := NewManager(context.Background(), launcher, transport, diagnostics.NoopProbe{}, zap.NewNop())
 
 	spec := domain.ServerSpec{
 		Name:            "svc",
@@ -107,7 +108,7 @@ func TestManager_StartInstance_ProtocolMismatch(t *testing.T) {
 func TestManager_StartInstance_LauncherError(t *testing.T) {
 	streams, stop := newTestStreams()
 	launcher := &fakeLauncher{streams: streams, stop: stop, err: errors.New("boom")}
-	mgr := NewManager(context.Background(), launcher, &fakeTransport{}, zap.NewNop())
+	mgr := NewManager(context.Background(), launcher, &fakeTransport{}, diagnostics.NoopProbe{}, zap.NewNop())
 
 	spec := domain.ServerSpec{
 		Name:            "svc",
@@ -129,7 +130,7 @@ func TestManager_StartInstance_InitializeFail(t *testing.T) {
 	transport := &fakeTransport{
 		conn: &fakeConn{callErr: errors.New("call fail")},
 	}
-	mgr := NewManager(context.Background(), launcher, transport, zap.NewNop())
+	mgr := NewManager(context.Background(), launcher, transport, diagnostics.NoopProbe{}, zap.NewNop())
 
 	spec := domain.ServerSpec{
 		Name:            "svc",
@@ -148,7 +149,7 @@ func TestManager_StartInstance_InitializeRetry(t *testing.T) {
 	launcher := &fakeLauncher{streams: streams, stop: stop}
 	conn := &retryConn{}
 	transport := &fakeTransport{conn: conn}
-	mgr := NewManager(context.Background(), launcher, transport, zap.NewNop())
+	mgr := NewManager(context.Background(), launcher, transport, diagnostics.NoopProbe{}, zap.NewNop())
 
 	spec := domain.ServerSpec{
 		Name:            "svc",
@@ -175,7 +176,7 @@ func TestManager_StopInstance_Success(t *testing.T) {
 			resp: json.RawMessage(`{"jsonrpc":"2.0","id":"mcpv-init","result":{"protocolVersion":"2025-11-25","serverInfo":{"name":"srv"},"capabilities":{}}}`),
 		},
 	}
-	mgr := NewManager(context.Background(), launcher, transport, zap.NewNop())
+	mgr := NewManager(context.Background(), launcher, transport, diagnostics.NoopProbe{}, zap.NewNop())
 
 	spec := domain.ServerSpec{
 		Name:            "svc",
@@ -198,7 +199,7 @@ func TestManager_StopInstance_Success(t *testing.T) {
 func TestManager_StopInstance_Unknown(t *testing.T) {
 	streams, stop := newTestStreams()
 	launcher := &fakeLauncher{streams: streams, stop: stop}
-	mgr := NewManager(context.Background(), launcher, &fakeTransport{}, zap.NewNop())
+	mgr := NewManager(context.Background(), launcher, &fakeTransport{}, diagnostics.NoopProbe{}, zap.NewNop())
 	inst := domain.NewInstance(domain.InstanceOptions{
 		ID:   "missing",
 		Spec: domain.ServerSpec{Name: "svc"},
@@ -217,7 +218,7 @@ func TestManager_InitializeMissingCapabilities(t *testing.T) {
 			resp: json.RawMessage(`{"jsonrpc":"2.0","id":"mcpv-init","result":{"protocolVersion":"2025-11-25","serverInfo":{"name":"srv"}}}`),
 		},
 	}
-	mgr := NewManager(context.Background(), launcher, transport, zap.NewNop())
+	mgr := NewManager(context.Background(), launcher, transport, diagnostics.NoopProbe{}, zap.NewNop())
 
 	spec := domain.ServerSpec{
 		Name:            "svc",

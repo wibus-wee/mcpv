@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"mcpv/internal/domain"
+	"mcpv/internal/infra/telemetry/diagnostics"
 )
 
 // Acquire obtains an instance for the given spec and routing key.
@@ -27,10 +29,12 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 			state.mu.Unlock()
 			return inst, nil
 		}
+		s.recordAcquireFailureLocked(state, acquireErr)
 		if acquireErr == ErrStickyBusy {
 			serverType := state.spec.Name
 			state.mu.Unlock()
 			s.observePoolAcquireFailure(serverType, acquireErr)
+			s.recordAcquireFailureEvent(state, routingKey, acquireErr)
 			return nil, wrapSchedulerError("scheduler acquire", acquireErr)
 		}
 
@@ -50,6 +54,8 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 			state.mu.Unlock()
 			s.observePoolWait(serverType, waitDuration, waitOutcome)
 			if err != nil {
+				s.recordAcquireFailure(state, err)
+				s.recordAcquireFailureEvent(state, routingKey, err)
 				return nil, wrapSchedulerError("scheduler acquire", err)
 			}
 			continue
@@ -71,6 +77,8 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 			state.mu.Unlock()
 			s.observePoolWait(serverType, waitDuration, waitOutcome)
 			if err != nil {
+				s.recordAcquireFailure(state, err)
+				s.recordAcquireFailureEvent(state, routingKey, err)
 				return nil, wrapSchedulerError("scheduler acquire", err)
 			}
 			continue
@@ -79,10 +87,12 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 		startGen := state.generation
 		state.startInFlight = true
 		startCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+		startCtx, _ = diagnostics.EnsureAttemptID(startCtx, specKey, time.Now())
 		state.startCancel = cancel
 		// Reserve a starting slot: protected by lock for atomicity.
 		// Actual StartInstance call happens outside lock to avoid blocking.
 		state.starting++
+		state.lastStartAttemptAt = time.Now()
 		state.mu.Unlock()
 
 		started := time.Now()
@@ -107,6 +117,9 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 				state.starting--
 				if err == nil {
 					state.startCount++
+				} else {
+					state.lastStartError = err.Error()
+					state.lastStartErrorAt = time.Now()
 				}
 				if startCancel != nil {
 					startCancel()
@@ -130,6 +143,8 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 			state.signalWaiterLocked()
 			state.mu.Unlock()
 			s.observePoolAcquireFailure(state.spec.Name, err)
+			s.recordAcquireFailure(state, err)
+			s.recordAcquireFailureEvent(state, routingKey, err)
 			return nil, wrapSchedulerError("scheduler acquire", fmt.Errorf("start instance: %w", err))
 		}
 		tracked := &trackedInstance{instance: newInst}
@@ -142,6 +157,8 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 			s.observeInstanceStop(state.spec.Name, stopErr)
 			s.recordInstanceStop(state)
 			s.observePoolAcquireFailure(state.spec.Name, ErrNoCapacity)
+			s.recordAcquireFailure(state, ErrNoCapacity)
+			s.recordAcquireFailureEvent(state, routingKey, ErrNoCapacity)
 			return nil, wrapSchedulerError("scheduler acquire", ErrNoCapacity)
 		}
 
@@ -160,6 +177,8 @@ func (s *BasicScheduler) Acquire(ctx context.Context, specKey, routingKey string
 				return inst, nil
 			}
 			s.observePoolAcquireFailure(state.spec.Name, err)
+			s.recordAcquireFailure(state, err)
+			s.recordAcquireFailureEvent(state, routingKey, err)
 			return nil, wrapSchedulerError("scheduler acquire", ErrNoCapacity)
 		}
 
@@ -199,7 +218,77 @@ func (s *BasicScheduler) AcquireReady(ctx context.Context, specKey, routingKey s
 		return inst, nil
 	}
 	s.observePoolAcquireFailure(state.spec.Name, err)
+	s.recordAcquireFailure(state, err)
+	s.recordAcquireFailureEvent(state, routingKey, err)
 	return inst, wrapSchedulerError("scheduler acquire ready", err)
+}
+
+func (s *BasicScheduler) recordAcquireFailureLocked(state *poolState, err error) {
+	if state == nil || err == nil {
+		return
+	}
+	state.lastAcquireError = err.Error()
+	state.lastAcquireErrorAt = time.Now()
+	if reason, ok := classifyAcquireFailure(err); ok {
+		state.lastAcquireReason = reason
+	} else {
+		state.lastAcquireReason = ""
+	}
+}
+
+func (s *BasicScheduler) recordAcquireFailure(state *poolState, err error) {
+	if state == nil || err == nil {
+		return
+	}
+	state.mu.Lock()
+	s.recordAcquireFailureLocked(state, err)
+	state.mu.Unlock()
+}
+
+func (s *BasicScheduler) recordAcquireFailureEvent(state *poolState, routingKey string, err error) {
+	if state == nil || err == nil || s.diag == nil {
+		return
+	}
+	state.mu.Lock()
+	serverName := state.spec.Name
+	specKey := state.specKey
+	maxConcurrent := state.spec.MaxConcurrent
+	minReady := state.minReady
+	active := len(state.instances)
+	starting := state.starting
+	waiters := state.waiters
+	startInFlight := state.startInFlight
+	strategy := string(state.spec.Strategy)
+	busyCount := 0
+	for _, inst := range state.instances {
+		busyCount += inst.instance.BusyCount()
+	}
+	state.mu.Unlock()
+
+	reason, _ := classifyAcquireFailure(err)
+	attrs := map[string]string{
+		"reason":           string(reason),
+		"routingKey":       routingKey,
+		"routingKeyActive": strconv.FormatBool(routingKey != ""),
+		"strategy":         strategy,
+		"minReady":         strconv.Itoa(minReady),
+		"maxConcurrent":    strconv.Itoa(maxConcurrent),
+		"activeInstances":  strconv.Itoa(active),
+		"busyCount":        strconv.Itoa(busyCount),
+		"starting":         strconv.Itoa(starting),
+		"waiters":          strconv.Itoa(waiters),
+		"startInFlight":    strconv.FormatBool(startInFlight),
+	}
+
+	s.diag.Record(diagnostics.Event{
+		SpecKey:    specKey,
+		ServerName: serverName,
+		Step:       diagnostics.StepAcquireFailure,
+		Phase:      diagnostics.PhaseError,
+		Timestamp:  time.Now(),
+		Error:      err.Error(),
+		Attributes: attrs,
+	})
 }
 
 // Release marks an instance as idle and updates pool state.

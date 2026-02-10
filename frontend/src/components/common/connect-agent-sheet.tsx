@@ -1,18 +1,22 @@
 // Input: motion/react, lucide-react icons, UI components, server hooks, analytics, mcpvmcp config helpers
-// Output: ConnectIdeSheet component for IDE connection presets with launchUIOnFail toggle
+// Output: ConnectIdeSheet component for IDE connection presets with comprehensive configuration options
 // Position: Shared UI component for configuring IDE connections in the app
 
 import {
   CheckIcon,
+  ChevronDownIcon,
   ClipboardIcon,
   Code2Icon,
   CogIcon,
   DownloadIcon,
+  GlobeIcon,
   MessageCircleIcon,
   MousePointerClickIcon,
   RocketIcon,
   ServerIcon,
+  SettingsIcon,
   TagIcon,
+  ZapIcon,
 } from 'lucide-react'
 import { m } from 'motion/react'
 import type * as React from 'react'
@@ -20,6 +24,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -38,7 +43,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useMcpvmcpPath } from '@/hooks/use-mcpvmcp-path'
 import { useRpcAddress } from '@/hooks/use-rpc-address'
 import { AnalyticsEvents, track } from '@/lib/analytics'
-import type { BuildOptions, SelectorMode } from '@/lib/mcpvmcp'
+import type { BuildOptions, SelectorMode, TransportType } from '@/lib/mcpvmcp'
 import { buildClientConfig, buildCliSnippet, buildTomlConfig } from '@/lib/mcpvmcp'
 import { useServers } from '@/modules/servers/hooks'
 
@@ -173,7 +178,33 @@ export function ConnectIdeSheet() {
   const [open, setOpen] = useState(false)
   const [selectorMode, setSelectorMode] = useState<SelectorMode>('server')
   const [selectorValue, setSelectorValue] = useState('')
+  const [transport, setTransport] = useState<TransportType>('stdio')
   const [launchUIOnFail, setLaunchUIOnFail] = useState(false)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+
+  // HTTP settings
+  const [httpAddr, setHttpAddr] = useState('127.0.0.1:8090')
+  const [httpPath, setHttpPath] = useState('/mcp')
+  const [httpToken, setHttpToken] = useState('')
+  const [httpAllowedOrigins, setHttpAllowedOrigins] = useState('')
+  const [httpJSONResponse, setHttpJSONResponse] = useState(false)
+  const [httpSessionTimeout, setHttpSessionTimeout] = useState(0)
+  const [httpTLSEnabled, setHttpTLSEnabled] = useState(false)
+  const [httpTLSCertFile, setHttpTLSCertFile] = useState('')
+  const [httpTLSKeyFile, setHttpTLSKeyFile] = useState('')
+  const [httpEventStore, setHttpEventStore] = useState(false)
+  const [httpEventStoreBytes, setHttpEventStoreBytes] = useState(0)
+
+  // RPC settings
+  const [rpcMaxRecvMsgSize, setRpcMaxRecvMsgSize] = useState<number | undefined>()
+  const [rpcMaxSendMsgSize, setRpcMaxSendMsgSize] = useState<number | undefined>()
+  const [rpcKeepaliveTime, setRpcKeepaliveTime] = useState<number | undefined>()
+  const [rpcKeepaliveTimeout, setRpcKeepaliveTimeout] = useState<number | undefined>()
+  const [rpcTLSEnabled, setRpcTLSEnabled] = useState(false)
+  const [rpcTLSCertFile, setRpcTLSCertFile] = useState('')
+  const [rpcTLSKeyFile, setRpcTLSKeyFile] = useState('')
+  const [rpcTLSCAFile, setRpcTLSCAFile] = useState('')
+
   const { path } = useMcpvmcpPath()
   const { rpcAddress } = useRpcAddress()
   const { data: servers } = useServers()
@@ -211,9 +242,69 @@ export function ConnectIdeSheet() {
       ? selector.value
       : `mcpv-${selector.value || 'tag'}`, [selector])
 
-  const buildOptions = useMemo<BuildOptions>(() => ({
+  const buildOptions = useMemo<BuildOptions>(() => {
+    const options: BuildOptions = {
+      transport,
+      launchUIOnFail,
+    }
+
+    // HTTP settings
+    if (transport === 'streamable-http') {
+      options.httpAddr = httpAddr
+      options.httpPath = httpPath
+      if (httpToken) options.httpToken = httpToken
+      if (httpAllowedOrigins) {
+        options.httpAllowedOrigins = httpAllowedOrigins.split(',').map(s => s.trim()).filter(Boolean)
+      }
+      if (httpJSONResponse) options.httpJSONResponse = true
+      if (httpSessionTimeout > 0) options.httpSessionTimeout = httpSessionTimeout
+      if (httpTLSEnabled) {
+        options.httpTLSEnabled = true
+        if (httpTLSCertFile) options.httpTLSCertFile = httpTLSCertFile
+        if (httpTLSKeyFile) options.httpTLSKeyFile = httpTLSKeyFile
+      }
+      if (httpEventStore) {
+        options.httpEventStore = true
+        if (httpEventStoreBytes > 0) options.httpEventStoreBytes = httpEventStoreBytes
+      }
+    }
+
+    // RPC settings
+    if (rpcMaxRecvMsgSize) options.rpcMaxRecvMsgSize = rpcMaxRecvMsgSize
+    if (rpcMaxSendMsgSize) options.rpcMaxSendMsgSize = rpcMaxSendMsgSize
+    if (rpcKeepaliveTime) options.rpcKeepaliveTime = rpcKeepaliveTime
+    if (rpcKeepaliveTimeout) options.rpcKeepaliveTimeout = rpcKeepaliveTimeout
+    if (rpcTLSEnabled) {
+      options.rpcTLSEnabled = true
+      if (rpcTLSCertFile) options.rpcTLSCertFile = rpcTLSCertFile
+      if (rpcTLSKeyFile) options.rpcTLSKeyFile = rpcTLSKeyFile
+      if (rpcTLSCAFile) options.rpcTLSCAFile = rpcTLSCAFile
+    }
+
+    return options
+  }, [
+    transport,
     launchUIOnFail,
-  }), [launchUIOnFail])
+    httpAddr,
+    httpPath,
+    httpToken,
+    httpAllowedOrigins,
+    httpJSONResponse,
+    httpSessionTimeout,
+    httpTLSEnabled,
+    httpTLSCertFile,
+    httpTLSKeyFile,
+    httpEventStore,
+    httpEventStoreBytes,
+    rpcMaxRecvMsgSize,
+    rpcMaxSendMsgSize,
+    rpcKeepaliveTime,
+    rpcKeepaliveTimeout,
+    rpcTLSEnabled,
+    rpcTLSCertFile,
+    rpcTLSKeyFile,
+    rpcTLSCAFile,
+  ])
 
   const configByClient = useMemo<Record<ClientTab, PresetBlock[]>>(
     () => ({
@@ -365,6 +456,82 @@ export function ConnectIdeSheet() {
           </div>
 
           <div className="space-y-3">
+            <p className="text-sm font-medium">Transport</p>
+            <ToggleGroup
+              multiple={false}
+              value={[transport]}
+              onValueChange={(values) => {
+                const next = values[0] as TransportType | undefined
+                const mode = next ?? 'stdio'
+                setTransport(mode)
+                track(AnalyticsEvents.CONNECT_IDE_OPTION_CHANGE, {
+                  option: 'transport',
+                  value: mode,
+                })
+              }}
+              className="flex flex-wrap gap-2"
+            >
+              <ToggleGroupItem value="stdio" size="sm" variant="outline">
+                <ZapIcon className="size-3" />
+                stdio
+              </ToggleGroupItem>
+              <ToggleGroupItem value="streamable-http" size="sm" variant="outline">
+                <GlobeIcon className="size-3" />
+                HTTP
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+
+          {transport === 'streamable-http' && (
+            <m.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-3"
+            >
+              <div className="space-y-2">
+                <Label htmlFor="http-addr" className="text-sm">
+                  HTTP Address
+                </Label>
+                <Input
+                  id="http-addr"
+                  value={httpAddr}
+                  onChange={e => setHttpAddr(e.target.value)}
+                  placeholder="127.0.0.1:8090"
+                  className="font-mono text-xs"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="http-path" className="text-sm">
+                  HTTP Path
+                </Label>
+                <Input
+                  id="http-path"
+                  value={httpPath}
+                  onChange={e => setHttpPath(e.target.value)}
+                  placeholder="/mcp"
+                  className="font-mono text-xs"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="http-token" className="text-sm">
+                  Bearer Token
+                  <span className="text-xs text-muted-foreground ml-2">(required for non-localhost)</span>
+                </Label>
+                <Input
+                  id="http-token"
+                  type="password"
+                  value={httpToken}
+                  onChange={e => setHttpToken(e.target.value)}
+                  placeholder="Optional bearer token"
+                  className="font-mono text-xs"
+                />
+              </div>
+            </m.div>
+          )}
+
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label htmlFor="launch-ui-on-fail" className="text-sm font-medium">
@@ -387,6 +554,279 @@ export function ConnectIdeSheet() {
               />
             </div>
           </div>
+
+          <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+            <CollapsibleTrigger>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-between px-0 hover:bg-transparent"
+              >
+                <div className="flex items-center gap-2">
+                  <SettingsIcon className="size-4" />
+                  <span className="text-sm font-medium">Advanced Settings</span>
+                </div>
+                <m.div
+                  animate={{ rotate: advancedOpen ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <ChevronDownIcon className="size-4 text-muted-foreground" />
+                </m.div>
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-4 pt-4">
+              {/* RPC Settings */}
+              <div className="space-y-3 rounded-lg border border-border/50 p-4 bg-muted/20">
+                <div className="flex items-center gap-2">
+                  <ServerIcon className="size-4 text-muted-foreground" />
+                  <p className="text-sm font-medium">RPC Settings</p>
+                </div>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="rpc-max-recv" className="text-xs">
+                        Max Recv Size (bytes)
+                      </Label>
+                      <Input
+                        id="rpc-max-recv"
+                        type="number"
+                        value={rpcMaxRecvMsgSize ?? ''}
+                        onChange={e => setRpcMaxRecvMsgSize(e.target.value ? Number(e.target.value) : undefined)}
+                        placeholder="Default"
+                        className="font-mono text-xs"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="rpc-max-send" className="text-xs">
+                        Max Send Size (bytes)
+                      </Label>
+                      <Input
+                        id="rpc-max-send"
+                        type="number"
+                        value={rpcMaxSendMsgSize ?? ''}
+                        onChange={e => setRpcMaxSendMsgSize(e.target.value ? Number(e.target.value) : undefined)}
+                        placeholder="Default"
+                        className="font-mono text-xs"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="rpc-keepalive-time" className="text-xs">
+                        Keepalive Time (s)
+                      </Label>
+                      <Input
+                        id="rpc-keepalive-time"
+                        type="number"
+                        value={rpcKeepaliveTime ?? ''}
+                        onChange={e => setRpcKeepaliveTime(e.target.value ? Number(e.target.value) : undefined)}
+                        placeholder="Default"
+                        className="font-mono text-xs"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="rpc-keepalive-timeout" className="text-xs">
+                        Keepalive Timeout (s)
+                      </Label>
+                      <Input
+                        id="rpc-keepalive-timeout"
+                        type="number"
+                        value={rpcKeepaliveTimeout ?? ''}
+                        onChange={e => setRpcKeepaliveTimeout(e.target.value ? Number(e.target.value) : undefined)}
+                        placeholder="Default"
+                        className="font-mono text-xs"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-2">
+                    <Label htmlFor="rpc-tls" className="text-xs">
+                      Enable RPC TLS
+                    </Label>
+                    <Switch
+                      id="rpc-tls"
+                      checked={rpcTLSEnabled}
+                      onCheckedChange={setRpcTLSEnabled}
+                    />
+                  </div>
+                  {rpcTLSEnabled && (
+                    <m.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="space-y-3"
+                    >
+                      <div className="space-y-2">
+                        <Label htmlFor="rpc-tls-cert" className="text-xs">
+                          TLS Cert File
+                        </Label>
+                        <Input
+                          id="rpc-tls-cert"
+                          value={rpcTLSCertFile}
+                          onChange={e => setRpcTLSCertFile(e.target.value)}
+                          placeholder="/path/to/cert.pem"
+                          className="font-mono text-xs"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="rpc-tls-key" className="text-xs">
+                          TLS Key File
+                        </Label>
+                        <Input
+                          id="rpc-tls-key"
+                          value={rpcTLSKeyFile}
+                          onChange={e => setRpcTLSKeyFile(e.target.value)}
+                          placeholder="/path/to/key.pem"
+                          className="font-mono text-xs"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="rpc-tls-ca" className="text-xs">
+                          TLS CA File
+                        </Label>
+                        <Input
+                          id="rpc-tls-ca"
+                          value={rpcTLSCAFile}
+                          onChange={e => setRpcTLSCAFile(e.target.value)}
+                          placeholder="/path/to/ca.pem"
+                          className="font-mono text-xs"
+                        />
+                      </div>
+                    </m.div>
+                  )}
+                </div>
+              </div>
+
+              {/* HTTP Advanced Settings */}
+              {transport === 'streamable-http' && (
+                <m.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="space-y-3 rounded-lg border border-border/50 p-4 bg-muted/20"
+                >
+                  <div className="flex items-center gap-2">
+                    <GlobeIcon className="size-4 text-muted-foreground" />
+                    <p className="text-sm font-medium">HTTP Advanced</p>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="http-allowed-origins" className="text-xs">
+                        Allowed Origins
+                        <span className="text-muted-foreground ml-2">(comma-separated)</span>
+                      </Label>
+                      <Input
+                        id="http-allowed-origins"
+                        value={httpAllowedOrigins}
+                        onChange={e => setHttpAllowedOrigins(e.target.value)}
+                        placeholder="https://example.com, *"
+                        className="font-mono text-xs"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="http-session-timeout" className="text-xs">
+                        Session Timeout (seconds)
+                      </Label>
+                      <Input
+                        id="http-session-timeout"
+                        type="number"
+                        value={httpSessionTimeout}
+                        onChange={e => setHttpSessionTimeout(Number(e.target.value))}
+                        placeholder="0 (disabled)"
+                        className="font-mono text-xs"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="http-json-response" className="text-xs">
+                        Use JSON Response (instead of SSE)
+                      </Label>
+                      <Switch
+                        id="http-json-response"
+                        checked={httpJSONResponse}
+                        onCheckedChange={setHttpJSONResponse}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="http-tls" className="text-xs">
+                        Enable HTTP TLS
+                      </Label>
+                      <Switch
+                        id="http-tls"
+                        checked={httpTLSEnabled}
+                        onCheckedChange={setHttpTLSEnabled}
+                      />
+                    </div>
+                    {httpTLSEnabled && (
+                      <m.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="space-y-3"
+                      >
+                        <div className="space-y-2">
+                          <Label htmlFor="http-tls-cert" className="text-xs">
+                            TLS Cert File
+                          </Label>
+                          <Input
+                            id="http-tls-cert"
+                            value={httpTLSCertFile}
+                            onChange={e => setHttpTLSCertFile(e.target.value)}
+                            placeholder="/path/to/cert.pem"
+                            className="font-mono text-xs"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="http-tls-key" className="text-xs">
+                            TLS Key File
+                          </Label>
+                          <Input
+                            id="http-tls-key"
+                            value={httpTLSKeyFile}
+                            onChange={e => setHttpTLSKeyFile(e.target.value)}
+                            placeholder="/path/to/key.pem"
+                            className="font-mono text-xs"
+                          />
+                        </div>
+                      </m.div>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="http-event-store" className="text-xs">
+                        Enable Event Store
+                      </Label>
+                      <Switch
+                        id="http-event-store"
+                        checked={httpEventStore}
+                        onCheckedChange={setHttpEventStore}
+                      />
+                    </div>
+                    {httpEventStore && (
+                      <m.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="space-y-2"
+                      >
+                        <Label htmlFor="http-event-store-bytes" className="text-xs">
+                          Event Store Max Bytes
+                        </Label>
+                        <Input
+                          id="http-event-store-bytes"
+                          type="number"
+                          value={httpEventStoreBytes}
+                          onChange={e => setHttpEventStoreBytes(Number(e.target.value))}
+                          placeholder="0 (default)"
+                          className="font-mono text-xs"
+                        />
+                      </m.div>
+                    )}
+                  </div>
+                </m.div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
 
           <div className="space-y-3">
             <p className="text-sm font-medium">Client presets</p>

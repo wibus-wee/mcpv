@@ -9,20 +9,25 @@ import (
 	"os"
 	"os/exec"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"go.uber.org/zap"
 
 	"mcpv/internal/domain"
 	"mcpv/internal/infra/telemetry"
+	"mcpv/internal/infra/telemetry/diagnostics"
 )
 
 type CommandLauncher struct {
 	logger *zap.Logger
+	probe  diagnostics.Probe
 }
 
 type CommandLauncherOptions struct {
 	Logger *zap.Logger
+	Probe  diagnostics.Probe
 }
 
 func NewCommandLauncher(opts CommandLauncherOptions) *CommandLauncher {
@@ -30,13 +35,60 @@ func NewCommandLauncher(opts CommandLauncherOptions) *CommandLauncher {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
-	return &CommandLauncher{logger: logger}
+	probe := opts.Probe
+	if probe == nil {
+		probe = diagnostics.NoopProbe{}
+	}
+	return &CommandLauncher{
+		logger: logger,
+		probe:  probe,
+	}
 }
 
-func (l *CommandLauncher) Start(ctx context.Context, _ string, spec domain.ServerSpec) (domain.IOStreams, domain.StopFn, error) {
+func (l *CommandLauncher) Start(ctx context.Context, specKey string, spec domain.ServerSpec) (domain.IOStreams, domain.StopFn, error) {
+	attemptID, _ := diagnostics.AttemptIDFromContext(ctx)
+	started := time.Now()
 	if len(spec.Cmd) == 0 {
+		l.recordEvent(diagnostics.Event{
+			SpecKey:    specKey,
+			ServerName: spec.Name,
+			AttemptID:  attemptID,
+			Step:       diagnostics.StepLauncherStart,
+			Phase:      diagnostics.PhaseError,
+			Timestamp:  started,
+			Error:      fmt.Errorf("%w: cmd is required for stdio launcher", domain.ErrInvalidCommand).Error(),
+			Attributes: map[string]string{"argCount": "0"},
+		})
 		return domain.IOStreams{}, nil, fmt.Errorf("%w: cmd is required for stdio launcher", domain.ErrInvalidCommand)
 	}
+	attrs := map[string]string{
+		"executable": spec.Cmd[0],
+		"argCount":   strconv.Itoa(len(spec.Cmd) - 1),
+	}
+	if spec.Cwd != "" {
+		attrs["cwd"] = spec.Cwd
+	}
+	if len(spec.Env) > 0 {
+		attrs["envKeys"] = strings.Join(sortedKeys(spec.Env), ",")
+		attrs["envCount"] = strconv.Itoa(len(spec.Env))
+	}
+	sensitive := map[string]string{}
+	if l.captureSensitive() {
+		sensitive["cmd"] = strings.Join(spec.Cmd, " ")
+		if len(spec.Env) > 0 {
+			sensitive["env"] = diagnostics.EncodeStringMap(spec.Env)
+		}
+	}
+	l.recordEvent(diagnostics.Event{
+		SpecKey:    specKey,
+		ServerName: spec.Name,
+		AttemptID:  attemptID,
+		Step:       diagnostics.StepLauncherStart,
+		Phase:      diagnostics.PhaseEnter,
+		Timestamp:  started,
+		Attributes: attrs,
+		Sensitive:  sensitive,
+	})
 
 	cmd := exec.CommandContext(ctx, spec.Cmd[0], spec.Cmd[1:]...)
 	if spec.Cwd != "" {
@@ -47,20 +99,79 @@ func (l *CommandLauncher) Start(ctx context.Context, _ string, spec domain.Serve
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
+		l.recordEvent(diagnostics.Event{
+			SpecKey:    specKey,
+			ServerName: spec.Name,
+			AttemptID:  attemptID,
+			Step:       diagnostics.StepLauncherStart,
+			Phase:      diagnostics.PhaseError,
+			Timestamp:  time.Now(),
+			Duration:   time.Since(started),
+			Error:      fmt.Errorf("stdout pipe: %w", err).Error(),
+			Attributes: attrs,
+			Sensitive:  sensitive,
+		})
 		return domain.IOStreams{}, nil, fmt.Errorf("stdout pipe: %w", err)
 	}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
+		l.recordEvent(diagnostics.Event{
+			SpecKey:    specKey,
+			ServerName: spec.Name,
+			AttemptID:  attemptID,
+			Step:       diagnostics.StepLauncherStart,
+			Phase:      diagnostics.PhaseError,
+			Timestamp:  time.Now(),
+			Duration:   time.Since(started),
+			Error:      fmt.Errorf("stdin pipe: %w", err).Error(),
+			Attributes: attrs,
+			Sensitive:  sensitive,
+		})
 		return domain.IOStreams{}, nil, fmt.Errorf("stdin pipe: %w", err)
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
+		l.recordEvent(diagnostics.Event{
+			SpecKey:    specKey,
+			ServerName: spec.Name,
+			AttemptID:  attemptID,
+			Step:       diagnostics.StepLauncherStart,
+			Phase:      diagnostics.PhaseError,
+			Timestamp:  time.Now(),
+			Duration:   time.Since(started),
+			Error:      fmt.Errorf("stderr pipe: %w", err).Error(),
+			Attributes: attrs,
+			Sensitive:  sensitive,
+		})
 		return domain.IOStreams{}, nil, fmt.Errorf("stderr pipe: %w", err)
 	}
 
 	if err := cmd.Start(); err != nil {
+		l.recordEvent(diagnostics.Event{
+			SpecKey:    specKey,
+			ServerName: spec.Name,
+			AttemptID:  attemptID,
+			Step:       diagnostics.StepLauncherStart,
+			Phase:      diagnostics.PhaseError,
+			Timestamp:  time.Now(),
+			Duration:   time.Since(started),
+			Error:      fmt.Errorf("start command: %w", classifyStartError(err)).Error(),
+			Attributes: attrs,
+			Sensitive:  sensitive,
+		})
 		return domain.IOStreams{}, nil, fmt.Errorf("start command: %w", classifyStartError(err))
 	}
+	l.recordEvent(diagnostics.Event{
+		SpecKey:    specKey,
+		ServerName: spec.Name,
+		AttemptID:  attemptID,
+		Step:       diagnostics.StepLauncherStart,
+		Phase:      diagnostics.PhaseExit,
+		Timestamp:  time.Now(),
+		Duration:   time.Since(started),
+		Attributes: attrs,
+		Sensitive:  sensitive,
+	})
 
 	downstreamLogger := l.logger.With(
 		zap.String(telemetry.FieldLogSource, telemetry.LogSourceDownstream),
@@ -124,18 +235,25 @@ func formatEnv(env map[string]string) []string {
 	if len(env) == 0 {
 		return nil
 	}
-	keys := make([]string, 0, len(env))
-	for key := range env {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-
+	keys := sortedKeys(env)
 	out := make([]string, 0, len(env))
 	for _, k := range keys {
 		v := env[k]
 		out = append(out, fmt.Sprintf("%s=%s", k, v))
 	}
 	return out
+}
+
+func sortedKeys(env map[string]string) []string {
+	if len(env) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(env))
+	for key := range env {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func classifyStartError(err error) error {
@@ -158,4 +276,24 @@ func classifyStartError(err error) error {
 		}
 	}
 	return err
+}
+
+func (l *CommandLauncher) recordEvent(event diagnostics.Event) {
+	if l == nil || l.probe == nil {
+		return
+	}
+	if len(event.Sensitive) == 0 {
+		event.Sensitive = nil
+	}
+	l.probe.Record(event)
+}
+
+func (l *CommandLauncher) captureSensitive() bool {
+	if l == nil || l.probe == nil {
+		return false
+	}
+	if probe, ok := l.probe.(diagnostics.SensitiveProbe); ok {
+		return probe.CaptureSensitive()
+	}
+	return false
 }

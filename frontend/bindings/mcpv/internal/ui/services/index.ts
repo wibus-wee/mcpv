@@ -36,6 +36,8 @@ export {
     CreateServerRequest,
     DebugSnapshotResponse,
     DeleteServerRequest,
+    DiagnosticsBundleResponse,
+    DiagnosticsExportOptions,
     ImportMcpServersRequest,
     InfoResponse,
     McpTransferImportResult,

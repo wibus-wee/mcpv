@@ -238,11 +238,12 @@ type InstanceInfo struct {
 
 // PoolInfo provides a read-only snapshot of a pool's state for status queries.
 type PoolInfo struct {
-	SpecKey    string
-	ServerName string
-	MinReady   int
-	Instances  []InstanceInfo
-	Metrics    PoolMetrics
+	SpecKey     string
+	ServerName  string
+	MinReady    int
+	Instances   []InstanceInfo
+	Metrics     PoolMetrics
+	Diagnostics PoolDiagnostics
 }
 
 // PoolMetrics aggregates pool-level metrics.
@@ -253,6 +254,21 @@ type PoolMetrics struct {
 	TotalErrors   int64         `json:"totalErrors"`
 	TotalDuration time.Duration `json:"totalDuration"`
 	LastCallAt    time.Time     `json:"lastCallAt"`
+}
+
+// PoolDiagnostics captures recent operational details for troubleshooting.
+type PoolDiagnostics struct {
+	Starting           int                  `json:"starting"`
+	StartInFlight      bool                 `json:"startInFlight"`
+	Waiters            int                  `json:"waiters"`
+	LastStartAttemptAt time.Time            `json:"lastStartAttemptAt"`
+	LastStartError     string               `json:"lastStartError,omitempty"`
+	LastStartErrorAt   time.Time            `json:"lastStartErrorAt"`
+	LastAcquireError   string               `json:"lastAcquireError,omitempty"`
+	LastAcquireErrorAt time.Time            `json:"lastAcquireErrorAt"`
+	LastAcquireReason  AcquireFailureReason `json:"lastAcquireReason,omitempty"`
+	LastStartCause     *StartCause          `json:"lastStartCause,omitempty"`
+	LastStartCauseAt   time.Time            `json:"lastStartCauseAt"`
 }
 
 // ServerInitState describes the initialization state of a server.
@@ -275,16 +291,23 @@ const (
 
 // ServerInitStatus reports initialization progress for a server.
 type ServerInitStatus struct {
-	SpecKey     string          `json:"specKey"`
-	ServerName  string          `json:"serverName"`
-	MinReady    int             `json:"minReady"`
-	Ready       int             `json:"ready"`
-	Failed      int             `json:"failed"`
-	State       ServerInitState `json:"state"`
-	LastError   string          `json:"lastError"`
-	RetryCount  int             `json:"retryCount"`
-	NextRetryAt time.Time       `json:"nextRetryAt"`
-	UpdatedAt   time.Time       `json:"updatedAt"`
+	SpecKey          string          `json:"specKey"`
+	ServerName       string          `json:"serverName"`
+	MinReady         int             `json:"minReady"`
+	Ready            int             `json:"ready"`
+	Failed           int             `json:"failed"`
+	State            ServerInitState `json:"state"`
+	LastError        string          `json:"lastError"`
+	RetryCount       int             `json:"retryCount"`
+	NextRetryAt      time.Time       `json:"nextRetryAt"`
+	UpdatedAt        time.Time       `json:"updatedAt"`
+	AttemptStartedAt time.Time       `json:"attemptStartedAt"`
+	AttemptEndedAt   time.Time       `json:"attemptEndedAt"`
+	AttemptStep      string          `json:"attemptStep,omitempty"`
+	AttemptError     string          `json:"attemptError,omitempty"`
+	AttemptReady     int             `json:"attemptReady"`
+	AttemptFailed    int             `json:"attemptFailed"`
+	AttemptTarget    int             `json:"attemptTarget"`
 }
 
 // ErrMethodNotAllowed indicates a method is not permitted by capabilities.

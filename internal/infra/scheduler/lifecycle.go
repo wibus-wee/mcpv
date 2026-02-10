@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"mcpv/internal/domain"
+	"mcpv/internal/infra/telemetry/diagnostics"
 )
 
 // SetDesiredMinReady ensures a minimum ready instance count for the spec.
@@ -24,6 +25,9 @@ func (s *BasicScheduler) SetDesiredMinReady(ctx context.Context, specKey string,
 	state.mu.Lock()
 	state.minReady = minReady
 	if hasCause {
+		causeCopy := cause
+		state.lastStartCause = &causeCopy
+		state.lastStartCauseAt = time.Now()
 		s.applyStartCauseLocked(state, cause, time.Now())
 	}
 	// state.starting acts as a reservation counter for in-flight starts.
@@ -42,9 +46,10 @@ func (s *BasicScheduler) SetDesiredMinReady(ctx context.Context, specKey string,
 	for i := 0; i < toStart; i++ {
 		state.mu.Lock()
 		startGen := state.generation
+		started := time.Now()
+		state.lastStartAttemptAt = started
 		state.mu.Unlock()
 
-		started := time.Now()
 		var (
 			inst *domain.Instance
 			err  error
@@ -61,6 +66,9 @@ func (s *BasicScheduler) SetDesiredMinReady(ctx context.Context, specKey string,
 				state.starting--
 				if err == nil {
 					state.startCount++
+				} else {
+					state.lastStartError = err.Error()
+					state.lastStartErrorAt = time.Now()
 				}
 				state.mu.Unlock()
 				if r != nil {
@@ -68,7 +76,8 @@ func (s *BasicScheduler) SetDesiredMinReady(ctx context.Context, specKey string,
 				}
 			}()
 			s.observeInstanceStartCause(ctx, state.spec.Name)
-			inst, err = s.lifecycle.StartInstance(ctx, specKey, state.spec)
+			startCtx, _ := diagnostics.EnsureAttemptID(ctx, specKey, time.Now())
+			inst, err = s.lifecycle.StartInstance(startCtx, specKey, state.spec)
 			s.observeInstanceStart(state.spec.Name, started, err)
 			if err == nil {
 				s.applyStartCause(ctx, inst, started)

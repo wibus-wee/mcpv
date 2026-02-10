@@ -13,6 +13,7 @@ import (
 	pluginmanager "mcpv/internal/infra/plugin/manager"
 	"mcpv/internal/infra/rpc"
 	"mcpv/internal/infra/telemetry"
+	"mcpv/internal/infra/telemetry/diagnostics"
 )
 
 // Application wires the core runtime and dependencies.
@@ -26,6 +27,7 @@ type Application struct {
 	registry      *prometheus.Registry
 	metrics       domain.Metrics
 	health        *telemetry.HealthTracker
+	diagnostics   *diagnostics.Hub
 	summary       domain.CatalogSummary
 	state         *controlplane.State
 	scheduler     domain.Scheduler
@@ -44,6 +46,7 @@ type ApplicationOptions struct {
 	Registry          *prometheus.Registry
 	Metrics           domain.Metrics
 	Health            *telemetry.HealthTracker
+	Diagnostics       *diagnostics.Hub
 	CatalogState      *domain.CatalogState
 	ControlPlaneState *controlplane.State
 	Scheduler         domain.Scheduler
@@ -73,6 +76,7 @@ func NewApplication(opts ApplicationOptions) *Application {
 		registry:      opts.Registry,
 		metrics:       opts.Metrics,
 		health:        opts.Health,
+		diagnostics:   opts.Diagnostics,
 		summary:       summary,
 		state:         opts.ControlPlaneState,
 		scheduler:     opts.Scheduler,
@@ -197,4 +201,12 @@ func (a *Application) IsPluginRunning(name string) bool {
 		return false
 	}
 	return a.pluginManager.IsRunning(name)
+}
+
+// Diagnostics returns the diagnostics hub if configured.
+func (a *Application) Diagnostics() *diagnostics.Hub {
+	if a == nil {
+		return nil
+	}
+	return a.diagnostics
 }

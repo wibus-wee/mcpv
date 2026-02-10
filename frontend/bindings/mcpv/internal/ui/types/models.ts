@@ -249,6 +249,69 @@ export class DeleteServerRequest {
 }
 
 /**
+ * DiagnosticsBundleResponse returns the diagnostics bundle payload.
+ */
+export class DiagnosticsBundleResponse {
+    "payload": json$0.RawMessage;
+    "size": number;
+    "generatedAt": string;
+
+    /** Creates a new DiagnosticsBundleResponse instance. */
+    constructor($$source: Partial<DiagnosticsBundleResponse> = {}) {
+        if (!("payload" in $$source)) {
+            this["payload"] = null;
+        }
+        if (!("size" in $$source)) {
+            this["size"] = 0;
+        }
+        if (!("generatedAt" in $$source)) {
+            this["generatedAt"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DiagnosticsBundleResponse instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DiagnosticsBundleResponse {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DiagnosticsBundleResponse($$parsedSource as Partial<DiagnosticsBundleResponse>);
+    }
+}
+
+/**
+ * DiagnosticsExportOptions controls diagnostic bundle export.
+ */
+export class DiagnosticsExportOptions {
+    "mode"?: string;
+    "includeSnapshot"?: boolean;
+    "includeLogs"?: boolean;
+    "includeMetrics"?: boolean;
+    "includeEvents"?: boolean;
+    "includeStuck"?: boolean;
+    "logLevel"?: string;
+    "logTimeoutMs"?: number;
+    "maxLogEntries"?: number;
+    "maxEventEntries"?: number;
+    "stuckThresholdMs"?: number;
+
+    /** Creates a new DiagnosticsExportOptions instance. */
+    constructor($$source: Partial<DiagnosticsExportOptions> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DiagnosticsExportOptions instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DiagnosticsExportOptions {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DiagnosticsExportOptions($$parsedSource as Partial<DiagnosticsExportOptions>);
+    }
+}
+
+/**
  * ImportMcpServersRequest is the payload for importing MCP servers into the config file.
  */
 export class ImportMcpServersRequest {
@@ -689,6 +752,47 @@ export class PluginMetrics {
     static createFrom($$source: any = {}): PluginMetrics {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new PluginMetrics($$parsedSource as Partial<PluginMetrics>);
+    }
+}
+
+export class PoolDiagnostics {
+    "starting": number;
+    "startInFlight": boolean;
+    "waiters": number;
+    "lastStartAttemptAt"?: string;
+    "lastStartError"?: string;
+    "lastStartErrorAt"?: string;
+    "lastAcquireError"?: string;
+    "lastAcquireErrorAt"?: string;
+    "lastAcquireReason"?: string;
+    "lastStartCause"?: StartCause | null;
+    "lastStartCauseAt"?: string;
+
+    /** Creates a new PoolDiagnostics instance. */
+    constructor($$source: Partial<PoolDiagnostics> = {}) {
+        if (!("starting" in $$source)) {
+            this["starting"] = 0;
+        }
+        if (!("startInFlight" in $$source)) {
+            this["startInFlight"] = false;
+        }
+        if (!("waiters" in $$source)) {
+            this["waiters"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PoolDiagnostics instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PoolDiagnostics {
+        const $$createField9_0 = $$createType8;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("lastStartCause" in $$parsedSource) {
+            $$parsedSource["lastStartCause"] = $$createField9_0($$parsedSource["lastStartCause"]);
+        }
+        return new PoolDiagnostics($$parsedSource as Partial<PoolDiagnostics>);
     }
 }
 
@@ -1248,6 +1352,13 @@ export class ServerInitStatus {
     "retryCount": number;
     "nextRetryAt"?: string;
     "updatedAt": string;
+    "attemptStartedAt"?: string;
+    "attemptEndedAt"?: string;
+    "attemptStep"?: string;
+    "attemptError"?: string;
+    "attemptReady"?: number;
+    "attemptFailed"?: number;
+    "attemptTarget"?: number;
 
     /** Creates a new ServerInitStatus instance. */
     constructor($$source: Partial<ServerInitStatus> = {}) {
@@ -1297,6 +1408,7 @@ export class ServerRuntimeStatus {
     "instances": InstanceStatus[];
     "stats": PoolStats;
     "metrics": PoolMetrics;
+    "diagnostics": PoolDiagnostics;
 
     /** Creates a new ServerRuntimeStatus instance. */
     constructor($$source: Partial<ServerRuntimeStatus> = {}) {
@@ -1315,6 +1427,9 @@ export class ServerRuntimeStatus {
         if (!("metrics" in $$source)) {
             this["metrics"] = (new PoolMetrics());
         }
+        if (!("diagnostics" in $$source)) {
+            this["diagnostics"] = (new PoolDiagnostics());
+        }
 
         Object.assign(this, $$source);
     }
@@ -1326,6 +1441,7 @@ export class ServerRuntimeStatus {
         const $$createField2_0 = $$createType23;
         const $$createField3_0 = $$createType24;
         const $$createField4_0 = $$createType25;
+        const $$createField5_0 = $$createType26;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("instances" in $$parsedSource) {
             $$parsedSource["instances"] = $$createField2_0($$parsedSource["instances"]);
@@ -1335,6 +1451,9 @@ export class ServerRuntimeStatus {
         }
         if ("metrics" in $$parsedSource) {
             $$parsedSource["metrics"] = $$createField4_0($$parsedSource["metrics"]);
+        }
+        if ("diagnostics" in $$parsedSource) {
+            $$parsedSource["diagnostics"] = $$createField5_0($$parsedSource["diagnostics"]);
         }
         return new ServerRuntimeStatus($$parsedSource as Partial<ServerRuntimeStatus>);
     }
@@ -1520,7 +1639,7 @@ export class StartCause {
      * Creates a new StartCause instance from a string or object.
      */
     static createFrom($$source: any = {}): StartCause {
-        const $$createField3_0 = $$createType27;
+        const $$createField3_0 = $$createType28;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("policy" in $$parsedSource) {
             $$parsedSource["policy"] = $$createField3_0($$parsedSource["policy"]);
@@ -1785,7 +1904,7 @@ export class UpdateCheckResult {
      * Creates a new UpdateCheckResult instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateCheckResult {
-        const $$createField2_0 = $$createType29;
+        const $$createField2_0 = $$createType30;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("latest" in $$parsedSource) {
             $$parsedSource["latest"] = $$createField2_0($$parsedSource["latest"]);
@@ -2045,7 +2164,8 @@ const $$createType22 = InstanceStatus.createFrom;
 const $$createType23 = $Create.Array($$createType22);
 const $$createType24 = PoolStats.createFrom;
 const $$createType25 = PoolMetrics.createFrom;
-const $$createType26 = StartCausePolicy.createFrom;
-const $$createType27 = $Create.Nullable($$createType26);
-const $$createType28 = UpdateRelease.createFrom;
-const $$createType29 = $Create.Nullable($$createType28);
+const $$createType26 = PoolDiagnostics.createFrom;
+const $$createType27 = StartCausePolicy.createFrom;
+const $$createType28 = $Create.Nullable($$createType27);
+const $$createType29 = UpdateRelease.createFrom;
+const $$createType30 = $Create.Nullable($$createType29);

@@ -24,6 +24,8 @@ func InitializeApplication(ctx context.Context, cfg ServeConfig, logging Logging
 	registry := NewMetricsRegistry()
 	metrics := NewMetrics(registry)
 	healthTracker := NewHealthTracker()
+	logBroadcaster := NewLogBroadcaster(appLogging)
+	hub := NewDiagnosticsHub(ctx, logBroadcaster)
 	string2 := ConfigPath(cfg)
 	dynamicCatalogProvider, err := catalog.NewDynamicCatalogProvider(ctx, string2, logger)
 	if err != nil {
@@ -33,20 +35,21 @@ func InitializeApplication(ctx context.Context, cfg ServeConfig, logging Logging
 	if err != nil {
 		return nil, err
 	}
-	launcher := NewCommandLauncher(logger)
+	probe := NewDiagnosticsProbe(hub)
+	launcher := NewCommandLauncher(logger, probe)
 	listChangeHub := NewListChangeHub()
 	samplingHandler := NewSamplingHandler(ctx, catalogState, logger)
 	elicitationHandler := NewElicitationHandler(logger)
-	transport := NewMCPTransport(logger, listChangeHub, samplingHandler, elicitationHandler)
-	lifecycle := NewLifecycleManager(ctx, launcher, transport, samplingHandler, elicitationHandler, logger)
+	transport := NewMCPTransport(logger, listChangeHub, samplingHandler, elicitationHandler, probe)
+	lifecycle := NewLifecycleManager(ctx, launcher, transport, samplingHandler, elicitationHandler, probe, logger)
 	pingProbe := NewPingProbe()
-	scheduler, err := NewScheduler(lifecycle, catalogState, pingProbe, metrics, healthTracker, logger)
+	scheduler, err := NewScheduler(lifecycle, catalogState, pingProbe, metrics, healthTracker, probe, logger)
 	if err != nil {
 		return nil, err
 	}
 	metadataCache := domain.NewMetadataCache()
 	state := newRuntimeState(catalogState, scheduler, metrics, healthTracker, metadataCache, listChangeHub, logger)
-	manager := serverinit.NewManager(scheduler, catalogState, logger)
+	manager := serverinit.NewManager(scheduler, catalogState, logger, probe)
 	metadataManager := NewBootstrapManagerProvider(lifecycle, scheduler, catalogState, metadataCache, logger)
 	serverStartupOrchestrator := bootstrap.NewServerStartupOrchestrator(manager, metadataManager, logger)
 	controlplaneState := provideControlPlaneState(ctx, state, catalogState, scheduler, serverStartupOrchestrator, logger)
@@ -54,7 +57,6 @@ func InitializeApplication(ctx context.Context, cfg ServeConfig, logging Logging
 	toolDiscoveryService := controlplane.NewToolDiscoveryService(controlplaneState, clientRegistry)
 	resourceDiscoveryService := controlplane.NewResourceDiscoveryService(controlplaneState, clientRegistry)
 	promptDiscoveryService := controlplane.NewPromptDiscoveryService(controlplaneState, clientRegistry)
-	logBroadcaster := NewLogBroadcaster(appLogging)
 	service := controlplane.NewObservabilityService(controlplaneState, clientRegistry, logBroadcaster)
 	automationService := controlplane.NewAutomationService(controlplaneState, clientRegistry, toolDiscoveryService)
 	controlPlane := controlplane.NewControlPlane(controlplaneState, clientRegistry, toolDiscoveryService, resourceDiscoveryService, promptDiscoveryService, service, automationService)
@@ -76,6 +78,7 @@ func InitializeApplication(ctx context.Context, cfg ServeConfig, logging Logging
 		Registry:          registry,
 		Metrics:           metrics,
 		Health:            healthTracker,
+		Diagnostics:       hub,
 		CatalogState:      catalogState,
 		ControlPlaneState: controlplaneState,
 		Scheduler:         scheduler,

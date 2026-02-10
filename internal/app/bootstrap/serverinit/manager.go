@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 
 	"mcpv/internal/app/bootstrap/activation"
 	"mcpv/internal/domain"
+	"mcpv/internal/infra/telemetry/diagnostics"
 )
 
 // Manager coordinates async server initialization.
@@ -20,6 +22,7 @@ type Manager struct {
 	specs     map[string]domain.ServerSpec
 	runtime   domain.RuntimeConfig
 	logger    *zap.Logger
+	probe     diagnostics.Probe
 
 	mu         sync.Mutex
 	statuses   map[string]domain.ServerInitStatus
@@ -40,6 +43,7 @@ func NewManager(
 	scheduler domain.Scheduler,
 	state *domain.CatalogState,
 	logger *zap.Logger,
+	probe diagnostics.Probe,
 ) *Manager {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -56,6 +60,7 @@ func NewManager(
 		specs:      specs,
 		runtime:    runtime,
 		logger:     logger.Named("server_init"),
+		probe:      probe,
 		statuses:   make(map[string]domain.ServerInitStatus),
 		causes:     make(map[string]domain.StartCause),
 		targets:    make(map[string]int),
@@ -107,6 +112,13 @@ func (m *Manager) ApplyCatalogState(state *domain.CatalogState) {
 				status.LastError = ""
 				status.RetryCount = 0
 				status.NextRetryAt = time.Time{}
+				status.AttemptStartedAt = time.Time{}
+				status.AttemptEndedAt = time.Time{}
+				status.AttemptStep = ""
+				status.AttemptError = ""
+				status.AttemptReady = 0
+				status.AttemptFailed = 0
+				status.AttemptTarget = 0
 			}
 			status.UpdatedAt = time.Now()
 		}
@@ -236,6 +248,13 @@ func (m *Manager) SetMinReady(specKey string, minReady int, cause domain.StartCa
 		status.LastError = ""
 		status.RetryCount = 0
 		status.NextRetryAt = time.Time{}
+		status.AttemptStartedAt = time.Time{}
+		status.AttemptEndedAt = time.Time{}
+		status.AttemptStep = ""
+		status.AttemptError = ""
+		status.AttemptReady = 0
+		status.AttemptFailed = 0
+		status.AttemptTarget = 0
 	}
 	status.UpdatedAt = time.Now()
 	m.statuses[specKey] = status
@@ -266,6 +285,13 @@ func (m *Manager) RetrySpec(specKey string) error {
 	status.LastError = ""
 	status.RetryCount = 0
 	status.NextRetryAt = time.Time{}
+	status.AttemptStartedAt = time.Time{}
+	status.AttemptEndedAt = time.Time{}
+	status.AttemptStep = ""
+	status.AttemptError = ""
+	status.AttemptReady = 0
+	status.AttemptFailed = 0
+	status.AttemptTarget = 0
 	status.UpdatedAt = time.Now()
 	m.statuses[specKey] = status
 	target := m.targets[specKey]
@@ -366,11 +392,16 @@ func (m *Manager) runSpec(ctx context.Context, specKey string) {
 		m.mu.Unlock()
 	}()
 
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	timer := time.NewTimer(m.retryBase)
 	defer timer.Stop()
 
 	for {
 		target := m.target(specKey)
+		serverName := m.specName(specKey)
 		if target == 0 {
 			m.updateStatus(specKey, func(status *domain.ServerInitStatus) {
 				status.State = domain.ServerInitPending
@@ -380,6 +411,13 @@ func (m *Manager) runSpec(ctx context.Context, specKey string) {
 				status.LastError = ""
 				status.RetryCount = 0
 				status.NextRetryAt = time.Time{}
+				status.AttemptStartedAt = time.Time{}
+				status.AttemptEndedAt = time.Time{}
+				status.AttemptStep = ""
+				status.AttemptError = ""
+				status.AttemptReady = 0
+				status.AttemptFailed = 0
+				status.AttemptTarget = 0
 				status.UpdatedAt = time.Now()
 			})
 			return
@@ -387,29 +425,88 @@ func (m *Manager) runSpec(ctx context.Context, specKey string) {
 
 		if m.scheduler == nil {
 			m.updateStatus(specKey, func(status *domain.ServerInitStatus) {
+				now := time.Now()
 				status.State = domain.ServerInitFailed
 				status.LastError = "scheduler unavailable"
 				status.RetryCount = 0
 				status.NextRetryAt = time.Time{}
-				status.UpdatedAt = time.Now()
+				status.AttemptStartedAt = now
+				status.AttemptEndedAt = now
+				status.AttemptStep = "scheduler_unavailable"
+				status.AttemptError = "scheduler unavailable"
+				status.AttemptReady = 0
+				status.AttemptFailed = 0
+				status.AttemptTarget = target
+				status.UpdatedAt = now
 			})
 			return
 		}
 
 		prevStatus, _ := m.getStatus(specKey)
 
+		attemptStarted := time.Now()
+		attemptID := diagnostics.NewAttemptID(specKey, attemptStarted)
+		attemptCtx := diagnostics.WithAttemptID(ctx, attemptID)
 		m.updateStatus(specKey, func(status *domain.ServerInitStatus) {
 			status.State = domain.ServerInitStarting
 			status.MinReady = target
-			status.UpdatedAt = time.Now()
+			status.AttemptStartedAt = attemptStarted
+			status.AttemptEndedAt = time.Time{}
+			status.AttemptStep = "set_min_ready"
+			status.AttemptError = ""
+			status.AttemptReady = 0
+			status.AttemptFailed = 0
+			status.AttemptTarget = target
+			status.UpdatedAt = attemptStarted
 		})
 
 		causeCtx := ctx
 		if cause, ok := m.startCause(specKey); ok {
 			causeCtx = domain.WithStartCause(ctx, cause)
 		}
-		err := m.scheduler.SetDesiredMinReady(causeCtx, specKey, target)
-		ready, failed, snapshotErr := m.snapshot(ctx, specKey)
+		startSetMinReady := time.Now()
+		m.recordEvent(diagnostics.Event{
+			SpecKey:    specKey,
+			ServerName: serverName,
+			AttemptID:  attemptID,
+			Step:       diagnostics.StepSetMinReady,
+			Phase:      diagnostics.PhaseEnter,
+			Timestamp:  startSetMinReady,
+			Attributes: map[string]string{"target": strconv.Itoa(target)},
+		})
+		err := m.scheduler.SetDesiredMinReady(diagnostics.WithAttemptID(causeCtx, attemptID), specKey, target)
+		setPhase := diagnostics.PhaseExit
+		if err != nil {
+			setPhase = diagnostics.PhaseError
+		}
+		m.recordEvent(diagnostics.Event{
+			SpecKey:    specKey,
+			ServerName: serverName,
+			AttemptID:  attemptID,
+			Step:       diagnostics.StepSetMinReady,
+			Phase:      setPhase,
+			Timestamp:  time.Now(),
+			Duration:   time.Since(startSetMinReady),
+			Error:      errString(err),
+			Attributes: map[string]string{"target": strconv.Itoa(target)},
+		})
+		m.updateStatus(specKey, func(status *domain.ServerInitStatus) {
+			status.AttemptStep = "set_min_ready_done"
+			if err != nil {
+				status.AttemptError = err.Error()
+			}
+			status.UpdatedAt = time.Now()
+		})
+		snapshotStarted := time.Now()
+		m.recordEvent(diagnostics.Event{
+			SpecKey:    specKey,
+			ServerName: serverName,
+			AttemptID:  attemptID,
+			Step:       diagnostics.StepSnapshotDone,
+			Phase:      diagnostics.PhaseEnter,
+			Timestamp:  snapshotStarted,
+		})
+		ready, failed, snapshotErr := m.snapshot(attemptCtx, specKey)
 		if snapshotErr != nil {
 			m.logger.Warn("server init snapshot failed",
 				zap.String("specKey", specKey),
@@ -419,7 +516,42 @@ func (m *Manager) runSpec(ctx context.Context, specKey string) {
 				err = snapshotErr
 			}
 		}
+		snapshotPhase := diagnostics.PhaseExit
+		if snapshotErr != nil {
+			snapshotPhase = diagnostics.PhaseError
+		}
+		m.recordEvent(diagnostics.Event{
+			SpecKey:    specKey,
+			ServerName: serverName,
+			AttemptID:  attemptID,
+			Step:       diagnostics.StepSnapshotDone,
+			Phase:      snapshotPhase,
+			Timestamp:  time.Now(),
+			Duration:   time.Since(snapshotStarted),
+			Error:      errString(snapshotErr),
+			Attributes: map[string]string{
+				"ready":  strconv.Itoa(ready),
+				"failed": strconv.Itoa(failed),
+			},
+		})
+		m.updateStatus(specKey, func(status *domain.ServerInitStatus) {
+			status.AttemptReady = ready
+			status.AttemptFailed = failed
+			status.AttemptStep = "snapshot_done"
+			if err != nil {
+				status.AttemptError = err.Error()
+			}
+			status.UpdatedAt = time.Now()
+		})
 		m.applyResult(specKey, target, ready, failed, err)
+		m.updateStatus(specKey, func(status *domain.ServerInitStatus) {
+			status.AttemptEndedAt = time.Now()
+			status.AttemptStep = "apply_result"
+			if err != nil {
+				status.AttemptError = err.Error()
+			}
+			status.UpdatedAt = time.Now()
+		})
 
 		if ready >= target {
 			m.updateStatus(specKey, func(status *domain.ServerInitStatus) {
@@ -472,10 +604,14 @@ func (m *Manager) runSpec(ctx context.Context, specKey string) {
 		select {
 		case <-ctx.Done():
 			m.updateStatus(specKey, func(status *domain.ServerInitStatus) {
+				now := time.Now()
 				status.State = domain.ServerInitFailed
 				status.LastError = ctx.Err().Error()
 				status.NextRetryAt = time.Time{}
-				status.UpdatedAt = time.Now()
+				status.AttemptEndedAt = now
+				status.AttemptStep = "context_done"
+				status.AttemptError = ctx.Err().Error()
+				status.UpdatedAt = now
 			})
 			return
 		case <-timer.C:
@@ -584,6 +720,30 @@ func (m *Manager) snapshot(ctx context.Context, specKey string) (int, int, error
 		return ready, failed, nil
 	}
 	return 0, 0, nil
+}
+
+func (m *Manager) recordEvent(event diagnostics.Event) {
+	if m == nil || m.probe == nil {
+		return
+	}
+	m.probe.Record(event)
+}
+
+func (m *Manager) specName(specKey string) string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	spec, ok := m.specs[specKey]
+	if !ok {
+		return ""
+	}
+	return spec.Name
+}
+
+func errString(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }
 
 func (m *Manager) updateStatus(specKey string, mutate func(*domain.ServerInitStatus)) {

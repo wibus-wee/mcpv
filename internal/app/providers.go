@@ -23,6 +23,7 @@ import (
 	"mcpv/internal/infra/sampling"
 	"mcpv/internal/infra/scheduler"
 	"mcpv/internal/infra/telemetry"
+	"mcpv/internal/infra/telemetry/diagnostics"
 	"mcpv/internal/infra/transport"
 )
 
@@ -49,29 +50,55 @@ func NewHealthTracker() *telemetry.HealthTracker {
 	return telemetry.NewHealthTracker()
 }
 
+// NewDiagnosticsHub constructs a diagnostics hub for events and logs.
+func NewDiagnosticsHub(ctx context.Context, logs *telemetry.LogBroadcaster) *diagnostics.Hub {
+	return diagnostics.NewHub(ctx, logs, diagnostics.HubOptions{
+		CaptureSensitive: diagnosticsCaptureSensitive(),
+	})
+}
+
+// NewDiagnosticsProbe returns a probe for diagnostics events.
+func NewDiagnosticsProbe(hub *diagnostics.Hub) diagnostics.Probe {
+	if hub == nil {
+		return diagnostics.NoopProbe{}
+	}
+	return hub
+}
+
 // NewListChangeHub constructs a list change hub.
 func NewListChangeHub() *notifications.ListChangeHub {
 	return notifications.NewListChangeHub()
 }
 
 // NewCommandLauncher constructs a launcher for stdio servers.
-func NewCommandLauncher(logger *zap.Logger) domain.Launcher {
-	return transport.NewCommandLauncher(transport.CommandLauncherOptions{Logger: logger})
+func NewCommandLauncher(logger *zap.Logger, probe diagnostics.Probe) domain.Launcher {
+	return transport.NewCommandLauncher(transport.CommandLauncherOptions{
+		Logger: logger,
+		Probe:  probe,
+	})
 }
 
 // NewMCPTransport constructs an MCP transport for stdio servers.
-func NewMCPTransport(logger *zap.Logger, listChanges *notifications.ListChangeHub, samplingHandler domain.SamplingHandler, elicitationHandler domain.ElicitationHandler) domain.Transport {
+func NewMCPTransport(
+	logger *zap.Logger,
+	listChanges *notifications.ListChangeHub,
+	samplingHandler domain.SamplingHandler,
+	elicitationHandler domain.ElicitationHandler,
+	probe diagnostics.Probe,
+) domain.Transport {
 	stdioTransport := transport.NewMCPTransport(transport.MCPTransportOptions{
 		Logger:             logger,
 		ListChangeEmitter:  listChanges,
 		SamplingHandler:    samplingHandler,
 		ElicitationHandler: elicitationHandler,
+		Probe:              probe,
 	})
 	httpTransport := transport.NewStreamableHTTPTransport(transport.StreamableHTTPTransportOptions{
 		Logger:             logger,
 		ListChangeEmitter:  listChanges,
 		SamplingHandler:    samplingHandler,
 		ElicitationHandler: elicitationHandler,
+		Probe:              probe,
 	})
 	return transport.NewCompositeTransport(transport.CompositeTransportOptions{
 		Stdio:          stdioTransport,
@@ -80,8 +107,16 @@ func NewMCPTransport(logger *zap.Logger, listChanges *notifications.ListChangeHu
 }
 
 // NewLifecycleManager constructs the lifecycle manager.
-func NewLifecycleManager(ctx context.Context, launcher domain.Launcher, transport domain.Transport, samplingHandler domain.SamplingHandler, elicitationHandler domain.ElicitationHandler, logger *zap.Logger) domain.Lifecycle {
-	manager := lifecycle.NewManager(ctx, launcher, transport, logger)
+func NewLifecycleManager(
+	ctx context.Context,
+	launcher domain.Launcher,
+	transport domain.Transport,
+	samplingHandler domain.SamplingHandler,
+	elicitationHandler domain.ElicitationHandler,
+	probe diagnostics.Probe,
+	logger *zap.Logger,
+) domain.Lifecycle {
+	manager := lifecycle.NewManager(ctx, launcher, transport, probe, logger)
 	manager.SetSamplingHandler(samplingHandler)
 	manager.SetElicitationHandler(elicitationHandler)
 	return manager
@@ -149,14 +184,16 @@ func NewScheduler(
 	pingProbe *probe.PingProbe,
 	metrics domain.Metrics,
 	health *telemetry.HealthTracker,
+	diagnosticsProbe diagnostics.Probe,
 	logger *zap.Logger,
 ) (domain.Scheduler, error) {
 	summary := state.Summary
 	return scheduler.NewBasicScheduler(lifecycle, summary.SpecRegistry, scheduler.Options{
-		Probe:   pingProbe,
-		Logger:  logger,
-		Metrics: metrics,
-		Health:  health,
+		Probe:            pingProbe,
+		Logger:           logger,
+		Metrics:          metrics,
+		Health:           health,
+		DiagnosticsProbe: diagnosticsProbe,
 	})
 }
 

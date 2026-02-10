@@ -27,5 +27,15 @@ export function ExportDebugSnapshot(): $CancellablePromise<$models.DebugSnapshot
     });
 }
 
+/**
+ * ExportDiagnosticsBundle exports a diagnostics bundle with events, logs, and metrics.
+ */
+export function ExportDiagnosticsBundle(options: $models.DiagnosticsExportOptions): $CancellablePromise<$models.DiagnosticsBundleResponse> {
+    return $Call.ByID(3103041423, options).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = types$0.DebugSnapshotResponse.createFrom;
+const $$createType1 = types$0.DiagnosticsBundleResponse.createFrom;

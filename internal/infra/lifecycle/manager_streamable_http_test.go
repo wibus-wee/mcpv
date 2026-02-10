@@ -12,6 +12,7 @@ import (
 
 	"mcpv/internal/buildinfo"
 	"mcpv/internal/domain"
+	"mcpv/internal/infra/telemetry/diagnostics"
 	"mcpv/internal/infra/transport"
 )
 
@@ -29,7 +30,7 @@ func TestManager_StartInstance_StreamableHTTP(t *testing.T) {
 
 	launcher := &fakeLauncher{}
 	httpTransport := transport.NewStreamableHTTPTransport(transport.StreamableHTTPTransportOptions{})
-	manager := NewManager(context.Background(), launcher, httpTransport, zap.NewNop())
+	manager := NewManager(context.Background(), launcher, httpTransport, diagnostics.NoopProbe{}, zap.NewNop())
 
 	spec := domain.ServerSpec{
 		Name:            "remote",

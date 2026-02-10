@@ -5,12 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.uber.org/zap"
 
 	"mcpv/internal/domain"
+	"mcpv/internal/infra/telemetry/diagnostics"
 )
 
 // StreamableHTTPTransport connects to MCP servers over streamable HTTP.
@@ -19,6 +24,7 @@ type StreamableHTTPTransport struct {
 	listChangeEmitter  domain.ListChangeEmitter
 	samplingHandler    domain.SamplingHandler
 	elicitationHandler domain.ElicitationHandler
+	probe              diagnostics.Probe
 }
 
 // StreamableHTTPTransportOptions configures the streamable HTTP transport.
@@ -27,6 +33,7 @@ type StreamableHTTPTransportOptions struct {
 	ListChangeEmitter  domain.ListChangeEmitter
 	SamplingHandler    domain.SamplingHandler
 	ElicitationHandler domain.ElicitationHandler
+	Probe              diagnostics.Probe
 }
 
 // NewStreamableHTTPTransport creates a streamable HTTP transport for MCP.
@@ -35,26 +42,96 @@ func NewStreamableHTTPTransport(opts StreamableHTTPTransportOptions) *Streamable
 	if logger == nil {
 		logger = zap.NewNop()
 	}
+	probe := opts.Probe
+	if probe == nil {
+		probe = diagnostics.NoopProbe{}
+	}
 	return &StreamableHTTPTransport{
 		logger:             logger,
 		listChangeEmitter:  opts.ListChangeEmitter,
 		samplingHandler:    opts.SamplingHandler,
 		elicitationHandler: opts.ElicitationHandler,
+		probe:              probe,
 	}
 }
 
 // Connect establishes a streamable HTTP connection for the given server spec.
 func (t *StreamableHTTPTransport) Connect(ctx context.Context, specKey string, spec domain.ServerSpec, streams domain.IOStreams) (domain.Conn, error) {
+	started := time.Now()
+	attemptID, _ := diagnostics.AttemptIDFromContext(ctx)
+	baseAttrs := map[string]string{
+		"transport": string(domain.TransportStreamableHTTP),
+	}
 	if spec.HTTP == nil {
+		t.recordEvent(diagnostics.Event{
+			SpecKey:    specKey,
+			ServerName: spec.Name,
+			AttemptID:  attemptID,
+			Step:       diagnostics.StepTransportConnect,
+			Phase:      diagnostics.PhaseError,
+			Timestamp:  time.Now(),
+			Duration:   time.Since(started),
+			Error:      fmt.Errorf("server %s: streamable http config is required", spec.Name).Error(),
+			Attributes: baseAttrs,
+		})
 		return nil, fmt.Errorf("server %s: streamable http config is required", spec.Name)
 	}
 	endpoint := strings.TrimSpace(spec.HTTP.Endpoint)
 	if endpoint == "" {
+		t.recordEvent(diagnostics.Event{
+			SpecKey:    specKey,
+			ServerName: spec.Name,
+			AttemptID:  attemptID,
+			Step:       diagnostics.StepTransportConnect,
+			Phase:      diagnostics.PhaseError,
+			Timestamp:  time.Now(),
+			Duration:   time.Since(started),
+			Error:      fmt.Errorf("server %s: streamable http endpoint is required", spec.Name).Error(),
+			Attributes: baseAttrs,
+		})
 		return nil, fmt.Errorf("server %s: streamable http endpoint is required", spec.Name)
 	}
+	attrs := map[string]string{
+		"transport":    string(domain.TransportStreamableHTTP),
+		"endpointSafe": safeEndpoint(endpoint),
+		"maxRetries":   strconv.Itoa(effectiveMaxRetries(spec.HTTP.MaxRetries)),
+	}
+	if len(spec.HTTP.Headers) > 0 {
+		attrs["headerKeys"] = strings.Join(sortedHeaderKeys(spec.HTTP.Headers), ",")
+		attrs["headerCount"] = strconv.Itoa(len(spec.HTTP.Headers))
+	}
+	sensitive := map[string]string{}
+	if t.captureSensitive() {
+		sensitive["endpoint"] = endpoint
+		if len(spec.HTTP.Headers) > 0 {
+			sensitive["headers"] = diagnostics.EncodeStringMap(spec.HTTP.Headers)
+		}
+	}
+	t.recordEvent(diagnostics.Event{
+		SpecKey:    specKey,
+		ServerName: spec.Name,
+		AttemptID:  attemptID,
+		Step:       diagnostics.StepTransportConnect,
+		Phase:      diagnostics.PhaseEnter,
+		Timestamp:  started,
+		Attributes: attrs,
+		Sensitive:  sensitive,
+	})
 
 	headerTransport, err := buildStreamableHTTPTransport(spec)
 	if err != nil {
+		t.recordEvent(diagnostics.Event{
+			SpecKey:    specKey,
+			ServerName: spec.Name,
+			AttemptID:  attemptID,
+			Step:       diagnostics.StepTransportConnect,
+			Phase:      diagnostics.PhaseError,
+			Timestamp:  time.Now(),
+			Duration:   time.Since(started),
+			Error:      err.Error(),
+			Attributes: attrs,
+			Sensitive:  sensitive,
+		})
 		return nil, err
 	}
 
@@ -71,8 +148,31 @@ func (t *StreamableHTTPTransport) Connect(ctx context.Context, specKey string, s
 	}
 	mcpConn, err := transport.Connect(ctx)
 	if err != nil {
+		t.recordEvent(diagnostics.Event{
+			SpecKey:    specKey,
+			ServerName: spec.Name,
+			AttemptID:  attemptID,
+			Step:       diagnostics.StepTransportConnect,
+			Phase:      diagnostics.PhaseError,
+			Timestamp:  time.Now(),
+			Duration:   time.Since(started),
+			Error:      fmt.Errorf("connect streamable http: %w", err).Error(),
+			Attributes: attrs,
+			Sensitive:  sensitive,
+		})
 		return nil, fmt.Errorf("connect streamable http: %w", err)
 	}
+	t.recordEvent(diagnostics.Event{
+		SpecKey:    specKey,
+		ServerName: spec.Name,
+		AttemptID:  attemptID,
+		Step:       diagnostics.StepTransportConnect,
+		Phase:      diagnostics.PhaseExit,
+		Timestamp:  time.Now(),
+		Duration:   time.Since(started),
+		Attributes: attrs,
+		Sensitive:  sensitive,
+	})
 
 	if streams.Reader != nil || streams.Writer != nil {
 		t.logger.Warn("streamable http transport ignores IO streams",
@@ -149,4 +249,47 @@ func effectiveMaxRetries(value int) int {
 		return domain.DefaultStreamableHTTPMaxRetries
 	}
 	return value
+}
+
+func sortedHeaderKeys(headers map[string]string) []string {
+	if len(headers) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(headers))
+	for key := range headers {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func safeEndpoint(endpoint string) string {
+	parsed, err := url.Parse(endpoint)
+	if err != nil {
+		return endpoint
+	}
+	parsed.User = nil
+	parsed.RawQuery = ""
+	parsed.Fragment = ""
+	return parsed.String()
+}
+
+func (t *StreamableHTTPTransport) recordEvent(event diagnostics.Event) {
+	if t == nil || t.probe == nil {
+		return
+	}
+	if len(event.Sensitive) == 0 {
+		event.Sensitive = nil
+	}
+	t.probe.Record(event)
+}
+
+func (t *StreamableHTTPTransport) captureSensitive() bool {
+	if t == nil || t.probe == nil {
+		return false
+	}
+	if probe, ok := t.probe.(diagnostics.SensitiveProbe); ok {
+		return probe.CaptureSensitive()
+	}
+	return false
 }

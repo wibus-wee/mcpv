@@ -103,6 +103,28 @@ type DebugSnapshotResponse struct {
 	GeneratedAt string          `json:"generatedAt"`
 }
 
+// DiagnosticsExportOptions controls diagnostic bundle export.
+type DiagnosticsExportOptions struct {
+	Mode             string `json:"mode,omitempty"`
+	IncludeSnapshot  bool   `json:"includeSnapshot,omitempty"`
+	IncludeLogs      bool   `json:"includeLogs,omitempty"`
+	IncludeMetrics   bool   `json:"includeMetrics,omitempty"`
+	IncludeEvents    bool   `json:"includeEvents,omitempty"`
+	IncludeStuck     bool   `json:"includeStuck,omitempty"`
+	LogLevel         string `json:"logLevel,omitempty"`
+	LogTimeoutMs     int    `json:"logTimeoutMs,omitempty"`
+	MaxLogEntries    int    `json:"maxLogEntries,omitempty"`
+	MaxEventEntries  int    `json:"maxEventEntries,omitempty"`
+	StuckThresholdMs int    `json:"stuckThresholdMs,omitempty"`
+}
+
+// DiagnosticsBundleResponse returns the diagnostics bundle payload.
+type DiagnosticsBundleResponse struct {
+	Payload     json.RawMessage `json:"payload"`
+	Size        int64           `json:"size"`
+	GeneratedAt string          `json:"generatedAt"`
+}
+
 // StartCoreOptions controls how the core is started in Wails.
 type StartCoreOptions struct {
 	Mode           string `json:"mode,omitempty"`
@@ -314,16 +336,23 @@ type ActiveClient struct {
 // =============================================================================
 
 type ServerInitStatus struct {
-	SpecKey     string `json:"specKey"`
-	ServerName  string `json:"serverName"`
-	MinReady    int    `json:"minReady"`
-	Ready       int    `json:"ready"`
-	Failed      int    `json:"failed"`
-	State       string `json:"state"`
-	LastError   string `json:"lastError,omitempty"`
-	RetryCount  int    `json:"retryCount"`
-	NextRetryAt string `json:"nextRetryAt,omitempty"`
-	UpdatedAt   string `json:"updatedAt"`
+	SpecKey          string `json:"specKey"`
+	ServerName       string `json:"serverName"`
+	MinReady         int    `json:"minReady"`
+	Ready            int    `json:"ready"`
+	Failed           int    `json:"failed"`
+	State            string `json:"state"`
+	LastError        string `json:"lastError,omitempty"`
+	RetryCount       int    `json:"retryCount"`
+	NextRetryAt      string `json:"nextRetryAt,omitempty"`
+	UpdatedAt        string `json:"updatedAt"`
+	AttemptStartedAt string `json:"attemptStartedAt,omitempty"`
+	AttemptEndedAt   string `json:"attemptEndedAt,omitempty"`
+	AttemptStep      string `json:"attemptStep,omitempty"`
+	AttemptError     string `json:"attemptError,omitempty"`
+	AttemptReady     int    `json:"attemptReady,omitempty"`
+	AttemptFailed    int    `json:"attemptFailed,omitempty"`
+	AttemptTarget    int    `json:"attemptTarget,omitempty"`
 }
 
 type RetryServerInitRequest struct {
@@ -349,11 +378,12 @@ type StartCause struct {
 
 // ServerRuntimeStatus contains the runtime status of a server and its instances.
 type ServerRuntimeStatus struct {
-	SpecKey    string           `json:"specKey"`
-	ServerName string           `json:"serverName"`
-	Instances  []InstanceStatus `json:"instances"`
-	Stats      PoolStats        `json:"stats"`
-	Metrics    PoolMetrics      `json:"metrics"`
+	SpecKey     string           `json:"specKey"`
+	ServerName  string           `json:"serverName"`
+	Instances   []InstanceStatus `json:"instances"`
+	Stats       PoolStats        `json:"stats"`
+	Metrics     PoolMetrics      `json:"metrics"`
+	Diagnostics PoolDiagnostics  `json:"diagnostics"`
 }
 
 // InstanceStatus represents the status of a single server instance.
@@ -387,6 +417,20 @@ type PoolMetrics struct {
 	TotalErrors     int64  `json:"totalErrors"`
 	TotalDurationMs int64  `json:"totalDurationMs"`
 	LastCallAt      string `json:"lastCallAt"`
+}
+
+type PoolDiagnostics struct {
+	Starting           int         `json:"starting"`
+	StartInFlight      bool        `json:"startInFlight"`
+	Waiters            int         `json:"waiters"`
+	LastStartAttemptAt string      `json:"lastStartAttemptAt,omitempty"`
+	LastStartError     string      `json:"lastStartError,omitempty"`
+	LastStartErrorAt   string      `json:"lastStartErrorAt,omitempty"`
+	LastAcquireError   string      `json:"lastAcquireError,omitempty"`
+	LastAcquireErrorAt string      `json:"lastAcquireErrorAt,omitempty"`
+	LastAcquireReason  string      `json:"lastAcquireReason,omitempty"`
+	LastStartCause     *StartCause `json:"lastStartCause,omitempty"`
+	LastStartCauseAt   string      `json:"lastStartCauseAt,omitempty"`
 }
 
 // =============================================================================
