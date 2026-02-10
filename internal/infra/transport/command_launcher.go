@@ -16,6 +16,7 @@ import (
 	"go.uber.org/zap"
 
 	"mcpv/internal/domain"
+	"mcpv/internal/infra/process"
 	"mcpv/internal/infra/telemetry"
 	"mcpv/internal/infra/telemetry/diagnostics"
 )
@@ -95,7 +96,7 @@ func (l *CommandLauncher) Start(ctx context.Context, specKey string, spec domain
 		cmd.Dir = spec.Cwd
 	}
 	cmd.Env = append(os.Environ(), formatEnv(spec.Env)...)
-	groupCleanup := setupProcessHandling(cmd)
+	groupCleanup := process.Setup(cmd)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -193,7 +194,7 @@ func (l *CommandLauncher) Start(ctx context.Context, specKey string, spec domain
 		if groupCleanup != nil {
 			groupCleanup()
 		}
-		return waitForProcess(stopCtx, cmd)
+		return process.Wait(stopCtx, cmd)
 	}
 
 	return domain.IOStreams{Reader: stdout, Writer: stdin}, stop, nil

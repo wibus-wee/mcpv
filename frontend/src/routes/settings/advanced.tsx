@@ -244,11 +244,11 @@ function AdvancedSettingsPage() {
               Dock visibility controls are only available on macOS.
             </p>
           )}
-          {trayError && (
+          {trayError ? (
             <p className="text-xs text-destructive">
               Unable to load tray settings.
             </p>
-          )}
+          ) : null}
         </CardContent>
       </Card>
 

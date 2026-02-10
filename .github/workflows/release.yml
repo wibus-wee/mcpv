@@ -43,27 +43,6 @@ jobs:
           VERSION=${{ env.VERSION }} BUILD=${{ env.BUILD }} ./bin/wails3 task darwin:package:universal
         shell: bash
 
-      - name: Build CLI binaries (universal)
-        run: |
-          set -euo pipefail
-          mkdir -p dist
-          LDFLAGS="-X mcpv/internal/buildinfo.Version=${{ env.VERSION }} -X mcpv/internal/buildinfo.Build=${{ env.BUILD }}"
-          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "$LDFLAGS" -o dist/mcpv-amd64 ./cmd/mcpv
-          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "$LDFLAGS" -o dist/mcpv-arm64 ./cmd/mcpv
-          lipo -create -output dist/mcpv dist/mcpv-amd64 dist/mcpv-arm64
-          rm dist/mcpv-amd64 dist/mcpv-arm64
-
-          if [ ! -f bin/mcpvmcp ]; then
-            echo "mcpvmcp not found in bin/ (expected from Wails build)" >&2
-            exit 1
-          fi
-          cp bin/mcpvmcp dist/mcpvmcp
-
-          (cd dist && zip -9 -r "mcpv-${VERSION}-macos-universal.zip" mcpv)
-          (cd dist && zip -9 -r "mcpvmcp-${VERSION}-macos-universal.zip" mcpvmcp)
-          (cd dist && zip -9 -r "mcpv-cli-${VERSION}-macos-universal.zip" mcpv mcpvmcp)
-        shell: bash
-
       - name: Package DMG
         run: |
           chmod +x scripts/release/make-dmg.sh
@@ -75,3 +54,26 @@ jobs:
         with:
           generate_release_notes: true
           files: dist/*
+
+  cli-build:
+    name: Build CLI (matrix)
+    uses: ./.github/workflows/cli-build.yml
+    with:
+      go: true
+
+  publish-cli:
+    name: Publish CLI artifacts
+    runs-on: ubuntu-latest
+    needs:
+      - release
+      - cli-build
+    steps:
+      - name: Download CLI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Publish Release (CLI)
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/**/*.zip

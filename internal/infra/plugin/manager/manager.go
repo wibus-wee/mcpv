@@ -18,8 +18,8 @@ import (
 	"mcpv/internal/domain"
 	"mcpv/internal/infra/plugin/handshake"
 	"mcpv/internal/infra/plugin/instance"
-	"mcpv/internal/infra/plugin/process"
 	"mcpv/internal/infra/plugin/socket"
+	"mcpv/internal/infra/process"
 	"mcpv/internal/infra/telemetry"
 	pluginv1 "mcpv/pkg/api/plugin/v1"
 )
