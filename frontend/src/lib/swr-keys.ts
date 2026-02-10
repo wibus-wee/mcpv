@@ -45,6 +45,11 @@ export const swrKeys = {
   // Plugin-related keys
   pluginList: 'plugin-list',
   pluginMetrics: 'plugin-metrics',
+
+  // UI settings keys
+  uiSettings: 'ui-settings',
+  uiSettingsEffective: 'ui-settings-effective',
+  uiSettingsWorkspaceId: 'ui-settings-workspace-id',
 } as const
 
 export type SwrKey = typeof swrKeys[keyof typeof swrKeys]

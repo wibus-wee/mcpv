@@ -31,6 +31,7 @@ export {
     ProxyFetchResponse,
     RPCConfigDetail,
     RPCTLSConfigDetail,
+    ResetUISettingsRequest,
     ResourceEntry,
     ResourcePage,
     RetryServerInitRequest,
@@ -48,11 +49,16 @@ export {
     SubAgentConfigDetail,
     TogglePluginRequest,
     ToolEntry,
+    UISettingsEffectiveRequest,
+    UISettingsScopeRequest,
+    UISettingsSnapshot,
+    UISettingsWorkspaceIDResponse,
     UpdateCheckOptions,
     UpdateCheckResult,
     UpdateRelease,
     UpdateRuntimeConfigRequest,
     UpdateServerRequest,
     UpdateServerStateRequest,
-    UpdateSubAgentConfigRequest
+    UpdateSubAgentConfigRequest,
+    UpdateUISettingsRequest
 } from "./models.js";

@@ -13,3 +13,4 @@
 - **use-logs.ts**: 日志流缓存 hooks 与日志类型定义
 - **use-mobile.ts**: 设备尺寸判断的响应式 hooks
 - **use-resizable.ts**: 面板拖拽调整尺寸的通用 hooks
+- **use-ui-settings.ts**: UI settings 的 SWR hooks 与更新/重置封装

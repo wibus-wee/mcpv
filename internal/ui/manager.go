@@ -14,6 +14,7 @@ import (
 	"mcpv/internal/app/controlplane"
 	"mcpv/internal/ui/events"
 	"mcpv/internal/ui/types"
+	"mcpv/internal/ui/uiconfig"
 )
 
 // CoreState represents the lifecycle state of the Core.
@@ -53,6 +54,9 @@ type Manager struct {
 
 	// Update checker
 	updateChecker *UpdateChecker
+
+	// UI settings store
+	uiSettings *uiconfig.Store
 }
 
 // NewManager creates a new Manager instance.
@@ -390,6 +394,8 @@ func (m *Manager) Restart(ctx context.Context) error {
 func (m *Manager) Shutdown() {
 	m.mu.Lock()
 	updateChecker := m.updateChecker
+	uiSettings := m.uiSettings
+	m.uiSettings = nil
 
 	// Cancel all watchers
 	m.state.CancelAllWatches()
@@ -404,6 +410,9 @@ func (m *Manager) Shutdown() {
 	}
 	m.mu.Unlock()
 
+	if uiSettings != nil {
+		_ = uiSettings.Close()
+	}
 	if updateChecker != nil {
 		updateChecker.Stop()
 	}
@@ -501,6 +510,36 @@ func (m *Manager) UpdateChecker() *UpdateChecker {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.updateChecker
+}
+
+// UISettingsStore returns the UI settings store, initializing it on demand.
+func (m *Manager) UISettingsStore() (*uiconfig.Store, error) {
+	if m == nil {
+		return nil, errors.New("manager is nil")
+	}
+	m.mu.RLock()
+	store := m.uiSettings
+	m.mu.RUnlock()
+	if store != nil {
+		return store, nil
+	}
+
+	path := uiconfig.ResolveDefaultPath()
+	opened, err := uiconfig.OpenStore(path)
+	if err != nil {
+		return nil, err
+	}
+
+	m.mu.Lock()
+	if m.uiSettings == nil {
+		m.uiSettings = opened
+		m.mu.Unlock()
+		return opened, nil
+	}
+	existing := m.uiSettings
+	m.mu.Unlock()
+	_ = opened.Close()
+	return existing, nil
 }
 
 func (m *Manager) ReloadConfig(ctx context.Context) error {

@@ -66,6 +66,9 @@ export type ProxyFetchRequest = types$0.ProxyFetchRequest;
 export const ProxyFetchResponse = types$0.ProxyFetchResponse;
 export type ProxyFetchResponse = types$0.ProxyFetchResponse;
 
+export const ResetUISettingsRequest = types$0.ResetUISettingsRequest;
+export type ResetUISettingsRequest = types$0.ResetUISettingsRequest;
+
 export const ResourcePage = types$0.ResourcePage;
 export type ResourcePage = types$0.ResourcePage;
 
@@ -102,6 +105,18 @@ export type TogglePluginRequest = types$0.TogglePluginRequest;
 export const ToolEntry = types$0.ToolEntry;
 export type ToolEntry = types$0.ToolEntry;
 
+export const UISettingsEffectiveRequest = types$0.UISettingsEffectiveRequest;
+export type UISettingsEffectiveRequest = types$0.UISettingsEffectiveRequest;
+
+export const UISettingsScopeRequest = types$0.UISettingsScopeRequest;
+export type UISettingsScopeRequest = types$0.UISettingsScopeRequest;
+
+export const UISettingsSnapshot = types$0.UISettingsSnapshot;
+export type UISettingsSnapshot = types$0.UISettingsSnapshot;
+
+export const UISettingsWorkspaceIDResponse = types$0.UISettingsWorkspaceIDResponse;
+export type UISettingsWorkspaceIDResponse = types$0.UISettingsWorkspaceIDResponse;
+
 export const UpdateCheckOptions = types$0.UpdateCheckOptions;
 export type UpdateCheckOptions = types$0.UpdateCheckOptions;
 
@@ -119,3 +134,6 @@ export type UpdateServerStateRequest = types$0.UpdateServerStateRequest;
 
 export const UpdateSubAgentConfigRequest = types$0.UpdateSubAgentConfigRequest;
 export type UpdateSubAgentConfigRequest = types$0.UpdateSubAgentConfigRequest;
+
+export const UpdateUISettingsRequest = types$0.UpdateUISettingsRequest;
+export type UpdateUISettingsRequest = types$0.UpdateUISettingsRequest;

@@ -50,6 +50,50 @@ type ConfigModeResponse struct {
 	IsWritable bool   `json:"isWritable"` // Whether the config is writable
 }
 
+// =============================================================================
+// UI Settings Types
+// =============================================================================
+
+// UISettingsScopeRequest identifies which settings scope to load.
+type UISettingsScopeRequest struct {
+	Scope       string `json:"scope"`                 // "global" or "workspace"
+	WorkspaceID string `json:"workspaceId,omitempty"` // Optional, derived from config path when empty
+}
+
+// UISettingsEffectiveRequest describes effective settings resolution.
+type UISettingsEffectiveRequest struct {
+	WorkspaceID string `json:"workspaceId,omitempty"`
+}
+
+// UISettingsSnapshot represents a settings payload for the frontend.
+type UISettingsSnapshot struct {
+	Scope       string                     `json:"scope"`
+	WorkspaceID string                     `json:"workspaceId,omitempty"`
+	Version     int                        `json:"version"`
+	UpdatedAt   string                     `json:"updatedAt,omitempty"`
+	Sections    map[string]json.RawMessage `json:"sections"`
+}
+
+// UpdateUISettingsRequest applies partial updates to a scope.
+type UpdateUISettingsRequest struct {
+	Scope       string                     `json:"scope"`
+	WorkspaceID string                     `json:"workspaceId,omitempty"`
+	Updates     map[string]json.RawMessage `json:"updates,omitempty"`
+	Removes     []string                   `json:"removes,omitempty"`
+}
+
+// ResetUISettingsRequest clears settings for a scope.
+type ResetUISettingsRequest struct {
+	Scope       string `json:"scope"`
+	WorkspaceID string `json:"workspaceId,omitempty"`
+}
+
+// UISettingsWorkspaceIDResponse returns the workspace id derived from config path.
+type UISettingsWorkspaceIDResponse struct {
+	WorkspaceID string `json:"workspaceId"`
+	ConfigPath  string `json:"configPath,omitempty"`
+}
+
 // CoreStateResponse is the core lifecycle status for the frontend.
 type CoreStateResponse struct {
 	State  string `json:"state"`

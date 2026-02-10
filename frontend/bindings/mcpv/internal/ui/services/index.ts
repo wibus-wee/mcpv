@@ -13,6 +13,7 @@ import * as RuntimeService from "./runtimeservice.js";
 import * as ServerService from "./serverservice.js";
 import * as SubAgentService from "./subagentservice.js";
 import * as SystemService from "./systemservice.js";
+import * as UISettingsService from "./uisettingsservice.js";
 export {
     ConfigService,
     CoreService,
@@ -25,7 +26,8 @@ export {
     RuntimeService,
     ServerService,
     SubAgentService,
-    SystemService
+    SystemService,
+    UISettingsService
 };
 
 export {
@@ -48,6 +50,7 @@ export {
     PromptPage,
     ProxyFetchRequest,
     ProxyFetchResponse,
+    ResetUISettingsRequest,
     ResourcePage,
     RetryServerInitRequest,
     RuntimeConfigDetail,
@@ -60,10 +63,15 @@ export {
     SubAgentConfigDetail,
     TogglePluginRequest,
     ToolEntry,
+    UISettingsEffectiveRequest,
+    UISettingsScopeRequest,
+    UISettingsSnapshot,
+    UISettingsWorkspaceIDResponse,
     UpdateCheckOptions,
     UpdateCheckResult,
     UpdateRuntimeConfigRequest,
     UpdateServerRequest,
     UpdateServerStateRequest,
-    UpdateSubAgentConfigRequest
+    UpdateSubAgentConfigRequest,
+    UpdateUISettingsRequest
 } from "./models.js";

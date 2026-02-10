@@ -11,6 +11,7 @@ import (
 	"mcpv/internal/app/controlplane"
 	catalogeditor "mcpv/internal/infra/catalog/editor"
 	"mcpv/internal/ui"
+	"mcpv/internal/ui/uiconfig"
 )
 
 // ServiceDeps holds shared dependencies for Wails services.
@@ -121,4 +122,16 @@ func (d *ServiceDeps) updateChecker() (*ui.UpdateChecker, error) {
 		return nil, ui.NewError(ui.ErrCodeInternal, "Update checker not initialized")
 	}
 	return checker, nil
+}
+
+func (d *ServiceDeps) uiSettingsStore() (*uiconfig.Store, error) {
+	manager := d.manager()
+	if manager == nil {
+		return nil, ui.NewError(ui.ErrCodeInternal, "Manager not initialized")
+	}
+	store, err := manager.UISettingsStore()
+	if err != nil {
+		return nil, ui.NewErrorWithDetails(ui.ErrCodeInternal, "Failed to open UI settings store", err.Error())
+	}
+	return store, nil
 }

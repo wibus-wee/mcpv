@@ -1107,6 +1107,31 @@ export class RPCTLSConfigDetail {
 }
 
 /**
+ * ResetUISettingsRequest clears settings for a scope.
+ */
+export class ResetUISettingsRequest {
+    "scope": string;
+    "workspaceId"?: string;
+
+    /** Creates a new ResetUISettingsRequest instance. */
+    constructor($$source: Partial<ResetUISettingsRequest> = {}) {
+        if (!("scope" in $$source)) {
+            this["scope"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ResetUISettingsRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ResetUISettingsRequest {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ResetUISettingsRequest($$parsedSource as Partial<ResetUISettingsRequest>);
+    }
+}
+
+/**
  * ResourceEntry represents a single resource for the frontend.
  */
 export class ResourceEntry {
@@ -1853,6 +1878,122 @@ export class ToolEntry {
 }
 
 /**
+ * UISettingsEffectiveRequest describes effective settings resolution.
+ */
+export class UISettingsEffectiveRequest {
+    "workspaceId"?: string;
+
+    /** Creates a new UISettingsEffectiveRequest instance. */
+    constructor($$source: Partial<UISettingsEffectiveRequest> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UISettingsEffectiveRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UISettingsEffectiveRequest {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UISettingsEffectiveRequest($$parsedSource as Partial<UISettingsEffectiveRequest>);
+    }
+}
+
+/**
+ * UISettingsScopeRequest identifies which settings scope to load.
+ */
+export class UISettingsScopeRequest {
+    /**
+     * "global" or "workspace"
+     */
+    "scope": string;
+
+    /**
+     * Optional, derived from config path when empty
+     */
+    "workspaceId"?: string;
+
+    /** Creates a new UISettingsScopeRequest instance. */
+    constructor($$source: Partial<UISettingsScopeRequest> = {}) {
+        if (!("scope" in $$source)) {
+            this["scope"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UISettingsScopeRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UISettingsScopeRequest {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UISettingsScopeRequest($$parsedSource as Partial<UISettingsScopeRequest>);
+    }
+}
+
+/**
+ * UISettingsSnapshot represents a settings payload for the frontend.
+ */
+export class UISettingsSnapshot {
+    "scope": string;
+    "workspaceId"?: string;
+    "version": number;
+    "updatedAt"?: string;
+    "sections": { [_ in string]?: json$0.RawMessage };
+
+    /** Creates a new UISettingsSnapshot instance. */
+    constructor($$source: Partial<UISettingsSnapshot> = {}) {
+        if (!("scope" in $$source)) {
+            this["scope"] = "";
+        }
+        if (!("version" in $$source)) {
+            this["version"] = 0;
+        }
+        if (!("sections" in $$source)) {
+            this["sections"] = {};
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UISettingsSnapshot instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UISettingsSnapshot {
+        const $$createField4_0 = $$createType29;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("sections" in $$parsedSource) {
+            $$parsedSource["sections"] = $$createField4_0($$parsedSource["sections"]);
+        }
+        return new UISettingsSnapshot($$parsedSource as Partial<UISettingsSnapshot>);
+    }
+}
+
+/**
+ * UISettingsWorkspaceIDResponse returns the workspace id derived from config path.
+ */
+export class UISettingsWorkspaceIDResponse {
+    "workspaceId": string;
+    "configPath"?: string;
+
+    /** Creates a new UISettingsWorkspaceIDResponse instance. */
+    constructor($$source: Partial<UISettingsWorkspaceIDResponse> = {}) {
+        if (!("workspaceId" in $$source)) {
+            this["workspaceId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UISettingsWorkspaceIDResponse instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UISettingsWorkspaceIDResponse {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UISettingsWorkspaceIDResponse($$parsedSource as Partial<UISettingsWorkspaceIDResponse>);
+    }
+}
+
+/**
  * UpdateCheckOptions controls update polling behavior.
  */
 export class UpdateCheckOptions {
@@ -1904,7 +2045,7 @@ export class UpdateCheckResult {
      * Creates a new UpdateCheckResult instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateCheckResult {
-        const $$createField2_0 = $$createType30;
+        const $$createField2_0 = $$createType31;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("latest" in $$parsedSource) {
             $$parsedSource["latest"] = $$createField2_0($$parsedSource["latest"]);
@@ -2137,6 +2278,41 @@ export class UpdateSubAgentConfigRequest {
     }
 }
 
+/**
+ * UpdateUISettingsRequest applies partial updates to a scope.
+ */
+export class UpdateUISettingsRequest {
+    "scope": string;
+    "workspaceId"?: string;
+    "updates"?: { [_ in string]?: json$0.RawMessage };
+    "removes"?: string[];
+
+    /** Creates a new UpdateUISettingsRequest instance. */
+    constructor($$source: Partial<UpdateUISettingsRequest> = {}) {
+        if (!("scope" in $$source)) {
+            this["scope"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateUISettingsRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateUISettingsRequest {
+        const $$createField2_0 = $$createType29;
+        const $$createField3_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("updates" in $$parsedSource) {
+            $$parsedSource["updates"] = $$createField2_0($$parsedSource["updates"]);
+        }
+        if ("removes" in $$parsedSource) {
+            $$parsedSource["removes"] = $$createField3_0($$parsedSource["removes"]);
+        }
+        return new UpdateUISettingsRequest($$parsedSource as Partial<UpdateUISettingsRequest>);
+    }
+}
+
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = $Create.Map($Create.Any, $Create.Any);
@@ -2167,5 +2343,6 @@ const $$createType25 = PoolMetrics.createFrom;
 const $$createType26 = PoolDiagnostics.createFrom;
 const $$createType27 = StartCausePolicy.createFrom;
 const $$createType28 = $Create.Nullable($$createType27);
-const $$createType29 = UpdateRelease.createFrom;
-const $$createType30 = $Create.Nullable($$createType29);
+const $$createType29 = $Create.Map($Create.Any, $Create.Any);
+const $$createType30 = UpdateRelease.createFrom;
+const $$createType31 = $Create.Nullable($$createType30);
