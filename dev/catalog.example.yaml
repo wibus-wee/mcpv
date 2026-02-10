@@ -16,6 +16,8 @@ exposeTools: true
 toolNamespaceStrategy: "prefix"
 observability:
   listenAddress: "0.0.0.0:9090"
+  # metricsEnabled: true
+  # healthzEnabled: true
 # rpc:
 #   listenAddress: "tcp://127.0.0.1:7090"
 #   maxRecvMsgSize: 16777216
@@ -165,4 +167,3 @@ plugins:
     flows: ["request", "response"]
     config:
       logDestination: stdout
-
