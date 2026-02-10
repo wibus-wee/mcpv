@@ -112,6 +112,21 @@ func (a *Application) Run() error {
 		a.startup.StartInit(a.ctx)
 	}
 
+	metricsEnabled, healthzEnabled := resolveObservabilityDefaults(a.observability)
+	obsController := telemetry.NewObservabilityController(telemetry.ObservabilityControllerOptions{
+		DefaultMetricsEnabled: metricsEnabled,
+		DefaultHealthzEnabled: healthzEnabled,
+		Registry:              a.registry,
+		Health:                a.health,
+		Logger:                a.logger,
+	})
+	if a.reloadManager != nil {
+		a.reloadManager.SetObservabilityController(obsController)
+	}
+	if err := obsController.Apply(a.ctx, a.summary.Runtime.Observability); err != nil {
+		a.logger.Warn("observability apply failed", zap.Error(err))
+	}
+
 	if a.reloadManager != nil {
 		if err := a.reloadManager.Start(a.ctx); err != nil {
 			a.logger.Warn("reload manager start failed", zap.Error(err))
@@ -132,32 +147,6 @@ func (a *Application) Run() error {
 	}
 
 	a.controlPlane.StartClientMonitor(a.ctx)
-
-	metricsEnabled := envBool("mcpv_METRICS_ENABLED")
-	healthzEnabled := envBool("mcpv_HEALTHZ_ENABLED")
-	if a.observability != nil {
-		if a.observability.MetricsEnabled != nil {
-			metricsEnabled = *a.observability.MetricsEnabled
-		}
-		if a.observability.HealthzEnabled != nil {
-			healthzEnabled = *a.observability.HealthzEnabled
-		}
-	}
-	if metricsEnabled || healthzEnabled {
-		go func() {
-			addr := a.summary.Runtime.Observability.ListenAddress
-			a.logger.Info("starting observability server", zap.String("addr", addr))
-			if err := telemetry.StartHTTPServer(a.ctx, telemetry.HTTPServerOptions{
-				Addr:          addr,
-				EnableMetrics: metricsEnabled,
-				EnableHealthz: healthzEnabled,
-				Health:        a.health,
-				Registry:      a.registry,
-			}, a.logger); err != nil {
-				a.logger.Error("observability server failed", zap.Error(err))
-			}
-		}()
-	}
 
 	a.scheduler.StartIdleManager(defaultIdleManagerInterval)
 	if interval := a.summary.Runtime.PingInterval(); interval > 0 {

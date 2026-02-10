@@ -101,6 +101,27 @@ export const RuntimeSettingsCard = ({
               />
             </SettingsCard.Section>
 
+            <SettingsCard.Section title="Observability">
+              <SettingsCard.TextField<RuntimeFormState>
+                name="observabilityListenAddress"
+                label="Listen Address"
+                description="Bind address for /metrics and /healthz"
+                help={RUNTIME_FIELD_HELP.observabilityListenAddress}
+              />
+              <SettingsCard.SwitchField<RuntimeFormState>
+                name="observabilityMetricsEnabled"
+                label="Metrics Endpoint"
+                description="Expose Prometheus metrics at /metrics"
+                help={RUNTIME_FIELD_HELP.observabilityMetricsEnabled}
+              />
+              <SettingsCard.SwitchField<RuntimeFormState>
+                name="observabilityHealthzEnabled"
+                label="Healthz Endpoint"
+                description="Expose health checks at /healthz"
+                help={RUNTIME_FIELD_HELP.observabilityHealthzEnabled}
+              />
+            </SettingsCard.Section>
+
             <SettingsCard.Section title="Advanced">
               <SettingsCard.NumberField<RuntimeFormState>
                 name="bootstrapConcurrency"

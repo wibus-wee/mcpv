@@ -113,4 +113,26 @@ export const RUNTIME_FIELD_HELP: Record<string, FieldHelpContent> = {
       'Use prefix when multiple servers expose similarly named tools.',
     ],
   },
+  observabilityListenAddress: {
+    id: 'observabilityListenAddress',
+    title: 'Observability listen address',
+    summary: 'Bind address for metrics and health endpoints.',
+    details: 'Applies to /metrics and /healthz. Use host:port, for example 0.0.0.0:9090.',
+    tips: [
+      'Use 127.0.0.1 for local-only access.',
+      'Ensure the port is free before enabling endpoints.',
+    ],
+  },
+  observabilityMetricsEnabled: {
+    id: 'observabilityMetricsEnabled',
+    title: 'Metrics endpoint',
+    summary: 'Expose Prometheus metrics at /metrics.',
+    details: 'Enable this to export runtime metrics to Prometheus and Grafana.',
+  },
+  observabilityHealthzEnabled: {
+    id: 'observabilityHealthzEnabled',
+    title: 'Healthz endpoint',
+    summary: 'Expose health checks at /healthz.',
+    details: 'Enable this to monitor core loop health and receive a JSON report.',
+  },
 }

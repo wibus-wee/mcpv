@@ -611,6 +611,8 @@ export class McpTransferRequest {
  */
 export class ObservabilityConfigDetail {
     "listenAddress": string;
+    "metricsEnabled"?: boolean | null;
+    "healthzEnabled"?: boolean | null;
 
     /** Creates a new ObservabilityConfigDetail instance. */
     constructor($$source: Partial<ObservabilityConfigDetail> = {}) {
@@ -2108,6 +2110,9 @@ export class UpdateRuntimeConfigRequest {
     "defaultActivationMode": string;
     "exposeTools": boolean;
     "toolNamespaceStrategy": string;
+    "observabilityListenAddress": string;
+    "observabilityMetricsEnabled": boolean;
+    "observabilityHealthzEnabled": boolean;
 
     /** Creates a new UpdateRuntimeConfigRequest instance. */
     constructor($$source: Partial<UpdateRuntimeConfigRequest> = {}) {
@@ -2158,6 +2163,15 @@ export class UpdateRuntimeConfigRequest {
         }
         if (!("toolNamespaceStrategy" in $$source)) {
             this["toolNamespaceStrategy"] = "";
+        }
+        if (!("observabilityListenAddress" in $$source)) {
+            this["observabilityListenAddress"] = "";
+        }
+        if (!("observabilityMetricsEnabled" in $$source)) {
+            this["observabilityMetricsEnabled"] = false;
+        }
+        if (!("observabilityHealthzEnabled" in $$source)) {
+            this["observabilityHealthzEnabled"] = false;
         }
 
         Object.assign(this, $$source);

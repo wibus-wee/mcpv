@@ -20,7 +20,7 @@
 - **spring.ts**: 动画弹簧参数预设
 - **spring.test.ts**: spring.ts 的单元测试
 - **swr-config.ts**: SWR 预设与共享配置
-- **swr-keys.ts**: SWR key 常量定义
+- **swr-keys.ts**: SWR key 常量定义（含 runtime config）
 - **time.ts**: 时间格式化与时间差计算工具
 - **time.test.ts**: time.ts 的单元测试
 - **tool-names.ts**: 工具名展示与命名空间处理

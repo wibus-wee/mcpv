@@ -201,7 +201,9 @@ type RuntimeConfigDetail struct {
 
 // ObservabilityConfigDetail for frontend.
 type ObservabilityConfigDetail struct {
-	ListenAddress string `json:"listenAddress"`
+	ListenAddress  string `json:"listenAddress"`
+	MetricsEnabled *bool  `json:"metricsEnabled,omitempty"`
+	HealthzEnabled *bool  `json:"healthzEnabled,omitempty"`
 }
 
 // RPCConfigDetail for frontend.

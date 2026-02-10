@@ -1,3 +1,7 @@
+// Input: RuntimeConfigDetail from bindings
+// Output: Runtime settings form state, defaults, and mappers
+// Position: Settings module runtime config normalization
+
 import type { RuntimeConfigDetail } from '@bindings/mcpv/internal/ui/types'
 
 export const BOOTSTRAP_MODE_OPTIONS = [
@@ -47,6 +51,9 @@ export type RuntimeFormState = {
   defaultActivationMode: string
   exposeTools: boolean
   toolNamespaceStrategy: string
+  observabilityListenAddress: string
+  observabilityMetricsEnabled: boolean
+  observabilityHealthzEnabled: boolean
 }
 
 export const DEFAULT_RUNTIME_FORM: RuntimeFormState = {
@@ -66,6 +73,9 @@ export const DEFAULT_RUNTIME_FORM: RuntimeFormState = {
   defaultActivationMode: 'on-demand',
   exposeTools: false,
   toolNamespaceStrategy: 'prefix',
+  observabilityListenAddress: '',
+  observabilityMetricsEnabled: false,
+  observabilityHealthzEnabled: false,
 }
 
 export const toRuntimeFormState = (runtime: RuntimeConfigDetail): RuntimeFormState => ({
@@ -85,4 +95,7 @@ export const toRuntimeFormState = (runtime: RuntimeConfigDetail): RuntimeFormSta
   defaultActivationMode: runtime.defaultActivationMode || 'on-demand',
   exposeTools: runtime.exposeTools,
   toolNamespaceStrategy: runtime.toolNamespaceStrategy || 'prefix',
+  observabilityListenAddress: runtime.observability.listenAddress,
+  observabilityMetricsEnabled: runtime.observability.metricsEnabled ?? false,
+  observabilityHealthzEnabled: runtime.observability.healthzEnabled ?? false,
 })

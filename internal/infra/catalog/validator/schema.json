@@ -108,6 +108,12 @@
       "properties": {
         "listenAddress": {
           "type": "string"
+        },
+        "metricsEnabled": {
+          "type": "boolean"
+        },
+        "healthzEnabled": {
+          "type": "boolean"
         }
       }
     },

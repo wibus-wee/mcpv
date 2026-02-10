@@ -12,12 +12,14 @@ func TestDiffRuntimeConfig_DynamicFields(t *testing.T) {
 		ToolRefreshConcurrency: 2,
 		ExposeTools:            true,
 		ToolNamespaceStrategy:  ToolNamespaceStrategyPrefix,
+		Observability:          ObservabilityConfig{ListenAddress: "127.0.0.1:9090"},
 	}
 	next := prev
 	next.RouteTimeoutSeconds = 10
 	next.ToolRefreshConcurrency = 4
 	next.ExposeTools = false
 	next.ToolNamespaceStrategy = ToolNamespaceStrategyFlat
+	next.Observability.ListenAddress = "127.0.0.1:9091"
 
 	diff := DiffRuntimeConfig(prev, next)
 
@@ -26,6 +28,7 @@ func TestDiffRuntimeConfig_DynamicFields(t *testing.T) {
 	require.Contains(t, diff.DynamicFields, "toolRefreshConcurrency")
 	require.Contains(t, diff.DynamicFields, "exposeTools")
 	require.Contains(t, diff.DynamicFields, "toolNamespaceStrategy")
+	require.Contains(t, diff.DynamicFields, "observability")
 	require.False(t, diff.IsEmpty())
 	require.False(t, diff.RequiresRestart())
 }
@@ -53,7 +56,6 @@ func TestDiffRuntimeConfig_RestartRequiredFields(t *testing.T) {
 
 	diff := DiffRuntimeConfig(prev, next)
 
-	require.Contains(t, diff.RestartRequiredFields, "observability")
 	require.Contains(t, diff.RestartRequiredFields, "rpc")
 	require.Contains(t, diff.RestartRequiredFields, "subAgent")
 	require.Contains(t, diff.RestartRequiredFields, "bootstrapMode")

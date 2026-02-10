@@ -8,5 +8,5 @@ Settings 模块的数据获取与保存逻辑集中于此。
 
 ## Files
 
-- **use-runtime-settings.ts**: Runtime 配置加载与保存处理（包含保存埋点）
+- **use-runtime-settings.ts**: Runtime 配置加载与保存处理（含 observability 与保存埋点）
 - **use-subagent-settings.ts**: SubAgent 配置加载、模型拉取与保存处理（包含埋点）

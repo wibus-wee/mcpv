@@ -30,6 +30,7 @@ type ReloadManager struct {
 	pipeline      *pipeline.Engine
 	metrics       domain.Metrics
 	health        *telemetry.HealthTracker
+	observability *telemetry.ObservabilityController
 	metadataCache *domain.MetadataCache
 	listChanges   *notifications.ListChangeHub
 	coreLogger    *zap.Logger
@@ -93,6 +94,14 @@ func (m *ReloadManager) Start(ctx context.Context) error {
 	m.started.Store(true)
 	go m.run(ctx, updates)
 	return nil
+}
+
+// SetObservabilityController attaches the observability controller for runtime updates.
+func (m *ReloadManager) SetObservabilityController(controller *telemetry.ObservabilityController) {
+	if m == nil {
+		return
+	}
+	m.observability = controller
 }
 
 // Reload forces a catalog reload and waits for application.
@@ -388,6 +397,11 @@ func (m *ReloadManager) applyRuntimeConfig(ctx context.Context, prev, next domai
 	if runtime != nil {
 		if err := runtime.ApplyRuntimeConfig(ctx, prev, next); err != nil {
 			return err
+		}
+	}
+	if m.observability != nil {
+		if err := m.observability.Apply(ctx, next.Observability); err != nil {
+			m.logger.Warn("observability apply failed", zap.Error(err))
 		}
 	}
 	if m.registry != nil && prev.ClientCheckInterval() != next.ClientCheckInterval() {

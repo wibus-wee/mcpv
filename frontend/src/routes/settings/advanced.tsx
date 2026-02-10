@@ -66,13 +66,6 @@ function AdvancedSettingsPage() {
         includePrerelease: checked,
       })
       mutateUpdateOptions(next, { revalidate: false })
-      toastManager.add({
-        type: 'success',
-        title: 'Update preference saved',
-        description: checked
-          ? 'Pre-release updates are now enabled.'
-          : 'Only stable releases will be shown.',
-      })
     }
     catch (err) {
       toastManager.add({
@@ -86,11 +79,6 @@ function AdvancedSettingsPage() {
   const handleTrayUpdate = useCallback(async (next: typeof traySettings) => {
     try {
       await updateTraySettings(next)
-      toastManager.add({
-        type: 'success',
-        title: 'Tray preferences saved',
-        description: 'Tray settings are now applied.',
-      })
     }
     catch (err) {
       toastManager.add({

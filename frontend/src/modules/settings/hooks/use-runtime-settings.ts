@@ -10,6 +10,8 @@ import useSWR, { useSWRConfig } from 'swr'
 
 import { toastManager } from '@/components/ui/toast'
 import { AnalyticsEvents, track } from '@/lib/analytics'
+import { swrPresets } from '@/lib/swr-config'
+import { swrKeys } from '@/lib/swr-keys'
 import { reloadConfig } from '@/modules/servers/lib/reload-config'
 
 import type { RuntimeFormState } from '../lib/runtime-config'
@@ -36,9 +38,9 @@ export const useRuntimeSettings = ({ canEdit }: UseRuntimeSettingsOptions) => {
     isLoading: runtimeLoading,
     mutate: mutateRuntime,
   } = useSWR<RuntimeConfigDetail>(
-    'runtime-config',
+    swrKeys.runtimeConfig,
     () => ConfigService.GetRuntimeConfig(),
-    { revalidateOnFocus: false },
+    swrPresets.longCached,
   )
 
   const runtimeSnapshotRef = useRef<string | null>(null)
@@ -111,7 +113,7 @@ export const useRuntimeSettings = ({ canEdit }: UseRuntimeSettingsOptions) => {
 
       await Promise.all([
         mutateRuntime(),
-        mutate('runtime-status'),
+        mutate(swrKeys.runtimeStatus),
       ])
       reset(values, { keepDirty: false })
 

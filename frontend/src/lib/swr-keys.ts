@@ -27,6 +27,7 @@ export const swrKeys = {
 
   // Config-related keys
   configMode: 'config-mode',
+  runtimeConfig: 'runtime-config',
 
   // Discovery-related keys
   tools: 'tools',

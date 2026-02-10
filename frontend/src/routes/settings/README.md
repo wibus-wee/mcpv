@@ -2,10 +2,14 @@
 
 # Routes/Settings
 
-预留给 settings 的嵌套路由。
-当设置需要子路由时在此添加路由文件。
-当前目录为空。
+Settings 相关子路由目录。
+包含 Runtime、SubAgent、Appearance 与 Advanced 设置页。
+每个路由文件仅负责装配页面组件。
 
 ## Files
 
-- （无）
+- **index.tsx**: Settings 首页路由
+- **appearance.tsx**: Appearance 设置路由
+- **runtime.tsx**: Runtime 设置路由
+- **subagent.tsx**: SubAgent 设置路由
+- **advanced.tsx**: Advanced 设置路由

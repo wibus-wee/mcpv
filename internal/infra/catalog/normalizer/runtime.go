@@ -144,7 +144,9 @@ func normalizeObservabilityConfig(cfg RawObservabilityConfig) (domain.Observabil
 		addr = domain.DefaultObservabilityListenAddress
 	}
 	return domain.ObservabilityConfig{
-		ListenAddress: addr,
+		ListenAddress:  addr,
+		MetricsEnabled: cfg.MetricsEnabled,
+		HealthzEnabled: cfg.HealthzEnabled,
 	}, nil
 }
 

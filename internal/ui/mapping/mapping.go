@@ -329,7 +329,9 @@ func MapRuntimeConfigDetail(cfg domain.RuntimeConfig) types.RuntimeConfigDetail 
 		ExposeTools:                cfg.ExposeTools,
 		ToolNamespaceStrategy:      string(cfg.ToolNamespaceStrategy),
 		Observability: types.ObservabilityConfigDetail{
-			ListenAddress: cfg.Observability.ListenAddress,
+			ListenAddress:  cfg.Observability.ListenAddress,
+			MetricsEnabled: cfg.Observability.MetricsEnabled,
+			HealthzEnabled: cfg.Observability.HealthzEnabled,
 		},
 		RPC: types.RPCConfigDetail{
 			ListenAddress:           cfg.RPC.ListenAddress,
