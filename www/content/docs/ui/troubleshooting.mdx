@@ -1,0 +1,26 @@
+---
+title: Troubleshooting
+description: Simple fixes for the most common issues.
+---
+
+Most problems show up as a status change. MCPV UI tries to explain what it sees, so start there and follow the hint it gives you.
+
+
+## The core is not connected
+If the dashboard shows the core as offline, start it from the UI prompt. Once it is online, the status card turns healthy and the rest of the UI unlocks. If it flips back to offline, something else on the machine is competing for the same port or the core process is failing early.
+
+
+## A server will not start
+Open the server details and check its command and working directory. If those are correct, use the last error shown in the UI as the source of truth. MCPV is only the orchestrator here, so the fix usually lives inside the server process itself.
+
+
+## Tools are missing
+Tools only appear after a server has exposed them. Make sure the server is reachable and that its tags match the client you are using. A refresh on the Servers page usually clears stale data.
+
+
+## Changes do not apply
+If the configuration is read-only, the UI will show a warning. Switch to a writable configuration mode, save again, and then reload. Configuration changes are deliberate, so MCPV will not silently overwrite files it cannot edit.
+
+<Callout type="warning" title="If in doubt, keep it simple">
+  Revert to the last known working server configuration, confirm the server starts, then reapply changes one at a time.
+</Callout>

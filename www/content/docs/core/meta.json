@@ -1,0 +1,17 @@
+{
+  "title": "MCPV Core + Gateway",
+  "description": "Run MCPV without the UI.",
+  "root": true,
+  "icon": "Server",
+  "pages": [
+    "index",
+    "quickstart",
+    "config",
+    "gateway",
+    "runtime",
+    "---Operate---",
+    "reload",
+    "observability",
+    "troubleshooting"
+  ]
+}

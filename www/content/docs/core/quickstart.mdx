@@ -1,0 +1,62 @@
+---
+title: Quickstart
+description: Run the core and gateway with a minimal setup.
+---
+
+import { Steps, Step } from 'fumadocs-ui/components/steps'
+
+This path assumes you want a headless deployment with config files. It uses the default layout: one config directory, one core process, and one gateway.
+
+<Steps>
+  <Step>
+    Create a config directory and add a YAML file with at least one server definition.
+  </Step>
+  <Step>
+    Validate the configuration so the core can load it.
+  </Step>
+  <Step>
+    Start the core and point it at your config directory.
+  </Step>
+  <Step>
+    Start the gateway and choose a routing mode.
+  </Step>
+  <Step>
+    Connect a client to the gateway and make a test call.
+  </Step>
+</Steps>
+
+## Minimal config example
+Create a YAML file in your config directory, for example `runtime.yaml`:
+
+```yaml
+servers:
+  - name: weather
+    transport: stdio
+    cmd: [node, ./path/to/server.js]
+    tags: [chat]
+    idleSeconds: 60
+    maxConcurrent: 1
+    strategy: stateless
+    activationMode: on-demand
+    protocolVersion: "2025-11-25"
+```
+
+## Validate and run
+Validate your config, then start the core:
+
+```bash
+go run ./cmd/mcpv validate --config .
+go run ./cmd/mcpv serve --config .
+```
+
+Start the gateway in one of two modes:
+
+```bash
+# Tag mode
+go run ./cmd/mcpvmcp --tag chat
+
+# Single-server mode
+go run ./cmd/mcpvmcp --server weather
+```
+
+If your client can list tools successfully, the system is wired correctly.

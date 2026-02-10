@@ -1,0 +1,24 @@
+---
+title: Gateway
+description: One MCP endpoint, many servers.
+---
+
+The gateway is the only MCP endpoint your clients need. It looks like a single MCP server, but it routes requests to your real servers through the core. This keeps client configuration simple even when your catalog grows.
+
+## Two routing modes
+In single-server mode, the gateway always routes to one named server. In tag mode, the gateway exposes a filtered tool list based on client tags, which keeps clients focused and avoids accidental access to unrelated servers.
+
+## Why the gateway exists
+The gateway isolates clients from your internal topology. You can add or remove servers, change lifecycle settings, or adjust tags without touching client configuration.
+
+## How to start it
+
+```bash
+# Tag mode
+go run ./cmd/mcpvmcp --tag chat
+
+# Single-server mode
+go run ./cmd/mcpvmcp --server weather
+```
+
+If the gateway can list tools, routing is working.

@@ -1,0 +1,19 @@
+---
+title: Runtime behavior
+description: Scale-to-zero, concurrency, and lifecycle.
+---
+
+MCPV is designed to scale. It starts servers when they are needed and lets them rest when they are idle. This keeps your system responsive without wasting resources.
+
+## Scale-to-zero by default
+On-demand mode starts instances only when a request arrives. When a server is idle beyond its timeout, the core shuts it down. The next request will trigger a fresh start.
+
+## Always-on when latency matters
+Always-on mode keeps a minimum number of instances warm. Use this when cold-start latency is unacceptable or when your server benefits from staying resident.
+
+## Concurrency and isolation
+Each server definition can cap concurrency. This keeps heavy tools from overloading their own process. Stateful servers use sticky sessions so the same client continues to hit the same instance, which is important when server state must be preserved.
+
+<Callout type="info" title="Right-size first">
+  Start with on-demand and conservative concurrency. Increase capacity only when you can prove the bottleneck.
+</Callout>

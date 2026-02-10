@@ -1,0 +1,37 @@
+---
+title: Configuration
+description: Profiles, servers, and runtime defaults.
+---
+
+MCPV loads configuration from a directory. Each profile is a separate YAML file. The default profile acts as a fallback when no specific profile matches a client.
+
+## Server definitions
+A server definition is the blueprint. It describes how to start the process, how to route to it, and how to manage its lifecycle. The core reads these definitions and creates instances as needed.
+
+Here is a compact example that highlights the typical fields:
+
+```yaml
+servers:
+  - name: my-server
+    transport: stdio
+    cmd: [node, ./path/to/server.js]
+    tags: [chat]
+    idleSeconds: 60
+    maxConcurrent: 1
+    strategy: stateless
+    activationMode: on-demand
+    protocolVersion: "2025-11-25"
+```
+
+## Tags and visibility
+Tags control what a client sees. The gateway filters tool lists by tags, so a client only receives tools from servers that match its tag. This is the simplest way to prevent accidental cross-use.
+
+## Activation and strategy
+On-demand servers start only when a request arrives. Always-on servers keep a minimum number of instances warm. Disabled servers stay in the catalog but never start. Stateless servers can serve any client, while stateful servers maintain sticky sessions.
+
+## Runtime defaults
+Global runtime settings apply across servers and provide a consistent baseline for timeouts, retries, and naming. Adjust these if you want uniform behavior without repeating values in every server definition.
+
+<Callout type="info" title="Validate early">
+  Run validation before starting the core. It catches invalid fields and missing commands before runtime.
+</Callout>

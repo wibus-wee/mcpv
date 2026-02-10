@@ -37,7 +37,9 @@ dev_mode:
       - .git
       - node_modules
       - frontend
+      - www
       - bin
+      - cmd/demo-plugin
     file:
       - .DS_Store
       - .gitignore

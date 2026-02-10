@@ -1,0 +1,16 @@
+---
+title: Observability
+description: Metrics and health checks.
+---
+
+MCPV exposes health and metrics endpoints so you can plug it into existing monitoring stacks. This keeps runtime visibility consistent with the rest of your infrastructure.
+
+## Health checks
+A simple health endpoint tells you whether the core is alive and responding. Use it for process supervision and readiness checks.
+
+## Metrics
+Metrics are exported in a Prometheus-compatible format. Track server counts, instance activity, and error rates without building custom instrumentation.
+
+<Callout type="info" title="Default endpoints">
+  Health is served at `/healthz` and metrics at `/metrics` on the core service.
+</Callout>

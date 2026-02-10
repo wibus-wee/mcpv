@@ -1,0 +1,10 @@
+{
+  "title": "Documentation",
+  "pages": [
+    "index",
+    "---MCPV UI---",
+    "ui",
+    "---mcpv + mcpvmcp---",
+    "core"
+  ]
+}

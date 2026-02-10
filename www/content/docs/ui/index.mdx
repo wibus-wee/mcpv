@@ -1,0 +1,34 @@
+---
+title: MCPV UI
+description: A calm, visual way to manage MCP servers.
+---
+
+MCPV UI is the easiest way to run MCPV. It gives you a clear view of what is configured, what is running, and how your MCP servers behave in real time. You do not need to write code to get value from it, but engineers, infra teams, and power users will still feel at home.
+
+Think of MCPV UI as a control room. It keeps the system observable and actionable without hiding the mechanisms that matter.
+
+
+## System map in one minute
+MCPV has a core that manages server lifecycles and a gateway that your clients connect to. The UI sits on top of the core. When you edit a server in the UI, the core reloads configuration and updates routing. When a client sends a request, the core starts the right server on demand, the gateway routes the call, and the UI reflects the new runtime state almost immediately.
+
+
+## What the UI changes and what it does not
+The UI orchestrates and observes. It does not replace your MCP servers. Servers are still the source of tools, resources, and prompts. The UI simply makes those capabilities visible and keeps the operational workflow tight.
+
+
+## Where to go next
+If you want the fastest path to working servers, start with Quickstart. If you already have definitions, jump to Import. If you care about routing and isolation, Tags and Routing will make the system click.
+
+<Cards>
+  <Card title="Quickstart" href="/docs/ui/quickstart" description="Get your first servers running in minutes." />
+  <Card title="Manage servers" href="/docs/ui/servers" description="Add, edit, and organize MCP servers in one place." />
+  <Card title="Import servers" href="/docs/ui/import" description="Bring in existing definitions without manual work." />
+  <Card title="Connect a client" href="/docs/ui/connect" description="Point your MCP client to MCPV and route requests." />
+  <Card title="Tags and routing" href="/docs/ui/tags" description="Control visibility and keep tool lists clean." />
+  <Card title="Runtime & health" href="/docs/ui/runtime" description="See what is running and how it is performing." />
+  <Card title="Troubleshooting" href="/docs/ui/troubleshooting" description="Simple fixes for the most common issues." />
+</Cards>
+
+<Callout type="info" title="Designed for operators, not developers">
+  MCPV UI focuses on usage and visibility. It hides the busy work so you can focus on keeping your MCP servers available and useful.
+</Callout>

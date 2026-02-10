@@ -1,0 +1,28 @@
+---
+title: MCPV Core + Gateway
+description: Run MCPV headless and integrate it into your own workflows.
+---
+
+MCPV Core is the control plane. It owns server lifecycles, routing decisions, and aggregation of tools. MCPV Gateway is the single MCP endpoint your clients connect to. Together they give you an elastic MCP runtime without requiring the UI.
+
+This section is for engineers who want a service-first setup: run MCPV as part of your infrastructure, manage config in files, and automate changes with your existing workflows.
+
+## The two-process model
+The core manages servers and instances. The gateway exposes a clean MCP interface to clients. The gateway never needs to know about your full catalog; it just asks the core for routing and aggregation. This split keeps the system stable and easier to operate.
+
+## When to prefer core + gateway
+Choose this path if you want headless deployment, Git-managed config, or tight integration with your own tooling. If your goal is simply to manage servers visually, the UI is the faster start.
+
+<Cards>
+  <Card title="Quickstart" href="/docs/core/quickstart" description="Start the core and gateway with a minimal configuration." />
+  <Card title="Configuration" href="/docs/core/config" description="Understand profiles, servers, and runtime defaults." />
+  <Card title="Gateway" href="/docs/core/gateway" description="How the gateway routes client requests." />
+  <Card title="Runtime behavior" href="/docs/core/runtime" description="Scale-to-zero, concurrency, and lifecycle modes." />
+  <Card title="Reloading" href="/docs/core/reload" description="Apply changes safely without downtime." />
+  <Card title="Observability" href="/docs/core/observability" description="Metrics and health checks." />
+  <Card title="Troubleshooting" href="/docs/core/troubleshooting" description="Common issues and how to fix them." />
+</Cards>
+
+<Callout type="info" title="Prefer the UI?">
+  Start at the MCPV UI section for the most guided experience and a visual workflow.
+</Callout>

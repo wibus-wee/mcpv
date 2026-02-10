@@ -1,0 +1,20 @@
+---
+title: Reloading configuration
+description: Apply changes safely without downtime.
+---
+
+The core watches the config directory for changes. When a file changes, MCPV reloads and updates routing. This gives you live updates without restarting the service.
+
+## How reload works
+Active instances continue to serve requests. New instances inherit the updated configuration. This means you can change tags, add servers, or adjust defaults without cutting off existing traffic.
+
+## A safe workflow
+Update your YAML, validate it, then let the core reload automatically. If you want to force a clean start, you can stop and restart the core after validation.
+
+```bash
+go run ./cmd/mcpv validate --config .
+```
+
+<Callout type="warning" title="Avoid silent drift">
+  Keep config in version control so reloads are traceable and reversible.
+</Callout>

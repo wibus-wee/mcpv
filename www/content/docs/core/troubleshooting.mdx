@@ -1,0 +1,26 @@
+---
+title: Troubleshooting
+description: Common issues and how to fix them.
+---
+
+Most issues come down to three categories: configuration errors, process failures, or routing mismatches. The core and gateway are strict by design, so the fix is usually deterministic once you know where to look.
+
+## The core will not start
+Validate your configuration first. If validation fails, fix the reported field before retrying. If validation passes but the core exits, check for port conflicts or permission issues on the host.
+
+```bash
+go run ./cmd/mcpv validate --config .
+```
+
+## The gateway shows no tools
+This almost always means the gateway is running but cannot see any matching servers. Check the server name in single-server mode, or confirm that client tags match server tags in tag mode.
+
+## Servers start and stop repeatedly
+Rapid restarts usually indicate a server process that fails after launch. Verify the command and working directory, then run the server manually outside MCPV to capture its own error output.
+
+## Tools are missing or stale
+Tools are aggregated from servers. If a tool is missing, confirm the server is reachable and has reported its tool list. A config reload or server restart usually forces a refresh.
+
+<Callout type="warning" title="Treat MCPV as orchestration">
+  MCPV coordinates, but it cannot fix a broken server process. Start there when debugging.
+</Callout>

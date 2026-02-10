@@ -1,0 +1,24 @@
+---
+title: Tags and routing
+description: Use tags to control visibility and keep tool lists clean.
+---
+
+Tags are the simplest way to shape routing. They let you decide which servers are visible to which clients, without changing the servers themselves.
+
+Think of a tag as a lightweight contract. A client that asks for the "chat" tag should only see the servers you meant for chat. This keeps tool lists focused and reduces surprises.
+
+
+## How MCPV uses tags
+Tags live on server definitions and on clients. When a client connects with a tag, MCPV filters the exposed tools to only those servers with matching tags. The UI keeps this visible so you can reason about routing without digging into logs.
+
+
+## A practical mental model
+If you would not want a client to call every server, use tags. It is the smallest change with the biggest clarity boost.
+
+
+## Naming that scales
+Tags are just strings, so consistency matters. Pick short, readable names and stick to them. It is easier to grow a simple tag system than to clean up a messy one.
+
+<Callout type="info" title="Start with two or three tags">
+  Small tag sets are easier to maintain. You can always grow later when your server catalog expands.
+</Callout>
