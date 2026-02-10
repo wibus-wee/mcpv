@@ -26,12 +26,10 @@ With `mcpv`, you can manage MCP servers like containers: **On-demand startup, Sc
 
 ## ✨ Key Features
 
-- **⚡️ Elastic Runtime**: Automatically launches MCP server instances upon request and shuts them down after idle timeouts, significantly reducing local CPU and memory usage.
-- **🎯 Unified Gateway (`mcpvmcp`)**: Provides a single entry point for all your MCP servers. Supports sticky sessions and concurrency control for high-frequency AI interactions.
-- **🧠 Smart SubAgent**: Built-in intelligent filtering powered by `CloudWeGo/Eino`. The `automatic_mcp` tool dynamically selects relevant tools based on task context, minimizing context window bloat and token costs.
-- **🖼 GUI Support (`mcpvui`)**: A desktop client built with Wails 3. Features real-time log streaming, tool inspection, resource browsing, and intuitive configuration editing.
-- **📁 Single Config File**: Server-centric configuration with tag-based visibility. Configure MCP servers with optional tags and filter toolsets for clients like VSCode, Cursor, or specific projects based on tag matching.
-- **📊 Observability**: Native Prometheus metrics and structured logging. Includes a pre-configured Grafana dashboard to monitor latency, cold-start times, and error rates.
+- **Elastic Runtime**: Automatically launches MCP server instances upon request and shuts them down after idle timeouts, significantly reducing local CPU and memory usage.
+- **Unified Gateway (`mcpvmcp`)**: Provides a single entry point for all your MCP servers. Supports sticky sessions and concurrency control for high-frequency AI interactions.
+- **GUI Support (`mcpvui`)**: A desktop client built with Wails 3. Features real-time log streaming, tool inspection, resource browsing, and intuitive configuration editing.
+- **Single Config File**: Server-centric configuration with tag-based visibility. Configure MCP servers with optional tags and filter toolsets for clients like VSCode, Cursor, or specific projects based on tag matching.
 
 ## 🏗 Architecture
 
@@ -44,33 +42,6 @@ The project is designed with a three-layer architecture for maximum decoupling:
 ## 🛠 Quick Start
 
 WIP.
-
-## 📊 Observability
-
-We believe the control plane should be transparent.
-- **Metrics**: Access raw data at `http://localhost:9090/metrics`.
-- **Dashboard**: After running `make dev`, visit `http://localhost:4000` for a Grafana dashboard visualizing success rates and cold-start latency.
-- **Health**: Check internal loop status at `http://localhost:9090/healthz`.
-
-## 🔄 Hot Reload Behavior
-
-When the config file changes, mcpv classifies updates and applies the smallest safe action:
-
-- **Runtime-only**: Changes only to runtime settings (timeouts, refresh intervals, etc.) update the in-memory runtime configuration without restarting instances.
-- **Tools-only**: Changes only to tool visibility fields (`name`, `tags`, `exposeTools`) refresh tool/resource/prompt indexes and visibility without restarting instances.
-- **Restart-required**: Any other server spec change triggers a drain of existing instances so they restart on demand with the new spec.
-
-If multiple categories change in one update, mcpv combines the actions (for example, runtime updates plus a restart-required drain).
-
-## 🚧 Roadmap (WIP)
-
-The project is under active development:
-- [x] Core Lifecycle & Scale-to-Zero
-- [x] Multi-Profile & Caller Mapping
-- [x] Eino-based SubAgent Tool Filtering
-- [x] Wails UI & Log Streaming
-- [x] Hot Reload
-- [ ] **Auto-discovery & Config Import - Planned**
 
 ## 🔗 References
 
