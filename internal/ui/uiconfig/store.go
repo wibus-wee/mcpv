@@ -217,6 +217,8 @@ func (s *Store) Reset(scope Scope, workspaceID string) (Snapshot, error) {
 				return nil
 			}
 			return workspaces.DeleteBucket([]byte(workspaceID))
+		case ScopeEffective:
+			return ErrInvalidScope
 		default:
 			return ErrInvalidScope
 		}
@@ -253,6 +255,8 @@ func validateScope(scope Scope, workspaceID string) error {
 			return ErrMissingWorkspace
 		}
 		return nil
+	case ScopeEffective:
+		return ErrInvalidScope
 	default:
 		return ErrInvalidScope
 	}
@@ -312,6 +316,8 @@ func scopeBucket(tx *bolt.Tx, scope Scope, workspaceID string, create bool) (*bo
 			return bucket, nil
 		}
 		return workspaces.Bucket(key), nil
+	case ScopeEffective:
+		return nil, ErrInvalidScope
 	default:
 		return nil, ErrInvalidScope
 	}

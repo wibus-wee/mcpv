@@ -121,6 +121,34 @@ func TestToolIndex_SnapshotForServer(t *testing.T) {
 	require.Equal(t, "echo", lastServerType)
 }
 
+func TestToolIndex_SkipsListAfterMethodNotFound(t *testing.T) {
+	ctx := context.Background()
+	router := &methodNotFoundToolRouter{}
+
+	specs := map[string]domain.ServerSpec{
+		"echo": {Name: "echo"},
+	}
+	specKeys := map[string]string{
+		"echo": "spec-echo",
+	}
+	cfg := domain.RuntimeConfig{
+		ExposeTools:           true,
+		ToolNamespaceStrategy: domain.ToolNamespaceStrategyPrefix,
+		ToolRefreshSeconds:    0,
+	}
+
+	index := NewToolIndex(router, specs, specKeys, cfg, nil, zap.NewNop(), nil, nil, nil)
+
+	require.NoError(t, index.refresh(ctx))
+	require.Equal(t, 1, router.callCount())
+
+	require.NoError(t, index.refresh(ctx))
+	require.Equal(t, 1, router.callCount())
+
+	snapshot := index.Snapshot()
+	require.Empty(t, snapshot.Tools)
+}
+
 func TestToolIndex_RespectsExposeToolsAllowlist(t *testing.T) {
 	ctx := context.Background()
 	router := &fakeRouter{
@@ -545,4 +573,46 @@ func encodeResponse(id jsonrpc.ID, result any) (json.RawMessage, error) {
 		return nil, err
 	}
 	return json.RawMessage(wire), nil
+}
+
+func encodeErrorResponse(id jsonrpc.ID, err error) (json.RawMessage, error) {
+	resp := &jsonrpc.Response{ID: id, Error: err}
+	wire, err := jsonrpc.EncodeMessage(resp)
+	if err != nil {
+		return nil, err
+	}
+	return json.RawMessage(wire), nil
+}
+
+type methodNotFoundToolRouter struct {
+	mu    sync.Mutex
+	calls int
+}
+
+func (m *methodNotFoundToolRouter) Route(_ context.Context, _, _, _ string, payload json.RawMessage) (json.RawMessage, error) {
+	msg, err := jsonrpc.DecodeMessage(payload)
+	if err != nil {
+		return nil, err
+	}
+	req, ok := msg.(*jsonrpc.Request)
+	if !ok {
+		return nil, errors.New("invalid jsonrpc request")
+	}
+	if req.Method != "tools/list" {
+		return nil, errors.New("unsupported method")
+	}
+	m.mu.Lock()
+	m.calls++
+	m.mu.Unlock()
+	return encodeErrorResponse(req.ID, &jsonrpc.Error{Code: jsonrpc.CodeMethodNotFound, Message: "method not found"})
+}
+
+func (m *methodNotFoundToolRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, _ domain.RouteOptions) (json.RawMessage, error) {
+	return m.Route(ctx, serverType, specKey, routingKey, payload)
+}
+
+func (m *methodNotFoundToolRouter) callCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.calls
 }

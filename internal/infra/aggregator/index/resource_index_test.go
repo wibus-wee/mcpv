@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -124,6 +125,32 @@ func TestResourceIndex_UsesCachedResourcesWhenNoReadyInstance(t *testing.T) {
 	require.Equal(t, "files", snapshot.Resources[0].ServerName)
 }
 
+func TestResourceIndex_SkipsListAfterMethodNotAllowed(t *testing.T) {
+	ctx := context.Background()
+	router := &methodNotAllowedResourceRouter{}
+
+	specs := map[string]domain.ServerSpec{
+		"files": {Name: "files"},
+	}
+	specKeys := map[string]string{
+		"files": "spec-files",
+	}
+	cfg := domain.RuntimeConfig{
+		ToolRefreshSeconds: 0,
+	}
+
+	index := NewResourceIndex(router, specs, specKeys, cfg, nil, zap.NewNop(), nil, nil, nil)
+
+	require.NoError(t, index.Refresh(ctx))
+	require.Equal(t, 1, router.callCount())
+
+	require.NoError(t, index.Refresh(ctx))
+	require.Equal(t, 1, router.callCount())
+
+	snapshot := index.Snapshot()
+	require.Empty(t, snapshot.Resources)
+}
+
 func TestResourceIndex_SetBootstrapWaiterDoesNotDeadlock(t *testing.T) {
 	index := NewResourceIndex(nil, map[string]domain.ServerSpec{}, map[string]string{}, domain.RuntimeConfig{}, nil, zap.NewNop(), nil, nil, nil)
 
@@ -190,4 +217,37 @@ func (r *noReadyResourceRouter) Route(_ context.Context, _, _, _ string, _ json.
 
 func (r *noReadyResourceRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, _ domain.RouteOptions) (json.RawMessage, error) {
 	return r.Route(ctx, serverType, specKey, routingKey, payload)
+}
+
+type methodNotAllowedResourceRouter struct {
+	mu    sync.Mutex
+	calls int
+}
+
+func (r *methodNotAllowedResourceRouter) Route(_ context.Context, _, _, _ string, payload json.RawMessage) (json.RawMessage, error) {
+	msg, err := jsonrpc.DecodeMessage(payload)
+	if err != nil {
+		return nil, err
+	}
+	req, ok := msg.(*jsonrpc.Request)
+	if !ok {
+		return nil, errors.New("invalid jsonrpc request")
+	}
+	if req.Method != "resources/list" {
+		return nil, errors.New("unsupported method")
+	}
+	r.mu.Lock()
+	r.calls++
+	r.mu.Unlock()
+	return nil, domain.ErrMethodNotAllowed
+}
+
+func (r *methodNotAllowedResourceRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, _ domain.RouteOptions) (json.RawMessage, error) {
+	return r.Route(ctx, serverType, specKey, routingKey, payload)
+}
+
+func (r *methodNotAllowedResourceRouter) callCount() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.calls
 }

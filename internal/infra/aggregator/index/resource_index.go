@@ -21,7 +21,8 @@ import (
 // ResourceIndex aggregates resource metadata across specs and supports reads.
 type ResourceIndex struct {
 	*BaseIndex[domain.ResourceSnapshot, domain.ResourceTarget, resourceCache, serverResourceSnapshot]
-	reqBuilder core.RequestBuilder
+	reqBuilder  core.RequestBuilder
+	listSupport *listSupportTracker
 }
 
 type resourceCache struct {
@@ -38,6 +39,7 @@ type serverResourceSnapshot struct {
 // NewResourceIndex builds a ResourceIndex for the provided runtime configuration.
 func NewResourceIndex(rt domain.Router, specs map[string]domain.ServerSpec, specKeys map[string]string, cfg domain.RuntimeConfig, metadataCache *domain.MetadataCache, logger *zap.Logger, health *telemetry.HealthTracker, gate *core.RefreshGate, listChanges core.ListChangeSubscriber) *ResourceIndex {
 	resourceIndex := &ResourceIndex{}
+	resourceIndex.listSupport = newListSupportTracker()
 	hooks := BaseHooks[domain.ResourceSnapshot, domain.ResourceTarget, resourceCache]{
 		Name:              "resource_index",
 		LogLabel:          "resource",
@@ -67,6 +69,13 @@ func NewResourceIndex(rt domain.Router, specs map[string]domain.ServerSpec, spec
 		hooks,
 	)
 	return resourceIndex
+}
+
+func (a *ResourceIndex) UpdateSpecs(specs map[string]domain.ServerSpec, specKeys map[string]string, cfg domain.RuntimeConfig) {
+	if a.listSupport != nil {
+		a.listSupport.Reset()
+	}
+	a.BaseIndex.UpdateSpecs(specs, specKeys, cfg)
 }
 
 // SnapshotForServer returns the latest resource snapshot for a server.
@@ -232,8 +241,17 @@ func (a *ResourceIndex) refreshErrorDecision(_ string, err error) core.RefreshEr
 }
 
 func (a *ResourceIndex) fetchServerCache(ctx context.Context, serverType string, spec domain.ServerSpec) (resourceCache, error) {
+	if a.listSupport != nil && a.listSupport.IsUnsupported(serverType) {
+		return resourceCache{}, nil
+	}
 	resources, targets, err := a.fetchServerResources(ctx, serverType, spec)
 	if err != nil {
+		if isListMethodUnsupported(err) {
+			if a.listSupport != nil {
+				a.listSupport.MarkUnsupported(serverType)
+			}
+			return resourceCache{}, nil
+		}
 		if errors.Is(err, domain.ErrNoReadyInstance) {
 			if cached, ok := a.cachedServerCache(serverType, spec); ok {
 				return cached, nil

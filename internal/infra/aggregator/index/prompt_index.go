@@ -21,7 +21,8 @@ import (
 // PromptIndex aggregates prompt metadata across specs and supports prompt calls.
 type PromptIndex struct {
 	*BaseIndex[domain.PromptSnapshot, domain.PromptTarget, promptCache, serverPromptSnapshot]
-	reqBuilder core.RequestBuilder
+	reqBuilder  core.RequestBuilder
+	listSupport *listSupportTracker
 }
 
 type promptCache struct {
@@ -38,6 +39,7 @@ type serverPromptSnapshot struct {
 // NewPromptIndex builds a PromptIndex for the provided runtime configuration.
 func NewPromptIndex(rt domain.Router, specs map[string]domain.ServerSpec, specKeys map[string]string, cfg domain.RuntimeConfig, metadataCache *domain.MetadataCache, logger *zap.Logger, health *telemetry.HealthTracker, gate *core.RefreshGate, listChanges core.ListChangeSubscriber) *PromptIndex {
 	promptIndex := &PromptIndex{}
+	promptIndex.listSupport = newListSupportTracker()
 	hooks := BaseHooks[domain.PromptSnapshot, domain.PromptTarget, promptCache]{
 		Name:              "prompt_index",
 		LogLabel:          "prompt",
@@ -67,6 +69,13 @@ func NewPromptIndex(rt domain.Router, specs map[string]domain.ServerSpec, specKe
 		hooks,
 	)
 	return promptIndex
+}
+
+func (a *PromptIndex) UpdateSpecs(specs map[string]domain.ServerSpec, specKeys map[string]string, cfg domain.RuntimeConfig) {
+	if a.listSupport != nil {
+		a.listSupport.Reset()
+	}
+	a.BaseIndex.UpdateSpecs(specs, specKeys, cfg)
 }
 
 // SnapshotForServer returns the latest prompt snapshot for a server.
@@ -287,8 +296,17 @@ func (a *PromptIndex) refreshErrorDecision(_ string, err error) core.RefreshErro
 }
 
 func (a *PromptIndex) fetchServerCache(ctx context.Context, serverType string, spec domain.ServerSpec) (promptCache, error) {
+	if a.listSupport != nil && a.listSupport.IsUnsupported(serverType) {
+		return promptCache{}, nil
+	}
 	prompts, targets, err := a.fetchServerPrompts(ctx, serverType, spec)
 	if err != nil {
+		if isListMethodUnsupported(err) {
+			if a.listSupport != nil {
+				a.listSupport.MarkUnsupported(serverType)
+			}
+			return promptCache{}, nil
+		}
 		if errors.Is(err, domain.ErrNoReadyInstance) {
 			if cached, ok := a.cachedServerCache(serverType, spec); ok {
 				return cached, nil

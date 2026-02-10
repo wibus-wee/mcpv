@@ -22,7 +22,8 @@ import (
 // ToolIndex aggregates tool metadata across specs and supports routing calls.
 type ToolIndex struct {
 	*BaseIndex[domain.ToolSnapshot, domain.ToolTarget, serverCache, serverToolSnapshot]
-	reqBuilder core.RequestBuilder
+	reqBuilder  core.RequestBuilder
+	listSupport *listSupportTracker
 }
 
 type serverCache struct {
@@ -39,6 +40,7 @@ type serverToolSnapshot struct {
 // NewToolIndex builds a ToolIndex for the provided runtime configuration.
 func NewToolIndex(rt domain.Router, specs map[string]domain.ServerSpec, specKeys map[string]string, cfg domain.RuntimeConfig, metadataCache *domain.MetadataCache, logger *zap.Logger, health *telemetry.HealthTracker, gate *core.RefreshGate, listChanges core.ListChangeSubscriber) *ToolIndex {
 	toolIndex := &ToolIndex{}
+	toolIndex.listSupport = newListSupportTracker()
 	hooks := BaseHooks[domain.ToolSnapshot, domain.ToolTarget, serverCache]{
 		Name:              "tool_index",
 		LogLabel:          "tool",
@@ -68,6 +70,13 @@ func NewToolIndex(rt domain.Router, specs map[string]domain.ServerSpec, specKeys
 		hooks,
 	)
 	return toolIndex
+}
+
+func (a *ToolIndex) UpdateSpecs(specs map[string]domain.ServerSpec, specKeys map[string]string, cfg domain.RuntimeConfig) {
+	if a.listSupport != nil {
+		a.listSupport.Reset()
+	}
+	a.BaseIndex.UpdateSpecs(specs, specKeys, cfg)
 }
 
 // SnapshotForServer returns the latest tool snapshot for a server.
@@ -309,8 +318,17 @@ func (a *ToolIndex) refreshErrorDecision(_ string, err error) core.RefreshErrorD
 }
 
 func (a *ToolIndex) fetchServerCache(ctx context.Context, serverType string, spec domain.ServerSpec) (serverCache, error) {
+	if a.listSupport != nil && a.listSupport.IsUnsupported(serverType) {
+		return serverCache{}, nil
+	}
 	tools, targets, err := a.fetchServerTools(ctx, serverType, spec)
 	if err != nil {
+		if isListMethodUnsupported(err) {
+			if a.listSupport != nil {
+				a.listSupport.MarkUnsupported(serverType)
+			}
+			return serverCache{}, nil
+		}
 		if errors.Is(err, domain.ErrNoReadyInstance) {
 			if cached, ok := a.cachedServerCache(serverType, spec); ok {
 				return cached, nil

@@ -119,7 +119,11 @@ func (g *GatewayProcess) Start(ctx context.Context) error {
 	}
 
 	args := append([]string(nil), g.cfg.Args...)
-	cmd := exec.Command(g.cfg.BinaryPath, args...)
+	startCtx := ctx
+	if startCtx == nil {
+		startCtx = context.Background()
+	}
+	cmd := exec.CommandContext(startCtx, g.cfg.BinaryPath, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if len(g.cfg.Env) > 0 {

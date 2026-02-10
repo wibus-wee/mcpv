@@ -50,7 +50,7 @@ func NewTrayController(app *application.App, window application.Window, manager 
 	}
 }
 
-func (c *TrayController) ApplyFromStore(ctx context.Context) error {
+func (c *TrayController) ApplyFromStore(_ context.Context) error {
 	if c == nil || c.manager == nil {
 		return nil
 	}
@@ -152,6 +152,8 @@ func (c *TrayController) handleTrayClick() {
 	defer cancel()
 	c.refreshMenu(ctx)
 	switch c.currentClickAction() {
+	case TrayClickActionOpenMenu:
+		c.openMenu()
 	case TrayClickActionToggle:
 		c.toggleWindow()
 	case TrayClickActionShow:
@@ -210,7 +212,7 @@ func (c *TrayController) refreshMenu(ctx context.Context) {
 	}
 
 	menu.Clear()
-	c.populateMenu(menu, ctx)
+	c.populateMenu(ctx, menu)
 
 	if !menuAttached {
 		tray.SetMenu(menu)
@@ -223,7 +225,7 @@ func (c *TrayController) refreshMenu(ctx context.Context) {
 	}
 }
 
-func (c *TrayController) populateMenu(menu *application.Menu, ctx context.Context) {
+func (c *TrayController) populateMenu(ctx context.Context, menu *application.Menu) {
 	if menu == nil {
 		return
 	}
@@ -246,7 +248,7 @@ func (c *TrayController) populateMenu(menu *application.Menu, ctx context.Contex
 	state, stateErr := c.resolveCoreState()
 	coreRunning := state == CoreStateRunning || state == CoreStateStarting || state == CoreStateStopping
 
-	c.addServersSection(menu, ctx, coreRunning)
+	c.addServersSection(ctx, menu, coreRunning)
 
 	menu.AddSeparator()
 
@@ -272,7 +274,7 @@ func (c *TrayController) populateMenu(menu *application.Menu, ctx context.Contex
 	})
 }
 
-func (c *TrayController) addServersSection(menu *application.Menu, ctx context.Context, coreRunning bool) {
+func (c *TrayController) addServersSection(ctx context.Context, menu *application.Menu, coreRunning bool) {
 	serversMenu := menu.AddSubmenu("Servers")
 
 	serverItems := c.buildServerItems(ctx, coreRunning)
@@ -382,6 +384,8 @@ func (c *TrayController) getCoreStatusIcon(state CoreState) string {
 	case CoreStateStopping:
 		return "◐"
 	case CoreStateStopped:
+		return "○"
+	case CoreStateError:
 		return "○"
 	default:
 		return "○"
@@ -543,15 +547,6 @@ func (c *TrayController) reloadConfig() {
 	}
 	if err := c.manager.ReloadConfig(context.Background()); err != nil {
 		c.logger.Warn("tray reload config failed", zap.Error(err))
-	}
-}
-
-func (c *TrayController) openURL(url string) {
-	if c.app == nil {
-		return
-	}
-	if err := c.app.Browser.OpenURL(url); err != nil {
-		c.logger.Warn("tray open url failed", zap.Error(err), zap.String("url", url))
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -126,6 +127,33 @@ func TestPromptIndex_UsesCachedPromptsWhenNoReadyInstance(t *testing.T) {
 	require.Equal(t, "echo", snapshot.Prompts[0].ServerName)
 }
 
+func TestPromptIndex_SkipsListAfterMethodNotFound(t *testing.T) {
+	ctx := context.Background()
+	router := &methodNotFoundPromptRouter{}
+
+	specs := map[string]domain.ServerSpec{
+		"echo": {Name: "echo"},
+	}
+	specKeys := map[string]string{
+		"echo": "spec-echo",
+	}
+	cfg := domain.RuntimeConfig{
+		ToolNamespaceStrategy: domain.ToolNamespaceStrategyPrefix,
+		ToolRefreshSeconds:    0,
+	}
+
+	index := NewPromptIndex(router, specs, specKeys, cfg, nil, zap.NewNop(), nil, nil, nil)
+
+	require.NoError(t, index.Refresh(ctx))
+	require.Equal(t, 1, router.callCount())
+
+	require.NoError(t, index.Refresh(ctx))
+	require.Equal(t, 1, router.callCount())
+
+	snapshot := index.Snapshot()
+	require.Empty(t, snapshot.Prompts)
+}
+
 func TestPromptIndex_SetBootstrapWaiterDoesNotDeadlock(t *testing.T) {
 	index := NewPromptIndex(nil, map[string]domain.ServerSpec{}, map[string]string{}, domain.RuntimeConfig{}, nil, zap.NewNop(), nil, nil, nil)
 
@@ -190,4 +218,37 @@ func (r *noReadyPromptRouter) Route(_ context.Context, _, _, _ string, _ json.Ra
 
 func (r *noReadyPromptRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, _ domain.RouteOptions) (json.RawMessage, error) {
 	return r.Route(ctx, serverType, specKey, routingKey, payload)
+}
+
+type methodNotFoundPromptRouter struct {
+	mu    sync.Mutex
+	calls int
+}
+
+func (r *methodNotFoundPromptRouter) Route(_ context.Context, _, _, _ string, payload json.RawMessage) (json.RawMessage, error) {
+	msg, err := jsonrpc.DecodeMessage(payload)
+	if err != nil {
+		return nil, err
+	}
+	req, ok := msg.(*jsonrpc.Request)
+	if !ok {
+		return nil, errors.New("invalid jsonrpc request")
+	}
+	if req.Method != "prompts/list" {
+		return nil, errors.New("unsupported method")
+	}
+	r.mu.Lock()
+	r.calls++
+	r.mu.Unlock()
+	return encodeErrorResponse(req.ID, &jsonrpc.Error{Code: jsonrpc.CodeMethodNotFound, Message: "method not found"})
+}
+
+func (r *methodNotFoundPromptRouter) RouteWithOptions(ctx context.Context, serverType, specKey, routingKey string, payload json.RawMessage, _ domain.RouteOptions) (json.RawMessage, error) {
+	return r.Route(ctx, serverType, specKey, routingKey, payload)
+}
+
+func (r *methodNotFoundPromptRouter) callCount() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.calls
 }
