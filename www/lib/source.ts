@@ -26,3 +26,5 @@ export async function getLLMText(page: InferPageType<typeof source>) {
 
 ${processed}`
 }
+
+export type Page = InferPageType<typeof source>

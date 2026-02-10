@@ -3,6 +3,17 @@ import './global.css'
 import { RootProvider } from 'fumadocs-ui/provider/next'
 import { Inter } from 'next/font/google'
 
+import { baseUrl, createMetadata } from '@/lib/metadata'
+
+export const metadata = createMetadata({
+  title: {
+    template: '%s | mcpv',
+    default: 'mcpv - Elastic Control Plane & Runtime for Model Context Protocol',
+  },
+  description: 'Elastic Control Plane & Runtime for Model Context Protocol',
+  metadataBase: baseUrl,
+})
+
 const inter = Inter({
   subsets: ['latin'],
 })
