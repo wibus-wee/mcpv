@@ -8,7 +8,7 @@
 
 ## Files
 
-- **dashboard-page.tsx**: 仪表盘主页面，组合头部、标签页与内容区；支持 Debug Snapshot 与 Diagnostics Bundle 导出
+- **dashboard-page.tsx**: 仪表盘主页面，组合头部、标签页与内容区；展示核心状态与操作
 - **hooks.ts**: 仪表盘数据获取 hooks，包含 `useAppInfo`、`useTools`、`useResources`、`usePrompts`、`useBootstrapProgress`
 
 ## Components

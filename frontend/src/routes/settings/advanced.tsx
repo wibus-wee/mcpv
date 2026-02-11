@@ -1,13 +1,14 @@
-// Input: TanStack Router, SystemService bindings, analytics toggle, settings hooks
-// Output: Advanced settings page with telemetry, updates, and tray controls
+// Input: TanStack Router, SystemService/DebugService bindings, analytics toggle, settings hooks
+// Output: Advanced settings page with telemetry, updates, tray, and diagnostics tools
 // Position: /settings/advanced route
 
-import { SystemService } from '@bindings/mcpv/internal/ui/services'
-import type { UpdateCheckResult } from '@bindings/mcpv/internal/ui/types'
+import { DebugService, SystemService } from '@bindings/mcpv/internal/ui/services'
+import type { DiagnosticsExportOptions, UpdateCheckResult } from '@bindings/mcpv/internal/ui/types'
 import { createFileRoute } from '@tanstack/react-router'
-import { DownloadIcon, RefreshCwIcon } from 'lucide-react'
+import { ClipboardCopyIcon, DownloadIcon, FileDownIcon, RefreshCwIcon } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -18,14 +19,29 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogPanel,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { toastManager } from '@/components/ui/toast'
-import {
-  toggleAnalytics,
-  useAnalyticsEnabledValue,
-} from '@/lib/analytics'
+import { AnalyticsEvents, toggleAnalytics, track, useAnalyticsEnabledValue } from '@/lib/analytics'
 import { formatRelativeTime } from '@/lib/time'
 import { useTraySettings } from '@/modules/settings/hooks/use-tray-settings'
 import { useUpdateSettings } from '@/modules/settings/hooks/use-update-settings'
@@ -33,6 +49,35 @@ import { useUpdateSettings } from '@/modules/settings/hooks/use-update-settings'
 const formatVersionLabel = (version?: string | null) => {
   if (!version) return 'unknown'
   return version.startsWith('v') ? version : `v${version}`
+}
+
+const parseDiagnosticsPayload = (payload: unknown): Record<string, unknown> | null => {
+  if (!payload) {
+    return null
+  }
+  if (typeof payload === 'string') {
+    try {
+      return JSON.parse(payload) as Record<string, unknown>
+    }
+    catch {
+      return null
+    }
+  }
+  if (typeof payload === 'object') {
+    return payload as Record<string, unknown>
+  }
+  return null
+}
+
+const stripDiagnosticsReport = (payload: Record<string, unknown> | null): Record<string, unknown> | null => {
+  if (!payload) {
+    return null
+  }
+  if (!('report' in payload)) {
+    return payload
+  }
+  const { report: _report, ...rest } = payload
+  return rest
 }
 
 export const Route = createFileRoute('/settings/advanced')({
@@ -52,6 +97,25 @@ function AdvancedSettingsPage() {
   const [manualCheckError, setManualCheckError] = useState<string | null>(null)
   const [manualCheckedAt, setManualCheckedAt] = useState<string | null>(null)
   const [isChecking, setIsChecking] = useState(false)
+  const [debugData, setDebugData] = useState<string | null>(null)
+  const [snapshotCopiedAt, setSnapshotCopiedAt] = useState<string | null>(null)
+  const [isSnapshotExporting, setIsSnapshotExporting] = useState(false)
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false)
+  const [diagnosticsData, setDiagnosticsData] = useState<string | null>(null)
+  const [diagnosticsMeta, setDiagnosticsMeta] = useState<{ generatedAt: string, size: number } | null>(null)
+  const [isDiagnosticsExporting, setIsDiagnosticsExporting] = useState(false)
+  const [diagnosticsOptions, setDiagnosticsOptions] = useState<DiagnosticsExportOptions>({
+    mode: 'safe',
+    includeSnapshot: true,
+    includeMetrics: true,
+    includeLogs: true,
+    includeEvents: true,
+    includeStuck: true,
+    logLevel: 'info',
+    maxLogEntries: 200,
+    maxEventEntries: 2000,
+    stuckThresholdMs: 30_000,
+  })
 
   const {
     settings: traySettings,
@@ -123,6 +187,154 @@ function AdvancedSettingsPage() {
       setIsChecking(false)
     }
   }, [isChecking])
+
+  const handleExportDebug = useCallback(async () => {
+    if (isSnapshotExporting) {
+      return
+    }
+    setIsSnapshotExporting(true)
+    try {
+      const result = await DebugService.ExportDebugSnapshot()
+      const payload = JSON.stringify(result.snapshot, null, 2)
+      try {
+        await navigator.clipboard.writeText(payload)
+        toastManager.add({
+          type: 'success',
+          title: 'Debug snapshot copied',
+          description: 'Copied to clipboard',
+        })
+        setSnapshotCopiedAt(new Date().toISOString())
+        track(AnalyticsEvents.DEBUG_SNAPSHOT_EXPORT, { result: 'clipboard' })
+      }
+      catch {
+        setDebugData(payload)
+        track(AnalyticsEvents.DEBUG_SNAPSHOT_EXPORT, { result: 'dialog' })
+      }
+    }
+    catch (err) {
+      toastManager.add({
+        type: 'error',
+        title: 'Export failed',
+        description: err instanceof Error ? err.message : 'Export failed',
+      })
+      track(AnalyticsEvents.DEBUG_SNAPSHOT_EXPORT, { result: 'error' })
+    }
+    finally {
+      setIsSnapshotExporting(false)
+    }
+  }, [isSnapshotExporting])
+
+  const handleExportDiagnostics = useCallback(async () => {
+    if (isDiagnosticsExporting) {
+      return
+    }
+    setIsDiagnosticsExporting(true)
+    try {
+      const result = await DebugService.ExportDiagnosticsBundle(diagnosticsOptions)
+      const parsedPayload = parseDiagnosticsPayload(result.payload)
+      const report = typeof parsedPayload?.report === 'string' ? parsedPayload.report : ''
+      const rawPayload = stripDiagnosticsReport(parsedPayload)
+      const rawJson = JSON.stringify(rawPayload ?? {}, null, 2)
+      const formatted = report ? `${report}\n${rawJson}` : rawJson
+      setDiagnosticsData(formatted)
+      setDiagnosticsMeta({ generatedAt: result.generatedAt, size: result.size })
+      toastManager.add({
+        type: 'success',
+        title: 'Diagnostics exported',
+        description: 'Diagnostics bundle is ready',
+      })
+    }
+    catch (err) {
+      toastManager.add({
+        type: 'error',
+        title: 'Diagnostics export failed',
+        description: err instanceof Error ? err.message : 'Export failed',
+      })
+    }
+    finally {
+      setIsDiagnosticsExporting(false)
+    }
+  }, [diagnosticsOptions, isDiagnosticsExporting])
+
+  const handleDiagnosticsOpenChange = (open: boolean) => {
+    setDiagnosticsOpen(open)
+  }
+
+  const handleCopyDiagnostics = async () => {
+    if (!diagnosticsData) {
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(diagnosticsData)
+      toastManager.add({
+        type: 'success',
+        title: 'Copied',
+        description: 'Diagnostics copied to clipboard',
+      })
+    }
+    catch {
+      toastManager.add({
+        type: 'error',
+        title: 'Copy failed',
+        description: 'Please copy manually',
+      })
+    }
+  }
+
+  const handleDownloadDiagnostics = () => {
+    if (!diagnosticsData || !diagnosticsMeta) {
+      return
+    }
+    const safeTimestamp = diagnosticsMeta.generatedAt.replaceAll(':', '-').replaceAll('.', '-')
+    const fileName = `mcpv-diagnostics-${safeTimestamp}.log`
+    const blob = new Blob([diagnosticsData], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleCopyFromDialog = () => {
+    if (!debugData) {
+      return
+    }
+    const textarea = document.createElement('textarea')
+    textarea.value = debugData
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.append(textarea)
+    textarea.select()
+    try {
+      document.execCommand('copy')
+      toastManager.add({
+        type: 'success',
+        title: 'Copied',
+        description: 'Debug snapshot copied to clipboard',
+      })
+      track(AnalyticsEvents.DEBUG_SNAPSHOT_EXPORT, { result: 'dialog_copy' })
+      setSnapshotCopiedAt(new Date().toISOString())
+      setDebugData(null)
+    }
+    catch {
+      toastManager.add({
+        type: 'error',
+        title: 'Copy failed',
+        description: 'Please copy manually',
+      })
+    }
+    finally {
+      textarea.remove()
+    }
+  }
+
+  const updateDiagnosticsOption = <K extends keyof DiagnosticsExportOptions>(
+    key: K,
+    value: DiagnosticsExportOptions[K],
+  ) => {
+    setDiagnosticsOptions(prev => ({ ...prev, [key]: value }))
+  }
 
   const handleTrayUpdate = useCallback(async (next: typeof traySettings) => {
     try {
@@ -201,6 +413,22 @@ function AdvancedSettingsPage() {
       ? 'You are up to date.'
       : `You are up to date (current ${currentLabel}).`
   }, [isChecking, manualCheckError, manualCheckResult, manualLatest, manualUpdateAvailable])
+
+  const diagnosticsPreview = useMemo(() => {
+    if (!diagnosticsData) return null
+    const limit = 1400
+    if (diagnosticsData.length <= limit) {
+      return diagnosticsData
+    }
+    return `${diagnosticsData.slice(0, limit)}\n\n... (truncated)`
+  }, [diagnosticsData])
+
+  const diagnosticsModeLabel = diagnosticsOptions.mode === 'deep' ? 'Deep' : 'Safe'
+  const diagnosticsLogLabel = diagnosticsOptions.logLevel ?? 'info'
+  const diagnosticsSizeLabel = diagnosticsMeta ? `${Math.round(diagnosticsMeta.size / 1024)} KB` : '—'
+  const diagnosticsExportedLabel = diagnosticsMeta?.generatedAt
+    ? formatRelativeTime(diagnosticsMeta.generatedAt)
+    : 'Not exported'
 
   return (
     <div className="space-y-3 p-3">
@@ -393,20 +621,395 @@ function AdvancedSettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-sm">
             Debug & Diagnostics
-            <Badge variant="secondary" size="sm">
-              Coming Soon
-            </Badge>
           </CardTitle>
           <CardDescription className="text-xs">
-            Debug logs and diagnostic tools will be available here.
+            Collect snapshots and export diagnostics bundles to troubleshoot issues.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Advanced debugging features are currently under development.
-          </p>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+            <div className="space-y-4">
+              <div className="rounded-xl border bg-muted/10 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-foreground">Debug snapshot</p>
+                    <p className="text-xs text-muted-foreground">
+                      Capture the current state and copy it directly to the clipboard.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => void handleExportDebug()}
+                    disabled={isSnapshotExporting}
+                  >
+                    {isSnapshotExporting ? (
+                      <Spinner className="size-3.5" />
+                    ) : (
+                      <ClipboardCopyIcon className="size-3.5" />
+                    )}
+                    {isSnapshotExporting ? 'Copying...' : 'Copy snapshot'}
+                  </Button>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <Badge variant="secondary" size="sm">
+                    Clipboard first
+                  </Badge>
+                  <span>
+                    {snapshotCopiedAt
+                      ? `Last copied ${formatRelativeTime(snapshotCopiedAt)}.`
+                      : 'No snapshots copied yet.'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="rounded-xl border bg-muted/10 p-4 space-y-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-foreground">Diagnostics bundle</p>
+                    <p className="text-xs text-muted-foreground">
+                      Export logs, metrics, and event history into a shareable report.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => void handleExportDiagnostics()}
+                      disabled={isDiagnosticsExporting}
+                    >
+                      {isDiagnosticsExporting ? (
+                        <Spinner className="size-3.5" />
+                      ) : (
+                        <FileDownIcon className="size-3.5" />
+                      )}
+                      {isDiagnosticsExporting ? 'Exporting...' : 'Export bundle'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDiagnosticsOpenChange(true)}
+                    >
+                      Customize
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  <Badge variant="outline" size="sm">
+                    Mode: {diagnosticsModeLabel}
+                  </Badge>
+                  <Badge variant="outline" size="sm">
+                    Logs: {diagnosticsLogLabel}
+                  </Badge>
+                  <Badge variant="outline" size="sm">
+                    Snapshot {diagnosticsOptions.includeSnapshot ? 'On' : 'Off'}
+                  </Badge>
+                </div>
+                {diagnosticsOptions.mode === 'deep' ? (
+                  <Alert variant="warning">
+                    <AlertTitle>Deep export may include secrets</AlertTitle>
+                    <AlertDescription>
+                      Use deep mode only when needed. Review the bundle before sharing.
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="flex h-full flex-col gap-3 rounded-xl border bg-background/40 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold">Latest bundle</p>
+                  <p className="text-xs text-muted-foreground">
+                    Preview and share the most recent diagnostics export.
+                  </p>
+                </div>
+                <Badge variant={diagnosticsMeta ? 'secondary' : 'outline'} size="sm">
+                  {diagnosticsExportedLabel}
+                </Badge>
+              </div>
+              <div className="grid gap-1 text-xs text-muted-foreground">
+                <div className="flex items-center justify-between">
+                  <span>Size</span>
+                  <span>{diagnosticsSizeLabel}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Redaction</span>
+                  <span>{diagnosticsModeLabel}</span>
+                </div>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                {diagnosticsPreview ? (
+                  <pre className="h-full rounded-lg bg-muted/40 p-3 text-[11px] leading-relaxed overflow-auto">
+                    <code>{diagnosticsPreview}</code>
+                  </pre>
+                ) : (
+                  <div className="flex h-full min-h-32 items-center justify-center rounded-lg border border-dashed border-muted-foreground/30 text-xs text-muted-foreground">
+                    Run an export to generate a preview.
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleCopyDiagnostics}
+                  disabled={!diagnosticsData}
+                >
+                  Copy
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleDownloadDiagnostics}
+                  disabled={!diagnosticsData}
+                >
+                  Download
+                </Button>
+                <Button size="sm" onClick={() => handleDiagnosticsOpenChange(true)}>
+                  Open exporter
+                </Button>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
+
+      <Dialog open={!!debugData} onOpenChange={open => !open && setDebugData(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Debug Snapshot</DialogTitle>
+            <DialogDescription>
+              Copy the debug information below to share with support or for troubleshooting.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogPanel>
+            <pre className="rounded-lg bg-muted p-4 text-xs overflow-x-auto">
+              <code>{debugData}</code>
+            </pre>
+          </DialogPanel>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>
+              Close
+            </DialogClose>
+            <Button onClick={handleCopyFromDialog}>
+              Copy to Clipboard
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={diagnosticsOpen} onOpenChange={handleDiagnosticsOpenChange}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Diagnostics Export</DialogTitle>
+            <DialogDescription>
+              Configure and export a diagnostics bundle for troubleshooting.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogPanel>
+            <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+              <div className="space-y-6">
+                <div className="rounded-xl border bg-muted/10 p-4 space-y-4">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Export summary</p>
+                    <p className="text-xs text-muted-foreground">
+                      Human-readable report first, raw JSON appended.
+                    </p>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="diagnostics-mode">Redaction mode</Label>
+                      <Select
+                        value={diagnosticsOptions.mode ?? 'safe'}
+                        onValueChange={value => updateDiagnosticsOption('mode', value ?? undefined)}
+                      >
+                        <SelectTrigger id="diagnostics-mode">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="safe">Safe (redacted)</SelectItem>
+                          <SelectItem value="deep">Deep (may include secrets)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="diagnostics-log-level">Log level</Label>
+                      <Select
+                        value={diagnosticsOptions.logLevel ?? 'info'}
+                        onValueChange={value => updateDiagnosticsOption('logLevel', value ?? undefined)}
+                      >
+                        <SelectTrigger id="diagnostics-log-level">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="debug">Debug</SelectItem>
+                          <SelectItem value="info">Info</SelectItem>
+                          <SelectItem value="notice">Notice</SelectItem>
+                          <SelectItem value="warning">Warning</SelectItem>
+                          <SelectItem value="error">Error</SelectItem>
+                          <SelectItem value="critical">Critical</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border bg-muted/10 p-4 space-y-4">
+                  <p className="text-sm font-semibold text-foreground">Include data</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="flex items-center justify-between gap-3 rounded-lg border bg-background px-3 py-2">
+                      <Label htmlFor="diagnostics-include-snapshot">Snapshot</Label>
+                      <Switch
+                        id="diagnostics-include-snapshot"
+                        checked={diagnosticsOptions.includeSnapshot === true}
+                        onCheckedChange={checked => updateDiagnosticsOption('includeSnapshot', checked === true)}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-3 rounded-lg border bg-background px-3 py-2">
+                      <Label htmlFor="diagnostics-include-events">Events</Label>
+                      <Switch
+                        id="diagnostics-include-events"
+                        checked={diagnosticsOptions.includeEvents === true}
+                        onCheckedChange={checked => updateDiagnosticsOption('includeEvents', checked === true)}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-3 rounded-lg border bg-background px-3 py-2">
+                      <Label htmlFor="diagnostics-include-logs">Logs</Label>
+                      <Switch
+                        id="diagnostics-include-logs"
+                        checked={diagnosticsOptions.includeLogs === true}
+                        onCheckedChange={checked => updateDiagnosticsOption('includeLogs', checked === true)}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-3 rounded-lg border bg-background px-3 py-2">
+                      <Label htmlFor="diagnostics-include-metrics">Metrics</Label>
+                      <Switch
+                        id="diagnostics-include-metrics"
+                        checked={diagnosticsOptions.includeMetrics === true}
+                        onCheckedChange={checked => updateDiagnosticsOption('includeMetrics', checked === true)}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-3 rounded-lg border bg-background px-3 py-2 sm:col-span-2">
+                      <Label htmlFor="diagnostics-include-stuck">Stuck analysis</Label>
+                      <Switch
+                        id="diagnostics-include-stuck"
+                        checked={diagnosticsOptions.includeStuck === true}
+                        onCheckedChange={checked => updateDiagnosticsOption('includeStuck', checked === true)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border bg-muted/10 p-4 space-y-4">
+                  <p className="text-sm font-semibold text-foreground">Limits</p>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="diagnostics-max-logs">Max log entries</Label>
+                      <Input
+                        id="diagnostics-max-logs"
+                        type="number"
+                        min={0}
+                        value={diagnosticsOptions.maxLogEntries ?? 0}
+                        onChange={(event) => {
+                          const value = Number(event.target.value)
+                          updateDiagnosticsOption('maxLogEntries', Number.isNaN(value) ? 0 : value)
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="diagnostics-max-events">Max event entries</Label>
+                      <Input
+                        id="diagnostics-max-events"
+                        type="number"
+                        min={0}
+                        value={diagnosticsOptions.maxEventEntries ?? 0}
+                        onChange={(event) => {
+                          const value = Number(event.target.value)
+                          updateDiagnosticsOption('maxEventEntries', Number.isNaN(value) ? 0 : value)
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="diagnostics-stuck-threshold">Stuck threshold (ms)</Label>
+                      <Input
+                        id="diagnostics-stuck-threshold"
+                        type="number"
+                        min={0}
+                        value={diagnosticsOptions.stuckThresholdMs ?? 0}
+                        onChange={(event) => {
+                          const value = Number(event.target.value)
+                          updateDiagnosticsOption('stuckThresholdMs', Number.isNaN(value) ? 0 : value)
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {diagnosticsOptions.mode === 'deep' ? (
+                  <Alert variant="warning">
+                    <AlertTitle>Deep export may include secrets</AlertTitle>
+                    <AlertDescription>
+                      Use deep mode only when needed. Review the bundle before sharing.
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+              </div>
+
+              <div className="flex h-full flex-col gap-4 rounded-xl border bg-background/40 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold">Preview</p>
+                    <p className="text-xs text-muted-foreground">Human-readable report with raw data appended.</p>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {diagnosticsMeta ? `${Math.round(diagnosticsMeta.size / 1024)} KB` : '--'}
+                  </span>
+                </div>
+                <div className="flex-1 overflow-hidden max-w-80 max-h-115">
+                  {diagnosticsData
+                    ? (
+                        <pre className="h-full rounded-lg bg-muted/40 p-3 text-[11px] leading-relaxed overflow-auto">
+                          <code>{diagnosticsData}</code>
+                        </pre>
+                      )
+                    : (
+                        <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-muted-foreground/30 text-xs text-muted-foreground">
+                          Run export to preview the report.
+                        </div>
+                      )}
+                </div>
+              </div>
+            </div>
+          </DialogPanel>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>
+              Close
+            </DialogClose>
+            {diagnosticsData
+              ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => void handleExportDiagnostics()}
+                      disabled={isDiagnosticsExporting}
+                    >
+                      {isDiagnosticsExporting ? 'Exporting...' : 'Export Again'}
+                    </Button>
+                    <Button variant="outline" onClick={handleCopyDiagnostics}>
+                      Copy to Clipboard
+                    </Button>
+                    <Button onClick={handleDownloadDiagnostics}>
+                      Download JSON
+                    </Button>
+                  </>
+                )
+              : (
+                  <Button onClick={() => void handleExportDiagnostics()} disabled={isDiagnosticsExporting}>
+                    {isDiagnosticsExporting ? 'Exporting...' : 'Export Diagnostics'}
+                  </Button>
+                )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

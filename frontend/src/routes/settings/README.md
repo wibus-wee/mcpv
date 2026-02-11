@@ -13,4 +13,4 @@ Settings 相关子路由目录。
 - **runtime.tsx**: Runtime 设置路由
 - **gateway.tsx**: Gateway 设置路由
 - **subagent.tsx**: SubAgent 设置路由
-- **advanced.tsx**: Advanced 设置路由（更新检查、遥测、托盘）
+- **advanced.tsx**: Advanced 设置路由（更新检查、遥测、托盘、诊断导出）
