@@ -29,6 +29,11 @@ const (
 	CoreStateError    CoreState = "error"
 )
 
+const (
+	gatewayShutdownTimeout       = 300 * time.Millisecond
+	updateCheckerShutdownTimeout = 200 * time.Millisecond
+)
+
 // Manager coordinates Core lifecycle and all UI services.
 type Manager struct {
 	mu sync.RWMutex
@@ -412,6 +417,7 @@ func (m *Manager) Restart(ctx context.Context) error {
 // Shutdown performs cleanup on application exit.
 func (m *Manager) Shutdown() {
 	m.mu.Lock()
+	logger := m.logger
 	updateChecker := m.updateChecker
 	trayController := m.trayController
 	uiSettings := m.uiSettings
@@ -432,7 +438,14 @@ func (m *Manager) Shutdown() {
 	m.mu.Unlock()
 
 	if gateway != nil {
-		_ = gateway.Stop(context.Background())
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), gatewayShutdownTimeout)
+			err := gateway.Stop(ctx)
+			cancel()
+			if err != nil && logger != nil {
+				logger.Warn("gateway stop failed", zap.Error(err))
+			}
+		}()
 	}
 	if trayController != nil {
 		trayController.Shutdown()
@@ -441,7 +454,11 @@ func (m *Manager) Shutdown() {
 		_ = uiSettings.Close()
 	}
 	if updateChecker != nil {
-		updateChecker.Stop()
+		go func() {
+			if err := updateChecker.StopWithTimeout(updateCheckerShutdownTimeout); err != nil && logger != nil {
+				logger.Warn("update checker stop timeout", zap.Error(err))
+			}
+		}()
 	}
 }
 

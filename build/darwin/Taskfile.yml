@@ -52,10 +52,12 @@ tasks:
           GOOS: darwin
           GOARCH: '{{.ARCH | default ARCH}}'
           OUTPUT: '{{.CLI_OUTPUT | default .CLI_OUTPUT_DEFAULT}}'
+          DEV: '{{.DEV}}'
           LDFLAGS: '{{.VERSION_LDFLAGS}}'
       - go build {{.BUILD_FLAGS}} -o {{.OUTPUT}}
     vars:
-      BUILD_FLAGS: '-ldflags="-w -s {{.VERSION_LDFLAGS}}" {{if eq .DEV "true"}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production -trimpath -buildvcs=false{{end}}'
+      EFFECTIVE_LDFLAGS: '{{if eq .DEV "true"}}{{.VERSION_LDFLAGS}}{{else}}-w -s {{.VERSION_LDFLAGS}}{{end}}'
+      BUILD_FLAGS: '-ldflags="{{.EFFECTIVE_LDFLAGS}}" {{if eq .DEV "true"}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production -trimpath -buildvcs=false{{end}}'
       DEFAULT_OUTPUT: '{{.BIN_DIR}}/{{.APP_NAME}}'
       CLI_OUTPUT_DEFAULT: '{{printf "%s/%s" .BIN_DIR .CLI_NAME}}'
       OUTPUT: '{{ .OUTPUT | default .DEFAULT_OUTPUT }}'

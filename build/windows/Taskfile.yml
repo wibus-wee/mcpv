@@ -52,6 +52,7 @@ tasks:
         vars:
           GOOS: windows
           GOARCH: '{{.ARCH | default ARCH}}'
+          DEV: '{{.DEV}}'
           CLI_EXT: ".exe"
           OUTPUT: '{{.CLI_OUTPUT | default .CLI_OUTPUT_DEFAULT}}'
           LDFLAGS: '{{.VERSION_LDFLAGS}}'
@@ -87,6 +88,7 @@ tasks:
         vars:
           GOOS: windows
           GOARCH: '{{.ARCH | default ARCH}}'
+          DEV: '{{.DEV}}'
           CLI_EXT: ".exe"
           OUTPUT: '{{.CLI_OUTPUT | default .CLI_OUTPUT_DEFAULT}}'
           LDFLAGS: '{{.VERSION_LDFLAGS}}'

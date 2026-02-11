@@ -131,11 +131,20 @@ func (c *UpdateChecker) Start() {
 
 // Stop halts the update checker loop.
 func (c *UpdateChecker) Stop() {
+	_ = c.StopWithTimeout(0)
+}
+
+// StopWithTimeout halts the update checker loop and waits up to the timeout.
+// A non-positive timeout waits indefinitely, matching Stop behavior.
+func (c *UpdateChecker) StopWithTimeout(timeout time.Duration) error {
+	if c == nil {
+		return nil
+	}
 	c.mu.Lock()
 	ticker := c.ticker
 	if ticker == nil {
 		c.mu.Unlock()
-		return
+		return nil
 	}
 	stop := c.stop
 	done := c.done
@@ -145,8 +154,24 @@ func (c *UpdateChecker) Stop() {
 	c.mu.Unlock()
 
 	ticker.Stop()
-	close(stop)
-	<-done
+	if stop != nil {
+		close(stop)
+	}
+	if done == nil {
+		return nil
+	}
+	if timeout <= 0 {
+		<-done
+		return nil
+	}
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case <-done:
+		return nil
+	case <-timer.C:
+		return context.DeadlineExceeded
+	}
 }
 
 // CheckNow performs an immediate update check.

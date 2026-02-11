@@ -156,6 +156,11 @@ func main() {
 			default:
 				return fmt.Errorf("unsupported transport: %s", opts.transport)
 			}
+			if err != nil {
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					return nil
+				}
+			}
 			if err != nil && opts.launchUIOnFail && isConnectionError(err) {
 				opts.logger.Info("failed to connect to mcpv, attempting to launch UI", zap.Error(err))
 				if launchErr := launchmcpvUI(opts.urlScheme, opts.logger); launchErr != nil {

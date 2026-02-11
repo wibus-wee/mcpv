@@ -13,7 +13,8 @@ tasks:
     cmds:
       - go build {{.BUILD_FLAGS}} -o {{.OUTPUT}} ./cmd/mcpvmcp
     vars:
-      BUILD_FLAGS: '-trimpath -buildvcs=false {{if .LDFLAGS}}-ldflags="{{.LDFLAGS}}"{{end}}'
+      EFFECTIVE_LDFLAGS: '{{if eq .DEV "true"}}{{.LDFLAGS}}{{else}}-s -w {{.LDFLAGS}}{{end}}'
+      BUILD_FLAGS: '-trimpath -buildvcs=false {{if .EFFECTIVE_LDFLAGS}}-ldflags="{{.EFFECTIVE_LDFLAGS}}"{{end}}'
       OUTPUT: '{{.OUTPUT | default (printf "%s/%s%s" .BIN_DIR .CLI_NAME .CLI_EXT)}}'
       CLI_EXT: '{{.CLI_EXT | default ""}}'
     env:
