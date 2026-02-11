@@ -129,6 +129,18 @@ export type UpdateCheckOptions = types$0.UpdateCheckOptions;
 export const UpdateCheckResult = types$0.UpdateCheckResult;
 export type UpdateCheckResult = types$0.UpdateCheckResult;
 
+export const UpdateDownloadProgress = types$0.UpdateDownloadProgress;
+export type UpdateDownloadProgress = types$0.UpdateDownloadProgress;
+
+export const UpdateDownloadRequest = types$0.UpdateDownloadRequest;
+export type UpdateDownloadRequest = types$0.UpdateDownloadRequest;
+
+export const UpdateInstallProgress = types$0.UpdateInstallProgress;
+export type UpdateInstallProgress = types$0.UpdateInstallProgress;
+
+export const UpdateInstallRequest = types$0.UpdateInstallRequest;
+export type UpdateInstallRequest = types$0.UpdateInstallRequest;
+
 export const UpdatePluginRequest = types$0.UpdatePluginRequest;
 export type UpdatePluginRequest = types$0.UpdatePluginRequest;
 

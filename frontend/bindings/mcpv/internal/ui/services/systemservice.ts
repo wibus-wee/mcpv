@@ -37,6 +37,24 @@ export function GetUpdateCheckOptions(): $CancellablePromise<$models.UpdateCheck
 }
 
 /**
+ * GetUpdateDownloadProgress returns current download progress.
+ */
+export function GetUpdateDownloadProgress(): $CancellablePromise<$models.UpdateDownloadProgress> {
+    return $Call.ByID(4162334295).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
+ * GetUpdateInstallProgress returns current install progress.
+ */
+export function GetUpdateInstallProgress(): $CancellablePromise<$models.UpdateInstallProgress> {
+    return $Call.ByID(1157062288).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
  * GetVersion returns app version.
  */
 export function GetVersion(): $CancellablePromise<string> {
@@ -73,6 +91,26 @@ export function SetUpdateCheckOptions(opts: $models.UpdateCheckOptions): $Cancel
     });
 }
 
+/**
+ * StartUpdateDownload starts downloading the latest update asset.
+ */
+export function StartUpdateDownload(req: $models.UpdateDownloadRequest): $CancellablePromise<$models.UpdateDownloadProgress> {
+    return $Call.ByID(2491357336, req).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
+ * StartUpdateInstall starts installing the downloaded update.
+ */
+export function StartUpdateInstall(req: $models.UpdateInstallRequest): $CancellablePromise<$models.UpdateInstallProgress> {
+    return $Call.ByID(2428018587, req).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = types$0.UpdateCheckResult.createFrom;
 const $$createType1 = types$0.UpdateCheckOptions.createFrom;
+const $$createType2 = types$0.UpdateDownloadProgress.createFrom;
+const $$createType3 = types$0.UpdateInstallProgress.createFrom;

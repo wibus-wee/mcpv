@@ -3,10 +3,10 @@
 // Position: /settings/advanced route
 
 import { DebugService, SystemService } from '@bindings/mcpv/internal/ui/services'
-import type { DiagnosticsExportOptions, UpdateCheckResult } from '@bindings/mcpv/internal/ui/types'
+import type { DiagnosticsExportOptions, UpdateCheckResult, UpdateDownloadProgress, UpdateInstallProgress } from '@bindings/mcpv/internal/ui/types'
 import { createFileRoute } from '@tanstack/react-router'
 import { ClipboardCopyIcon, DownloadIcon, FileDownIcon, RefreshCwIcon } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Progress } from '@/components/ui/progress'
 import {
   Select,
   SelectContent,
@@ -49,6 +50,19 @@ import { useUpdateSettings } from '@/modules/settings/hooks/use-update-settings'
 const formatVersionLabel = (version?: string | null) => {
   if (!version) return 'unknown'
   return version.startsWith('v') ? version : `v${version}`
+}
+
+const formatBytes = (value: number | null | undefined) => {
+  const bytes = typeof value === 'number' && Number.isFinite(value) ? value : 0
+  if (bytes <= 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let size = bytes
+  let unitIndex = 0
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024
+    unitIndex += 1
+  }
+  return `${size.toFixed(size >= 10 ? 0 : 1)} ${units[unitIndex]}`
 }
 
 const parseDiagnosticsPayload = (payload: unknown): Record<string, unknown> | null => {
@@ -97,6 +111,10 @@ function AdvancedSettingsPage() {
   const [manualCheckError, setManualCheckError] = useState<string | null>(null)
   const [manualCheckedAt, setManualCheckedAt] = useState<string | null>(null)
   const [isChecking, setIsChecking] = useState(false)
+  const [downloadProgress, setDownloadProgress] = useState<UpdateDownloadProgress | null>(null)
+  const [isDownloadStarting, setIsDownloadStarting] = useState(false)
+  const [installProgress, setInstallProgress] = useState<UpdateInstallProgress | null>(null)
+  const [isInstallStarting, setIsInstallStarting] = useState(false)
   const [debugData, setDebugData] = useState<string | null>(null)
   const [snapshotCopiedAt, setSnapshotCopiedAt] = useState<string | null>(null)
   const [isSnapshotExporting, setIsSnapshotExporting] = useState(false)
@@ -123,6 +141,9 @@ function AdvancedSettingsPage() {
     isLoading: trayLoading,
     updateSettings: updateTraySettings,
   } = useTraySettings()
+
+  const installStartedRef = useRef<string | null>(null)
+  const restartNotifiedRef = useRef<string | null>(null)
 
   const isMac = useMemo(() => {
     if (typeof navigator === 'undefined') return false
@@ -187,6 +208,62 @@ function AdvancedSettingsPage() {
       setIsChecking(false)
     }
   }, [isChecking])
+
+  const manualLatest = manualCheckResult?.latest ?? null
+  const manualUpdateAvailable = manualCheckResult?.updateAvailable ?? false
+
+  const handleDownloadUpdate = useCallback(async () => {
+    if (!manualLatest?.url || isDownloadStarting) {
+      return
+    }
+    setIsDownloadStarting(true)
+    try {
+      const progress = await SystemService.StartUpdateDownload({ releaseUrl: manualLatest.url })
+      setDownloadProgress(progress)
+    }
+    catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to start download'
+      toastManager.add({
+        type: 'error',
+        title: 'Download failed',
+        description: message,
+      })
+    }
+    finally {
+      setIsDownloadStarting(false)
+    }
+  }, [isDownloadStarting, manualLatest?.url])
+
+  const handleStartInstall = useCallback(async (filePath: string) => {
+    if (!filePath || isInstallStarting) {
+      return
+    }
+    setIsInstallStarting(true)
+    try {
+      const progress = await SystemService.StartUpdateInstall({ filePath })
+      setInstallProgress(progress)
+    }
+    catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to start install'
+      toastManager.add({
+        type: 'error',
+        title: 'Install failed',
+        description: message,
+      })
+    }
+    finally {
+      setIsInstallStarting(false)
+    }
+  }, [isInstallStarting])
+
+  useEffect(() => {
+    if (downloadProgress?.status !== 'completed') return
+    const filePath = downloadProgress.filePath
+    if (!filePath) return
+    if (installStartedRef.current === filePath) return
+    installStartedRef.current = filePath
+    void handleStartInstall(filePath)
+  }, [downloadProgress?.filePath, downloadProgress?.status, handleStartInstall])
 
   const handleExportDebug = useCallback(async () => {
     if (isSnapshotExporting) {
@@ -375,8 +452,6 @@ function AdvancedSettingsPage() {
     return `Checks for new releases every ${intervalHours} hours.`
   }, [updateSettings.intervalHours])
 
-  const manualLatest = manualCheckResult?.latest ?? null
-  const manualUpdateAvailable = manualCheckResult?.updateAvailable ?? false
   const manualStatus = useMemo(() => {
     if (isChecking) {
       return { label: 'Checking', variant: 'info' as const }
@@ -413,6 +488,167 @@ function AdvancedSettingsPage() {
       ? 'You are up to date.'
       : `You are up to date (current ${currentLabel}).`
   }, [isChecking, manualCheckError, manualCheckResult, manualLatest, manualUpdateAvailable])
+
+  const isDownloadActive = downloadProgress?.status === 'resolving' || downloadProgress?.status === 'downloading'
+
+  const downloadStatus = useMemo(() => {
+    if (!downloadProgress) return null
+    if (downloadProgress.status === 'resolving') {
+      return { label: 'Preparing', variant: 'info' as const, description: 'Resolving update asset...' }
+    }
+    if (downloadProgress.status === 'downloading') {
+      const bytesLabel = formatBytes(downloadProgress.bytes)
+      const totalLabel = downloadProgress.total > 0 ? ` of ${formatBytes(downloadProgress.total)}` : ''
+      return { label: 'Downloading', variant: 'info' as const, description: `${bytesLabel}${totalLabel}` }
+    }
+    if (downloadProgress.status === 'completed') {
+      const name = downloadProgress.fileName ? `Saved ${downloadProgress.fileName}.` : 'Download complete.'
+      return { label: 'Downloaded', variant: 'success' as const, description: name }
+    }
+    if (downloadProgress.status === 'failed') {
+      return { label: 'Failed', variant: 'error' as const, description: downloadProgress.message || 'Download failed.' }
+    }
+    return null
+  }, [downloadProgress])
+
+  const downloadPercent = useMemo(() => {
+    if (!downloadProgress) return 0
+    if (downloadProgress.percent > 0) return Math.min(100, downloadProgress.percent)
+    if (downloadProgress.total > 0) {
+      return Math.min(100, (downloadProgress.bytes / downloadProgress.total) * 100)
+    }
+    return downloadProgress.status === 'completed' ? 100 : 0
+  }, [downloadProgress])
+
+  const isInstallActive = installProgress?.status === 'preparing'
+    || installProgress?.status === 'extracting'
+    || installProgress?.status === 'validating'
+    || installProgress?.status === 'replacing'
+    || installProgress?.status === 'cleaning'
+    || installProgress?.status === 'restarting'
+
+  const installStatus = useMemo(() => {
+    if (!installProgress) return null
+    if (installProgress.status === 'preparing') {
+      return { label: 'Preparing', variant: 'info' as const, description: 'Preparing installer...' }
+    }
+    if (installProgress.status === 'extracting') {
+      return { label: 'Extracting', variant: 'info' as const, description: 'Extracting update bundle...' }
+    }
+    if (installProgress.status === 'validating') {
+      return { label: 'Validating', variant: 'info' as const, description: 'Validating application bundle...' }
+    }
+    if (installProgress.status === 'replacing') {
+      return { label: 'Installing', variant: 'info' as const, description: 'Replacing application...' }
+    }
+    if (installProgress.status === 'cleaning') {
+      return { label: 'Finalizing', variant: 'info' as const, description: 'Finalizing update...' }
+    }
+    if (installProgress.status === 'restarting') {
+      return { label: 'Restarting', variant: 'warning' as const, description: 'Restarting into the new version...' }
+    }
+    if (installProgress.status === 'completed') {
+      return { label: 'Installed', variant: 'success' as const, description: 'Update installed.' }
+    }
+    if (installProgress.status === 'failed') {
+      return { label: 'Failed', variant: 'error' as const, description: installProgress.message || 'Install failed.' }
+    }
+    return null
+  }, [installProgress])
+
+  const installPercent = useMemo(() => {
+    if (!installProgress) return 0
+    if (installProgress.percent > 0) {
+      return Math.min(100, installProgress.percent)
+    }
+    return installProgress.status === 'completed' ? 100 : 0
+  }, [installProgress])
+
+  useEffect(() => {
+    let cancelled = false
+    SystemService.GetUpdateDownloadProgress()
+      .then((progress) => {
+        if (cancelled) return
+        if (progress.status && progress.status !== 'idle') {
+          setDownloadProgress(progress)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    SystemService.GetUpdateInstallProgress()
+      .then((progress) => {
+        if (cancelled) return
+        if (progress.status && progress.status !== 'idle') {
+          setInstallProgress(progress)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!downloadProgress) return
+    if (downloadProgress.status !== 'resolving' && downloadProgress.status !== 'downloading') return
+    let cancelled = false
+    const poll = async () => {
+      try {
+        const progress = await SystemService.GetUpdateDownloadProgress()
+        if (!cancelled) {
+          setDownloadProgress(progress)
+        }
+      }
+      catch {
+      }
+    }
+    poll()
+    const intervalId = window.setInterval(poll, 1000)
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+    }
+  }, [downloadProgress?.status])
+
+  useEffect(() => {
+    if (!installProgress) return
+    if (!isInstallActive) return
+    let cancelled = false
+    const poll = async () => {
+      try {
+        const progress = await SystemService.GetUpdateInstallProgress()
+        if (!cancelled) {
+          setInstallProgress(progress)
+        }
+      }
+      catch {
+      }
+    }
+    poll()
+    const intervalId = window.setInterval(poll, 1000)
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+    }
+  }, [installProgress?.status, isInstallActive])
+
+  useEffect(() => {
+    if (installProgress?.status !== 'restarting') return
+    const key = installProgress.filePath ?? 'restarting'
+    if (restartNotifiedRef.current === key) return
+    restartNotifiedRef.current = key
+    toastManager.add({
+      type: 'info',
+      title: 'Restarting',
+      description: 'Installing update and restarting the app...',
+    })
+  }, [installProgress?.filePath, installProgress?.status])
 
   const diagnosticsPreview = useMemo(() => {
     if (!diagnosticsData) return null
@@ -482,14 +718,69 @@ function AdvancedSettingsPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => handleOpenRelease(manualLatest.url)}
+                  onClick={() => void handleDownloadUpdate()}
+                  disabled={isDownloadStarting || isDownloadActive || isInstallStarting || isInstallActive}
                 >
-                  <DownloadIcon className="size-4" />
-                  Download
-                </Button>
-              )}
+                  {isDownloadStarting || isDownloadActive ? (
+                    <Spinner className="size-4" />
+                  ) : (
+                    <DownloadIcon className="size-4" />
+                  )}
+                    {isDownloadStarting || isDownloadActive ? 'Downloading...' : 'Download'}
+                  </Button>
+                )}
             </div>
           </div>
+          {downloadStatus && (
+            <div className="rounded-lg border border-dashed bg-muted/20 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Download</span>
+                    <Badge variant={downloadStatus.variant} size="sm" className="gap-1">
+                      {downloadStatus.label}
+                    </Badge>
+                  </div>
+                  <p className={downloadProgress?.status === 'failed' ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'}>
+                    {downloadStatus.description}
+                  </p>
+                  {downloadProgress?.filePath && downloadProgress.status === 'completed' && (
+                    <p className="text-xs text-muted-foreground">
+                      {downloadProgress.filePath}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="mt-3">
+                <Progress value={downloadPercent} />
+              </div>
+            </div>
+          )}
+          {installStatus && (
+            <div className="rounded-lg border border-dashed bg-muted/20 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Install</span>
+                    <Badge variant={installStatus.variant} size="sm" className="gap-1">
+                      {installStatus.label}
+                    </Badge>
+                  </div>
+                  <p className={installProgress?.status === 'failed' ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'}>
+                    {installStatus.description}
+                  </p>
+                  {installProgress?.appPath && (
+                    <p className="text-xs text-muted-foreground">
+                      {installProgress.appPath}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="mt-3">
+                <Progress value={installPercent} />
+              </div>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="updates-prerelease" className="text-sm font-medium">

@@ -62,6 +62,12 @@ jobs:
           mv ./bin/mcpvui.app ./bin/mcpvui-arm64.app
           VERSION=${{ env.VERSION }} BUILD=${{ env.BUILD }} ARCH=amd64 ./bin/wails3 task darwin:package
           mv ./bin/mcpvui.app ./bin/mcpvui-amd64.app
+          chmod +x scripts/release/make-dmg.sh
+          cp scripts/release/install-helper.sh bin/
+          chmod +x bin/install-helper.sh
+          scripts/release/make-dmg.sh "bin/mcpvui-universal.app" "dist/mcpvui-${{ env.VERSION }}-macos-universal.dmg" "mcpvui"
+          scripts/release/make-dmg.sh "bin/mcpvui-arm64.app" "dist/mcpvui-${{ env.VERSION }}-macos-arm64.dmg" "mcpvui"
+          scripts/release/make-dmg.sh "bin/mcpvui-amd64.app" "dist/mcpvui-${{ env.VERSION }}-macos-amd64.dmg" "mcpvui"
           ditto -c -k --sequesterRsrc --keepParent ./bin/mcpvui-universal.app ./dist/mcpvui-${{ env.VERSION }}-macos-universal.zip
           ditto -c -k --sequesterRsrc --keepParent ./bin/mcpvui-arm64.app ./dist/mcpvui-${{ env.VERSION }}-macos-arm64.zip
           ditto -c -k --sequesterRsrc --keepParent ./bin/mcpvui-amd64.app ./dist/mcpvui-${{ env.VERSION }}-macos-amd64.zip
@@ -71,16 +77,22 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: gui-macos-universal
-          path: ./dist/mcpvui-${{ env.VERSION }}-macos-universal.zip
+          path: |
+            ./dist/mcpvui-${{ env.VERSION }}-macos-universal.zip
+            ./dist/mcpvui-${{ env.VERSION }}-macos-universal.dmg
 
       - name: Upload GUI artifacts (arm64)
         uses: actions/upload-artifact@v4
         with:
           name: gui-macos-arm64
-          path: ./dist/mcpvui-${{ env.VERSION }}-macos-arm64.zip
+          path: |
+            ./dist/mcpvui-${{ env.VERSION }}-macos-arm64.zip
+            ./dist/mcpvui-${{ env.VERSION }}-macos-arm64.dmg
 
       - name: Upload GUI artifacts (amd64)
         uses: actions/upload-artifact@v4
         with:
           name: gui-macos-amd64
-          path: ./dist/mcpvui-${{ env.VERSION }}-macos-amd64.zip
+          path: |
+            ./dist/mcpvui-${{ env.VERSION }}-macos-amd64.zip
+            ./dist/mcpvui-${{ env.VERSION }}-macos-amd64.dmg

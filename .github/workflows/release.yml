@@ -52,6 +52,8 @@ jobs:
       - name: Package DMG (universal + arm64 + amd64)
         run: |
           chmod +x scripts/release/make-dmg.sh
+          cp scripts/release/install-helper.sh bin/
+          chmod +x bin/install-helper.sh
           scripts/release/make-dmg.sh "bin/mcpvui-universal.app" "dist/mcpvui-${{ env.VERSION }}-macos-universal.dmg" "mcpvui"
           scripts/release/make-dmg.sh "bin/mcpvui-arm64.app" "dist/mcpvui-${{ env.VERSION }}-macos-arm64.dmg" "mcpvui"
           scripts/release/make-dmg.sh "bin/mcpvui-amd64.app" "dist/mcpvui-${{ env.VERSION }}-macos-amd64.dmg" "mcpvui"

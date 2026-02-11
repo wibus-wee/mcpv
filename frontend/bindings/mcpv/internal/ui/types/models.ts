@@ -2220,6 +2220,126 @@ export class UpdateCheckResult {
 }
 
 /**
+ * UpdateDownloadProgress reports update download progress.
+ */
+export class UpdateDownloadProgress {
+    "status": string;
+    "bytes": number;
+    "total": number;
+    "percent": number;
+    "message"?: string;
+    "filePath"?: string;
+    "fileName"?: string;
+
+    /** Creates a new UpdateDownloadProgress instance. */
+    constructor($$source: Partial<UpdateDownloadProgress> = {}) {
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("bytes" in $$source)) {
+            this["bytes"] = 0;
+        }
+        if (!("total" in $$source)) {
+            this["total"] = 0;
+        }
+        if (!("percent" in $$source)) {
+            this["percent"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateDownloadProgress instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateDownloadProgress {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UpdateDownloadProgress($$parsedSource as Partial<UpdateDownloadProgress>);
+    }
+}
+
+/**
+ * UpdateDownloadRequest starts an update download.
+ */
+export class UpdateDownloadRequest {
+    "releaseUrl": string;
+    "assetName"?: string;
+
+    /** Creates a new UpdateDownloadRequest instance. */
+    constructor($$source: Partial<UpdateDownloadRequest> = {}) {
+        if (!("releaseUrl" in $$source)) {
+            this["releaseUrl"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateDownloadRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateDownloadRequest {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UpdateDownloadRequest($$parsedSource as Partial<UpdateDownloadRequest>);
+    }
+}
+
+/**
+ * UpdateInstallProgress reports update install progress.
+ */
+export class UpdateInstallProgress {
+    "status": string;
+    "percent": number;
+    "message"?: string;
+    "filePath"?: string;
+    "appPath"?: string;
+    "backupPath"?: string;
+
+    /** Creates a new UpdateInstallProgress instance. */
+    constructor($$source: Partial<UpdateInstallProgress> = {}) {
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("percent" in $$source)) {
+            this["percent"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateInstallProgress instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateInstallProgress {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UpdateInstallProgress($$parsedSource as Partial<UpdateInstallProgress>);
+    }
+}
+
+/**
+ * UpdateInstallRequest starts an update install using the downloaded file.
+ */
+export class UpdateInstallRequest {
+    "filePath": string;
+
+    /** Creates a new UpdateInstallRequest instance. */
+    constructor($$source: Partial<UpdateInstallRequest> = {}) {
+        if (!("filePath" in $$source)) {
+            this["filePath"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateInstallRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateInstallRequest {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UpdateInstallRequest($$parsedSource as Partial<UpdateInstallRequest>);
+    }
+}
+
+/**
  * UpdatePluginRequest updates an existing plugin configuration entry.
  */
 export class UpdatePluginRequest {

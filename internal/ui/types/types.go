@@ -130,6 +130,38 @@ type UpdateCheckResult struct {
 	Latest          *UpdateRelease `json:"latest,omitempty"`
 }
 
+// UpdateDownloadRequest starts an update download.
+type UpdateDownloadRequest struct {
+	ReleaseURL string `json:"releaseUrl"`
+	AssetName  string `json:"assetName,omitempty"`
+}
+
+// UpdateDownloadProgress reports update download progress.
+type UpdateDownloadProgress struct {
+	Status   string  `json:"status"`
+	Bytes    int64   `json:"bytes"`
+	Total    int64   `json:"total"`
+	Percent  float64 `json:"percent"`
+	Message  string  `json:"message,omitempty"`
+	FilePath string  `json:"filePath,omitempty"`
+	FileName string  `json:"fileName,omitempty"`
+}
+
+// UpdateInstallRequest starts an update install using the downloaded file.
+type UpdateInstallRequest struct {
+	FilePath string `json:"filePath"`
+}
+
+// UpdateInstallProgress reports update install progress.
+type UpdateInstallProgress struct {
+	Status     string  `json:"status"`
+	Percent    float64 `json:"percent"`
+	Message    string  `json:"message,omitempty"`
+	FilePath   string  `json:"filePath,omitempty"`
+	AppPath    string  `json:"appPath,omitempty"`
+	BackupPath string  `json:"backupPath,omitempty"`
+}
+
 // BootstrapProgressResponse represents bootstrap progress for the frontend.
 type BootstrapProgressResponse struct {
 	State     string            `json:"state"`

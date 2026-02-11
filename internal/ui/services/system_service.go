@@ -14,14 +14,24 @@ import (
 
 // SystemService exposes system-level utility APIs.
 type SystemService struct {
-	deps   *ServiceDeps
-	logger *zap.Logger
+	deps       *ServiceDeps
+	logger     *zap.Logger
+	downloader *ui.UpdateDownloader
+	installer  *ui.UpdateInstaller
 }
 
 func NewSystemService(deps *ServiceDeps) *SystemService {
+	logger := deps.loggerNamed("system-service")
 	return &SystemService{
-		deps:   deps,
-		logger: deps.loggerNamed("system-service"),
+		deps:       deps,
+		logger:     logger,
+		downloader: ui.NewUpdateDownloader(logger),
+		installer: ui.NewUpdateInstaller(logger, func() {
+			manager := deps.manager()
+			if manager != nil {
+				manager.Shutdown()
+			}
+		}),
 	}
 }
 
@@ -98,6 +108,48 @@ func (s *SystemService) CheckForUpdates(ctx context.Context) (UpdateCheckResult,
 		return UpdateCheckResult{}, err
 	}
 	return checker.CheckNow(ctx)
+}
+
+// StartUpdateDownload starts downloading the latest update asset.
+func (s *SystemService) StartUpdateDownload(ctx context.Context, req UpdateDownloadRequest) (UpdateDownloadProgress, error) {
+	if s.downloader == nil {
+		s.downloader = ui.NewUpdateDownloader(s.logger)
+	}
+	return s.downloader.Start(ctx, req)
+}
+
+// GetUpdateDownloadProgress returns current download progress.
+func (s *SystemService) GetUpdateDownloadProgress() (UpdateDownloadProgress, error) {
+	if s.downloader == nil {
+		s.downloader = ui.NewUpdateDownloader(s.logger)
+	}
+	return s.downloader.Progress(), nil
+}
+
+// StartUpdateInstall starts installing the downloaded update.
+func (s *SystemService) StartUpdateInstall(ctx context.Context, req UpdateInstallRequest) (UpdateInstallProgress, error) {
+	if s.installer == nil {
+		s.installer = ui.NewUpdateInstaller(s.logger, func() {
+			manager := s.deps.manager()
+			if manager != nil {
+				manager.Shutdown()
+			}
+		})
+	}
+	return s.installer.Start(ctx, req)
+}
+
+// GetUpdateInstallProgress returns current install progress.
+func (s *SystemService) GetUpdateInstallProgress() (UpdateInstallProgress, error) {
+	if s.installer == nil {
+		s.installer = ui.NewUpdateInstaller(s.logger, func() {
+			manager := s.deps.manager()
+			if manager != nil {
+				manager.Shutdown()
+			}
+		})
+	}
+	return s.installer.Progress(), nil
 }
 
 // ResolvemcpvmcpPath resolves the mcpvmcp executable path.
