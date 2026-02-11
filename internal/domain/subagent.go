@@ -9,6 +9,7 @@ import (
 // SubAgentConfig contains configuration for the automatic SubAgent LLM provider.
 // This is configured at the runtime level (shared across all profiles).
 type SubAgentConfig struct {
+	Enabled            bool     `json:"enabled"`
 	EnabledTags        []string `json:"enabledTags,omitempty"`
 	Model              string   `json:"model"`        // e.g., "gpt-4"
 	Provider           string   `json:"provider"`     // e.g., "openai"

@@ -41,11 +41,17 @@ export const SUBAGENT_FIELD_HELP: Record<string, FieldHelpContent> = {
     summary: 'Optional override for the provider endpoint.',
     details: 'Use for OpenAI-compatible gateways or proxies. Include the full base path (e.g. /v1).',
   },
+  enabled: {
+    id: 'enabled',
+    title: 'Enabled',
+    summary: 'Master switch for SubAgent automation.',
+    details: 'Turn off to disable automatic tool filtering for all clients.',
+  },
   enabledTags: {
     id: 'enabledTags',
     title: 'Enabled tags',
-    summary: 'Limit SubAgent filtering to specific client tags.',
-    details: 'If empty, SubAgent applies to all clients. Tags are normalized to lowercase.',
+    summary: 'Enable SubAgent only for clients with matching tags.',
+    details: 'If empty, SubAgent stays disabled. Tags are normalized to lowercase.',
     tips: [
       'Use tags to enable SubAgent only for selected IDEs or workflows.',
     ],

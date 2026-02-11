@@ -1761,6 +1761,7 @@ export class StreamableHTTPConfigDetail {
  * SubAgentConfigDetail contains the runtime-level SubAgent LLM provider config.
  */
 export class SubAgentConfigDetail {
+    "enabled": boolean;
     "enabledTags"?: string[];
     "model": string;
     "provider": string;
@@ -1771,6 +1772,9 @@ export class SubAgentConfigDetail {
 
     /** Creates a new SubAgentConfigDetail instance. */
     constructor($$source: Partial<SubAgentConfigDetail> = {}) {
+        if (!("enabled" in $$source)) {
+            this["enabled"] = false;
+        }
         if (!("model" in $$source)) {
             this["model"] = "";
         }
@@ -1797,10 +1801,10 @@ export class SubAgentConfigDetail {
      * Creates a new SubAgentConfigDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): SubAgentConfigDetail {
-        const $$createField0_0 = $$createType0;
+        const $$createField1_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("enabledTags" in $$parsedSource) {
-            $$parsedSource["enabledTags"] = $$createField0_0($$parsedSource["enabledTags"]);
+            $$parsedSource["enabledTags"] = $$createField1_0($$parsedSource["enabledTags"]);
         }
         return new SubAgentConfigDetail($$parsedSource as Partial<SubAgentConfigDetail>);
     }
@@ -2246,6 +2250,7 @@ export class UpdateServerStateRequest {
  * UpdateSubAgentConfigRequest updates the runtime-level SubAgent config.
  */
 export class UpdateSubAgentConfigRequest {
+    "enabled": boolean;
     "enabledTags"?: string[];
     "model": string;
     "provider": string;
@@ -2257,6 +2262,9 @@ export class UpdateSubAgentConfigRequest {
 
     /** Creates a new UpdateSubAgentConfigRequest instance. */
     constructor($$source: Partial<UpdateSubAgentConfigRequest> = {}) {
+        if (!("enabled" in $$source)) {
+            this["enabled"] = false;
+        }
         if (!("model" in $$source)) {
             this["model"] = "";
         }
@@ -2283,10 +2291,10 @@ export class UpdateSubAgentConfigRequest {
      * Creates a new UpdateSubAgentConfigRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateSubAgentConfigRequest {
-        const $$createField0_0 = $$createType0;
+        const $$createField1_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("enabledTags" in $$parsedSource) {
-            $$parsedSource["enabledTags"] = $$createField0_0($$parsedSource["enabledTags"]);
+            $$parsedSource["enabledTags"] = $$createField1_0($$parsedSource["enabledTags"]);
         }
         return new UpdateSubAgentConfigRequest($$parsedSource as Partial<UpdateSubAgentConfigRequest>);
     }

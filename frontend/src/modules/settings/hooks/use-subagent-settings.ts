@@ -236,6 +236,7 @@ export const useSubAgentSettings = ({ canEdit }: UseSubAgentSettingsOptions) => 
     }
     try {
       const req: UpdateSubAgentConfigRequest = {
+        enabled: values.enabled,
         enabledTags: values.enabledTags,
         model: values.model,
         provider: values.provider,

@@ -154,7 +154,7 @@ func NewSamplingHandler(ctx context.Context, state *domain.CatalogState, logger 
 		return nil
 	}
 	cfg := state.Summary.Runtime.SubAgent
-	if cfg.Model == "" || cfg.Provider == "" {
+	if !cfg.Enabled || len(cfg.EnabledTags) == 0 || cfg.Model == "" || cfg.Provider == "" {
 		return nil
 	}
 	handler, err := sampling.NewHandler(ctx, cfg, logger)

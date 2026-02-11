@@ -151,3 +151,4 @@ runtime.yaml
 /mcpv
 /mcpvmcp
 !frontend/src/modules/logs
+.alma-snapshots

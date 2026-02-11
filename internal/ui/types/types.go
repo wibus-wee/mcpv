@@ -488,6 +488,7 @@ type PoolDiagnostics struct {
 
 // SubAgentConfigDetail contains the runtime-level SubAgent LLM provider config.
 type SubAgentConfigDetail struct {
+	Enabled            bool     `json:"enabled"`
 	EnabledTags        []string `json:"enabledTags,omitempty"`
 	Model              string   `json:"model"`
 	Provider           string   `json:"provider"`
@@ -499,6 +500,7 @@ type SubAgentConfigDetail struct {
 
 // UpdateSubAgentConfigRequest updates the runtime-level SubAgent config.
 type UpdateSubAgentConfigRequest struct {
+	Enabled            bool     `json:"enabled"`
 	EnabledTags        []string `json:"enabledTags,omitempty"`
 	Model              string   `json:"model"`
 	Provider           string   `json:"provider"`

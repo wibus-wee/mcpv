@@ -4,9 +4,13 @@ import (
 	"context"
 	"testing"
 
-	"mcpv/internal/domain"
-
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+
+	"mcpv/internal/app/bootstrap"
+	"mcpv/internal/app/controlplane/registry"
+	"mcpv/internal/domain"
 )
 
 // mockSubAgent implements SubAgent for testing.
@@ -19,6 +23,54 @@ func (m *mockSubAgent) SelectToolsForClient(_ context.Context, _ string, _ domai
 func (m *mockSubAgent) InvalidateSession(_ string) {}
 
 func (m *mockSubAgent) Close() error {
+	return nil
+}
+
+type fakeAutomationState struct {
+	runtime domain.RuntimeConfig
+}
+
+func (s fakeAutomationState) Runtime() domain.RuntimeConfig {
+	return s.runtime
+}
+
+func (s fakeAutomationState) Logger() *zap.Logger {
+	return zap.NewNop()
+}
+
+type fakeRegistryState struct {
+	runtime domain.RuntimeConfig
+}
+
+func (s fakeRegistryState) Catalog() domain.Catalog {
+	return domain.Catalog{}
+}
+
+func (s fakeRegistryState) ServerSpecKeys() map[string]string {
+	return map[string]string{}
+}
+
+func (s fakeRegistryState) SpecRegistry() map[string]domain.ServerSpec {
+	return map[string]domain.ServerSpec{}
+}
+
+func (s fakeRegistryState) Runtime() domain.RuntimeConfig {
+	return s.runtime
+}
+
+func (s fakeRegistryState) Logger() *zap.Logger {
+	return zap.NewNop()
+}
+
+func (s fakeRegistryState) Context() context.Context {
+	return context.Background()
+}
+
+func (s fakeRegistryState) Scheduler() domain.Scheduler {
+	return nil
+}
+
+func (s fakeRegistryState) Startup() *bootstrap.ServerStartupOrchestrator {
 	return nil
 }
 
@@ -99,4 +151,66 @@ func TestSetSubAgent(t *testing.T) {
 	service.SetSubAgent(agent)
 	assert.NotNil(t, service.subAgent)
 	assert.True(t, service.IsSubAgentEnabled())
+}
+
+func TestIsSubAgentEnabledForClient(t *testing.T) {
+	tests := []struct {
+		name         string
+		config       domain.SubAgentConfig
+		clientTags   []string
+		expectEnable bool
+	}{
+		{
+			name: "enabled with matching tag",
+			config: domain.SubAgentConfig{
+				Enabled:     true,
+				EnabledTags: []string{"vscode"},
+			},
+			clientTags:   []string{"vscode"},
+			expectEnable: true,
+		},
+		{
+			name: "enabled with non-matching tag",
+			config: domain.SubAgentConfig{
+				Enabled:     true,
+				EnabledTags: []string{"vscode"},
+			},
+			clientTags:   []string{"cli"},
+			expectEnable: false,
+		},
+		{
+			name: "disabled globally",
+			config: domain.SubAgentConfig{
+				Enabled:     false,
+				EnabledTags: []string{"vscode"},
+			},
+			clientTags:   []string{"vscode"},
+			expectEnable: false,
+		},
+		{
+			name: "empty enabled tags",
+			config: domain.SubAgentConfig{
+				Enabled:     true,
+				EnabledTags: []string{},
+			},
+			clientTags:   []string{"vscode"},
+			expectEnable: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			runtime := domain.RuntimeConfig{SubAgent: tt.config}
+			regState := fakeRegistryState{runtime: runtime}
+			reg := registry.NewClientRegistry(regState)
+
+			_, err := reg.RegisterClient(context.Background(), "client", 1, tt.clientTags, "")
+			require.NoError(t, err)
+
+			service := NewAutomationService(fakeAutomationState{runtime: runtime}, reg, nil)
+			service.SetSubAgent(&mockSubAgent{})
+
+			assert.Equal(t, tt.expectEnable, service.IsSubAgentEnabledForClient("client"))
+		})
+	}
 }

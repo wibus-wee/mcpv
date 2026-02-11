@@ -32,7 +32,8 @@ observability:
 #     caFile: ""
 #     clientAuth: false
 subAgent:
-  enabledTags: ["vscode"]
+  enabled: true
+  enabledTags: ["vscode"] # Empty disables SubAgent
   model: "gpt-4o"
   provider: "openai"
   # apiKey: ""  # Optional: inline API key (avoid committing secrets)

@@ -31,6 +31,7 @@ func (s *SubAgentService) GetSubAgentConfig(_ context.Context) (SubAgentConfigDe
 	catalog := cp.GetCatalog()
 	cfg := catalog.Runtime.SubAgent
 	return SubAgentConfigDetail{
+		Enabled:            cfg.Enabled,
 		EnabledTags:        append([]string(nil), cfg.EnabledTags...),
 		Model:              cfg.Model,
 		Provider:           cfg.Provider,
@@ -50,12 +51,14 @@ func (s *SubAgentService) UpdateSubAgentConfig(ctx context.Context, req UpdateSu
 
 	model := req.Model
 	provider := req.Provider
+	enabled := req.Enabled
 	apiKeyEnvVar := req.APIKeyEnvVar
 	baseURL := req.BaseURL
 	maxTools := req.MaxToolsPerRequest
 	filterPrompt := req.FilterPrompt
 
 	update := catalogeditor.SubAgentConfigUpdate{
+		Enabled:            &enabled,
 		EnabledTags:        nil,
 		Model:              &model,
 		Provider:           &provider,

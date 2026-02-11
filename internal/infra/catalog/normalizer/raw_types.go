@@ -69,6 +69,7 @@ type RawRuntimeConfig struct {
 }
 
 type RawSubAgentConfig struct {
+	Enabled            *bool    `mapstructure:"enabled"`
 	EnabledTags        []string `mapstructure:"enabledTags"`
 	Model              string   `mapstructure:"model"`
 	Provider           string   `mapstructure:"provider"`

@@ -88,6 +88,33 @@ export const SubAgentSettingsCard = ({
           fallbackMessage="Unable to load SubAgent configuration."
         />
 
+        <SettingsCard.Section title="Behavior">
+          <SettingsCard.SwitchField<SubAgentConfigDetail>
+            name="enabled"
+            label="Enabled"
+            description="Globally enable automatic tool filtering."
+            help={SUBAGENT_FIELD_HELP.enabled}
+          />
+          <EnabledTagsField
+            availableTags={availableTags}
+            help={SUBAGENT_FIELD_HELP.enabledTags}
+          />
+          <SettingsCard.NumberField<SubAgentConfigDetail>
+            name="maxToolsPerRequest"
+            label="Max Tools Per Request"
+            description="Upper bound on tool candidates per query"
+            unit="tools"
+            help={SUBAGENT_FIELD_HELP.maxToolsPerRequest}
+          />
+          <SettingsCard.TextareaField<SubAgentConfigDetail>
+            name="filterPrompt"
+            label="Filter Prompt"
+            description="Optional prompt override for tool filtering"
+            placeholder="Describe how tools should be filtered..."
+            help={SUBAGENT_FIELD_HELP.filterPrompt}
+          />
+        </SettingsCard.Section>
+
         <SettingsCard.Section title="Provider">
           <SettingsCard.SelectField<SubAgentConfigDetail>
             name="provider"
@@ -136,27 +163,6 @@ export const SubAgentSettingsCard = ({
             description="Optional override for the provider endpoint"
             placeholder="https://api.openai.com/v1"
             help={SUBAGENT_FIELD_HELP.baseURL}
-          />
-        </SettingsCard.Section>
-
-        <SettingsCard.Section title="Behavior">
-          <EnabledTagsField
-            availableTags={availableTags}
-            help={SUBAGENT_FIELD_HELP.enabledTags}
-          />
-          <SettingsCard.NumberField<SubAgentConfigDetail>
-            name="maxToolsPerRequest"
-            label="Max Tools Per Request"
-            description="Upper bound on tool candidates per query"
-            unit="tools"
-            help={SUBAGENT_FIELD_HELP.maxToolsPerRequest}
-          />
-          <SettingsCard.TextareaField<SubAgentConfigDetail>
-            name="filterPrompt"
-            label="Filter Prompt"
-            description="Optional prompt override for tool filtering"
-            placeholder="Describe how tools should be filtered..."
-            help={SUBAGENT_FIELD_HELP.filterPrompt}
           />
         </SettingsCard.Section>
       </SettingsCard.Content>
@@ -277,7 +283,7 @@ const EnabledTagsField = ({ availableTags, help }: EnabledTagsFieldProps) => {
   return (
     <SettingsCard.Field
       label="Enabled Tags"
-      description="Leave empty to enable SubAgent for all client tags."
+      description="Leave empty to keep SubAgent disabled."
       htmlFor="subagent-enabled-tags"
       help={help}
     >
@@ -362,7 +368,7 @@ const EnabledTagsField = ({ availableTags, help }: EnabledTagsFieldProps) => {
               <div className="flex flex-wrap items-center gap-1.5">
                 {selectedTags.length === 0 && (
                   <Badge size="sm" variant="secondary">
-                    All tags enabled
+                    SubAgent disabled
                   </Badge>
                 )}
                 {unavailableTags.map(tag => (

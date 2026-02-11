@@ -150,6 +150,9 @@
       "additionalProperties": false,
       "description": "SubAgent configuration (runtime-level LLM provider config)",
       "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
         "enabledTags": {
           "type": "array",
           "items": {

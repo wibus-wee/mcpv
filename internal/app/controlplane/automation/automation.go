@@ -66,16 +66,16 @@ func (a *Service) IsSubAgentEnabledForClient(client string) bool {
 }
 
 func (a *Service) isSubAgentEnabledForClient(client string) bool {
+	cfg := a.state.Runtime().SubAgent
+	if !cfg.Enabled || len(cfg.EnabledTags) == 0 {
+		return false
+	}
+
 	tags, err := a.registry.ResolveClientTags(client)
 	if err != nil {
 		return false
 	}
-
-	enabledTags := a.state.Runtime().SubAgent.EnabledTags
-	if len(enabledTags) == 0 {
-		return true
-	}
-	return hasTagOverlap(tags, enabledTags)
+	return hasTagOverlap(tags, cfg.EnabledTags)
 }
 
 // AutomaticMCP filters tools using the automatic MCP flow.

@@ -106,6 +106,12 @@ func NormalizeRuntimeConfig(cfg RawRuntimeConfig) (domain.RuntimeConfig, []strin
 	errs = append(errs, rpcErrs...)
 
 	enabledTags := NormalizeTags(cfg.SubAgent.EnabledTags)
+	enabled := false
+	if cfg.SubAgent.Enabled != nil {
+		enabled = *cfg.SubAgent.Enabled
+	} else if cfg.SubAgent.Model != "" && cfg.SubAgent.Provider != "" && len(enabledTags) > 0 {
+		enabled = true
+	}
 	return domain.RuntimeConfig{
 		RouteTimeoutSeconds:        routeTimeout,
 		PingIntervalSeconds:        pingInterval,
@@ -126,6 +132,7 @@ func NormalizeRuntimeConfig(cfg RawRuntimeConfig) (domain.RuntimeConfig, []strin
 		Observability:              observabilityCfg,
 		RPC:                        rpcCfg,
 		SubAgent: domain.SubAgentConfig{
+			Enabled:            enabled,
 			EnabledTags:        enabledTags,
 			Model:              cfg.SubAgent.Model,
 			Provider:           cfg.SubAgent.Provider,

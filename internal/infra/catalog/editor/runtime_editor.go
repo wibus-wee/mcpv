@@ -43,6 +43,7 @@ type RuntimeConfigUpdate struct {
 
 // SubAgentConfigUpdate holds partial SubAgent configuration updates.
 type SubAgentConfigUpdate struct {
+	Enabled            *bool
 	EnabledTags        *[]string
 	Model              *string
 	Provider           *string
@@ -119,6 +120,9 @@ func UpdateSubAgentConfig(path string, update SubAgentConfigUpdate) (RuntimeUpda
 	}
 	if update.Provider != nil {
 		subAgent["provider"] = strings.TrimSpace(*update.Provider)
+	}
+	if update.Enabled != nil {
+		subAgent["enabled"] = *update.Enabled
 	}
 	if update.EnabledTags != nil {
 		subAgent["enabledTags"] = append([]string(nil), (*update.EnabledTags)...)

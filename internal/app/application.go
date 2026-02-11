@@ -133,15 +133,16 @@ func (a *Application) Run() error {
 		}
 	}
 
-	if a.summary.Runtime.SubAgent.Model != "" && a.summary.Runtime.SubAgent.Provider != "" {
-		subAgent, err := controlplane.InitializeSubAgent(a.ctx, a.summary.Runtime.SubAgent, a.controlPlane, a.metrics, a.logger)
+	subAgentConfig := a.summary.Runtime.SubAgent
+	if subAgentConfig.Enabled && len(subAgentConfig.EnabledTags) > 0 && subAgentConfig.Model != "" && subAgentConfig.Provider != "" {
+		subAgent, err := controlplane.InitializeSubAgent(a.ctx, subAgentConfig, a.controlPlane, a.metrics, a.logger)
 		if err != nil {
 			a.logger.Warn("failed to initialize SubAgent", zap.Error(err))
 		} else {
 			a.controlPlane.SetSubAgent(subAgent)
 			a.logger.Info("SubAgent initialized",
-				zap.String("provider", a.summary.Runtime.SubAgent.Provider),
-				zap.String("model", a.summary.Runtime.SubAgent.Model),
+				zap.String("provider", subAgentConfig.Provider),
+				zap.String("model", subAgentConfig.Model),
 			)
 		}
 	}
