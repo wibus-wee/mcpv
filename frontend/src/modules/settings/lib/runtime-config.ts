@@ -19,6 +19,12 @@ export const NAMESPACE_STRATEGY_OPTIONS = [
   { value: 'flat', label: 'Flat' },
 ] as const
 
+export const PROXY_MODE_OPTIONS = [
+  { value: 'system', label: 'System' },
+  { value: 'custom', label: 'Custom' },
+  { value: 'disabled', label: 'Disabled' },
+] as const
+
 export const BOOTSTRAP_MODE_LABELS: Record<string, string> = {
   metadata: 'Metadata',
   disabled: 'Disabled',
@@ -32,6 +38,12 @@ export const ACTIVATION_MODE_LABELS: Record<string, string> = {
 export const NAMESPACE_STRATEGY_LABELS: Record<string, string> = {
   prefix: 'Prefix',
   flat: 'Flat',
+}
+
+export const PROXY_MODE_LABELS: Record<string, string> = {
+  system: 'System',
+  custom: 'Custom',
+  disabled: 'Disabled',
 }
 
 export type RuntimeFormState = {
@@ -51,6 +63,9 @@ export type RuntimeFormState = {
   defaultActivationMode: string
   exposeTools: boolean
   toolNamespaceStrategy: string
+  proxyMode: string
+  proxyUrl: string
+  proxyNoProxy: string
   observabilityListenAddress: string
   observabilityMetricsEnabled: boolean
   observabilityHealthzEnabled: boolean
@@ -73,6 +88,9 @@ export const DEFAULT_RUNTIME_FORM: RuntimeFormState = {
   defaultActivationMode: 'on-demand',
   exposeTools: false,
   toolNamespaceStrategy: 'prefix',
+  proxyMode: 'system',
+  proxyUrl: '',
+  proxyNoProxy: '',
   observabilityListenAddress: '',
   observabilityMetricsEnabled: false,
   observabilityHealthzEnabled: false,
@@ -95,6 +113,9 @@ export const toRuntimeFormState = (runtime: RuntimeConfigDetail): RuntimeFormSta
   defaultActivationMode: runtime.defaultActivationMode || 'on-demand',
   exposeTools: runtime.exposeTools,
   toolNamespaceStrategy: runtime.toolNamespaceStrategy || 'prefix',
+  proxyMode: runtime.proxy?.mode || 'system',
+  proxyUrl: runtime.proxy?.url || '',
+  proxyNoProxy: runtime.proxy?.noProxy || '',
   observabilityListenAddress: runtime.observability.listenAddress,
   observabilityMetricsEnabled: runtime.observability.metricsEnabled ?? false,
   observabilityHealthzEnabled: runtime.observability.healthzEnabled ?? false,

@@ -5,6 +5,7 @@
 import { AlertCircleIcon } from 'lucide-react'
 import type * as React from 'react'
 import type { UseFormReturn } from 'react-hook-form'
+import { useWatch } from 'react-hook-form'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -17,6 +18,8 @@ import {
   BOOTSTRAP_MODE_OPTIONS,
   NAMESPACE_STRATEGY_LABELS,
   NAMESPACE_STRATEGY_OPTIONS,
+  PROXY_MODE_LABELS,
+  PROXY_MODE_OPTIONS,
 } from '../lib/runtime-config'
 import { RUNTIME_FIELD_HELP } from '../lib/runtime-help'
 import { SettingsCard } from './settings-card'
@@ -40,6 +43,9 @@ export const RuntimeSettingsCard = ({
   runtimeError,
   onSubmit,
 }: RuntimeSettingsCardProps) => {
+  const proxyMode = useWatch({ control: form.control, name: 'proxyMode' })
+  const isProxyCustom = proxyMode === 'custom'
+
   return (
     <SettingsCard form={form} canEdit={canEdit} onSubmit={onSubmit}>
       <SettingsCard.Header
@@ -119,6 +125,31 @@ export const RuntimeSettingsCard = ({
                 label="Healthz Endpoint"
                 description="Expose health checks at /healthz"
                 help={RUNTIME_FIELD_HELP.observabilityHealthzEnabled}
+              />
+            </SettingsCard.Section>
+
+            <SettingsCard.Section title="Proxy">
+              <SettingsCard.SelectField<RuntimeFormState>
+                name="proxyMode"
+                label="Proxy Mode"
+                description="Controls how streamable HTTP servers resolve proxies"
+                options={PROXY_MODE_OPTIONS}
+                labels={PROXY_MODE_LABELS}
+                help={RUNTIME_FIELD_HELP.proxyMode}
+              />
+              <SettingsCard.TextField<RuntimeFormState>
+                name="proxyUrl"
+                label="Proxy URL"
+                description="Used when proxy mode is custom"
+                help={RUNTIME_FIELD_HELP.proxyUrl}
+                className={isProxyCustom ? undefined : 'hidden'}
+              />
+              <SettingsCard.TextField<RuntimeFormState>
+                name="proxyNoProxy"
+                label="No Proxy"
+                description="Comma-separated hosts to bypass the proxy"
+                help={RUNTIME_FIELD_HELP.proxyNoProxy}
+                className={isProxyCustom ? undefined : 'hidden'}
               />
             </SettingsCard.Section>
 

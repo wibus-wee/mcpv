@@ -11,4 +11,4 @@ Servers 模块的工具与文案配置集合。
 - **mcp-import.test.ts**: MCP JSON 导入解析的测试
 - **mcp-import.ts**: MCP JSON 导入解析逻辑
 - **reload-config.ts**: 触发配置热重载的辅助函数
-- **server-form-content.ts**: 服务器表单文案、帮助与建议规则
+- **server-form-content.ts**: 服务器表单文案、帮助与建议规则（含 HTTP proxy）

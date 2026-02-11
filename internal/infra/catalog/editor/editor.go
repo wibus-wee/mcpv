@@ -395,6 +395,18 @@ func normalizeEditorServerSpec(spec domain.ServerSpec) (domain.ServerSpec, error
 			}
 			spec.HTTP.Headers = headers
 		}
+		if spec.HTTP.Proxy != nil {
+			mode := strings.TrimSpace(string(spec.HTTP.Proxy.Mode))
+			urlValue := strings.TrimSpace(spec.HTTP.Proxy.URL)
+			noProxy := strings.TrimSpace(spec.HTTP.Proxy.NoProxy)
+			if mode == "" && urlValue == "" && noProxy == "" {
+				spec.HTTP.Proxy = nil
+			} else {
+				spec.HTTP.Proxy.Mode = domain.ProxyMode(strings.ToLower(mode))
+				spec.HTTP.Proxy.URL = urlValue
+				spec.HTTP.Proxy.NoProxy = noProxy
+			}
+		}
 		if spec.HTTP.MaxRetries == 0 {
 			spec.HTTP.MaxRetries = domain.DefaultStreamableHTTPMaxRetries
 		}

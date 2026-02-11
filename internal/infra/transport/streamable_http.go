@@ -13,6 +13,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.uber.org/zap"
+	"golang.org/x/net/http/httpproxy"
 
 	"mcpv/internal/domain"
 	"mcpv/internal/infra/telemetry/diagnostics"
@@ -218,8 +219,24 @@ func buildStreamableHTTPTransport(spec domain.ServerSpec) (http.RoundTripper, er
 		return nil, errors.New("default http transport is nil")
 	}
 
+	transport, ok := base.(*http.Transport)
+	if !ok {
+		return nil, errors.New("default http transport is not *http.Transport")
+	}
+	cloned := transport.Clone()
+
+	proxyCfg := spec.HTTP.Proxy
+	if spec.HTTP.EffectiveProxy != nil {
+		proxyCfg = spec.HTTP.EffectiveProxy
+	}
+	if proxyFunc, override, err := buildProxyFunc(proxyCfg); err != nil {
+		return nil, err
+	} else if override {
+		cloned.Proxy = proxyFunc
+	}
+
 	return &headerRoundTripper{
-		base:    base,
+		base:    cloned,
 		headers: headers,
 	}, nil
 }
@@ -272,6 +289,53 @@ func safeEndpoint(endpoint string) string {
 	parsed.RawQuery = ""
 	parsed.Fragment = ""
 	return parsed.String()
+}
+
+func buildProxyFunc(proxyCfg *domain.ProxyConfig) (func(*http.Request) (*url.URL, error), bool, error) {
+	if proxyCfg == nil {
+		return nil, false, nil
+	}
+	mode := strings.ToLower(strings.TrimSpace(string(proxyCfg.Mode)))
+	if mode == "" {
+		mode = string(domain.ProxyModeSystem)
+	}
+
+	switch mode {
+	case string(domain.ProxyModeDisabled):
+		return nil, true, nil
+	case string(domain.ProxyModeCustom):
+		urlValue := strings.TrimSpace(proxyCfg.URL)
+		if urlValue == "" {
+			return nil, false, fmt.Errorf("proxy url is required for custom proxy mode")
+		}
+		cfg := httpproxy.Config{
+			HTTPProxy:  urlValue,
+			HTTPSProxy: urlValue,
+			NoProxy:    strings.TrimSpace(proxyCfg.NoProxy),
+		}
+		return wrapProxyFunc(cfg.ProxyFunc()), true, nil
+	case string(domain.ProxyModeSystem), string(domain.ProxyModeInherit):
+		cfg := httpproxy.FromEnvironment()
+		noProxy := strings.TrimSpace(proxyCfg.NoProxy)
+		if noProxy != "" {
+			cfg.NoProxy = noProxy
+		}
+		return wrapProxyFunc(cfg.ProxyFunc()), true, nil
+	default:
+		return nil, false, fmt.Errorf("unsupported proxy mode %q", proxyCfg.Mode)
+	}
+}
+
+func wrapProxyFunc(fn func(*url.URL) (*url.URL, error)) func(*http.Request) (*url.URL, error) {
+	if fn == nil {
+		return nil
+	}
+	return func(req *http.Request) (*url.URL, error) {
+		if req == nil || req.URL == nil {
+			return nil, nil
+		}
+		return fn(req.URL)
+	}
 }
 
 func (t *StreamableHTTPTransport) recordEvent(event diagnostics.Event) {

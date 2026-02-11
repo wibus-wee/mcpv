@@ -8,7 +8,7 @@ Settings 模块的页面级组件集合。
 
 ## Files
 
-- **runtime-settings-card.tsx**: Runtime 配置表单卡片（含 observability）
+- **runtime-settings-card.tsx**: Runtime 配置表单卡片（含 observability 与 proxy）
 - **gateway-settings-card.tsx**: Gateway 配置表单卡片（含路由基址与示例）
 - **settings-header.tsx**: Settings 页面头部信息
 - **subagent-settings-card.tsx**: SubAgent 配置表单卡片

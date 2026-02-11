@@ -61,6 +61,9 @@ func DiffRuntimeConfig(prev, next RuntimeConfig) RuntimeDiff {
 	if prev.ToolNamespaceStrategy != next.ToolNamespaceStrategy {
 		diff.DynamicFields = append(diff.DynamicFields, "toolNamespaceStrategy")
 	}
+	if !reflect.DeepEqual(prev.Proxy, next.Proxy) {
+		diff.DynamicFields = append(diff.DynamicFields, "proxy")
+	}
 	if !reflect.DeepEqual(prev.Observability, next.Observability) {
 		diff.DynamicFields = append(diff.DynamicFields, "observability")
 	}

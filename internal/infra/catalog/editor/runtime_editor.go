@@ -36,6 +36,9 @@ type RuntimeConfigUpdate struct {
 	DefaultActivationMode       string
 	ExposeTools                 bool
 	ToolNamespaceStrategy       string
+	ProxyMode                   string
+	ProxyURL                    string
+	ProxyNoProxy                string
 	ObservabilityListenAddress  string
 	ObservabilityMetricsEnabled bool
 	ObservabilityHealthzEnabled bool
@@ -81,6 +84,13 @@ func UpdateRuntimeConfig(path string, update RuntimeConfigUpdate) (RuntimeUpdate
 	doc["defaultActivationMode"] = strings.TrimSpace(update.DefaultActivationMode)
 	doc["exposeTools"] = update.ExposeTools
 	doc["toolNamespaceStrategy"] = strings.TrimSpace(update.ToolNamespaceStrategy)
+
+	proxy := map[string]any{
+		"mode":    strings.TrimSpace(update.ProxyMode),
+		"url":     strings.TrimSpace(update.ProxyURL),
+		"noProxy": strings.TrimSpace(update.ProxyNoProxy),
+	}
+	doc["proxy"] = proxy
 
 	observability, ok := doc["observability"].(map[string]any)
 	if !ok || observability == nil {

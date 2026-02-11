@@ -150,6 +150,9 @@ func (s *ConfigService) UpdateRuntimeConfig(ctx context.Context, req UpdateRunti
 		DefaultActivationMode:       req.DefaultActivationMode,
 		ExposeTools:                 req.ExposeTools,
 		ToolNamespaceStrategy:       req.ToolNamespaceStrategy,
+		ProxyMode:                   req.ProxyMode,
+		ProxyURL:                    req.ProxyURL,
+		ProxyNoProxy:                req.ProxyNoProxy,
 		ObservabilityListenAddress:  req.ObservabilityListenAddress,
 		ObservabilityMetricsEnabled: req.ObservabilityMetricsEnabled,
 		ObservabilityHealthzEnabled: req.ObservabilityHealthzEnabled,
@@ -197,9 +200,18 @@ func mapStreamableHTTPConfig(cfg *StreamableHTTPConfigDetail) *domain.Streamable
 	if headers == nil {
 		headers = make(map[string]string)
 	}
+	var proxyCfg *domain.ProxyConfig
+	if cfg.Proxy != nil {
+		proxyCfg = &domain.ProxyConfig{
+			Mode:    domain.ProxyMode(strings.TrimSpace(cfg.Proxy.Mode)),
+			URL:     strings.TrimSpace(cfg.Proxy.URL),
+			NoProxy: strings.TrimSpace(cfg.Proxy.NoProxy),
+		}
+	}
 	return &domain.StreamableHTTPConfig{
 		Endpoint:   strings.TrimSpace(cfg.Endpoint),
 		Headers:    headers,
 		MaxRetries: cfg.MaxRetries,
+		Proxy:      proxyCfg,
 	}
 }

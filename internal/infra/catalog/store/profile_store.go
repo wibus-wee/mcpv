@@ -13,6 +13,7 @@ import (
 
 	"mcpv/internal/domain"
 	"mcpv/internal/infra/catalog/loader"
+	"mcpv/internal/infra/catalog/normalizer"
 	"mcpv/internal/infra/fsutil"
 )
 
@@ -177,6 +178,7 @@ func (l *ProfileStoreLoader) loadProfiles(ctx context.Context, dir string, runti
 		}
 		if runtimeOverride != nil {
 			catalogData.Runtime = *runtimeOverride
+			normalizer.ApplyRuntimeProxyToSpecs(*runtimeOverride, catalogData.Specs)
 		}
 		profiles[profileName] = domain.Profile{
 			Name:    profileName,

@@ -122,6 +122,8 @@ func (l *Loader) Load(ctx context.Context, path string) (domain.Catalog, error) 
 		return domain.Catalog{}, errors.New(strings.Join(validationErrors, "; "))
 	}
 
+	normalizer.ApplyRuntimeProxyToSpecs(runtime, specs)
+
 	return domain.Catalog{
 		Specs:   specs,
 		Plugins: plugins,

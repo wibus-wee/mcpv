@@ -45,6 +45,7 @@ type RawStreamableHTTPConfig struct {
 	Endpoint   string            `mapstructure:"endpoint"`
 	Headers    map[string]string `mapstructure:"headers"`
 	MaxRetries *int              `mapstructure:"maxRetries"`
+	Proxy      RawProxyConfig    `mapstructure:"proxy"`
 }
 
 type RawRuntimeConfig struct {
@@ -64,6 +65,7 @@ type RawRuntimeConfig struct {
 	DefaultActivationMode      string                 `mapstructure:"defaultActivationMode"`
 	ExposeTools                bool                   `mapstructure:"exposeTools"`
 	ToolNamespaceStrategy      string                 `mapstructure:"toolNamespaceStrategy"`
+	Proxy                      RawProxyConfig         `mapstructure:"proxy"`
 	Observability              RawObservabilityConfig `mapstructure:"observability"`
 	RPC                        RawRPCConfig           `mapstructure:"rpc"`
 	SubAgent                   RawSubAgentConfig      `mapstructure:"subAgent"`
@@ -103,4 +105,10 @@ type RawRPCTLSConfig struct {
 	KeyFile    string `mapstructure:"keyFile"`
 	CAFile     string `mapstructure:"caFile"`
 	ClientAuth bool   `mapstructure:"clientAuth"`
+}
+
+type RawProxyConfig struct {
+	Mode    string `mapstructure:"mode"`
+	URL     string `mapstructure:"url"`
+	NoProxy string `mapstructure:"noProxy"`
 }

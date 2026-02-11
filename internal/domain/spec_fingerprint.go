@@ -32,6 +32,11 @@ func writeStreamableHTTPConfig(h hash.Hash, cfg *StreamableHTTPConfig) {
 	writeString(h, cfg.Endpoint)
 	writeInt(h, cfg.MaxRetries)
 	writeEnvMap(h, cfg.Headers)
+	proxy := cfg.EffectiveProxy
+	if proxy == nil {
+		proxy = cfg.Proxy
+	}
+	writeProxyConfig(h, proxy)
 }
 
 func writeStringSlice(h hash.Hash, values []string) {
@@ -60,6 +65,17 @@ func writeEnvMap(h hash.Hash, env map[string]string) {
 		writeString(h, key)
 		writeString(h, env[key])
 	}
+}
+
+func writeProxyConfig(h hash.Hash, cfg *ProxyConfig) {
+	if cfg == nil {
+		writeInt(h, 0)
+		return
+	}
+	writeInt(h, 1)
+	writeString(h, string(cfg.Mode))
+	writeString(h, cfg.URL)
+	writeString(h, cfg.NoProxy)
 }
 
 func writeString(h hash.Hash, value string) {

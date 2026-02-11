@@ -11,7 +11,7 @@ Servers 模块的 UI 组件集合。
 - **server-config-panel.tsx**: 服务器配置详情面板
 - **server-detail-drawer.tsx**: 服务器详情抽屉容器
 - **server-detail-empty-state.tsx**: 未选择服务器的空状态
-- **server-edit-sheet.tsx**: 新增与编辑服务器的表单抽屉
+- **server-edit-sheet.tsx**: 新增与编辑服务器的表单抽屉（含 HTTP proxy 配置）
 - **server-empty-state.tsx**: 服务器列表空状态
 - **server-form-field.tsx**: 服务器表单字段布局与帮助入口
 - **server-instances-table.tsx**: 服务器实例列表表格
@@ -29,4 +29,3 @@ Servers 模块的 UI 组件集合。
 - **server-edit-sheet.tsx**: Sheet for adding/editing servers
 - **import-mcp-servers-sheet.tsx**: Sheet for importing MCP servers from IDE configs or JSON/CLI
 - **import-mcp-servers/**: Tab components and shared types for MCP import flows
-

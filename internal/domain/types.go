@@ -63,11 +63,35 @@ const (
 	TransportStreamableHTTP TransportKind = "streamable_http"
 )
 
+// ProxyMode declares how proxy settings are resolved.
+type ProxyMode string
+
+const (
+	// ProxyModeSystem uses proxy settings from the environment.
+	ProxyModeSystem ProxyMode = "system"
+	// ProxyModeCustom uses an explicit proxy URL.
+	ProxyModeCustom ProxyMode = "custom"
+	// ProxyModeDisabled bypasses proxy usage.
+	ProxyModeDisabled ProxyMode = "disabled"
+	// ProxyModeInherit inherits the runtime proxy configuration (server-level only).
+	ProxyModeInherit ProxyMode = "inherit"
+)
+
+// ProxyConfig configures proxy usage for HTTP transports.
+type ProxyConfig struct {
+	Mode    ProxyMode `json:"mode"`
+	URL     string    `json:"url,omitempty"`
+	NoProxy string    `json:"noProxy,omitempty"`
+}
+
 // StreamableHTTPConfig configures the streamable HTTP transport.
 type StreamableHTTPConfig struct {
 	Endpoint   string            `json:"endpoint"`
 	Headers    map[string]string `json:"headers,omitempty"`
 	MaxRetries int               `json:"maxRetries"`
+	Proxy      *ProxyConfig      `json:"proxy,omitempty"`
+	// EffectiveProxy is computed at load time after merging runtime and server settings.
+	EffectiveProxy *ProxyConfig `json:"-"`
 }
 
 // ServerSpec declares how to run and connect to a server.
@@ -105,6 +129,7 @@ type RuntimeConfig struct {
 	ReloadMode                 ReloadMode            `json:"reloadMode"`
 	ExposeTools                bool                  `json:"exposeTools"`
 	ToolNamespaceStrategy      ToolNamespaceStrategy `json:"toolNamespaceStrategy"`
+	Proxy                      ProxyConfig           `json:"proxy,omitempty"`
 	Observability              ObservabilityConfig   `json:"observability"`
 	RPC                        RPCConfig             `json:"rpc"`
 	SubAgent                   SubAgentConfig        `json:"subAgent"`

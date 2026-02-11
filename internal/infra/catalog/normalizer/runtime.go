@@ -105,6 +105,9 @@ func NormalizeRuntimeConfig(cfg RawRuntimeConfig) (domain.RuntimeConfig, []strin
 	rpcCfg, rpcErrs := normalizeRPCConfig(cfg.RPC)
 	errs = append(errs, rpcErrs...)
 
+	proxyCfg, proxyErrs := normalizeRuntimeProxyConfig(cfg.Proxy)
+	errs = append(errs, proxyErrs...)
+
 	enabledTags := NormalizeTags(cfg.SubAgent.EnabledTags)
 	enabled := false
 	if cfg.SubAgent.Enabled != nil {
@@ -129,6 +132,7 @@ func NormalizeRuntimeConfig(cfg RawRuntimeConfig) (domain.RuntimeConfig, []strin
 		DefaultActivationMode:      domain.ActivationMode(defaultActivationMode),
 		ExposeTools:                cfg.ExposeTools,
 		ToolNamespaceStrategy:      domain.ToolNamespaceStrategy(strategy),
+		Proxy:                      proxyCfg,
 		Observability:              observabilityCfg,
 		RPC:                        rpcCfg,
 		SubAgent: domain.SubAgentConfig{

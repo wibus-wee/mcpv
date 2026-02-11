@@ -30,6 +30,7 @@ export {
     PoolStats,
     PromptEntry,
     PromptPage,
+    ProxyConfigDetail,
     ProxyFetchRequest,
     ProxyFetchResponse,
     RPCConfigDetail,

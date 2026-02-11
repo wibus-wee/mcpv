@@ -238,10 +238,19 @@ func MapServerSpecDetail(spec domain.ServerSpec, specKey string) types.ServerSpe
 		if headers == nil {
 			headers = make(map[string]string)
 		}
+		var proxyCfg *types.ProxyConfigDetail
+		if spec.HTTP.Proxy != nil {
+			proxyCfg = &types.ProxyConfigDetail{
+				Mode:    string(spec.HTTP.Proxy.Mode),
+				URL:     spec.HTTP.Proxy.URL,
+				NoProxy: spec.HTTP.Proxy.NoProxy,
+			}
+		}
 		httpCfg = &types.StreamableHTTPConfigDetail{
 			Endpoint:   spec.HTTP.Endpoint,
 			Headers:    headers,
 			MaxRetries: spec.HTTP.MaxRetries,
+			Proxy:      proxyCfg,
 		}
 	}
 
@@ -282,10 +291,19 @@ func MapServerSpecDetailToDomain(detail types.ServerSpecDetail) domain.ServerSpe
 		if headers == nil {
 			headers = make(map[string]string)
 		}
+		var proxyCfg *domain.ProxyConfig
+		if detail.HTTP.Proxy != nil {
+			proxyCfg = &domain.ProxyConfig{
+				Mode:    domain.ProxyMode(strings.TrimSpace(detail.HTTP.Proxy.Mode)),
+				URL:     strings.TrimSpace(detail.HTTP.Proxy.URL),
+				NoProxy: strings.TrimSpace(detail.HTTP.Proxy.NoProxy),
+			}
+		}
 		httpCfg = &domain.StreamableHTTPConfig{
 			Endpoint:   detail.HTTP.Endpoint,
 			Headers:    headers,
 			MaxRetries: detail.HTTP.MaxRetries,
+			Proxy:      proxyCfg,
 		}
 	}
 
@@ -328,6 +346,11 @@ func MapRuntimeConfigDetail(cfg domain.RuntimeConfig) types.RuntimeConfigDetail 
 		DefaultActivationMode:      string(cfg.DefaultActivationMode),
 		ExposeTools:                cfg.ExposeTools,
 		ToolNamespaceStrategy:      string(cfg.ToolNamespaceStrategy),
+		Proxy: types.ProxyConfigDetail{
+			Mode:    string(cfg.Proxy.Mode),
+			URL:     cfg.Proxy.URL,
+			NoProxy: cfg.Proxy.NoProxy,
+		},
 		Observability: types.ObservabilityConfigDetail{
 			ListenAddress:  cfg.Observability.ListenAddress,
 			MetricsEnabled: cfg.Observability.MetricsEnabled,

@@ -122,6 +122,10 @@ func validateStreamableHTTPSpec(spec domain.ServerSpec, index int) []string {
 		}
 	}
 
+	if spec.HTTP.Proxy != nil {
+		errs = append(errs, validateHTTPProxyConfig(spec.HTTP.Proxy, index)...)
+	}
+
 	return errs
 }
 
@@ -132,5 +136,58 @@ func isReservedHTTPHeader(header string) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func validateHTTPProxyConfig(proxy *domain.ProxyConfig, index int) []string {
+	if proxy == nil {
+		return nil
+	}
+	mode := strings.ToLower(strings.TrimSpace(string(proxy.Mode)))
+	if mode == "" {
+		mode = string(domain.ProxyModeInherit)
+	}
+
+	switch mode {
+	case string(domain.ProxyModeInherit),
+		string(domain.ProxyModeDisabled),
+		string(domain.ProxyModeCustom),
+		string(domain.ProxyModeSystem):
+		// valid
+	default:
+		return []string{fmt.Sprintf("servers[%d]: http.proxy.mode must be inherit, disabled, custom, or system", index)}
+	}
+
+	if mode == string(domain.ProxyModeCustom) {
+		if strings.TrimSpace(proxy.URL) == "" {
+			return []string{fmt.Sprintf("servers[%d]: http.proxy.url is required when proxy.mode is custom", index)}
+		}
+		if err := validateProxyURL(proxy.URL); err != nil {
+			return []string{fmt.Sprintf("servers[%d]: http.proxy.url must be a valid proxy URL (%v)", index, err)}
+		}
+	}
+	return nil
+}
+
+func validateProxyURL(raw string) error {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return fmt.Errorf("empty URL")
+	}
+	if strings.Contains(trimmed, " ") {
+		return fmt.Errorf("URL contains spaces")
+	}
+	parsed, err := url.Parse(trimmed)
+	if err != nil {
+		return err
+	}
+	if parsed.Scheme == "" || parsed.Host == "" {
+		return fmt.Errorf("scheme and host are required")
+	}
+	switch strings.ToLower(parsed.Scheme) {
+	case "http", "https", "socks5", "socks5h":
+		return nil
+	default:
+		return fmt.Errorf("unsupported scheme %q", parsed.Scheme)
 	}
 }

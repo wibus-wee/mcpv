@@ -14,6 +14,9 @@ export const SERVER_FIELD_IDS = {
   endpoint: 'server-endpoint',
   httpMaxRetries: 'server-http-max-retries',
   httpHeaders: 'server-http-headers',
+  httpProxyMode: 'server-http-proxy-mode',
+  httpProxyUrl: 'server-http-proxy-url',
+  httpProxyNoProxy: 'server-http-proxy-no-proxy',
   tags: 'server-tags',
   activationMode: 'server-activation-mode',
   strategy: 'server-strategy',
@@ -41,6 +44,8 @@ export const SERVER_FORM_TEXT = {
     env: 'NODE_ENV=production\nAPI_KEY=secret',
     endpoint: 'http://localhost:3000/mcp',
     httpHeaders: 'Authorization=Bearer token\nContent-Type=application/json',
+    httpProxyUrl: 'socks5://127.0.0.1:1080',
+    httpProxyNoProxy: 'localhost,127.0.0.1',
     tags: 'production, api, core',
   },
   descriptions: {
@@ -51,6 +56,9 @@ export const SERVER_FORM_TEXT = {
     endpoint: 'HTTP endpoint for the MCP server',
     httpMaxRetries: 'Maximum number of retries for HTTP requests',
     httpHeaders: 'One per line: Header-Name=value',
+    httpProxyMode: 'How this server resolves proxies',
+    httpProxyUrl: 'Proxy URL used when mode is custom',
+    httpProxyNoProxy: 'Comma-separated hosts to bypass the proxy',
     tags: 'Comma-separated tags for organization',
     drainTimeoutSeconds: 'Drain timeout in seconds',
     idleSeconds: 'Seconds before idle shutdown',
@@ -62,6 +70,7 @@ export const SERVER_FORM_TEXT = {
     transport: 'Select transport',
     activationMode: 'Select mode',
     strategy: 'Select strategy',
+    httpProxyMode: 'Select proxy mode',
   },
   advanced: {
     title: 'Advanced settings',
@@ -78,6 +87,12 @@ export const SERVER_SELECT_OPTIONS = {
     { value: 'stdio', label: 'stdio' },
     { value: 'streamable_http', label: 'streamable_http' },
   ],
+  httpProxyMode: [
+    { value: 'inherit', label: 'Inherit' },
+    { value: 'system', label: 'System' },
+    { value: 'custom', label: 'Custom' },
+    { value: 'disabled', label: 'Disabled' },
+  ],
   activationMode: [
     { value: 'on-demand', label: 'On Demand' },
     { value: 'always-on', label: 'Always On' },
@@ -92,6 +107,7 @@ export const SERVER_FORM_VALIDATION = {
   nameRequired: 'Server name is required.',
   cmdRequired: 'Command is required for stdio transport.',
   endpointRequired: 'Endpoint is required for streamable_http transport.',
+  proxyUrlRequired: 'Proxy URL is required when proxy mode is custom.',
   minZero: 'Value must be 0 or greater.',
   minOne: 'Value must be 1 or greater.',
 }
@@ -172,6 +188,29 @@ export const SERVER_FIELD_HELP: Record<string, FieldHelpContent> = {
     tips: [
       'Use Authorization for bearer tokens.',
     ],
+  },
+  httpProxyMode: {
+    id: 'httpProxyMode',
+    title: 'Proxy mode',
+    summary: 'Controls how this server resolves proxy settings.',
+    tips: [
+      'Inherit: use the global runtime proxy.',
+      'System: use environment variables (HTTP_PROXY/HTTPS_PROXY/NO_PROXY).',
+      'Custom: use the proxy URL below for this server.',
+      'Disabled: bypass proxies entirely.',
+    ],
+  },
+  httpProxyUrl: {
+    id: 'httpProxyUrl',
+    title: 'Proxy URL',
+    summary: 'Explicit proxy URL for this server.',
+    details: 'Supports http, https, socks5, and socks5h URLs. Required when mode is custom.',
+  },
+  httpProxyNoProxy: {
+    id: 'httpProxyNoProxy',
+    title: 'No proxy list',
+    summary: 'Hosts that should bypass the proxy.',
+    details: 'Comma-separated list of hosts, IPs, or CIDRs.',
   },
   tags: {
     id: 'tags',

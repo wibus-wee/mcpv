@@ -195,6 +195,7 @@ type RuntimeConfigDetail struct {
 	DefaultActivationMode      string                    `json:"defaultActivationMode"`
 	ExposeTools                bool                      `json:"exposeTools"`
 	ToolNamespaceStrategy      string                    `json:"toolNamespaceStrategy"`
+	Proxy                      ProxyConfigDetail         `json:"proxy"`
 	Observability              ObservabilityConfigDetail `json:"observability"`
 	RPC                        RPCConfigDetail           `json:"rpc"`
 }
@@ -273,9 +274,17 @@ type ServerSpecDetail struct {
 
 // StreamableHTTPConfigDetail contains streamable HTTP configuration for frontend.
 type StreamableHTTPConfigDetail struct {
-	Endpoint   string            `json:"endpoint"`
-	Headers    map[string]string `json:"headers,omitempty"`
-	MaxRetries int               `json:"maxRetries"`
+	Endpoint   string             `json:"endpoint"`
+	Headers    map[string]string  `json:"headers,omitempty"`
+	MaxRetries int                `json:"maxRetries"`
+	Proxy      *ProxyConfigDetail `json:"proxy,omitempty"`
+}
+
+// ProxyConfigDetail contains proxy configuration for frontend.
+type ProxyConfigDetail struct {
+	Mode    string `json:"mode"`
+	URL     string `json:"url,omitempty"`
+	NoProxy string `json:"noProxy,omitempty"`
 }
 
 // ImportServerSpec represents a server spec from MCP JSON import.
@@ -363,6 +372,9 @@ type UpdateRuntimeConfigRequest struct {
 	DefaultActivationMode       string `json:"defaultActivationMode"`
 	ExposeTools                 bool   `json:"exposeTools"`
 	ToolNamespaceStrategy       string `json:"toolNamespaceStrategy"`
+	ProxyMode                   string `json:"proxyMode"`
+	ProxyURL                    string `json:"proxyUrl"`
+	ProxyNoProxy                string `json:"proxyNoProxy"`
 	ObservabilityListenAddress  string `json:"observabilityListenAddress"`
 	ObservabilityMetricsEnabled bool   `json:"observabilityMetricsEnabled"`
 	ObservabilityHealthzEnabled bool   `json:"observabilityHealthzEnabled"`

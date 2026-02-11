@@ -75,11 +75,13 @@ func normalizeStreamableHTTPConfig(raw RawStreamableHTTPConfig, transport domain
 	}
 
 	headers := normalizeHTTPHeaders(raw.Headers)
+	proxy := normalizeServerProxyConfig(raw.Proxy)
 
 	return &domain.StreamableHTTPConfig{
 		Endpoint:   strings.TrimSpace(raw.Endpoint),
 		Headers:    headers,
 		MaxRetries: maxRetries,
+		Proxy:      proxy,
 	}
 }
 

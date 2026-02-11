@@ -13,6 +13,13 @@ export type StreamableHTTPDraft = {
   endpoint: string
   headers: Record<string, string>
   maxRetries: number
+  proxy?: ProxyDraft
+}
+
+export type ProxyDraft = {
+  mode: string
+  url: string
+  noProxy: string
 }
 
 type McpServerEntry = {
@@ -26,6 +33,7 @@ type McpServerEntry = {
   url?: unknown
   headers?: unknown
   maxRetries?: unknown
+  proxy?: unknown
 }
 
 type ParseResult = {
@@ -225,10 +233,16 @@ function parseStreamableHTTP(
     return null
   }
 
+  const proxy = parseProxy(entry.proxy, prefix, errors)
+  if (proxy === null) {
+    return null
+  }
+
   return {
     endpoint: rawEndpoint.trim(),
     headers,
     maxRetries,
+    ...(proxy ? { proxy } : {}),
   }
 }
 
@@ -314,6 +328,44 @@ function parseMaxRetries(
     return null
   }
   return raw
+}
+
+function parseProxy(
+  raw: unknown,
+  prefix: string,
+  errors: string[],
+): ProxyDraft | null | undefined {
+  if (raw === undefined) {
+    return undefined
+  }
+  if (!isRecord(raw)) {
+    errors.push(`${prefix}: proxy must be an object.`)
+    return null
+  }
+
+  const modeRaw = typeof raw.mode === 'string' ? raw.mode.trim().toLowerCase() : ''
+  const url = typeof raw.url === 'string' ? raw.url.trim() : ''
+  const noProxy = typeof raw.noProxy === 'string' ? raw.noProxy.trim() : ''
+
+  let mode = modeRaw
+  if (!mode) {
+    mode = url ? 'custom' : 'inherit'
+  }
+
+  if (!['inherit', 'custom', 'disabled', 'system'].includes(mode)) {
+    errors.push(`${prefix}: proxy.mode must be inherit, custom, disabled, or system.`)
+    return null
+  }
+  if (mode === 'custom' && !url) {
+    errors.push(`${prefix}: proxy.url is required when proxy.mode is custom.`)
+    return null
+  }
+
+  if (!mode && !url && !noProxy) {
+    return undefined
+  }
+
+  return { mode, url, noProxy }
 }
 
 function parseCwd(

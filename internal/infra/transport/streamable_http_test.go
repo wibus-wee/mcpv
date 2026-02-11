@@ -145,6 +145,30 @@ func TestStreamableHTTPTransport_CustomHeaders(t *testing.T) {
 	require.True(t, sawHeader.Load())
 }
 
+func TestStreamableHTTPTransport_ProxyDisabled(t *testing.T) {
+	spec := domain.ServerSpec{
+		Name:            "remote",
+		Transport:       domain.TransportStreamableHTTP,
+		ProtocolVersion: domain.DefaultStreamableHTTPProtocolVersion,
+		HTTP: &domain.StreamableHTTPConfig{
+			Endpoint: "https://example.com/mcp",
+			EffectiveProxy: &domain.ProxyConfig{
+				Mode: domain.ProxyModeDisabled,
+			},
+		},
+	}
+
+	roundTripper, err := buildStreamableHTTPTransport(spec)
+	require.NoError(t, err)
+
+	headerRT, ok := roundTripper.(*headerRoundTripper)
+	require.True(t, ok)
+
+	base, ok := headerRT.base.(*http.Transport)
+	require.True(t, ok)
+	require.Nil(t, base.Proxy)
+}
+
 func TestEffectiveMaxRetries(t *testing.T) {
 	require.Equal(t, domain.DefaultStreamableHTTPMaxRetries, effectiveMaxRetries(0))
 	require.Equal(t, 3, effectiveMaxRetries(3))

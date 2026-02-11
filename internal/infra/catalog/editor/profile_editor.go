@@ -46,6 +46,13 @@ type streamableHTTPYAML struct {
 	Endpoint   string            `yaml:"endpoint"`
 	Headers    map[string]string `yaml:"headers,omitempty"`
 	MaxRetries int               `yaml:"maxRetries,omitempty"`
+	Proxy      *proxyYAML        `yaml:"proxy,omitempty"`
+}
+
+type proxyYAML struct {
+	Mode    string `yaml:"mode,omitempty"`
+	URL     string `yaml:"url,omitempty"`
+	NoProxy string `yaml:"noProxy,omitempty"`
 }
 
 type pluginSpecYAML struct {
@@ -496,10 +503,19 @@ func toServerSpecYAML(spec domain.ServerSpec) serverSpecYAML {
 		if len(headers) == 0 {
 			headers = nil
 		}
+		var proxyCfg *proxyYAML
+		if spec.HTTP.Proxy != nil {
+			proxyCfg = &proxyYAML{
+				Mode:    string(spec.HTTP.Proxy.Mode),
+				URL:     spec.HTTP.Proxy.URL,
+				NoProxy: spec.HTTP.Proxy.NoProxy,
+			}
+		}
 		httpCfg = &streamableHTTPYAML{
 			Endpoint:   spec.HTTP.Endpoint,
 			Headers:    headers,
 			MaxRetries: spec.HTTP.MaxRetries,
+			Proxy:      proxyCfg,
 		}
 	}
 

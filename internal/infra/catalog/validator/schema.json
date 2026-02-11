@@ -56,6 +56,9 @@
     "toolNamespaceStrategy": {
       "type": "string"
     },
+    "proxy": {
+      "$ref": "#/$defs/proxyConfig"
+    },
     "observability": {
       "$ref": "#/$defs/observabilityConfig"
     },
@@ -277,6 +280,30 @@
         },
         "maxRetries": {
           "type": "integer"
+        },
+        "proxy": {
+          "$ref": "#/$defs/proxyConfig"
+        }
+      }
+    },
+    "proxyConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "system",
+            "custom",
+            "disabled",
+            "inherit"
+          ]
+        },
+        "url": {
+          "type": "string"
+        },
+        "noProxy": {
+          "type": "string"
         }
       }
     },

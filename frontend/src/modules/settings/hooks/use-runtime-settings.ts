@@ -95,7 +95,13 @@ export const useRuntimeSettings = ({ canEdit }: UseRuntimeSettingsOptions) => {
     }
     const dirtyFieldCount = Object.keys(formState.dirtyFields ?? {}).length
     try {
-      await ConfigService.UpdateRuntimeConfig(values)
+      const nextValues = {
+        ...values,
+        proxyUrl: values.proxyMode === 'custom' ? values.proxyUrl : '',
+        proxyNoProxy: values.proxyMode === 'custom' ? values.proxyNoProxy : '',
+      }
+
+      await ConfigService.UpdateRuntimeConfig(nextValues)
 
       const reloadResult = await reloadConfig()
       if (!reloadResult.ok) {
@@ -115,7 +121,7 @@ export const useRuntimeSettings = ({ canEdit }: UseRuntimeSettingsOptions) => {
         mutateRuntime(),
         mutate(swrKeys.runtimeStatus),
       ])
-      reset(values, { keepDirty: false })
+      reset(nextValues, { keepDirty: false })
 
       track(AnalyticsEvents.SETTINGS_RUNTIME_SAVE, {
         result: 'success',

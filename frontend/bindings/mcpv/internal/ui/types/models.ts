@@ -1068,6 +1068,32 @@ export class PromptPage {
     }
 }
 
+/**
+ * ProxyConfigDetail contains proxy configuration for frontend.
+ */
+export class ProxyConfigDetail {
+    "mode": string;
+    "url"?: string;
+    "noProxy"?: string;
+
+    /** Creates a new ProxyConfigDetail instance. */
+    constructor($$source: Partial<ProxyConfigDetail> = {}) {
+        if (!("mode" in $$source)) {
+            this["mode"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProxyConfigDetail instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ProxyConfigDetail {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ProxyConfigDetail($$parsedSource as Partial<ProxyConfigDetail>);
+    }
+}
+
 export class ProxyFetchRequest {
     "url": string;
     "method": string;
@@ -1351,6 +1377,7 @@ export class RuntimeConfigDetail {
     "defaultActivationMode": string;
     "exposeTools": boolean;
     "toolNamespaceStrategy": string;
+    "proxy": ProxyConfigDetail;
     "observability": ObservabilityConfigDetail;
     "rpc": RPCConfigDetail;
 
@@ -1404,6 +1431,9 @@ export class RuntimeConfigDetail {
         if (!("toolNamespaceStrategy" in $$source)) {
             this["toolNamespaceStrategy"] = "";
         }
+        if (!("proxy" in $$source)) {
+            this["proxy"] = (new ProxyConfigDetail());
+        }
         if (!("observability" in $$source)) {
             this["observability"] = (new ObservabilityConfigDetail());
         }
@@ -1420,12 +1450,16 @@ export class RuntimeConfigDetail {
     static createFrom($$source: any = {}): RuntimeConfigDetail {
         const $$createField16_0 = $$createType18;
         const $$createField17_0 = $$createType19;
+        const $$createField18_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("proxy" in $$parsedSource) {
+            $$parsedSource["proxy"] = $$createField16_0($$parsedSource["proxy"]);
+        }
         if ("observability" in $$parsedSource) {
-            $$parsedSource["observability"] = $$createField16_0($$parsedSource["observability"]);
+            $$parsedSource["observability"] = $$createField17_0($$parsedSource["observability"]);
         }
         if ("rpc" in $$parsedSource) {
-            $$parsedSource["rpc"] = $$createField17_0($$parsedSource["rpc"]);
+            $$parsedSource["rpc"] = $$createField18_0($$parsedSource["rpc"]);
         }
         return new RuntimeConfigDetail($$parsedSource as Partial<RuntimeConfigDetail>);
     }
@@ -1471,9 +1505,9 @@ export class ServerGroup {
      * Creates a new ServerGroup instance from a string or object.
      */
     static createFrom($$source: any = {}): ServerGroup {
-        const $$createField3_0 = $$createType21;
+        const $$createField3_0 = $$createType22;
         const $$createField4_0 = $$createType0;
-        const $$createField6_0 = $$createType22;
+        const $$createField6_0 = $$createType23;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tools" in $$parsedSource) {
             $$parsedSource["tools"] = $$createField3_0($$parsedSource["tools"]);
@@ -1585,10 +1619,10 @@ export class ServerRuntimeStatus {
      * Creates a new ServerRuntimeStatus instance from a string or object.
      */
     static createFrom($$source: any = {}): ServerRuntimeStatus {
-        const $$createField2_0 = $$createType24;
-        const $$createField3_0 = $$createType25;
-        const $$createField4_0 = $$createType26;
-        const $$createField5_0 = $$createType27;
+        const $$createField2_0 = $$createType25;
+        const $$createField3_0 = $$createType26;
+        const $$createField4_0 = $$createType27;
+        const $$createField5_0 = $$createType28;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("instances" in $$parsedSource) {
             $$parsedSource["instances"] = $$createField2_0($$parsedSource["instances"]);
@@ -1786,7 +1820,7 @@ export class StartCause {
      * Creates a new StartCause instance from a string or object.
      */
     static createFrom($$source: any = {}): StartCause {
-        const $$createField3_0 = $$createType29;
+        const $$createField3_0 = $$createType30;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("policy" in $$parsedSource) {
             $$parsedSource["policy"] = $$createField3_0($$parsedSource["policy"]);
@@ -1851,6 +1885,7 @@ export class StreamableHTTPConfigDetail {
     "endpoint": string;
     "headers"?: { [_ in string]?: string };
     "maxRetries": number;
+    "proxy"?: ProxyConfigDetail | null;
 
     /** Creates a new StreamableHTTPConfigDetail instance. */
     constructor($$source: Partial<StreamableHTTPConfigDetail> = {}) {
@@ -1869,9 +1904,13 @@ export class StreamableHTTPConfigDetail {
      */
     static createFrom($$source: any = {}): StreamableHTTPConfigDetail {
         const $$createField1_0 = $$createType1;
+        const $$createField3_0 = $$createType31;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("headers" in $$parsedSource) {
             $$parsedSource["headers"] = $$createField1_0($$parsedSource["headers"]);
+        }
+        if ("proxy" in $$parsedSource) {
+            $$parsedSource["proxy"] = $$createField3_0($$parsedSource["proxy"]);
         }
         return new StreamableHTTPConfigDetail($$parsedSource as Partial<StreamableHTTPConfigDetail>);
     }
@@ -2085,7 +2124,7 @@ export class UISettingsSnapshot {
      * Creates a new UISettingsSnapshot instance from a string or object.
      */
     static createFrom($$source: any = {}): UISettingsSnapshot {
-        const $$createField4_0 = $$createType30;
+        const $$createField4_0 = $$createType32;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sections" in $$parsedSource) {
             $$parsedSource["sections"] = $$createField4_0($$parsedSource["sections"]);
@@ -2171,7 +2210,7 @@ export class UpdateCheckResult {
      * Creates a new UpdateCheckResult instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateCheckResult {
-        const $$createField2_0 = $$createType32;
+        const $$createField2_0 = $$createType34;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("latest" in $$parsedSource) {
             $$parsedSource["latest"] = $$createField2_0($$parsedSource["latest"]);
@@ -2262,6 +2301,9 @@ export class UpdateRuntimeConfigRequest {
     "defaultActivationMode": string;
     "exposeTools": boolean;
     "toolNamespaceStrategy": string;
+    "proxyMode": string;
+    "proxyUrl": string;
+    "proxyNoProxy": string;
     "observabilityListenAddress": string;
     "observabilityMetricsEnabled": boolean;
     "observabilityHealthzEnabled": boolean;
@@ -2315,6 +2357,15 @@ export class UpdateRuntimeConfigRequest {
         }
         if (!("toolNamespaceStrategy" in $$source)) {
             this["toolNamespaceStrategy"] = "";
+        }
+        if (!("proxyMode" in $$source)) {
+            this["proxyMode"] = "";
+        }
+        if (!("proxyUrl" in $$source)) {
+            this["proxyUrl"] = "";
+        }
+        if (!("proxyNoProxy" in $$source)) {
+            this["proxyNoProxy"] = "";
         }
         if (!("observabilityListenAddress" in $$source)) {
             this["observabilityListenAddress"] = "";
@@ -2470,7 +2521,7 @@ export class UpdateUISettingsRequest {
      * Creates a new UpdateUISettingsRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateUISettingsRequest {
-        const $$createField2_0 = $$createType30;
+        const $$createField2_0 = $$createType32;
         const $$createField3_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("updates" in $$parsedSource) {
@@ -2502,18 +2553,20 @@ const $$createType14 = $Create.Array($$createType13);
 const $$createType15 = RPCTLSConfigDetail.createFrom;
 const $$createType16 = ResourceEntry.createFrom;
 const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = ObservabilityConfigDetail.createFrom;
-const $$createType19 = RPCConfigDetail.createFrom;
-const $$createType20 = ToolEntry.createFrom;
-const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = $Create.Nullable($$createType3);
-const $$createType23 = InstanceStatus.createFrom;
-const $$createType24 = $Create.Array($$createType23);
-const $$createType25 = PoolStats.createFrom;
-const $$createType26 = PoolMetrics.createFrom;
-const $$createType27 = PoolDiagnostics.createFrom;
-const $$createType28 = StartCausePolicy.createFrom;
-const $$createType29 = $Create.Nullable($$createType28);
-const $$createType30 = $Create.Map($Create.Any, $Create.Any);
-const $$createType31 = UpdateRelease.createFrom;
-const $$createType32 = $Create.Nullable($$createType31);
+const $$createType18 = ProxyConfigDetail.createFrom;
+const $$createType19 = ObservabilityConfigDetail.createFrom;
+const $$createType20 = RPCConfigDetail.createFrom;
+const $$createType21 = ToolEntry.createFrom;
+const $$createType22 = $Create.Array($$createType21);
+const $$createType23 = $Create.Nullable($$createType3);
+const $$createType24 = InstanceStatus.createFrom;
+const $$createType25 = $Create.Array($$createType24);
+const $$createType26 = PoolStats.createFrom;
+const $$createType27 = PoolMetrics.createFrom;
+const $$createType28 = PoolDiagnostics.createFrom;
+const $$createType29 = StartCausePolicy.createFrom;
+const $$createType30 = $Create.Nullable($$createType29);
+const $$createType31 = $Create.Nullable($$createType18);
+const $$createType32 = $Create.Map($Create.Any, $Create.Any);
+const $$createType33 = UpdateRelease.createFrom;
+const $$createType34 = $Create.Nullable($$createType33);

@@ -372,17 +372,17 @@ export function IdeImportTab({
       >
         {isTransferImporting
           ? (
-            <>
-              <Spinner className="size-4" />
-              Importing...
-            </>
-          )
+              <>
+                <Spinner className="size-4" />
+                Importing...
+              </>
+            )
           : (
-            <>
-              <ArrowDownToLineIcon className="size-4" />
-              {importLabel}
-            </>
-          )}
+              <>
+                <ArrowDownToLineIcon className="size-4" />
+                {importLabel}
+              </>
+            )}
       </Button>
     )
   }, [canTransferImport, handleTransferImport, importLabel, isTransferImporting])

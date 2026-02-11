@@ -188,3 +188,32 @@ func TestSpecFingerprint_StreamableHTTPHeaderOrder(t *testing.T) {
 	keyB := SpecFingerprint(specB)
 	require.Equal(t, keyA, keyB)
 }
+
+func TestSpecFingerprint_StreamableHTTPProxy(t *testing.T) {
+	specA := ServerSpec{
+		Name:            "svc",
+		Transport:       TransportStreamableHTTP,
+		ProtocolVersion: DefaultStreamableHTTPProtocolVersion,
+		HTTP: &StreamableHTTPConfig{
+			Endpoint:   "https://example.com/mcp",
+			MaxRetries: 5,
+			EffectiveProxy: &ProxyConfig{
+				Mode: ProxyModeCustom,
+				URL:  "http://proxy.local:8080",
+			},
+		},
+	}
+	specB := specA
+	specB.HTTP = &StreamableHTTPConfig{
+		Endpoint:   "https://example.com/mcp",
+		MaxRetries: 5,
+		EffectiveProxy: &ProxyConfig{
+			Mode: ProxyModeCustom,
+			URL:  "http://proxy.local:9090",
+		},
+	}
+
+	keyA := SpecFingerprint(specA)
+	keyB := SpecFingerprint(specB)
+	require.NotEqual(t, keyA, keyB)
+}

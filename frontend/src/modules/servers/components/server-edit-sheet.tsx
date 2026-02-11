@@ -76,6 +76,9 @@ interface FormData {
   exposeTools: string
   httpMaxRetries: number
   httpHeaders: string
+  httpProxyMode: 'inherit' | 'system' | 'custom' | 'disabled'
+  httpProxyUrl: string
+  httpProxyNoProxy: string
 }
 
 const INITIAL_FORM_DATA: FormData = {
@@ -97,6 +100,9 @@ const INITIAL_FORM_DATA: FormData = {
   exposeTools: '',
   httpMaxRetries: 3,
   httpHeaders: '',
+  httpProxyMode: 'inherit',
+  httpProxyUrl: '',
+  httpProxyNoProxy: '',
 }
 
 const resolveSelectLabel = (
@@ -149,6 +155,7 @@ export function ServerEditSheet({
     minReadyRaw,
     sessionTTLSecondsRaw,
     drainTimeoutSecondsRaw,
+    httpProxyModeRaw,
   ] = useWatch({
     control,
     name: [
@@ -160,6 +167,7 @@ export function ServerEditSheet({
       'minReady',
       'sessionTTLSeconds',
       'drainTimeoutSeconds',
+      'httpProxyMode',
     ],
   })
   const transport = (transportRaw ?? 'stdio') as FormData['transport']
@@ -170,6 +178,7 @@ export function ServerEditSheet({
   const minReady = Number(minReadyRaw ?? 0)
   const sessionTTLSeconds = Number(sessionTTLSecondsRaw ?? 0)
   const drainTimeoutSeconds = Number(drainTimeoutSecondsRaw ?? 0)
+  const httpProxyMode = (httpProxyModeRaw ?? 'inherit') as FormData['httpProxyMode']
 
   const adviceItems = useMemo(() => {
     const values: ServerFormValues = {
@@ -214,6 +223,8 @@ export function ServerEditSheet({
       const exposeToolsString = formatCommaSeparated(server.exposeTools ?? [])
       const httpHeadersString = formatEnvironmentVariables(headers)
 
+      const proxyMode = (server.http?.proxy?.mode as FormData['httpProxyMode']) ?? 'inherit'
+
       reset({
         name: server.name,
         transport: server.transport as 'stdio' | 'streamable_http',
@@ -233,6 +244,9 @@ export function ServerEditSheet({
         exposeTools: exposeToolsString,
         httpMaxRetries: server.http?.maxRetries ?? 3,
         httpHeaders: httpHeadersString,
+        httpProxyMode: proxyMode,
+        httpProxyUrl: server.http?.proxy?.url ?? '',
+        httpProxyNoProxy: server.http?.proxy?.noProxy ?? '',
       })
     }
     else {
@@ -261,6 +275,16 @@ export function ServerEditSheet({
       const cmd = data.cmd.trim()
       const exposeTools = parseCommaSeparated(data.exposeTools)
       const httpHeaders = parseEnvironmentVariables(data.httpHeaders)
+      const proxyMode = data.httpProxyMode
+      const proxyUrl = proxyMode === 'custom' ? data.httpProxyUrl.trim() : ''
+      const proxyNoProxy = proxyMode === 'custom' ? data.httpProxyNoProxy.trim() : ''
+      const httpProxy = (proxyMode !== 'inherit' || proxyUrl || proxyNoProxy)
+        ? {
+            mode: proxyMode,
+            url: proxyUrl,
+            noProxy: proxyNoProxy,
+          }
+        : null
 
       const baseSpec: ServerDetail = server ?? ({
         name: data.name.trim(),
@@ -304,6 +328,7 @@ export function ServerEditSheet({
               endpoint: data.endpoint.trim(),
               headers: httpHeaders,
               maxRetries: data.httpMaxRetries,
+              proxy: httpProxy,
             }
           : null,
       }
@@ -613,6 +638,74 @@ export function ServerEditSheet({
                             id={SERVER_FIELD_IDS.httpHeaders}
                             placeholder={SERVER_FORM_TEXT.placeholders.httpHeaders}
                             className="min-h-24"
+                          />
+                        </ServerFormField>
+
+                        <ServerFormField
+                          id={SERVER_FIELD_IDS.httpProxyMode}
+                          label="Proxy Mode"
+                          description={SERVER_FORM_TEXT.descriptions.httpProxyMode}
+                          help={SERVER_FIELD_HELP.httpProxyMode}
+                          error={getErrorMessage(errors.httpProxyMode?.message)}
+                        >
+                          <Select
+                            value={httpProxyMode}
+                            onValueChange={v => setValue('httpProxyMode', v as FormData['httpProxyMode'])}
+                          >
+                            <SelectTrigger id={SERVER_FIELD_IDS.httpProxyMode}>
+                              <SelectValue>
+                                {value => resolveSelectLabel(
+                                  SERVER_SELECT_OPTIONS.httpProxyMode,
+                                  value,
+                                  SERVER_FORM_TEXT.selectPlaceholders.httpProxyMode,
+                                )}
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectPopup>
+                              {SERVER_SELECT_OPTIONS.httpProxyMode.map(option => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectPopup>
+                          </Select>
+                        </ServerFormField>
+
+                        <ServerFormField
+                          id={SERVER_FIELD_IDS.httpProxyUrl}
+                          label="Proxy URL"
+                          description={SERVER_FORM_TEXT.descriptions.httpProxyUrl}
+                          help={SERVER_FIELD_HELP.httpProxyUrl}
+                          error={getErrorMessage(errors.httpProxyUrl?.message)}
+                          className={httpProxyMode === 'custom' ? undefined : 'hidden'}
+                        >
+                          <Input
+                            {...register('httpProxyUrl', {
+                              validate: value => (
+                                transport === 'streamable_http' && httpProxyMode === 'custom'
+                                  ? (value?.trim()
+                                      ? true
+                                      : SERVER_FORM_VALIDATION.proxyUrlRequired)
+                                  : true
+                              ),
+                            })}
+                            id={SERVER_FIELD_IDS.httpProxyUrl}
+                            placeholder={SERVER_FORM_TEXT.placeholders.httpProxyUrl}
+                          />
+                        </ServerFormField>
+
+                        <ServerFormField
+                          id={SERVER_FIELD_IDS.httpProxyNoProxy}
+                          label="No Proxy"
+                          description={SERVER_FORM_TEXT.descriptions.httpProxyNoProxy}
+                          help={SERVER_FIELD_HELP.httpProxyNoProxy}
+                          error={getErrorMessage(errors.httpProxyNoProxy?.message)}
+                          className={httpProxyMode === 'custom' ? undefined : 'hidden'}
+                        >
+                          <Input
+                            {...register('httpProxyNoProxy')}
+                            id={SERVER_FIELD_IDS.httpProxyNoProxy}
+                            placeholder={SERVER_FORM_TEXT.placeholders.httpProxyNoProxy}
                           />
                         </ServerFormField>
                       </m.div>

@@ -113,6 +113,28 @@ export const RUNTIME_FIELD_HELP: Record<string, FieldHelpContent> = {
       'Use prefix when multiple servers expose similarly named tools.',
     ],
   },
+  proxyMode: {
+    id: 'proxyMode',
+    title: 'Proxy mode',
+    summary: 'Controls how streamable HTTP servers resolve proxy settings.',
+    tips: [
+      'System: use environment variables (HTTP_PROXY/HTTPS_PROXY/NO_PROXY).',
+      'Custom: use the proxy URL below for this runtime.',
+      'Disabled: bypass proxies entirely.',
+    ],
+  },
+  proxyUrl: {
+    id: 'proxyUrl',
+    title: 'Proxy URL',
+    summary: 'Explicit proxy URL for streamable HTTP connections.',
+    details: 'Supports http, https, socks5, and socks5h URLs. Required when proxy mode is custom.',
+  },
+  proxyNoProxy: {
+    id: 'proxyNoProxy',
+    title: 'Proxy no-proxy list',
+    summary: 'Hosts that should bypass the proxy.',
+    details: 'Comma-separated list of hosts, IPs, or CIDRs. Overrides the environment no_proxy value when set.',
+  },
   observabilityListenAddress: {
     id: 'observabilityListenAddress',
     title: 'Observability listen address',

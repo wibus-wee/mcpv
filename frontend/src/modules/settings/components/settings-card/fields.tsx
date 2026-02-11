@@ -240,6 +240,7 @@ interface TextFieldProps<T extends FieldValues> {
   type?: 'text' | 'password'
   autoComplete?: string
   help?: FieldHelpContent
+  className?: string
 }
 
 export function TextField<T extends FieldValues>({
@@ -250,12 +251,13 @@ export function TextField<T extends FieldValues>({
   type = 'text',
   autoComplete,
   help,
+  className,
 }: TextFieldProps<T>) {
   const { form, canEdit, isSaving } = useSettingsCardContext<T>()
   const id = `settings-${name}`
 
   return (
-    <FieldRow label={label} description={description} htmlFor={id} help={help}>
+    <FieldRow label={label} description={description} htmlFor={id} help={help} className={className}>
       <InputGroup className="w-full">
         <InputGroupInput
           id={id}
