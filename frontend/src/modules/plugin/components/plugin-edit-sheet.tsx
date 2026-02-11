@@ -617,7 +617,7 @@ export function PluginEditSheet({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogClose asChild>
+            <AlertDialogClose>
               <Button variant="outline" disabled={isDeleting}>Cancel</Button>
             </AlertDialogClose>
             <Button
