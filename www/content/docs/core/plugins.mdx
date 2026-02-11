@@ -1,0 +1,157 @@
+---
+title: Plugins
+description: Governance plugins for every MCP request path.
+---
+
+The plugin system is the governance layer for MCPV. Every gateway request can pass through a configurable pipeline so you can enforce authentication, authorization, rate limiting, validation, content transforms, auditing, and observability without changing core code.
+
+This page explains how the pipeline works, how to configure plugins, and how to build your own plugin.
+
+## What plugins do
+Plugins are external processes that receive structured MCP request/response data and decide whether to:
+
+- continue the request
+- reject the request with an MCP error
+- (content plugins only) mutate request or response JSON
+
+The plugin system is designed for:
+
+- consistent policy across `tools`, `resources`, `prompts`, and other gateway RPCs
+- hot reload via catalog changes
+- minimal coupling to the core runtime
+
+## Execution model
+Every governance evaluation runs in a fixed category order:
+
+1) `observability`  
+2) `authentication`  
+3) `authorization`  
+4) `rate_limiting`  
+5) `validation`  
+6) `content`  
+7) `audit`
+
+Category behavior:
+
+- `observability` runs **in parallel** and is never allowed to block unless the plugin is `required`.
+- all other categories run **sequentially**; the first rejection ends the pipeline.
+- optional plugin **errors** are ignored; required plugin errors abort the request.
+- optional plugin **rejections** are ignored only for `observability`.
+- only `content` plugins should return JSON mutations. Other categories returning mutations are ignored and logged.
+
+Flow behavior:
+
+- `request` flow runs before the core executes the operation.
+- `response` flow runs after the core returns a response.
+- if `flows` is empty, the plugin participates in **both** flows.
+
+Response flow is applied to normal responses and list/watch snapshots. Log streaming skips response flow to avoid infinite loops.
+
+## Catalog configuration
+Plugins live in the `plugins` array in your catalog YAML. Each entry maps to `domain.PluginSpec` and is validated by the catalog schema.
+
+Supported fields:
+
+- `name` (string, required)
+- `category` (enum, required)
+- `required` (boolean, default `true`)
+- `disabled` (boolean, default `false`)
+- `cmd` (array of strings, required)
+- `env` (map of string to string)
+- `cwd` (string)
+- `commitHash` (string)
+- `timeoutMs` (integer, per call)
+- `handshakeTimeoutMs` (integer, for startup)
+- `flows` (array of `request` / `response`)
+- `config` (object, serialized to JSON and sent to the plugin)
+
+Example:
+
+```yaml
+plugins:
+  - name: demo-authentication
+    category: authentication
+    required: false
+    cmd:
+      - ./bin/demo-plugin
+      - --category
+      - authentication
+      - --name
+      - demo-authentication
+    timeoutMs: 5000
+    flows: ["request"]
+    config:
+      tokenHeader: Authorization
+```
+
+`disabled: true` keeps the plugin out of the pipeline and the process manager.
+
+## Lifecycle and protocol
+Plugins are external processes managed by the plugin manager:
+
+1) the manager creates a Unix socket path
+2) the plugin process is started with environment variables
+3) the manager performs a gRPC handshake
+4) the manager sends config and checks readiness
+
+Environment variables:
+
+- `MCPV_PLUGIN_SOCKET` (or `MCPD_PLUGIN_SOCKET`)
+- `MCPV_PLUGIN_NAME`
+- `MCPV_PLUGIN_CATEGORY`
+
+gRPC service contract (simplified):
+
+```proto
+service PluginService {
+  rpc GetMetadata(google.protobuf.Empty) returns (PluginMetadata);
+  rpc Configure(PluginConfigureRequest) returns (PluginConfigureResponse);
+  rpc CheckReady(google.protobuf.Empty) returns (PluginReadyResponse);
+  rpc HandleRequest(PluginHandleRequest) returns (PluginHandleResponse);
+  rpc HandleResponse(PluginHandleRequest) returns (PluginHandleResponse);
+  rpc Shutdown(google.protobuf.Empty) returns (google.protobuf.Empty);
+}
+```
+
+Metadata is validated against the configured `name`, `category`, `commitHash`, and `flows`.
+
+## Developing a plugin
+Use `cmd/demo-plugin` as a reference implementation. A production plugin should:
+
+1) start a gRPC server over the Unix socket path
+2) implement `PluginService`
+3) parse `config_json` in `Configure`
+4) report readiness in `CheckReady`
+5) implement request/response decisions in `HandleRequest` / `HandleResponse`
+
+Decision rules:
+
+- set `continue=false` and provide `reject_code` + `reject_message` to block the request
+- return `request_json` / `response_json` **only** for `content` plugins
+- keep handlers fast; per-call timeouts default to 3000ms unless `timeoutMs` overrides it
+
+## Hot reload behavior
+When the catalog is reloaded, the control plane compares plugin lists and applies changes:
+
+- updated plugins are restarted
+- removed plugins are stopped and cleaned up
+- new plugins are started
+- the governance pipeline is updated immediately
+
+This means plugin changes are safe to apply without restarting MCPV.
+
+## Observability
+The pipeline records metrics for:
+
+- plugin call outcomes (`continue`, `rejected`, `plugin_error`)
+- rejection codes
+- plugin start and handshake durations
+- per-plugin running status
+
+Enable the metrics endpoint in your runtime config to scrape these signals.
+
+## Common issues
+- **plugin not running**: the command failed or the process crashed; check stderr logs.
+- **handshake timeout**: the plugin never bound the Unix socket or gRPC server; verify the socket path env var.
+- **commit hash mismatch**: the running plugin does not match the configured `commitHash`.
+- **unexpected rejections**: verify category order and `required` flags; optional rejections only get ignored for `observability`.

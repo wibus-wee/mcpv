@@ -91,6 +91,13 @@ func (m *Manager) GetStatus(configuredSpecs []domain.PluginSpec) []Status {
 
 	status := make([]Status, 0, len(configuredSpecs))
 	for _, spec := range configuredSpecs {
+		if spec.Disabled {
+			status = append(status, Status{
+				Name:    spec.Name,
+				Running: false,
+			})
+			continue
+		}
 		running := false
 		if _, ok := m.instances[spec.Name]; ok {
 			running = true
@@ -131,7 +138,7 @@ func (m *Manager) Apply(ctx context.Context, specs []domain.PluginSpec) error {
 	}
 	desired := make(map[string]domain.PluginSpec, len(specs))
 	for _, spec := range specs {
-		if spec.Name == "" {
+		if spec.Name == "" || spec.Disabled {
 			continue
 		}
 		desired[spec.Name] = spec

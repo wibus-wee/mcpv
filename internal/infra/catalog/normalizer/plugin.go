@@ -98,6 +98,7 @@ func normalizePluginSpec(raw RawPluginSpec, index int) (domain.PluginSpec, []str
 		Name:               name,
 		Category:           category,
 		Required:           required,
+		Disabled:           raw.Disabled,
 		Cmd:                cmd,
 		Env:                NormalizeEnvMap(raw.Env),
 		Cwd:                strings.TrimSpace(raw.Cwd),

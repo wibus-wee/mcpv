@@ -4,12 +4,11 @@
 
 import type { PluginListEntry } from '@bindings/mcpv/internal/ui/types'
 import { AlertCircleIcon, CheckCircleIcon, MapPinIcon, MinusCircleIcon, PencilIcon } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { UniversalEmptyState } from '@/components/common/universal-empty-state'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import {
   Table,
@@ -33,10 +32,33 @@ interface PluginListTableProps {
 
 export function PluginListTable({ plugins, onEditRequest }: PluginListTableProps) {
   const [togglingPlugins, setTogglingPlugins] = useState<Set<string>>(() => new Set())
+  const [optimisticStates, setOptimisticStates] = useState<Map<string, boolean>>(() => new Map())
   const togglePlugin = useTogglePlugin()
+
+  useEffect(() => {
+    if (optimisticStates.size === 0) return
+
+    setOptimisticStates((prev) => {
+      let changed = false
+      const next = new Map(prev)
+      for (const [name, desired] of prev) {
+        const plugin = plugins.find(entry => entry.name === name)
+        if (plugin && plugin.enabled === desired) {
+          next.delete(name)
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [optimisticStates.size, plugins])
 
   const handleToggle = useCallback(async (plugin: PluginListEntry, enabled: boolean) => {
     setTogglingPlugins(prev => new Set(prev).add(plugin.name))
+    setOptimisticStates((prev) => {
+      const next = new Map(prev)
+      next.set(plugin.name, enabled)
+      return next
+    })
 
     try {
       await togglePlugin(plugin.name, enabled)
@@ -46,6 +68,11 @@ export function PluginListTable({ plugins, onEditRequest }: PluginListTableProps
       })
     }
     catch (error) {
+      setOptimisticStates((prev) => {
+        const next = new Map(prev)
+        next.delete(plugin.name)
+        return next
+      })
       toastManager.add({
         title: 'Failed to toggle plugin',
         description: error instanceof Error
@@ -92,6 +119,11 @@ export function PluginListTable({ plugins, onEditRequest }: PluginListTableProps
       <TableBody>
         {plugins.map((plugin) => {
           const isToggling = togglingPlugins.has(plugin.name)
+          const optimisticEnabled = optimisticStates.get(plugin.name)
+          const isOptimisticDisabled = optimisticEnabled === false
+          const effectiveEnabled = optimisticEnabled ?? plugin.enabled
+          const effectiveStatus = isOptimisticDisabled ? 'stopped' : plugin.status
+          const effectiveStatusError = isOptimisticDisabled ? '' : plugin.statusError
 
           return (
             <tr
@@ -115,7 +147,7 @@ export function PluginListTable({ plugins, onEditRequest }: PluginListTableProps
                 <PluginCategoryBadge category={plugin.category} />
               </TableCell>
               <TableCell>
-                <PluginStatusBadge status={plugin.status} error={plugin.statusError} />
+                <PluginStatusBadge status={effectiveStatus} error={effectiveStatusError} />
               </TableCell>
               <TableCell>
                 <div className="flex gap-1">
@@ -167,9 +199,8 @@ export function PluginListTable({ plugins, onEditRequest }: PluginListTableProps
               </TableCell>
               <TableCell className="text-center">
                 <div className="flex items-center justify-center gap-2">
-                  {isToggling && <Spinner className="size-4" />}
                   <Switch
-                    checked={plugin.enabled}
+                    checked={effectiveEnabled}
                     onCheckedChange={checked => handleToggle(plugin, checked)}
                     disabled={isToggling}
                   />

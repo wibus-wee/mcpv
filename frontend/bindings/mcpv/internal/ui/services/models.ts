@@ -21,11 +21,17 @@ export type ConfigModeResponse = types$0.ConfigModeResponse;
 export const CoreStateResponse = types$0.CoreStateResponse;
 export type CoreStateResponse = types$0.CoreStateResponse;
 
+export const CreatePluginRequest = types$0.CreatePluginRequest;
+export type CreatePluginRequest = types$0.CreatePluginRequest;
+
 export const CreateServerRequest = types$0.CreateServerRequest;
 export type CreateServerRequest = types$0.CreateServerRequest;
 
 export const DebugSnapshotResponse = types$0.DebugSnapshotResponse;
 export type DebugSnapshotResponse = types$0.DebugSnapshotResponse;
+
+export const DeletePluginRequest = types$0.DeletePluginRequest;
+export type DeletePluginRequest = types$0.DeletePluginRequest;
 
 export const DeleteServerRequest = types$0.DeleteServerRequest;
 export type DeleteServerRequest = types$0.DeleteServerRequest;
@@ -122,6 +128,9 @@ export type UpdateCheckOptions = types$0.UpdateCheckOptions;
 
 export const UpdateCheckResult = types$0.UpdateCheckResult;
 export type UpdateCheckResult = types$0.UpdateCheckResult;
+
+export const UpdatePluginRequest = types$0.UpdatePluginRequest;
+export type UpdatePluginRequest = types$0.UpdatePluginRequest;
 
 export const UpdateRuntimeConfigRequest = types$0.UpdateRuntimeConfigRequest;
 export type UpdateRuntimeConfigRequest = types$0.UpdateRuntimeConfigRequest;

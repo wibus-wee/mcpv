@@ -548,11 +548,42 @@ type PluginListEntry struct {
 	LatestMetrics      PluginMetrics     `json:"latestMetrics"`
 }
 
+// PluginSpecDetail represents plugin specification for create/update.
+type PluginSpecDetail struct {
+	Name               string            `json:"name"`
+	Category           string            `json:"category"`
+	Required           bool              `json:"required"`
+	Disabled           bool              `json:"disabled"`
+	Cmd                []string          `json:"cmd"`
+	Env                map[string]string `json:"env,omitempty"`
+	Cwd                string            `json:"cwd,omitempty"`
+	CommitHash         string            `json:"commitHash,omitempty"`
+	TimeoutMs          int               `json:"timeoutMs"`
+	HandshakeTimeoutMs int               `json:"handshakeTimeoutMs"`
+	Flows              []string          `json:"flows"`
+	ConfigJSON         string            `json:"configJson,omitempty"`
+}
+
 // PluginMetrics represents aggregated metrics for a plugin.
 type PluginMetrics struct {
 	CallCount      int64   `json:"callCount"`
 	RejectionCount int64   `json:"rejectionCount"`
 	AvgLatencyMs   float64 `json:"avgLatencyMs"`
+}
+
+// CreatePluginRequest creates a plugin configuration entry.
+type CreatePluginRequest struct {
+	Spec PluginSpecDetail `json:"spec"`
+}
+
+// UpdatePluginRequest updates an existing plugin configuration entry.
+type UpdatePluginRequest struct {
+	Spec PluginSpecDetail `json:"spec"`
+}
+
+// DeletePluginRequest removes a plugin.
+type DeletePluginRequest struct {
+	Name string `json:"name"`
 }
 
 // TogglePluginRequest is the request to enable/disable a plugin.

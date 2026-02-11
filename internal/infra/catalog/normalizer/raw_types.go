@@ -30,6 +30,7 @@ type RawPluginSpec struct {
 	Name               string            `mapstructure:"name"`
 	Category           string            `mapstructure:"category"`
 	Required           *bool             `mapstructure:"required"`
+	Disabled           bool              `mapstructure:"disabled"`
 	Cmd                []string          `mapstructure:"cmd"`
 	Env                map[string]string `mapstructure:"env"`
 	Cwd                string            `mapstructure:"cwd"`

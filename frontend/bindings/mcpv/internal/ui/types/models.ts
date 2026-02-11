@@ -165,6 +165,34 @@ export class CoreStateResponse {
 }
 
 /**
+ * CreatePluginRequest creates a plugin configuration entry.
+ */
+export class CreatePluginRequest {
+    "spec": PluginSpecDetail;
+
+    /** Creates a new CreatePluginRequest instance. */
+    constructor($$source: Partial<CreatePluginRequest> = {}) {
+        if (!("spec" in $$source)) {
+            this["spec"] = (new PluginSpecDetail());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CreatePluginRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CreatePluginRequest {
+        const $$createField0_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("spec" in $$parsedSource) {
+            $$parsedSource["spec"] = $$createField0_0($$parsedSource["spec"]);
+        }
+        return new CreatePluginRequest($$parsedSource as Partial<CreatePluginRequest>);
+    }
+}
+
+/**
  * CreateServerRequest creates a server configuration entry.
  */
 export class CreateServerRequest {
@@ -183,7 +211,7 @@ export class CreateServerRequest {
      * Creates a new CreateServerRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): CreateServerRequest {
-        const $$createField0_0 = $$createType2;
+        const $$createField0_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("spec" in $$parsedSource) {
             $$parsedSource["spec"] = $$createField0_0($$parsedSource["spec"]);
@@ -221,6 +249,30 @@ export class DebugSnapshotResponse {
     static createFrom($$source: any = {}): DebugSnapshotResponse {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new DebugSnapshotResponse($$parsedSource as Partial<DebugSnapshotResponse>);
+    }
+}
+
+/**
+ * DeletePluginRequest removes a plugin.
+ */
+export class DeletePluginRequest {
+    "name": string;
+
+    /** Creates a new DeletePluginRequest instance. */
+    constructor($$source: Partial<DeletePluginRequest> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DeletePluginRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DeletePluginRequest {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DeletePluginRequest($$parsedSource as Partial<DeletePluginRequest>);
     }
 }
 
@@ -330,7 +382,7 @@ export class ImportMcpServersRequest {
      * Creates a new ImportMcpServersRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): ImportMcpServersRequest {
-        const $$createField0_0 = $$createType4;
+        const $$createField0_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("servers" in $$parsedSource) {
             $$parsedSource["servers"] = $$createField0_0($$parsedSource["servers"]);
@@ -368,7 +420,7 @@ export class ImportServerSpec {
         const $$createField2_0 = $$createType0;
         const $$createField3_0 = $$createType1;
         const $$createField5_0 = $$createType0;
-        const $$createField7_0 = $$createType6;
+        const $$createField7_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("cmd" in $$parsedSource) {
             $$parsedSource["cmd"] = $$createField2_0($$parsedSource["cmd"]);
@@ -462,7 +514,7 @@ export class InstanceStatus {
      * Creates a new InstanceStatus instance from a string or object.
      */
     static createFrom($$source: any = {}): InstanceStatus {
-        const $$createField7_0 = $$createType8;
+        const $$createField7_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("lastStartCause" in $$parsedSource) {
             $$parsedSource["lastStartCause"] = $$createField7_0($$parsedSource["lastStartCause"]);
@@ -503,7 +555,7 @@ export class McpTransferImportResult {
      * Creates a new McpTransferImportResult instance from a string or object.
      */
     static createFrom($$source: any = {}): McpTransferImportResult {
-        const $$createField4_0 = $$createType10;
+        const $$createField4_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("issues" in $$parsedSource) {
             $$parsedSource["issues"] = $$createField4_0($$parsedSource["issues"]);
@@ -569,8 +621,8 @@ export class McpTransferPreview {
      * Creates a new McpTransferPreview instance from a string or object.
      */
     static createFrom($$source: any = {}): McpTransferPreview {
-        const $$createField2_0 = $$createType4;
-        const $$createField3_0 = $$createType10;
+        const $$createField2_0 = $$createType5;
+        const $$createField3_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("servers" in $$parsedSource) {
             $$parsedSource["servers"] = $$createField2_0($$parsedSource["servers"]);
@@ -707,7 +759,7 @@ export class PluginListEntry {
         const $$createField2_0 = $$createType0;
         const $$createField10_0 = $$createType0;
         const $$createField11_0 = $$createType1;
-        const $$createField14_0 = $$createType11;
+        const $$createField14_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("flows" in $$parsedSource) {
             $$parsedSource["flows"] = $$createField2_0($$parsedSource["flows"]);
@@ -757,6 +809,74 @@ export class PluginMetrics {
     }
 }
 
+/**
+ * PluginSpecDetail represents plugin specification for create/update.
+ */
+export class PluginSpecDetail {
+    "name": string;
+    "category": string;
+    "required": boolean;
+    "disabled": boolean;
+    "cmd": string[];
+    "env"?: { [_ in string]?: string };
+    "cwd"?: string;
+    "commitHash"?: string;
+    "timeoutMs": number;
+    "handshakeTimeoutMs": number;
+    "flows": string[];
+    "configJson"?: string;
+
+    /** Creates a new PluginSpecDetail instance. */
+    constructor($$source: Partial<PluginSpecDetail> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("category" in $$source)) {
+            this["category"] = "";
+        }
+        if (!("required" in $$source)) {
+            this["required"] = false;
+        }
+        if (!("disabled" in $$source)) {
+            this["disabled"] = false;
+        }
+        if (!("cmd" in $$source)) {
+            this["cmd"] = [];
+        }
+        if (!("timeoutMs" in $$source)) {
+            this["timeoutMs"] = 0;
+        }
+        if (!("handshakeTimeoutMs" in $$source)) {
+            this["handshakeTimeoutMs"] = 0;
+        }
+        if (!("flows" in $$source)) {
+            this["flows"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PluginSpecDetail instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PluginSpecDetail {
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType1;
+        const $$createField10_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("cmd" in $$parsedSource) {
+            $$parsedSource["cmd"] = $$createField4_0($$parsedSource["cmd"]);
+        }
+        if ("env" in $$parsedSource) {
+            $$parsedSource["env"] = $$createField5_0($$parsedSource["env"]);
+        }
+        if ("flows" in $$parsedSource) {
+            $$parsedSource["flows"] = $$createField10_0($$parsedSource["flows"]);
+        }
+        return new PluginSpecDetail($$parsedSource as Partial<PluginSpecDetail>);
+    }
+}
+
 export class PoolDiagnostics {
     "starting": number;
     "startInFlight": boolean;
@@ -789,7 +909,7 @@ export class PoolDiagnostics {
      * Creates a new PoolDiagnostics instance from a string or object.
      */
     static createFrom($$source: any = {}): PoolDiagnostics {
-        const $$createField9_0 = $$createType8;
+        const $$createField9_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("lastStartCause" in $$parsedSource) {
             $$parsedSource["lastStartCause"] = $$createField9_0($$parsedSource["lastStartCause"]);
@@ -939,7 +1059,7 @@ export class PromptPage {
      * Creates a new PromptPage instance from a string or object.
      */
     static createFrom($$source: any = {}): PromptPage {
-        const $$createField0_0 = $$createType13;
+        const $$createField0_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("prompts" in $$parsedSource) {
             $$parsedSource["prompts"] = $$createField0_0($$parsedSource["prompts"]);
@@ -1059,7 +1179,7 @@ export class RPCConfigDetail {
      * Creates a new RPCConfigDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): RPCConfigDetail {
-        const $$createField6_0 = $$createType14;
+        const $$createField6_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tls" in $$parsedSource) {
             $$parsedSource["tls"] = $$createField6_0($$parsedSource["tls"]);
@@ -1181,7 +1301,7 @@ export class ResourcePage {
      * Creates a new ResourcePage instance from a string or object.
      */
     static createFrom($$source: any = {}): ResourcePage {
-        const $$createField0_0 = $$createType16;
+        const $$createField0_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("resources" in $$parsedSource) {
             $$parsedSource["resources"] = $$createField0_0($$parsedSource["resources"]);
@@ -1298,8 +1418,8 @@ export class RuntimeConfigDetail {
      * Creates a new RuntimeConfigDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): RuntimeConfigDetail {
-        const $$createField16_0 = $$createType17;
-        const $$createField17_0 = $$createType18;
+        const $$createField16_0 = $$createType18;
+        const $$createField17_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("observability" in $$parsedSource) {
             $$parsedSource["observability"] = $$createField16_0($$parsedSource["observability"]);
@@ -1351,9 +1471,9 @@ export class ServerGroup {
      * Creates a new ServerGroup instance from a string or object.
      */
     static createFrom($$source: any = {}): ServerGroup {
-        const $$createField3_0 = $$createType20;
+        const $$createField3_0 = $$createType21;
         const $$createField4_0 = $$createType0;
-        const $$createField6_0 = $$createType21;
+        const $$createField6_0 = $$createType22;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tools" in $$parsedSource) {
             $$parsedSource["tools"] = $$createField3_0($$parsedSource["tools"]);
@@ -1465,10 +1585,10 @@ export class ServerRuntimeStatus {
      * Creates a new ServerRuntimeStatus instance from a string or object.
      */
     static createFrom($$source: any = {}): ServerRuntimeStatus {
-        const $$createField2_0 = $$createType23;
-        const $$createField3_0 = $$createType24;
-        const $$createField4_0 = $$createType25;
-        const $$createField5_0 = $$createType26;
+        const $$createField2_0 = $$createType24;
+        const $$createField3_0 = $$createType25;
+        const $$createField4_0 = $$createType26;
+        const $$createField5_0 = $$createType27;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("instances" in $$parsedSource) {
             $$parsedSource["instances"] = $$createField2_0($$parsedSource["instances"]);
@@ -1571,7 +1691,7 @@ export class ServerSpecDetail {
         const $$createField4_0 = $$createType1;
         const $$createField6_0 = $$createType0;
         const $$createField16_0 = $$createType0;
-        const $$createField17_0 = $$createType6;
+        const $$createField17_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("cmd" in $$parsedSource) {
             $$parsedSource["cmd"] = $$createField3_0($$parsedSource["cmd"]);
@@ -1666,7 +1786,7 @@ export class StartCause {
      * Creates a new StartCause instance from a string or object.
      */
     static createFrom($$source: any = {}): StartCause {
-        const $$createField3_0 = $$createType28;
+        const $$createField3_0 = $$createType29;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("policy" in $$parsedSource) {
             $$parsedSource["policy"] = $$createField3_0($$parsedSource["policy"]);
@@ -1965,7 +2085,7 @@ export class UISettingsSnapshot {
      * Creates a new UISettingsSnapshot instance from a string or object.
      */
     static createFrom($$source: any = {}): UISettingsSnapshot {
-        const $$createField4_0 = $$createType29;
+        const $$createField4_0 = $$createType30;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sections" in $$parsedSource) {
             $$parsedSource["sections"] = $$createField4_0($$parsedSource["sections"]);
@@ -2051,12 +2171,40 @@ export class UpdateCheckResult {
      * Creates a new UpdateCheckResult instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateCheckResult {
-        const $$createField2_0 = $$createType31;
+        const $$createField2_0 = $$createType32;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("latest" in $$parsedSource) {
             $$parsedSource["latest"] = $$createField2_0($$parsedSource["latest"]);
         }
         return new UpdateCheckResult($$parsedSource as Partial<UpdateCheckResult>);
+    }
+}
+
+/**
+ * UpdatePluginRequest updates an existing plugin configuration entry.
+ */
+export class UpdatePluginRequest {
+    "spec": PluginSpecDetail;
+
+    /** Creates a new UpdatePluginRequest instance. */
+    constructor($$source: Partial<UpdatePluginRequest> = {}) {
+        if (!("spec" in $$source)) {
+            this["spec"] = (new PluginSpecDetail());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdatePluginRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdatePluginRequest {
+        const $$createField0_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("spec" in $$parsedSource) {
+            $$parsedSource["spec"] = $$createField0_0($$parsedSource["spec"]);
+        }
+        return new UpdatePluginRequest($$parsedSource as Partial<UpdatePluginRequest>);
     }
 }
 
@@ -2209,7 +2357,7 @@ export class UpdateServerRequest {
      * Creates a new UpdateServerRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateServerRequest {
-        const $$createField0_0 = $$createType2;
+        const $$createField0_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("spec" in $$parsedSource) {
             $$parsedSource["spec"] = $$createField0_0($$parsedSource["spec"]);
@@ -2322,7 +2470,7 @@ export class UpdateUISettingsRequest {
      * Creates a new UpdateUISettingsRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateUISettingsRequest {
-        const $$createField2_0 = $$createType29;
+        const $$createField2_0 = $$createType30;
         const $$createField3_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("updates" in $$parsedSource) {
@@ -2338,33 +2486,34 @@ export class UpdateUISettingsRequest {
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = $Create.Map($Create.Any, $Create.Any);
-const $$createType2 = ServerSpecDetail.createFrom;
-const $$createType3 = ImportServerSpec.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = StreamableHTTPConfigDetail.createFrom;
-const $$createType6 = $Create.Nullable($$createType5);
-const $$createType7 = StartCause.createFrom;
-const $$createType8 = $Create.Nullable($$createType7);
-const $$createType9 = McpTransferIssue.createFrom;
-const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = PluginMetrics.createFrom;
-const $$createType12 = PromptEntry.createFrom;
-const $$createType13 = $Create.Array($$createType12);
-const $$createType14 = RPCTLSConfigDetail.createFrom;
-const $$createType15 = ResourceEntry.createFrom;
-const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = ObservabilityConfigDetail.createFrom;
-const $$createType18 = RPCConfigDetail.createFrom;
-const $$createType19 = ToolEntry.createFrom;
-const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = $Create.Nullable($$createType2);
-const $$createType22 = InstanceStatus.createFrom;
-const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = PoolStats.createFrom;
-const $$createType25 = PoolMetrics.createFrom;
-const $$createType26 = PoolDiagnostics.createFrom;
-const $$createType27 = StartCausePolicy.createFrom;
-const $$createType28 = $Create.Nullable($$createType27);
-const $$createType29 = $Create.Map($Create.Any, $Create.Any);
-const $$createType30 = UpdateRelease.createFrom;
-const $$createType31 = $Create.Nullable($$createType30);
+const $$createType2 = PluginSpecDetail.createFrom;
+const $$createType3 = ServerSpecDetail.createFrom;
+const $$createType4 = ImportServerSpec.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = StreamableHTTPConfigDetail.createFrom;
+const $$createType7 = $Create.Nullable($$createType6);
+const $$createType8 = StartCause.createFrom;
+const $$createType9 = $Create.Nullable($$createType8);
+const $$createType10 = McpTransferIssue.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = PluginMetrics.createFrom;
+const $$createType13 = PromptEntry.createFrom;
+const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = RPCTLSConfigDetail.createFrom;
+const $$createType16 = ResourceEntry.createFrom;
+const $$createType17 = $Create.Array($$createType16);
+const $$createType18 = ObservabilityConfigDetail.createFrom;
+const $$createType19 = RPCConfigDetail.createFrom;
+const $$createType20 = ToolEntry.createFrom;
+const $$createType21 = $Create.Array($$createType20);
+const $$createType22 = $Create.Nullable($$createType3);
+const $$createType23 = InstanceStatus.createFrom;
+const $$createType24 = $Create.Array($$createType23);
+const $$createType25 = PoolStats.createFrom;
+const $$createType26 = PoolMetrics.createFrom;
+const $$createType27 = PoolDiagnostics.createFrom;
+const $$createType28 = StartCausePolicy.createFrom;
+const $$createType29 = $Create.Nullable($$createType28);
+const $$createType30 = $Create.Map($Create.Any, $Create.Any);
+const $$createType31 = UpdateRelease.createFrom;
+const $$createType32 = $Create.Nullable($$createType31);

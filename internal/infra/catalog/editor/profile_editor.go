@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -18,6 +19,8 @@ type ProfileUpdate struct {
 
 var ErrServerExists = errors.New("server already exists")
 var ErrServerNotFound = errors.New("server not found")
+var ErrPluginExists = errors.New("plugin already exists")
+var ErrPluginNotFound = errors.New("plugin not found")
 
 type serverSpecYAML struct {
 	Name                string              `yaml:"name"`
@@ -43,6 +46,21 @@ type streamableHTTPYAML struct {
 	Endpoint   string            `yaml:"endpoint"`
 	Headers    map[string]string `yaml:"headers,omitempty"`
 	MaxRetries int               `yaml:"maxRetries,omitempty"`
+}
+
+type pluginSpecYAML struct {
+	Name               string            `yaml:"name"`
+	Category           string            `yaml:"category"`
+	Required           bool              `yaml:"required"`
+	Disabled           bool              `yaml:"disabled,omitempty"`
+	Cmd                []string          `yaml:"cmd"`
+	Env                map[string]string `yaml:"env,omitempty"`
+	Cwd                string            `yaml:"cwd,omitempty"`
+	CommitHash         string            `yaml:"commitHash,omitempty"`
+	TimeoutMs          int               `yaml:"timeoutMs,omitempty"`
+	HandshakeTimeoutMs int               `yaml:"handshakeTimeoutMs,omitempty"`
+	Flows              []string          `yaml:"flows,omitempty"`
+	Config             map[string]any    `yaml:"config,omitempty"`
 }
 
 func BuildProfileUpdate(path string, servers []domain.ServerSpec) (ProfileUpdate, error) {
@@ -235,6 +253,163 @@ func DeleteServer(path string, serverName string) (ProfileUpdate, error) {
 	return ProfileUpdate{Path: path, Data: merged}, nil
 }
 
+func CreatePlugin(path string, plugin domain.PluginSpec) (ProfileUpdate, error) {
+	if path == "" {
+		return ProfileUpdate{}, errors.New("profile path is required")
+	}
+	pluginName := strings.TrimSpace(plugin.Name)
+	if pluginName == "" {
+		return ProfileUpdate{}, errors.New("plugin name is required")
+	}
+
+	doc, err := loadProfileDocument(path)
+	if err != nil {
+		return ProfileUpdate{}, err
+	}
+
+	plugins, err := parsePluginsFromDocument(doc)
+	if err != nil {
+		return ProfileUpdate{}, err
+	}
+
+	for _, existing := range plugins {
+		if strings.TrimSpace(existing.Name) == pluginName {
+			return ProfileUpdate{}, fmt.Errorf("%w: %s", ErrPluginExists, pluginName)
+		}
+	}
+
+	plugins = append(plugins, toPluginSpecYAML(plugin))
+	doc["plugins"] = plugins
+
+	merged, err := marshalProfileDocument(doc)
+	if err != nil {
+		return ProfileUpdate{}, err
+	}
+
+	return ProfileUpdate{Path: path, Data: merged}, nil
+}
+
+func UpdatePlugin(path string, plugin domain.PluginSpec) (ProfileUpdate, error) {
+	if path == "" {
+		return ProfileUpdate{}, errors.New("profile path is required")
+	}
+	pluginName := strings.TrimSpace(plugin.Name)
+	if pluginName == "" {
+		return ProfileUpdate{}, errors.New("plugin name is required")
+	}
+
+	doc, err := loadProfileDocument(path)
+	if err != nil {
+		return ProfileUpdate{}, err
+	}
+
+	plugins, err := parsePluginsFromDocument(doc)
+	if err != nil {
+		return ProfileUpdate{}, err
+	}
+
+	found := false
+	for i := range plugins {
+		if strings.TrimSpace(plugins[i].Name) == pluginName {
+			plugins[i] = toPluginSpecYAML(plugin)
+			found = true
+			break
+		}
+	}
+	if !found {
+		return ProfileUpdate{}, fmt.Errorf("%w: %s", ErrPluginNotFound, pluginName)
+	}
+
+	doc["plugins"] = plugins
+	merged, err := marshalProfileDocument(doc)
+	if err != nil {
+		return ProfileUpdate{}, err
+	}
+
+	return ProfileUpdate{Path: path, Data: merged}, nil
+}
+
+func SetPluginDisabled(path string, pluginName string, disabled bool) (ProfileUpdate, error) {
+	if path == "" {
+		return ProfileUpdate{}, errors.New("profile path is required")
+	}
+	pluginName = strings.TrimSpace(pluginName)
+	if pluginName == "" {
+		return ProfileUpdate{}, errors.New("plugin name is required")
+	}
+
+	doc, err := loadProfileDocument(path)
+	if err != nil {
+		return ProfileUpdate{}, err
+	}
+
+	plugins, err := parsePluginsFromDocument(doc)
+	if err != nil {
+		return ProfileUpdate{}, err
+	}
+
+	found := false
+	for i := range plugins {
+		if strings.TrimSpace(plugins[i].Name) == pluginName {
+			plugins[i].Disabled = disabled
+			found = true
+			break
+		}
+	}
+	if !found {
+		return ProfileUpdate{}, fmt.Errorf("%w: %s", ErrPluginNotFound, pluginName)
+	}
+
+	doc["plugins"] = plugins
+	merged, err := marshalProfileDocument(doc)
+	if err != nil {
+		return ProfileUpdate{}, err
+	}
+
+	return ProfileUpdate{Path: path, Data: merged}, nil
+}
+
+func DeletePlugin(path string, pluginName string) (ProfileUpdate, error) {
+	if path == "" {
+		return ProfileUpdate{}, errors.New("profile path is required")
+	}
+	pluginName = strings.TrimSpace(pluginName)
+	if pluginName == "" {
+		return ProfileUpdate{}, errors.New("plugin name is required")
+	}
+
+	doc, err := loadProfileDocument(path)
+	if err != nil {
+		return ProfileUpdate{}, err
+	}
+
+	plugins, err := parsePluginsFromDocument(doc)
+	if err != nil {
+		return ProfileUpdate{}, err
+	}
+
+	updated := make([]pluginSpecYAML, 0, len(plugins))
+	found := false
+	for _, plugin := range plugins {
+		if strings.TrimSpace(plugin.Name) == pluginName {
+			found = true
+			continue
+		}
+		updated = append(updated, plugin)
+	}
+	if !found {
+		return ProfileUpdate{}, fmt.Errorf("%w: %s", ErrPluginNotFound, pluginName)
+	}
+
+	doc["plugins"] = updated
+	merged, err := marshalProfileDocument(doc)
+	if err != nil {
+		return ProfileUpdate{}, err
+	}
+
+	return ProfileUpdate{Path: path, Data: merged}, nil
+}
+
 func parseServersFromDocument(doc map[string]any) ([]serverSpecYAML, error) {
 	if doc == nil {
 		return []serverSpecYAML{}, nil
@@ -256,6 +431,29 @@ func parseServersFromDocument(doc map[string]any) ([]serverSpecYAML, error) {
 	}
 
 	return servers, nil
+}
+
+func parsePluginsFromDocument(doc map[string]any) ([]pluginSpecYAML, error) {
+	if doc == nil {
+		return []pluginSpecYAML{}, nil
+	}
+
+	raw, ok := doc["plugins"]
+	if !ok || raw == nil {
+		return []pluginSpecYAML{}, nil
+	}
+
+	encoded, err := yaml.Marshal(raw)
+	if err != nil {
+		return nil, fmt.Errorf("decode plugins: %w", err)
+	}
+
+	var plugins []pluginSpecYAML
+	if err := yaml.Unmarshal(encoded, &plugins); err != nil {
+		return nil, fmt.Errorf("parse plugins: %w", err)
+	}
+
+	return plugins, nil
 }
 
 func mergeServers(existing []serverSpecYAML, incoming []domain.ServerSpec) ([]serverSpecYAML, error) {
@@ -323,6 +521,47 @@ func toServerSpecYAML(spec domain.ServerSpec) serverSpecYAML {
 		ProtocolVersion:     spec.ProtocolVersion,
 		ExposeTools:         exposeTools,
 		HTTP:                httpCfg,
+	}
+}
+
+func toPluginSpecYAML(spec domain.PluginSpec) pluginSpecYAML {
+	env := spec.Env
+	if len(env) == 0 {
+		env = nil
+	}
+
+	flows := make([]string, 0, len(spec.Flows))
+	for _, flow := range spec.Flows {
+		flows = append(flows, string(flow))
+	}
+	if len(flows) == 0 {
+		flows = nil
+	}
+
+	var config map[string]any
+	if len(spec.ConfigJSON) > 0 {
+		var parsed map[string]any
+		if err := json.Unmarshal(spec.ConfigJSON, &parsed); err == nil {
+			config = parsed
+			if config == nil {
+				config = map[string]any{}
+			}
+		}
+	}
+
+	return pluginSpecYAML{
+		Name:               spec.Name,
+		Category:           string(spec.Category),
+		Required:           spec.Required,
+		Disabled:           spec.Disabled,
+		Cmd:                append([]string(nil), spec.Cmd...),
+		Env:                env,
+		Cwd:                spec.Cwd,
+		CommitHash:         spec.CommitHash,
+		TimeoutMs:          spec.TimeoutMs,
+		HandshakeTimeoutMs: spec.HandshakeTimeoutMs,
+		Flows:              flows,
+		Config:             config,
 	}
 }
 

@@ -104,3 +104,24 @@ func TestEngine_ObservabilityIgnoresOptionalRejection(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, decision.Continue)
 }
+
+func TestEngine_SkipsDisabledPlugins(t *testing.T) {
+	handler := &fakeHandler{}
+
+	engine := NewEngine(handler, nil, nil)
+	engine.Update([]domain.PluginSpec{
+		{Name: "disabled", Category: domain.PluginCategoryAudit, Required: true, Disabled: true},
+		{Name: "enabled", Category: domain.PluginCategoryAudit, Required: true},
+	})
+
+	decision, err := engine.Handle(context.Background(), domain.GovernanceRequest{Flow: domain.PluginFlowRequest, Method: "tools/list"})
+	require.NoError(t, err)
+	require.True(t, decision.Continue)
+
+	handler.mu.Lock()
+	_, disabledSeen := handler.seen["disabled"]
+	_, enabledSeen := handler.seen["enabled"]
+	handler.mu.Unlock()
+	require.False(t, disabledSeen)
+	require.True(t, enabledSeen)
+}

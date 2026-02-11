@@ -1,9 +1,11 @@
 import { PluginService } from '@bindings/mcpv/internal/ui/services'
 import type { PluginListEntry, PluginMetrics } from '@bindings/mcpv/internal/ui/types'
 import { useCallback, useMemo } from 'react'
-import useSWR from 'swr'
+import useSWR, { useSWRConfig } from 'swr'
 
 import { swrKeys } from '@/lib/swr-keys'
+
+import { reloadConfig } from '../servers/lib/reload-config'
 
 export function usePluginList() {
   return useSWR<PluginListEntry[]>(
@@ -29,9 +31,16 @@ export function usePluginMetrics() {
 }
 
 export function useTogglePlugin() {
+  const { mutate } = useSWRConfig()
+
   return useCallback(async (name: string, enabled: boolean) => {
     await PluginService.TogglePlugin({ name, enabled })
-  }, [])
+    const reloadResult = await reloadConfig()
+    if (!reloadResult.ok) {
+      throw new Error(reloadResult.message)
+    }
+    await mutate(swrKeys.pluginList)
+  }, [mutate])
 }
 
 export function useFilteredPlugins(plugins: PluginListEntry[], searchQuery: string) {

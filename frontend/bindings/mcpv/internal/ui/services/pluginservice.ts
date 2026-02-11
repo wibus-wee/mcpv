@@ -19,6 +19,20 @@ import * as types$0 from "../types/models.js";
 import * as $models from "./models.js";
 
 /**
+ * CreatePlugin adds a plugin to the config file.
+ */
+export function CreatePlugin(req: $models.CreatePluginRequest): $CancellablePromise<void> {
+    return $Call.ByID(2261220386, req);
+}
+
+/**
+ * DeletePlugin removes a plugin from the config file.
+ */
+export function DeletePlugin(req: $models.DeletePluginRequest): $CancellablePromise<void> {
+    return $Call.ByID(6876021, req);
+}
+
+/**
  * GetPluginList returns all configured plugins with their current state and metrics.
  */
 export function GetPluginList(): $CancellablePromise<$models.PluginListEntry[]> {
@@ -41,6 +55,13 @@ export function GetPluginMetrics(): $CancellablePromise<{ [_ in string]?: $model
  */
 export function TogglePlugin(req: $models.TogglePluginRequest): $CancellablePromise<void> {
     return $Call.ByID(2950337658, req);
+}
+
+/**
+ * UpdatePlugin updates an existing plugin in the config file.
+ */
+export function UpdatePlugin(req: $models.UpdatePluginRequest): $CancellablePromise<void> {
+    return $Call.ByID(2039409815, req);
 }
 
 // Private type creation functions

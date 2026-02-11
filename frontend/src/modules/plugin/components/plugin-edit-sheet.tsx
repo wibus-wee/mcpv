@@ -2,12 +2,22 @@
 // Output: Sheet component for adding/editing plugin configurations
 // Position: Overlay sheet triggered from plugin list
 
-import type { PluginListEntry } from '@bindings/mcpv/internal/ui/types'
-import { PlusIcon, SaveIcon } from 'lucide-react'
+import { PluginService } from '@bindings/mcpv/internal/ui/services'
+import type { PluginListEntry, PluginSpecDetail } from '@bindings/mcpv/internal/ui/types'
+import { PlusIcon, SaveIcon, Trash2Icon } from 'lucide-react'
 import { m } from 'motion/react'
 import { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 
+import {
+  AlertDialog,
+  AlertDialogClose,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -32,7 +42,9 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { toastManager } from '@/components/ui/toast'
 import { AnalyticsEvents, track } from '@/lib/analytics'
+import { parseEnvironmentVariables } from '@/lib/parsers'
 
+import { reloadConfig } from '../../servers/lib/reload-config'
 import { PluginCategoryBadge } from './plugin-category-badge'
 
 const PLUGIN_CATEGORIES = [
@@ -121,6 +133,8 @@ export function PluginEditSheet({
   const isMissingPlugin = isEdit && !plugin
   const isFormDisabled = isEditLoading || isMissingPlugin
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const form = useForm<FormData>({
     defaultValues: INITIAL_FORM_DATA,
@@ -214,16 +228,67 @@ export function PluginEditSheet({
         return
       }
 
-      // TODO: Implement CreatePlugin/UpdatePlugin in PluginService
-      // For now, show not implemented message
-      toastManager.add({
-        type: 'info',
-        title: isEdit ? 'Update not implemented' : 'Create not implemented',
-        description: 'Plugin CRUD operations are coming soon. Edit the YAML config directly.',
-      })
+      const cmdParts = data.cmd.trim().split(/\s+/).filter(Boolean)
+      if (cmdParts.length === 0) {
+        toastManager.add({
+          type: 'error',
+          title: 'Command required',
+          description: 'Provide a plugin command before saving.',
+        })
+        track(AnalyticsEvents.PLUGIN_SAVE_ATTEMPTED, {
+          mode: isEdit ? 'edit' : 'create',
+          result: 'invalid_cmd',
+        })
+        setIsSubmitting(false)
+        return
+      }
+
+      const env = parseEnvironmentVariables(data.env)
+
+      const spec: PluginSpecDetail = {
+        name: isEdit ? plugin!.name : data.name.trim(),
+        category: data.category,
+        required: data.required,
+        disabled: isEdit ? !plugin!.enabled : false,
+        cmd: cmdParts,
+        env,
+        cwd: data.cwd.trim(),
+        commitHash: data.commitHash.trim(),
+        timeoutMs: data.timeoutMs,
+        handshakeTimeoutMs: isEdit ? plugin!.handshakeTimeoutMs : 0,
+        flows: data.flows,
+        configJson: data.configJson.trim(),
+      }
+
+      if (isEdit) {
+        await PluginService.UpdatePlugin({ spec })
+      }
+      else {
+        await PluginService.CreatePlugin({ spec })
+      }
+
+      const reloadResult = await reloadConfig()
+      if (!reloadResult.ok) {
+        track(AnalyticsEvents.PLUGIN_SAVE_ATTEMPTED, {
+          mode: isEdit ? 'edit' : 'create',
+          result: 'reload_failed',
+        })
+        toastManager.add({
+          type: 'error',
+          title: 'Reload failed',
+          description: reloadResult.message,
+        })
+        return
+      }
+
       track(AnalyticsEvents.PLUGIN_SAVE_ATTEMPTED, {
         mode: isEdit ? 'edit' : 'create',
-        result: 'not_implemented',
+        result: 'success',
+      })
+      toastManager.add({
+        type: 'success',
+        title: isEdit ? 'Plugin updated' : 'Plugin created',
+        description: 'Changes applied.',
       })
 
       onSaved?.()
@@ -245,6 +310,54 @@ export function PluginEditSheet({
       setIsSubmitting(false)
     }
   }, [isEdit, onSaved, onOpenChange, plugin])
+
+  const handleDelete = useCallback(async () => {
+    if (!plugin) {
+      toastManager.add({
+        type: 'error',
+        title: 'Plugin not ready',
+        description: 'Wait for the configuration to load before deleting.',
+      })
+      return
+    }
+
+    setIsDeleting(true)
+    try {
+      await PluginService.DeletePlugin({ name: plugin.name })
+      const reloadResult = await reloadConfig()
+      if (!reloadResult.ok) {
+        track(AnalyticsEvents.PLUGIN_REMOVE, { result: 'reload_failed' })
+        toastManager.add({
+          type: 'error',
+          title: 'Reload failed',
+          description: reloadResult.message,
+        })
+        return
+      }
+
+      track(AnalyticsEvents.PLUGIN_REMOVE, { result: 'success' })
+      toastManager.add({
+        type: 'success',
+        title: 'Plugin deleted',
+        description: 'Changes applied.',
+      })
+      onSaved?.()
+      onOpenChange(false)
+    }
+    catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to delete plugin'
+      track(AnalyticsEvents.PLUGIN_REMOVE, { result: 'error' })
+      toastManager.add({
+        type: 'error',
+        title: 'Delete failed',
+        description: message,
+      })
+    }
+    finally {
+      setIsDeleting(false)
+      setDeleteOpen(false)
+    }
+  }, [onOpenChange, onSaved, plugin])
 
   const isActionDisabled = isSubmitting || isEditLoading || isMissingPlugin
 
@@ -455,16 +568,28 @@ export function PluginEditSheet({
         </SheetPanel>
 
         <SheetFooter>
+          <div className="flex items-center gap-2 mr-auto">
+            {isEdit && (
+              <Button
+                variant="destructive-outline"
+                onClick={() => setDeleteOpen(true)}
+                disabled={isSubmitting || isDeleting}
+              >
+                <Trash2Icon className="size-4" />
+                Delete
+              </Button>
+            )}
+          </div>
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isDeleting}
           >
             Cancel
           </Button>
           <Button
             onClick={handleSubmit(onSubmit)}
-            disabled={isActionDisabled}
+            disabled={isActionDisabled || isDeleting}
           >
             {isSubmitting
               ? (
@@ -482,6 +607,29 @@ export function PluginEditSheet({
           </Button>
         </SheetFooter>
       </SheetContent>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete plugin</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the plugin from the configuration file. You can add it again later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogClose asChild>
+              <Button variant="outline" disabled={isDeleting}>Cancel</Button>
+            </AlertDialogClose>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Plugin'}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   )
 }

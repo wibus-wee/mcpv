@@ -53,6 +53,9 @@ func (e *Engine) Update(specs []domain.PluginSpec) {
 	byCategory := make(map[domain.PluginCategory][]domain.PluginSpec)
 	copied := append([]domain.PluginSpec(nil), specs...)
 	for _, spec := range copied {
+		if spec.Disabled {
+			continue
+		}
 		byCategory[spec.Category] = append(byCategory[spec.Category], spec)
 	}
 	for _, list := range byCategory {

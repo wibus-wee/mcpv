@@ -2,6 +2,7 @@ package editor
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -234,6 +235,96 @@ func (e *Editor) DeleteServer(ctx context.Context, serverName string) error {
 	return nil
 }
 
+func (e *Editor) CreatePlugin(ctx context.Context, spec domain.PluginSpec) error {
+	_ = ctx
+	normalized, err := normalizeEditorPluginSpec(spec)
+	if err != nil {
+		return &Error{Kind: ErrorInvalidRequest, Message: err.Error()}
+	}
+
+	configPath, err := e.configPath(false)
+	if err != nil {
+		return err
+	}
+	update, err := CreatePlugin(configPath, normalized)
+	if err != nil {
+		if errors.Is(err, ErrPluginExists) {
+			return &Error{Kind: ErrorInvalidRequest, Message: err.Error()}
+		}
+		return &Error{Kind: ErrorInvalidConfig, Message: "Failed to create plugin", Err: err}
+	}
+	if err := os.WriteFile(update.Path, update.Data, fsutil.DefaultFileMode); err != nil {
+		return &Error{Kind: ErrorInvalidConfig, Message: "Failed to write config file", Err: err}
+	}
+	return nil
+}
+
+func (e *Editor) UpdatePlugin(ctx context.Context, spec domain.PluginSpec) error {
+	_ = ctx
+	normalized, err := normalizeEditorPluginSpec(spec)
+	if err != nil {
+		return &Error{Kind: ErrorInvalidRequest, Message: err.Error()}
+	}
+
+	configPath, err := e.configPath(false)
+	if err != nil {
+		return err
+	}
+	update, err := UpdatePlugin(configPath, normalized)
+	if err != nil {
+		if errors.Is(err, ErrPluginNotFound) {
+			return &Error{Kind: ErrorInvalidRequest, Message: err.Error()}
+		}
+		return &Error{Kind: ErrorInvalidConfig, Message: "Failed to update plugin", Err: err}
+	}
+	if err := os.WriteFile(update.Path, update.Data, fsutil.DefaultFileMode); err != nil {
+		return &Error{Kind: ErrorInvalidConfig, Message: "Failed to write config file", Err: err}
+	}
+	return nil
+}
+
+func (e *Editor) SetPluginDisabled(ctx context.Context, pluginName string, disabled bool) error {
+	_ = ctx
+	pluginName = strings.TrimSpace(pluginName)
+	if pluginName == "" {
+		return &Error{Kind: ErrorInvalidRequest, Message: "Plugin name is required"}
+	}
+
+	configPath, err := e.configPath(false)
+	if err != nil {
+		return err
+	}
+	update, err := SetPluginDisabled(configPath, pluginName, disabled)
+	if err != nil {
+		return &Error{Kind: ErrorInvalidConfig, Message: "Failed to update plugin", Err: err}
+	}
+	if err := os.WriteFile(update.Path, update.Data, fsutil.DefaultFileMode); err != nil {
+		return &Error{Kind: ErrorInvalidConfig, Message: "Failed to write config file", Err: err}
+	}
+	return nil
+}
+
+func (e *Editor) DeletePlugin(ctx context.Context, pluginName string) error {
+	_ = ctx
+	pluginName = strings.TrimSpace(pluginName)
+	if pluginName == "" {
+		return &Error{Kind: ErrorInvalidRequest, Message: "Plugin name is required"}
+	}
+
+	configPath, err := e.configPath(false)
+	if err != nil {
+		return err
+	}
+	update, err := DeletePlugin(configPath, pluginName)
+	if err != nil {
+		return &Error{Kind: ErrorInvalidConfig, Message: "Failed to delete plugin", Err: err}
+	}
+	if err := os.WriteFile(update.Path, update.Data, fsutil.DefaultFileMode); err != nil {
+		return &Error{Kind: ErrorInvalidConfig, Message: "Failed to write config file", Err: err}
+	}
+	return nil
+}
+
 func normalizeEditorServerSpec(spec domain.ServerSpec) (domain.ServerSpec, error) {
 	name := strings.TrimSpace(spec.Name)
 	if name == "" {
@@ -310,6 +401,72 @@ func normalizeEditorServerSpec(spec domain.ServerSpec) (domain.ServerSpec, error
 	default:
 		return domain.ServerSpec{}, fmt.Errorf("transport must be stdio or streamable_http")
 	}
+
+	return spec, nil
+}
+
+func normalizeEditorPluginSpec(spec domain.PluginSpec) (domain.PluginSpec, error) {
+	name := strings.TrimSpace(spec.Name)
+	if name == "" {
+		return domain.PluginSpec{}, fmt.Errorf("plugin name is required")
+	}
+
+	category, ok := domain.NormalizePluginCategory(string(spec.Category))
+	if !ok {
+		return domain.PluginSpec{}, fmt.Errorf("plugin category is invalid")
+	}
+
+	cmd := make([]string, 0, len(spec.Cmd))
+	for _, entry := range spec.Cmd {
+		trimmed := strings.TrimSpace(entry)
+		if trimmed == "" {
+			continue
+		}
+		cmd = append(cmd, trimmed)
+	}
+	if len(cmd) == 0 {
+		return domain.PluginSpec{}, fmt.Errorf("plugin cmd is required")
+	}
+
+	flowStrings := make([]string, 0, len(spec.Flows))
+	for _, flow := range spec.Flows {
+		flowStrings = append(flowStrings, string(flow))
+	}
+	normalizedFlows, ok := domain.NormalizePluginFlows(flowStrings)
+	if !ok {
+		return domain.PluginSpec{}, fmt.Errorf("plugin flows must contain request and/or response")
+	}
+	flows := make([]domain.PluginFlow, 0, len(normalizedFlows))
+	flows = append(flows, normalizedFlows...)
+
+	if spec.TimeoutMs < 0 {
+		return domain.PluginSpec{}, fmt.Errorf("plugin timeoutMs must be >= 0")
+	}
+	if spec.HandshakeTimeoutMs < 0 {
+		return domain.PluginSpec{}, fmt.Errorf("plugin handshakeTimeoutMs must be >= 0")
+	}
+
+	configJSON := spec.ConfigJSON
+	if len(configJSON) > 0 {
+		var parsed map[string]any
+		if err := json.Unmarshal(configJSON, &parsed); err != nil {
+			return domain.PluginSpec{}, fmt.Errorf("plugin config must be valid JSON object: %v", err)
+		}
+		encoded, err := json.Marshal(parsed)
+		if err != nil {
+			return domain.PluginSpec{}, fmt.Errorf("plugin config must be valid JSON object: %v", err)
+		}
+		configJSON = encoded
+	}
+
+	spec.Name = name
+	spec.Category = category
+	spec.Cmd = cmd
+	spec.Env = normalizer.NormalizeEnvMap(spec.Env)
+	spec.Cwd = strings.TrimSpace(spec.Cwd)
+	spec.CommitHash = strings.TrimSpace(spec.CommitHash)
+	spec.Flows = flows
+	spec.ConfigJSON = configJSON
 
 	return spec, nil
 }

@@ -32,6 +32,7 @@ type PluginSpec struct {
 	Name               string            `json:"name"`
 	Category           PluginCategory    `json:"category"`
 	Required           bool              `json:"required"`
+	Disabled           bool              `json:"disabled,omitempty"`
 	Cmd                []string          `json:"cmd"`
 	Env                map[string]string `json:"env,omitempty"`
 	Cwd                string            `json:"cwd,omitempty"`

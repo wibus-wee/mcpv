@@ -8,5 +8,5 @@
 ## Files
 
 - **plugin-category-badge.tsx**: 插件分类标签
-- **plugin-edit-sheet.tsx**: 插件新增/编辑 Sheet（包含保存尝试埋点）
+- **plugin-edit-sheet.tsx**: 插件新增/编辑/删除 Sheet（包含保存尝试埋点）
 - **plugin-list-table.tsx**: 插件列表表格组件
