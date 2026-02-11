@@ -16,6 +16,7 @@ import (
 	"go.uber.org/zap"
 
 	"mcpv/internal/domain"
+	"mcpv/internal/infra/envutil"
 	"mcpv/internal/infra/plugin/handshake"
 	"mcpv/internal/infra/plugin/instance"
 	"mcpv/internal/infra/plugin/socket"
@@ -391,7 +392,7 @@ func buildEnv(extra map[string]string, overrides map[string]string) []string {
 	for _, key := range keys {
 		out = append(out, fmt.Sprintf("%s=%s", key, env[key]))
 	}
-	return out
+	return envutil.PatchPATHIfNeeded(out)
 }
 
 func mirrorStderr(reader io.ReadCloser, logger *zap.Logger) {

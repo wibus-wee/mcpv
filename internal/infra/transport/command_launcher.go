@@ -16,6 +16,7 @@ import (
 	"go.uber.org/zap"
 
 	"mcpv/internal/domain"
+	"mcpv/internal/infra/envutil"
 	"mcpv/internal/infra/process"
 	"mcpv/internal/infra/telemetry"
 	"mcpv/internal/infra/telemetry/diagnostics"
@@ -95,7 +96,8 @@ func (l *CommandLauncher) Start(ctx context.Context, specKey string, spec domain
 	if spec.Cwd != "" {
 		cmd.Dir = spec.Cwd
 	}
-	cmd.Env = append(os.Environ(), formatEnv(spec.Env)...)
+	env := append(os.Environ(), formatEnv(spec.Env)...)
+	cmd.Env = envutil.PatchPATHIfNeeded(env)
 	groupCleanup := process.Setup(cmd)
 
 	stdout, err := cmd.StdoutPipe()
