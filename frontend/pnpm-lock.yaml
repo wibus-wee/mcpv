@@ -71,9 +71,6 @@ importers:
       react:
         specifier: ^19.2.0
         version: 19.2.3
-      react-devtools:
-        specifier: ^7.0.1
-        version: 7.0.1
       react-dom:
         specifier: ^19.2.0
         version: 19.2.3(react@19.2.3)
@@ -135,6 +132,9 @@ importers:
       prettier:
         specifier: ^3.5.3
         version: 3.7.4
+      react-devtools:
+        specifier: ^7.0.1
+        version: 7.0.1
       react-scan:
         specifier: ^0.4.3
         version: 0.4.3(@types/react@19.2.7)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(rollup@4.54.0)

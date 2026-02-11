@@ -39,7 +39,7 @@ jobs:
       - name: Install pnpm + dependencies
         uses: pnpm/action-setup@v4
         with:
-          run_install: false
+          run_install: true
           version: latest
 
       - name: Cache pnpm modules
@@ -51,13 +51,6 @@ jobs:
           key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-build-${{ env.cache-name }}-
-
-      - name: Clean Electron dist (workaround for EEXIST symlink)
-        run: |
-          # Workaround: Electron postinstall can fail with EEXIST if dist has leftover symlinks.
-          rm -rf frontend/node_modules/.pnpm/electron@*/node_modules/electron/dist
-          rm -rf frontend/node_modules/electron/dist
-        shell: bash
 
       - name: Build desktop app
         run: |
