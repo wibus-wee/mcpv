@@ -81,7 +81,7 @@ export const GatewaySettingsCard = ({
     return 'Optional when bound to localhost.'
   }, [accessMode])
 
-  const baseEndpoint = useMemo(() => endpointPreview.replace(/\\/+$/, ''), [endpointPreview])
+  const baseEndpoint = useMemo(() => endpointPreview.replace(/\/+$/, ''), [endpointPreview])
   const routingExamples = useMemo(() => ({
     server: `${baseEndpoint}/server/{name}`,
     tags: `${baseEndpoint}/tags/{tag1,tag2}`,
