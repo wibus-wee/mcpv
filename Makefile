@@ -99,7 +99,7 @@ bump: $(WAILS)
 	fi
 	./scripts/bump.js "$(VERSION)"
 	$(WAILS) task common:update:build-assets
-	git add build
+	git add .
 	@if git diff --cached --quiet; then \
 		echo "No changes to commit"; \
 		exit 1; \
