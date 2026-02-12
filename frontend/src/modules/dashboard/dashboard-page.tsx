@@ -35,7 +35,7 @@ function DashboardHeader() {
   const { refreshCoreState, restartCore, startCore, stopCore } = useCoreActions()
 
   const appLabel = appInfo?.name
-    ? `${appInfo.name} · ${appInfo.version === 'dev' ? 'dev' : `v${appInfo.version}`} (${appInfo.build})`
+    ? `${appInfo.name} · ${appInfo.version === 'dev' ? 'dev' : `${appInfo.version}`} (${appInfo.build})`
     : 'mcpv'
 
   const handleStartCore = useCallback(async () => {
@@ -93,51 +93,51 @@ function DashboardHeader() {
       <div className="flex items-center gap-2">
         {coreStatus === 'stopped'
           ? (
-              <Button onClick={() => void handleStartCore()} size="sm">
-                <PlayIcon className="size-4" />
-                Start Core
-              </Button>
-            )
+            <Button onClick={() => void handleStartCore()} size="sm">
+              <PlayIcon className="size-4" />
+              Start Core
+            </Button>
+          )
           : coreStatus === 'starting'
             ? (
-                <Button onClick={() => void handleStopCore()} variant="outline" size="sm">
-                  <SquareIcon className="size-4" />
-                  Cancel
-                </Button>
-              )
+              <Button onClick={() => void handleStopCore()} variant="outline" size="sm">
+                <SquareIcon className="size-4" />
+                Cancel
+              </Button>
+            )
             : coreStatus === 'stopping'
               ? (
-                  <Button variant="outline" size="sm" disabled>
-                    <Loader2Icon className="size-4 animate-spin" />
-                    Stopping...
-                  </Button>
-                )
+                <Button variant="outline" size="sm" disabled>
+                  <Loader2Icon className="size-4 animate-spin" />
+                  Stopping...
+                </Button>
+              )
               : coreStatus === 'running'
                 ? (
+                  <>
+                    <Button onClick={() => void handleStopCore()} variant="outline" size="sm">
+                      <SquareIcon className="size-4" />
+                      Stop
+                    </Button>
+                    <Button onClick={() => void handleRestartCore()} variant="outline" size="sm">
+                      <RefreshCwIcon className="size-4" />
+                      Restart
+                    </Button>
+                  </>
+                )
+                : coreStatus === 'error'
+                  ? (
                     <>
+                      <Button onClick={() => void handleRestartCore()} size="sm">
+                        <RefreshCwIcon className="size-4" />
+                        Retry
+                      </Button>
                       <Button onClick={() => void handleStopCore()} variant="outline" size="sm">
                         <SquareIcon className="size-4" />
                         Stop
                       </Button>
-                      <Button onClick={() => void handleRestartCore()} variant="outline" size="sm">
-                        <RefreshCwIcon className="size-4" />
-                        Restart
-                      </Button>
                     </>
                   )
-                : coreStatus === 'error'
-                  ? (
-                      <>
-                        <Button onClick={() => void handleRestartCore()} size="sm">
-                          <RefreshCwIcon className="size-4" />
-                          Retry
-                        </Button>
-                        <Button onClick={() => void handleStopCore()} variant="outline" size="sm">
-                          <SquareIcon className="size-4" />
-                          Stop
-                        </Button>
-                      </>
-                    )
                   : null}
 
         <Button

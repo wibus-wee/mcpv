@@ -9,13 +9,20 @@ on:
       web:
         required: true
         type: boolean
+      full:
+        required: false
+        type: boolean
+        default: false
   workflow_dispatch: {}
 
 jobs:
   build-gui:
-    name: Build GUI (desktop)
+    name: Build GUI (${{ matrix.arch }})
     runs-on: macos-latest
     if: ${{ inputs.go == true || inputs.web == true || github.event_name == 'workflow_dispatch' }}
+    strategy:
+      matrix:
+        arch: ${{ fromJSON(inputs.full && '["universal","arm64","amd64"]' || '["arm64"]') }}
     env:
       VERSION: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'dev' }}
       BUILD: ${{ github.sha }}
@@ -52,47 +59,27 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-build-${{ env.cache-name }}-
 
-      - name: Build desktop app (universal + arm64 + amd64)
+      - name: Build desktop app
         run: |
           set -euo pipefail
           mkdir -p dist
-          VERSION=${{ env.VERSION }} BUILD=${{ env.BUILD }} ./bin/wails3 task darwin:package:universal
-          mv ./bin/mcpvui.app ./bin/mcpvui-universal.app
-          VERSION=${{ env.VERSION }} BUILD=${{ env.BUILD }} ARCH=arm64 ./bin/wails3 task darwin:package
-          mv ./bin/mcpvui.app ./bin/mcpvui-arm64.app
-          VERSION=${{ env.VERSION }} BUILD=${{ env.BUILD }} ARCH=amd64 ./bin/wails3 task darwin:package
-          mv ./bin/mcpvui.app ./bin/mcpvui-amd64.app
+          if [ "${{ matrix.arch }}" = "universal" ]; then
+            VERSION=${{ env.VERSION }} BUILD=${{ env.BUILD }} ./bin/wails3 task darwin:package:universal
+          else
+            VERSION=${{ env.VERSION }} BUILD=${{ env.BUILD }} ARCH=${{ matrix.arch }} ./bin/wails3 task darwin:package
+          fi
+          mv ./bin/mcpvui.app ./bin/mcpvui-${{ matrix.arch }}.app
           chmod +x scripts/release/make-dmg.sh
           cp scripts/release/install-helper.sh bin/
           chmod +x bin/install-helper.sh
-          scripts/release/make-dmg.sh "bin/mcpvui-universal.app" "dist/mcpvui-${{ env.VERSION }}-macos-universal.dmg" "mcpvui"
-          scripts/release/make-dmg.sh "bin/mcpvui-arm64.app" "dist/mcpvui-${{ env.VERSION }}-macos-arm64.dmg" "mcpvui"
-          scripts/release/make-dmg.sh "bin/mcpvui-amd64.app" "dist/mcpvui-${{ env.VERSION }}-macos-amd64.dmg" "mcpvui"
-          ditto -c -k --sequesterRsrc --keepParent ./bin/mcpvui-universal.app ./dist/mcpvui-${{ env.VERSION }}-macos-universal.zip
-          ditto -c -k --sequesterRsrc --keepParent ./bin/mcpvui-arm64.app ./dist/mcpvui-${{ env.VERSION }}-macos-arm64.zip
-          ditto -c -k --sequesterRsrc --keepParent ./bin/mcpvui-amd64.app ./dist/mcpvui-${{ env.VERSION }}-macos-amd64.zip
+          scripts/release/make-dmg.sh "bin/mcpvui-${{ matrix.arch }}.app" "dist/mcpvui-macos-${{ matrix.arch }}.dmg" "mcpvui"
+          ditto -c -k --sequesterRsrc --keepParent ./bin/mcpvui-${{ matrix.arch }}.app ./dist/mcpvui-macos-${{ matrix.arch }}.zip
         shell: bash
 
-      - name: Upload GUI artifacts (universal)
+      - name: Upload GUI artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: gui-macos-universal
+          name: gui-macos-${{ matrix.arch }}
           path: |
-            ./dist/mcpvui-${{ env.VERSION }}-macos-universal.zip
-            ./dist/mcpvui-${{ env.VERSION }}-macos-universal.dmg
-
-      - name: Upload GUI artifacts (arm64)
-        uses: actions/upload-artifact@v4
-        with:
-          name: gui-macos-arm64
-          path: |
-            ./dist/mcpvui-${{ env.VERSION }}-macos-arm64.zip
-            ./dist/mcpvui-${{ env.VERSION }}-macos-arm64.dmg
-
-      - name: Upload GUI artifacts (amd64)
-        uses: actions/upload-artifact@v4
-        with:
-          name: gui-macos-amd64
-          path: |
-            ./dist/mcpvui-${{ env.VERSION }}-macos-amd64.zip
-            ./dist/mcpvui-${{ env.VERSION }}-macos-amd64.dmg
+            ./dist/mcpvui-macos-${{ matrix.arch }}.zip
+            ./dist/mcpvui-macos-${{ matrix.arch }}.dmg

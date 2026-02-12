@@ -56,23 +56,23 @@ jobs:
     uses: ./.github/workflows/lint.yml
     needs: changes
     with:
-      go: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.go == 'true' }}
-      web: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.web == 'true' }}
+      go: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') || needs.changes.outputs.go == 'true' }}
+      web: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') || needs.changes.outputs.web == 'true' }}
 
   test:
     name: Test
     uses: ./.github/workflows/test.yml
     needs: changes
     with:
-      go: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.go == 'true' }}
-      web: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.web == 'true' }}
+      go: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') || needs.changes.outputs.go == 'true' }}
+      web: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') || needs.changes.outputs.web == 'true' }}
 
   cli-build:
     name: CLI Build
     uses: ./.github/workflows/cli-build.yml
     needs: [changes, test]
     with:
-      go: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.go == 'true' }}
+      go: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') || needs.changes.outputs.go == 'true' }}
     secrets: inherit
 
   gui-build:
@@ -80,6 +80,35 @@ jobs:
     uses: ./.github/workflows/gui-build.yml
     needs: [changes, test]
     with:
-      go: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.go == 'true' }}
-      web: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.web == 'true' }}
+      go: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') || needs.changes.outputs.go == 'true' }}
+      web: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') || needs.changes.outputs.web == 'true' }}
+      full: ${{ startsWith(github.ref, 'refs/tags/') }}
     secrets: inherit
+
+  publish-release:
+    name: Publish Release
+    runs-on: ubuntu-latest
+    if: ${{ startsWith(github.ref, 'refs/tags/') }}
+    needs: [cli-build, gui-build]
+    permissions:
+      contents: write
+    steps:
+      - name: Download GUI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: gui-*
+          path: dist
+          merge-multiple: true
+
+      - name: Download CLI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: cli-*
+          path: dist
+          merge-multiple: true
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: dist/**

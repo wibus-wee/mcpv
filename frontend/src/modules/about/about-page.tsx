@@ -81,7 +81,7 @@ export function AboutPage() {
               MCPV UI
               {appInfo?.version && (
                 <span className="ml-2 text-base font-normal text-muted-foreground">
-                  v{appInfo.version}
+                  {appInfo.version}
                 </span>
               )}
             </h1>

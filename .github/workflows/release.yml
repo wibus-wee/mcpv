@@ -1,8 +1,6 @@
 name: "Release"
 
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch: {}
 
 permissions:
@@ -54,9 +52,9 @@ jobs:
           chmod +x scripts/release/make-dmg.sh
           cp scripts/release/install-helper.sh bin/
           chmod +x bin/install-helper.sh
-          scripts/release/make-dmg.sh "bin/mcpvui-universal.app" "dist/mcpvui-${{ env.VERSION }}-macos-universal.dmg" "mcpvui"
-          scripts/release/make-dmg.sh "bin/mcpvui-arm64.app" "dist/mcpvui-${{ env.VERSION }}-macos-arm64.dmg" "mcpvui"
-          scripts/release/make-dmg.sh "bin/mcpvui-amd64.app" "dist/mcpvui-${{ env.VERSION }}-macos-amd64.dmg" "mcpvui"
+          scripts/release/make-dmg.sh "bin/mcpvui-universal.app" "dist/mcpvui-macos-universal.dmg" "mcpvui"
+          scripts/release/make-dmg.sh "bin/mcpvui-arm64.app" "dist/mcpvui-macos-arm64.dmg" "mcpvui"
+          scripts/release/make-dmg.sh "bin/mcpvui-amd64.app" "dist/mcpvui-macos-amd64.dmg" "mcpvui"
         shell: bash
 
       - name: Publish Release

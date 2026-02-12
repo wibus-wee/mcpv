@@ -51,15 +51,15 @@ jobs:
           cp dist/mcpvmcp-amd64 dist/amd64/mcpvmcp
           cp dist/mcpvmcp-arm64 dist/arm64/mcpvmcp
 
-          (cd dist && zip -9 -r "mcpv-${VERSION}-macos-universal.zip" mcpv)
-          (cd dist && zip -9 -r "mcpvmcp-${VERSION}-macos-universal.zip" mcpvmcp)
-          (cd dist && zip -9 -r "mcpv-cli-${VERSION}-macos-universal.zip" mcpv mcpvmcp)
-          (cd dist/amd64 && zip -9 -r "../mcpv-${VERSION}-macos-amd64.zip" mcpv)
-          (cd dist/amd64 && zip -9 -r "../mcpvmcp-${VERSION}-macos-amd64.zip" mcpvmcp)
-          (cd dist/amd64 && zip -9 -r "../mcpv-cli-${VERSION}-macos-amd64.zip" mcpv mcpvmcp)
-          (cd dist/arm64 && zip -9 -r "../mcpv-${VERSION}-macos-arm64.zip" mcpv)
-          (cd dist/arm64 && zip -9 -r "../mcpvmcp-${VERSION}-macos-arm64.zip" mcpvmcp)
-          (cd dist/arm64 && zip -9 -r "../mcpv-cli-${VERSION}-macos-arm64.zip" mcpv mcpvmcp)
+          (cd dist && zip -9 -r "mcpv-macos-universal.zip" mcpv)
+          (cd dist && zip -9 -r "mcpvmcp-macos-universal.zip" mcpvmcp)
+          (cd dist && zip -9 -r "mcpv-mcpvmcp-macos-universal.zip" mcpv mcpvmcp)
+          (cd dist/amd64 && zip -9 -r "../mcpv-macos-amd64.zip" mcpv)
+          (cd dist/amd64 && zip -9 -r "../mcpvmcp-macos-amd64.zip" mcpvmcp)
+          (cd dist/amd64 && zip -9 -r "../mcpv-mcpvmcp-macos-amd64.zip" mcpv mcpvmcp)
+          (cd dist/arm64 && zip -9 -r "../mcpv-macos-arm64.zip" mcpv)
+          (cd dist/arm64 && zip -9 -r "../mcpvmcp-macos-arm64.zip" mcpvmcp)
+          (cd dist/arm64 && zip -9 -r "../mcpv-mcpvmcp-macos-arm64.zip" mcpv mcpvmcp)
         shell: bash
 
       - name: Upload CLI artifacts (universal)
@@ -120,8 +120,8 @@ jobs:
           LDFLAGS="-s -w -X mcpv/internal/buildinfo.Version=${{ env.VERSION }} -X mcpv/internal/buildinfo.Build=${{ env.BUILD }}"
           CGO_ENABLED=0 GOOS=linux GOARCH=${{ matrix.goarch }} go build -ldflags "$LDFLAGS" -o dist/mcpv ./cmd/mcpv
           CGO_ENABLED=0 GOOS=linux GOARCH=${{ matrix.goarch }} go build -ldflags "$LDFLAGS" -o dist/mcpvmcp ./cmd/mcpvmcp
-          (cd dist && zip -9 -r "mcpv-${VERSION}-linux-${{ matrix.goarch }}.zip" mcpv)
-          (cd dist && zip -9 -r "mcpvmcp-${VERSION}-linux-${{ matrix.goarch }}.zip" mcpvmcp)
+          (cd dist && zip -9 -r "mcpv-linux-${{ matrix.goarch }}.zip" mcpv)
+          (cd dist && zip -9 -r "mcpvmcp-linux-${{ matrix.goarch }}.zip" mcpvmcp)
         shell: bash
 
       - name: Upload CLI artifacts (linux)
