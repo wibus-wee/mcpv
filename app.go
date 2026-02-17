@@ -92,6 +92,7 @@ func main() {
 
 	window.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
 		window.Hide()
+		trayController.RefreshDockVisibility()
 		e.Cancel()
 	})
 
@@ -104,6 +105,7 @@ func main() {
 			// Always show window when deep link is triggered
 			window.Show()
 			window.Focus()
+			trayController.RefreshDockVisibility()
 		}
 	})
 

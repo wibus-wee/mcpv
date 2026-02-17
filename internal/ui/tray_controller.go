@@ -147,6 +147,17 @@ func (c *TrayController) applyDock(settings TraySettings) {
 	dockService.ShowAppIcon()
 }
 
+// RefreshDockVisibility reapplies the current dock visibility settings.
+func (c *TrayController) RefreshDockVisibility() {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	settings := c.settings
+	c.mu.Unlock()
+	c.applyDock(settings)
+}
+
 func (c *TrayController) handleTrayClick() {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
