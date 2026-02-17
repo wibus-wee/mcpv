@@ -74,6 +74,7 @@ func newRootCommand() *cobra.Command {
 		newInfoCmd(&opts),
 		newRegisterCmd(&opts),
 		newUnregisterCmd(&opts),
+		newDaemonCmd(&opts),
 		newToolsCmd(&opts),
 		newTasksCmd(&opts),
 		newResourcesCmd(&opts),

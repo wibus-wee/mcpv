@@ -3,6 +3,7 @@
 
 import * as ConfigService from "./configservice.js";
 import * as CoreService from "./coreservice.js";
+import * as DaemonService from "./daemonservice.js";
 import * as DebugService from "./debugservice.js";
 import * as DiscoveryService from "./discoveryservice.js";
 import * as LogService from "./logservice.js";
@@ -17,6 +18,7 @@ import * as UISettingsService from "./uisettingsservice.js";
 export {
     ConfigService,
     CoreService,
+    DaemonService,
     DebugService,
     DiscoveryService,
     LogService,
@@ -37,6 +39,9 @@ export {
     CoreStateResponse,
     CreatePluginRequest,
     CreateServerRequest,
+    DaemonEnsureRequest,
+    DaemonInstallRequest,
+    DaemonStatus,
     DebugSnapshotResponse,
     DeletePluginRequest,
     DeleteServerRequest,

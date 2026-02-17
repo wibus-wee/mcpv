@@ -14,3 +14,4 @@
 - **use-mobile.ts**: 设备尺寸判断的响应式 hooks
 - **use-resizable.ts**: 面板拖拽调整尺寸的通用 hooks
 - **use-ui-settings.ts**: UI settings 的 SWR hooks 与更新/重置封装
+- **use-daemon-status.ts**: 本地 core daemon 状态的 SWR hook

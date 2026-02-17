@@ -1,4 +1,4 @@
-// Input: Dashboard components, tabs/alerts/buttons, core/app hooks, analytics
+// Input: Dashboard components, cards/buttons, core/app hooks, analytics, toast
 // Output: DashboardPage component - main dashboard view with insights
 // Position: Main dashboard page in dashboard module
 
@@ -8,16 +8,25 @@ import {
   PlayIcon,
   RefreshCwIcon,
   ServerIcon,
+  ShieldCheckIcon,
   SquareIcon,
+  ZapIcon,
 } from 'lucide-react'
 import { m } from 'motion/react'
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 import { ConnectIdeSheet } from '@/components/common/connect-agent-sheet'
 import { UniversalEmptyState } from '@/components/common/universal-empty-state'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import { toastManager } from '@/components/ui/toast'
 import { useCoreActions, useCoreState } from '@/hooks/use-core-state'
 import { AnalyticsEvents, track } from '@/lib/analytics'
 import { Spring } from '@/lib/spring'
@@ -25,6 +34,8 @@ import { Spring } from '@/lib/spring'
 import { ActiveClientsPanel } from './components/active-clients-panel'
 import { ActivityInsights } from './components/activity-insights'
 import { BootstrapProgressPanel } from './components/bootstrap-progress'
+import { LocalCoreDaemonCard } from './components/local-core-daemon-card'
+import { RemoteGatewayCard } from './components/remote-gateway-card'
 import { ServerHealthOverview } from './components/server-health-overview'
 import { StatusCards } from './components/status-cards'
 import { useAppInfo, useBootstrapProgress } from './hooks'
@@ -210,9 +221,57 @@ function StartingContent() {
   )
 }
 
+function StoppedCorePanel({ onStartCore }: { onStartCore: () => void }) {
+  return (
+    <m.div
+      initial={{ opacity: 0, y: 12, filter: 'blur(6px)' }}
+      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+      transition={Spring.smooth(0.4)}
+      className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
+    >
+      <Card className="relative overflow-hidden">
+        <CardHeader className="relative">
+          <div className="flex items-start gap-4">
+            <div className="flex size-11 items-center justify-center rounded-xl border bg-background/80 shadow-sm">
+              <ServerIcon className="size-5 text-muted-foreground" />
+            </div>
+            <div className="space-y-1">
+              <CardTitle className="text-base">Core is not running</CardTitle>
+              <CardDescription>
+                Start the mcpv core to see your dashboard and manage MCP servers.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="relative space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button onClick={onStartCore} size="sm">
+              <PlayIcon className="size-4" />
+              Start Core
+            </Button>
+          </div>
+          <div className="grid gap-2 text-xs text-muted-foreground">
+            <div className="flex items-start gap-2">
+              <ZapIcon className="mt-0.5 size-3 text-sky-500/80" />
+              <span>Runs in the foreground with live logs and activity.</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <ShieldCheckIcon className="mt-0.5 size-3 text-emerald-500/80" />
+              <span>Need always-on uptime? Enable the local daemon on the right.</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      <LocalCoreDaemonCard />
+      <RemoteGatewayCard />
+    </m.div>
+  )
+}
+
 export function DashboardPage() {
   const { coreStatus, data: coreState } = useCoreState()
-  const { startCore } = useCoreActions()
+  const { startCore, restartCore } = useCoreActions()
+  const errorToastRef = useRef<string | null>(null)
 
   const handleStartCore = useCallback(async () => {
     try {
@@ -224,20 +283,39 @@ export function DashboardPage() {
     }
   }, [startCore])
 
+  const handleRestartCore = useCallback(async () => {
+    try {
+      await restartCore()
+      track(AnalyticsEvents.CORE_RESTART, { result: 'success' })
+    }
+    catch {
+      track(AnalyticsEvents.CORE_RESTART, { result: 'error' })
+    }
+  }, [restartCore])
+
+  useEffect(() => {
+    if (coreStatus !== 'error') {
+      errorToastRef.current = null
+      return
+    }
+    const message = coreState?.error || 'The mcpv core encountered an error. Check the logs for details.'
+    if (errorToastRef.current === message) {
+      return
+    }
+    errorToastRef.current = message
+    toastManager.add({
+      type: 'error',
+      title: 'Core error',
+      description: message,
+    })
+  }, [coreStatus, coreState?.error])
+
   if (coreStatus === 'stopped') {
     return (
       <div className="flex flex-1 flex-col p-6 overflow-auto">
         <DashboardHeader />
         <Separator className="my-6" />
-        <UniversalEmptyState
-          icon={ServerIcon}
-          title="Core is not running"
-          description="Start the mcpv core to see your dashboard and manage MCP servers."
-          action={{
-            label: 'Start Core',
-            onClick: () => void handleStartCore(),
-          }}
-        />
+        <StoppedCorePanel onStartCore={() => void handleStartCore()} />
       </div>
     )
   }
@@ -257,19 +335,15 @@ export function DashboardPage() {
       <div className="flex flex-1 flex-col p-6 overflow-auto">
         <DashboardHeader />
         <Separator className="my-6" />
-        <m.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={Spring.smooth(0.4)}
-        >
-          <Alert variant="error">
-            <AlertCircleIcon className="size-4" />
-            <AlertTitle>Core Error</AlertTitle>
-            <AlertDescription>
-              {coreState?.error || 'The mcpv core encountered an error. Check the logs for details.'}
-            </AlertDescription>
-          </Alert>
-        </m.div>
+        <UniversalEmptyState
+          icon={AlertCircleIcon}
+          title="Core error"
+          description={coreState?.error || 'The mcpv core encountered an error. Check the logs for details.'}
+          action={{
+            label: 'Retry',
+            onClick: () => void handleRestartCore(),
+          }}
+        />
       </div>
     )
   }

@@ -39,6 +39,7 @@ export const swrKeys = {
   coreState: 'core-state',
   bootstrapProgress: 'bootstrap-progress',
   subAgentConfig: 'subagent-config',
+  daemonStatus: 'daemon-status',
 
   // Log-related keys
   logs: 'logs',

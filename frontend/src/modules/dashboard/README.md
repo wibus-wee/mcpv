@@ -15,6 +15,8 @@
 
 - **components/bootstrap-progress.tsx**: 服务器启动进度面板，支持完整卡片和内联两种形式
 - **components/status-cards.tsx**: 状态概览卡片，展示核心状态、运行时长与数量统计
+- **components/local-core-daemon-card.tsx**: 本地 core daemon 状态与启动引导卡片
+- **components/remote-gateway-card.tsx**: 远程网关配置与状态提示卡片
 - **components/tools-table.tsx**: 可搜索的工具表格，含详情弹窗
 - **components/resources-list.tsx**: 资源列表与折叠详情
 - **components/logs-panel.tsx**: 实时日志面板，支持等级/来源/Server 过滤与自动滚动开关

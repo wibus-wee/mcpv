@@ -15,6 +15,8 @@
 - **active-clients-panel.tsx**: 活跃客户端面板，显示已连接的 IDE/客户端及其状态
 - **bootstrap-progress.tsx**: 服务器启动进度面板，显示 bootstrap 状态、进度条、错误信息；包含 `BootstrapProgressPanel` (完整卡片) 和 `BootstrapProgressInline` (内联紧凑版)
 - **status-cards.tsx**: 状态概览卡片，展示核心状态、运行时长与数量统计，含动画效果
+- **local-core-daemon-card.tsx**: 本地 core daemon 状态与启动引导卡片
+- **remote-gateway-card.tsx**: 远程网关配置与状态提示卡片
 - **tools-table.tsx**: 工具表格，支持搜索与详情弹窗
 - **resources-list.tsx**: 资源列表与折叠详情
 - **logs-panel.tsx**: 实时日志面板，支持等级/来源/Server 过滤与自动滚动开关

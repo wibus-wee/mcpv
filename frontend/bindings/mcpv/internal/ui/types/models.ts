@@ -221,6 +221,90 @@ export class CreateServerRequest {
 }
 
 /**
+ * DaemonEnsureRequest ensures the daemon is running with explicit consent.
+ */
+export class DaemonEnsureRequest {
+    "allowStart": boolean;
+    "configPath"?: string;
+    "rpcAddress"?: string;
+    "logPath"?: string;
+    "binaryPath"?: string;
+
+    /** Creates a new DaemonEnsureRequest instance. */
+    constructor($$source: Partial<DaemonEnsureRequest> = {}) {
+        if (!("allowStart" in $$source)) {
+            this["allowStart"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DaemonEnsureRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DaemonEnsureRequest {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DaemonEnsureRequest($$parsedSource as Partial<DaemonEnsureRequest>);
+    }
+}
+
+/**
+ * DaemonInstallRequest configures daemon installation/start.
+ */
+export class DaemonInstallRequest {
+    "configPath"?: string;
+    "rpcAddress"?: string;
+    "logPath"?: string;
+    "binaryPath"?: string;
+
+    /** Creates a new DaemonInstallRequest instance. */
+    constructor($$source: Partial<DaemonInstallRequest> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DaemonInstallRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DaemonInstallRequest {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DaemonInstallRequest($$parsedSource as Partial<DaemonInstallRequest>);
+    }
+}
+
+/**
+ * DaemonStatus represents the status of the local core service.
+ */
+export class DaemonStatus {
+    "installed": boolean;
+    "running": boolean;
+    "serviceName"?: string;
+    "configPath"?: string;
+    "rpcAddress"?: string;
+    "logPath"?: string;
+
+    /** Creates a new DaemonStatus instance. */
+    constructor($$source: Partial<DaemonStatus> = {}) {
+        if (!("installed" in $$source)) {
+            this["installed"] = false;
+        }
+        if (!("running" in $$source)) {
+            this["running"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DaemonStatus instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DaemonStatus {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DaemonStatus($$parsedSource as Partial<DaemonStatus>);
+    }
+}
+
+/**
  * DebugSnapshotResponse returns the snapshot payload to the frontend.
  */
 export class DebugSnapshotResponse {
@@ -1163,6 +1247,33 @@ export class ProxyFetchResponse {
 }
 
 /**
+ * RPCAuthConfigDetail for frontend.
+ */
+export class RPCAuthConfigDetail {
+    "enabled": boolean;
+    "mode"?: string;
+    "token"?: string;
+    "tokenEnv"?: string;
+
+    /** Creates a new RPCAuthConfigDetail instance. */
+    constructor($$source: Partial<RPCAuthConfigDetail> = {}) {
+        if (!("enabled" in $$source)) {
+            this["enabled"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RPCAuthConfigDetail instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RPCAuthConfigDetail {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new RPCAuthConfigDetail($$parsedSource as Partial<RPCAuthConfigDetail>);
+    }
+}
+
+/**
  * RPCConfigDetail for frontend.
  */
 export class RPCConfigDetail {
@@ -1173,6 +1284,7 @@ export class RPCConfigDetail {
     "keepaliveTimeoutSeconds": number;
     "socketMode": string;
     "tls": RPCTLSConfigDetail;
+    "auth": RPCAuthConfigDetail;
 
     /** Creates a new RPCConfigDetail instance. */
     constructor($$source: Partial<RPCConfigDetail> = {}) {
@@ -1197,6 +1309,9 @@ export class RPCConfigDetail {
         if (!("tls" in $$source)) {
             this["tls"] = (new RPCTLSConfigDetail());
         }
+        if (!("auth" in $$source)) {
+            this["auth"] = (new RPCAuthConfigDetail());
+        }
 
         Object.assign(this, $$source);
     }
@@ -1206,9 +1321,13 @@ export class RPCConfigDetail {
      */
     static createFrom($$source: any = {}): RPCConfigDetail {
         const $$createField6_0 = $$createType15;
+        const $$createField7_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tls" in $$parsedSource) {
             $$parsedSource["tls"] = $$createField6_0($$parsedSource["tls"]);
+        }
+        if ("auth" in $$parsedSource) {
+            $$parsedSource["auth"] = $$createField7_0($$parsedSource["auth"]);
         }
         return new RPCConfigDetail($$parsedSource as Partial<RPCConfigDetail>);
     }
@@ -1327,7 +1446,7 @@ export class ResourcePage {
      * Creates a new ResourcePage instance from a string or object.
      */
     static createFrom($$source: any = {}): ResourcePage {
-        const $$createField0_0 = $$createType17;
+        const $$createField0_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("resources" in $$parsedSource) {
             $$parsedSource["resources"] = $$createField0_0($$parsedSource["resources"]);
@@ -1448,9 +1567,9 @@ export class RuntimeConfigDetail {
      * Creates a new RuntimeConfigDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): RuntimeConfigDetail {
-        const $$createField16_0 = $$createType18;
-        const $$createField17_0 = $$createType19;
-        const $$createField18_0 = $$createType20;
+        const $$createField16_0 = $$createType19;
+        const $$createField17_0 = $$createType20;
+        const $$createField18_0 = $$createType21;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("proxy" in $$parsedSource) {
             $$parsedSource["proxy"] = $$createField16_0($$parsedSource["proxy"]);
@@ -1505,9 +1624,9 @@ export class ServerGroup {
      * Creates a new ServerGroup instance from a string or object.
      */
     static createFrom($$source: any = {}): ServerGroup {
-        const $$createField3_0 = $$createType22;
+        const $$createField3_0 = $$createType23;
         const $$createField4_0 = $$createType0;
-        const $$createField6_0 = $$createType23;
+        const $$createField6_0 = $$createType24;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tools" in $$parsedSource) {
             $$parsedSource["tools"] = $$createField3_0($$parsedSource["tools"]);
@@ -1619,10 +1738,10 @@ export class ServerRuntimeStatus {
      * Creates a new ServerRuntimeStatus instance from a string or object.
      */
     static createFrom($$source: any = {}): ServerRuntimeStatus {
-        const $$createField2_0 = $$createType25;
-        const $$createField3_0 = $$createType26;
-        const $$createField4_0 = $$createType27;
-        const $$createField5_0 = $$createType28;
+        const $$createField2_0 = $$createType26;
+        const $$createField3_0 = $$createType27;
+        const $$createField4_0 = $$createType28;
+        const $$createField5_0 = $$createType29;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("instances" in $$parsedSource) {
             $$parsedSource["instances"] = $$createField2_0($$parsedSource["instances"]);
@@ -1820,7 +1939,7 @@ export class StartCause {
      * Creates a new StartCause instance from a string or object.
      */
     static createFrom($$source: any = {}): StartCause {
-        const $$createField3_0 = $$createType30;
+        const $$createField3_0 = $$createType31;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("policy" in $$parsedSource) {
             $$parsedSource["policy"] = $$createField3_0($$parsedSource["policy"]);
@@ -1904,7 +2023,7 @@ export class StreamableHTTPConfigDetail {
      */
     static createFrom($$source: any = {}): StreamableHTTPConfigDetail {
         const $$createField1_0 = $$createType1;
-        const $$createField3_0 = $$createType31;
+        const $$createField3_0 = $$createType32;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("headers" in $$parsedSource) {
             $$parsedSource["headers"] = $$createField1_0($$parsedSource["headers"]);
@@ -2124,7 +2243,7 @@ export class UISettingsSnapshot {
      * Creates a new UISettingsSnapshot instance from a string or object.
      */
     static createFrom($$source: any = {}): UISettingsSnapshot {
-        const $$createField4_0 = $$createType32;
+        const $$createField4_0 = $$createType33;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sections" in $$parsedSource) {
             $$parsedSource["sections"] = $$createField4_0($$parsedSource["sections"]);
@@ -2210,7 +2329,7 @@ export class UpdateCheckResult {
      * Creates a new UpdateCheckResult instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateCheckResult {
-        const $$createField2_0 = $$createType34;
+        const $$createField2_0 = $$createType35;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("latest" in $$parsedSource) {
             $$parsedSource["latest"] = $$createField2_0($$parsedSource["latest"]);
@@ -2641,7 +2760,7 @@ export class UpdateUISettingsRequest {
      * Creates a new UpdateUISettingsRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateUISettingsRequest {
-        const $$createField2_0 = $$createType32;
+        const $$createField2_0 = $$createType33;
         const $$createField3_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("updates" in $$parsedSource) {
@@ -2671,22 +2790,23 @@ const $$createType12 = PluginMetrics.createFrom;
 const $$createType13 = PromptEntry.createFrom;
 const $$createType14 = $Create.Array($$createType13);
 const $$createType15 = RPCTLSConfigDetail.createFrom;
-const $$createType16 = ResourceEntry.createFrom;
-const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = ProxyConfigDetail.createFrom;
-const $$createType19 = ObservabilityConfigDetail.createFrom;
-const $$createType20 = RPCConfigDetail.createFrom;
-const $$createType21 = ToolEntry.createFrom;
-const $$createType22 = $Create.Array($$createType21);
-const $$createType23 = $Create.Nullable($$createType3);
-const $$createType24 = InstanceStatus.createFrom;
-const $$createType25 = $Create.Array($$createType24);
-const $$createType26 = PoolStats.createFrom;
-const $$createType27 = PoolMetrics.createFrom;
-const $$createType28 = PoolDiagnostics.createFrom;
-const $$createType29 = StartCausePolicy.createFrom;
-const $$createType30 = $Create.Nullable($$createType29);
-const $$createType31 = $Create.Nullable($$createType18);
-const $$createType32 = $Create.Map($Create.Any, $Create.Any);
-const $$createType33 = UpdateRelease.createFrom;
-const $$createType34 = $Create.Nullable($$createType33);
+const $$createType16 = RPCAuthConfigDetail.createFrom;
+const $$createType17 = ResourceEntry.createFrom;
+const $$createType18 = $Create.Array($$createType17);
+const $$createType19 = ProxyConfigDetail.createFrom;
+const $$createType20 = ObservabilityConfigDetail.createFrom;
+const $$createType21 = RPCConfigDetail.createFrom;
+const $$createType22 = ToolEntry.createFrom;
+const $$createType23 = $Create.Array($$createType22);
+const $$createType24 = $Create.Nullable($$createType3);
+const $$createType25 = InstanceStatus.createFrom;
+const $$createType26 = $Create.Array($$createType25);
+const $$createType27 = PoolStats.createFrom;
+const $$createType28 = PoolMetrics.createFrom;
+const $$createType29 = PoolDiagnostics.createFrom;
+const $$createType30 = StartCausePolicy.createFrom;
+const $$createType31 = $Create.Nullable($$createType30);
+const $$createType32 = $Create.Nullable($$createType19);
+const $$createType33 = $Create.Map($Create.Any, $Create.Any);
+const $$createType34 = UpdateRelease.createFrom;
+const $$createType35 = $Create.Nullable($$createType34);

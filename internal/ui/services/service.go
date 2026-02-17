@@ -16,6 +16,7 @@ type ServiceRegistry struct {
 	Core        *CoreService
 	Discovery   *DiscoveryService
 	Log         *LogService
+	Daemon      *DaemonService
 	Config      *ConfigService
 	Server      *ServerService
 	Runtime     *RuntimeService
@@ -35,6 +36,7 @@ func NewServiceRegistry(coreApp *app.App, logger *zap.Logger) *ServiceRegistry {
 		Core:        NewCoreService(deps),
 		Discovery:   NewDiscoveryService(deps),
 		Log:         NewLogService(deps),
+		Daemon:      NewDaemonService(deps),
 		Config:      NewConfigService(deps),
 		Server:      NewServerService(deps),
 		Runtime:     NewRuntimeService(deps),
@@ -53,6 +55,7 @@ func (r *ServiceRegistry) Services() []application.Service {
 		application.NewService(r.Core),
 		application.NewService(r.Discovery),
 		application.NewService(r.Log),
+		application.NewService(r.Daemon),
 		application.NewService(r.Config),
 		application.NewService(r.Server),
 		application.NewService(r.Runtime),

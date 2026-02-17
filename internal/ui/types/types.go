@@ -50,6 +50,33 @@ type ConfigModeResponse struct {
 	IsWritable bool   `json:"isWritable"` // Whether the config is writable
 }
 
+// DaemonStatus represents the status of the local core service.
+type DaemonStatus struct {
+	Installed   bool   `json:"installed"`
+	Running     bool   `json:"running"`
+	ServiceName string `json:"serviceName,omitempty"`
+	ConfigPath  string `json:"configPath,omitempty"`
+	RPCAddress  string `json:"rpcAddress,omitempty"`
+	LogPath     string `json:"logPath,omitempty"`
+}
+
+// DaemonInstallRequest configures daemon installation/start.
+type DaemonInstallRequest struct {
+	ConfigPath string `json:"configPath,omitempty"`
+	RPCAddress string `json:"rpcAddress,omitempty"`
+	LogPath    string `json:"logPath,omitempty"`
+	BinaryPath string `json:"binaryPath,omitempty"`
+}
+
+// DaemonEnsureRequest ensures the daemon is running with explicit consent.
+type DaemonEnsureRequest struct {
+	AllowStart bool   `json:"allowStart"`
+	ConfigPath string `json:"configPath,omitempty"`
+	RPCAddress string `json:"rpcAddress,omitempty"`
+	LogPath    string `json:"logPath,omitempty"`
+	BinaryPath string `json:"binaryPath,omitempty"`
+}
+
 // =============================================================================
 // UI Settings Types
 // =============================================================================

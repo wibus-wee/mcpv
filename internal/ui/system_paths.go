@@ -8,7 +8,18 @@ import (
 )
 
 func ResolveMcpvmcpPath() string {
-	name := "mcpvmcp"
+	return resolveBinaryPath("mcpvmcp")
+}
+
+func ResolveMcpvPath() string {
+	return resolveBinaryPath("mcpv")
+}
+
+func ResolveMcpvctlPath() string {
+	return resolveBinaryPath("mcpvctl")
+}
+
+func resolveBinaryPath(name string) string {
 	if runtime.GOOS == "windows" {
 		name += ".exe"
 	}

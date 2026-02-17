@@ -49,6 +49,22 @@ The project is designed with a three-layer architecture for maximum decoupling:
 3.  **CLI (`mcpvctl`)**: A control-plane client for scripts and automation.
 4.  **App (`mcpvui`)**: The Wails-driven GUI for configuration, real-time monitoring, and core lifecycle hosting.
 
+## Daemon Management
+
+`mcpvctl` can manage the local core as a user-level system service. On Linux it uses systemd (`systemctl --user`); on macOS it uses launchd (`launchctl`). This keeps the core running independently of the GUI and provides standard start/stop/status controls.
+
+Examples:
+
+- Install the service:
+  - `mcpvctl daemon install --config ./runtime.yaml`
+- Start the service:
+  - `mcpvctl daemon start`
+- Check status:
+  - `mcpvctl daemon status`
+- Stop and uninstall:
+  - `mcpvctl daemon stop`
+  - `mcpvctl daemon uninstall`
+
 ## RPC Authentication
 
 The control plane supports optional authentication. Configure `rpc.auth` in your `runtime.yaml` to enable token or mTLS. When enabled, clients (including `mcpvctl` and `mcpvmcp`) must supply a Bearer token (`--rpc-token` / `--rpc-token-env`) or valid client certificates (mTLS) to connect.

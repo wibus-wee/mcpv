@@ -27,6 +27,15 @@ export type CreatePluginRequest = types$0.CreatePluginRequest;
 export const CreateServerRequest = types$0.CreateServerRequest;
 export type CreateServerRequest = types$0.CreateServerRequest;
 
+export const DaemonEnsureRequest = types$0.DaemonEnsureRequest;
+export type DaemonEnsureRequest = types$0.DaemonEnsureRequest;
+
+export const DaemonInstallRequest = types$0.DaemonInstallRequest;
+export type DaemonInstallRequest = types$0.DaemonInstallRequest;
+
+export const DaemonStatus = types$0.DaemonStatus;
+export type DaemonStatus = types$0.DaemonStatus;
+
 export const DebugSnapshotResponse = types$0.DebugSnapshotResponse;
 export type DebugSnapshotResponse = types$0.DebugSnapshotResponse;
 

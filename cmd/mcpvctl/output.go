@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"mcpv/internal/infra/daemon"
 	controlv1 "mcpv/pkg/api/control/v1"
 )
 
@@ -195,5 +196,60 @@ func printAutomaticMCP(resp *controlv1.AutomaticMCPResponse, jsonOutput bool) er
 		})
 	}
 	fmt.Printf("etag=%s total=%d filtered=%d\n", resp.GetEtag(), resp.GetTotalAvailable(), resp.GetFiltered())
+	return nil
+}
+
+func printDaemonStatus(status daemon.Status, jsonOutput bool) error {
+	if jsonOutput {
+		return writeJSON(map[string]any{
+			"installed":  status.Installed,
+			"running":    status.Running,
+			"service":    status.ServiceName,
+			"configPath": status.ConfigPath,
+			"rpcAddress": status.RPCAddress,
+			"logPath":    status.LogPath,
+		})
+	}
+	state := "stopped"
+	if !status.Installed {
+		state = "not installed"
+	} else if status.Running {
+		state = "running"
+	}
+	fmt.Printf("%s service=%s\n", state, status.ServiceName)
+	if status.ConfigPath != "" {
+		fmt.Printf("config=%s\n", status.ConfigPath)
+	}
+	if status.RPCAddress != "" {
+		fmt.Printf("rpc=%s\n", status.RPCAddress)
+	}
+	if status.LogPath != "" {
+		fmt.Printf("log=%s\n", status.LogPath)
+	}
+	return nil
+}
+
+func printDaemonAction(action string, status daemon.Status, jsonOutput bool) error {
+	if jsonOutput {
+		return writeJSON(map[string]any{
+			"action":     action,
+			"installed":  status.Installed,
+			"running":    status.Running,
+			"service":    status.ServiceName,
+			"configPath": status.ConfigPath,
+			"rpcAddress": status.RPCAddress,
+			"logPath":    status.LogPath,
+		})
+	}
+	fmt.Printf("%s service=%s\n", action, status.ServiceName)
+	if status.ConfigPath != "" {
+		fmt.Printf("config=%s\n", status.ConfigPath)
+	}
+	if status.RPCAddress != "" {
+		fmt.Printf("rpc=%s\n", status.RPCAddress)
+	}
+	if status.LogPath != "" {
+		fmt.Printf("log=%s\n", status.LogPath)
+	}
 	return nil
 }
