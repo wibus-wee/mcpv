@@ -11,6 +11,9 @@ APP_DIR="${APP_NAME}.AppDir"
 # Create AppDir structure
 mkdir -p "${APP_DIR}/usr/bin"
 cp -r "${APP_BINARY}" "${APP_DIR}/usr/bin/"
+if [[ -n "${CORE_BINARY:-}" && -f "${CORE_BINARY}" ]]; then
+    cp -r "${CORE_BINARY}" "${APP_DIR}/usr/bin/mcpv"
+fi
 cp "${ICON_PATH}" "${APP_DIR}/"
 cp "${DESKTOP_FILE}" "${APP_DIR}/"
 
@@ -32,4 +35,3 @@ fi
 
 # Rename the generated AppImage
 mv "${APP_NAME}*.AppImage" "${APP_NAME}.AppImage"
-

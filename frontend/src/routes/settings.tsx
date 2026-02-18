@@ -3,7 +3,7 @@
 // Position: /settings layout route for nested settings pages
 
 import { createFileRoute, Outlet } from '@tanstack/react-router'
-import { BugIcon, NetworkIcon, PaletteIcon, ServerIcon, SettingsIcon } from 'lucide-react'
+import { BugIcon, LinkIcon, NetworkIcon, PaletteIcon, ServerIcon, SettingsIcon } from 'lucide-react'
 
 import { NavItem } from '@/components/common/nav-item'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -14,6 +14,12 @@ export const Route = createFileRoute('/settings')({
 })
 
 const navItems: NavItem[] = [
+  {
+    path: '/settings/core-connection',
+    label: 'Core Connection',
+    icon: LinkIcon,
+    description: 'Switch between local and remote Core',
+  },
   {
     path: '/settings/runtime',
     label: 'Runtime',

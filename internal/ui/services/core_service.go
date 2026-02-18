@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"strings"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -24,6 +26,14 @@ func NewCoreService(deps *ServiceDeps) *CoreService {
 
 // GetCoreState returns current core state.
 func (s *CoreService) GetCoreState() CoreStateResponse {
+	if s.deps.isRemoteMode() {
+		return s.GetRemoteCoreState()
+	}
+	return s.GetLocalCoreState()
+}
+
+// GetLocalCoreState returns the local core state from the embedded manager.
+func (s *CoreService) GetLocalCoreState() CoreStateResponse {
 	manager := s.deps.manager()
 	if manager == nil {
 		return CoreStateResponse{State: "unknown"}
@@ -38,6 +48,29 @@ func (s *CoreService) GetCoreState() CoreStateResponse {
 		resp.Error = err.Error()
 	}
 	return resp
+}
+
+// GetRemoteCoreState returns the remote core state using core connection settings.
+func (s *CoreService) GetRemoteCoreState() CoreStateResponse {
+	settings, err := s.deps.coreConnectionSettings()
+	if err != nil {
+		return CoreStateResponse{State: "error", Error: err.Error()}
+	}
+	if strings.TrimSpace(settings.Address) == "" {
+		return CoreStateResponse{State: "error", Error: "Remote RPC address is required"}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	defer cancel()
+
+	cp, err := s.deps.getRemoteControlPlane(settings)
+	if err != nil {
+		return CoreStateResponse{State: "error", Error: err.Error()}
+	}
+	if _, err := cp.Info(ctx); err != nil {
+		return CoreStateResponse{State: "error", Error: err.Error()}
+	}
+	return CoreStateResponse{State: "running", Uptime: 0}
 }
 
 // StartCore starts the core.
@@ -98,6 +131,25 @@ func (s *CoreService) GetInfo(ctx context.Context) (InfoResponse, error) {
 
 // GetBootstrapProgress returns bootstrap progress.
 func (s *CoreService) GetBootstrapProgress(ctx context.Context) (BootstrapProgressResponse, error) {
+	if s.deps.isRemoteMode() {
+		cp, err := s.deps.getControlPlane()
+		if err != nil {
+			return BootstrapProgressResponse{}, err
+		}
+		progress, err := cp.GetBootstrapProgress(ctx)
+		if err != nil {
+			return BootstrapProgressResponse{}, ui.MapDomainError(err)
+		}
+		return BootstrapProgressResponse{
+			State:     string(progress.State),
+			Total:     progress.Total,
+			Completed: progress.Completed,
+			Failed:    progress.Failed,
+			Current:   progress.Current,
+			Errors:    progress.Errors,
+		}, nil
+	}
+
 	manager := s.deps.manager()
 	if manager == nil {
 		return BootstrapProgressResponse{State: string(domain.BootstrapPending)}, nil

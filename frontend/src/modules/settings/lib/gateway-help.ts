@@ -39,7 +39,7 @@ export const GATEWAY_FIELD_HELP: Record<string, FieldHelpContent> = {
   caller: {
     id: 'gateway-caller',
     title: 'Caller name',
-    summary: 'Used to resolve profiles and tag visibility for the gateway client.',
+    summary: 'Used to resolve tag visibility and logs for the gateway client.',
     docUrl: GATEWAY_DOCS_URL,
   },
   httpPath: {

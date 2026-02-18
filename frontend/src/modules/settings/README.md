@@ -2,8 +2,8 @@
 
 # Modules/Settings
 
-全局运行时配置（含 observability 与 proxy）、Gateway 与 SubAgent 设置模块。
-通过 bindings 读取与更新 runtime 配置，并触发配置重载。
+全局运行时配置（含 observability 与 proxy）、Core 连接、Gateway 与 SubAgent 设置模块。
+通过 bindings 读取与更新 runtime 配置，并触发配置重载或 UI settings 更新。
 设置相关页面、组件与逻辑统一放在该模块中。
 
 ## Files

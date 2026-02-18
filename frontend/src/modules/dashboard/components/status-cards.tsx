@@ -1,5 +1,5 @@
-// Input: Card, Badge, Progress, Tooltip components, dashboard data hooks, lucide icons
-// Output: StatusCards component displaying core status metrics with animations
+// Input: Card, Badge, ToggleGroup, tooltip components, core status view hook, dashboard data hooks
+// Output: StatusCards component displaying core status metrics with view selector
 // Position: Dashboard status overview section
 
 import {
@@ -15,12 +15,14 @@ import { m } from 'motion/react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { useCoreState } from '@/hooks/use-core-state'
+import type { CoreStatusView } from '@/hooks/use-core-status-view'
+import { useCoreStatusViewState } from '@/hooks/use-core-status-view'
 import { Spring } from '@/lib/spring'
 import { formatDuration } from '@/lib/time'
 import { useServers } from '@/modules/servers/hooks'
-import { coreStatusConfig } from '@/modules/shared/core-status'
+import { coreStatusConfig, type CoreStatus } from '@/modules/shared/core-status'
 
 import { useResources, useTools } from '../hooks'
 import { AnimatedNumber } from './sparkline'
@@ -82,9 +84,13 @@ function StatCard({
   )
 }
 
-function CoreStatusCard() {
-  const { coreStatus, isLoading } = useCoreState()
-
+function CoreStatusCard({
+  coreStatus,
+  isLoading,
+}: {
+  coreStatus: CoreStatus
+  isLoading: boolean
+}) {
   const config = coreStatusConfig[coreStatus]
 
   return (
@@ -119,10 +125,14 @@ function CoreStatusCard() {
   )
 }
 
-function UptimeCard() {
-  const { data: coreState, isLoading } = useCoreState()
-
-  const uptimeFormatted = coreState?.uptime ? formatDuration(coreState.uptime) : '--'
+function UptimeCard({
+  uptime,
+  isLoading,
+}: {
+  uptime?: number
+  isLoading: boolean
+}) {
+  const uptimeFormatted = uptime ? formatDuration(uptime) : '--'
 
   return (
     <m.div
@@ -157,38 +167,73 @@ export function StatusCards() {
   const { data: servers, isLoading: serversLoading } = useServers()
   const { tools, isLoading: toolsLoading } = useTools()
   const { resources, isLoading: resourcesLoading } = useResources()
+  const {
+    coreStatus,
+    data: coreState,
+    isLoading: coreLoading,
+    view,
+    setView,
+    isRemoteAvailable,
+  } = useCoreStatusViewState()
+
+  const handleViewChange = (next: string | null) => {
+    if (!next) return
+    void setView(next as CoreStatusView)
+  }
 
   return (
-    <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
-      <CoreStatusCard />
-      <UptimeCard />
+    <div className="space-y-3">
+      {isRemoteAvailable && (
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs font-medium text-muted-foreground">
+            Core status view
+          </span>
+          <ToggleGroup
+            type="single"
+            value={view}
+            onValueChange={handleViewChange}
+            aria-label="Core status view"
+          >
+            <ToggleGroupItem value="local" size="sm" variant="outline">
+              Local
+            </ToggleGroupItem>
+            <ToggleGroupItem value="remote" size="sm" variant="outline">
+              Remote
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+      )}
+      <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
+        <CoreStatusCard coreStatus={coreStatus} isLoading={coreLoading} />
+        <UptimeCard uptime={coreState?.uptime} isLoading={coreLoading} />
 
-      <StatCard
-        title="Servers"
-        value={servers?.length ?? 0}
-        icon={<LayersIcon className="size-3.5" />}
-        description="Configured MCP servers"
-        delay={0.06}
-        loading={serversLoading}
-      />
+        <StatCard
+          title="Servers"
+          value={servers?.length ?? 0}
+          icon={<LayersIcon className="size-3.5" />}
+          description="Configured MCP servers"
+          delay={0.06}
+          loading={serversLoading}
+        />
 
-      <StatCard
-        title="Tools"
-        value={tools.length}
-        icon={<WrenchIcon className="size-3.5" />}
-        description="Available MCP tools"
-        delay={0.12}
-        loading={toolsLoading}
-      />
+        <StatCard
+          title="Tools"
+          value={tools.length}
+          icon={<WrenchIcon className="size-3.5" />}
+          description="Available MCP tools"
+          delay={0.12}
+          loading={toolsLoading}
+        />
 
-      <StatCard
-        title="Resources"
-        value={resources.length}
-        icon={<FileTextIcon className="size-3.5" />}
-        description="Available resources"
-        delay={0.15}
-        loading={resourcesLoading}
-      />
+        <StatCard
+          title="Resources"
+          value={resources.length}
+          icon={<FileTextIcon className="size-3.5" />}
+          description="Available resources"
+          delay={0.15}
+          loading={resourcesLoading}
+        />
+      </div>
     </div>
   )
 }

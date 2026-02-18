@@ -37,6 +37,8 @@ export const swrKeys = {
   // Core-related keys
   appInfo: 'app-info',
   coreState: 'core-state',
+  coreStateLocal: 'core-state-local',
+  coreStateRemote: 'core-state-remote',
   bootstrapProgress: 'bootstrap-progress',
   subAgentConfig: 'subagent-config',
   daemonStatus: 'daemon-status',

@@ -8,9 +8,9 @@
 
 ## Files
 
-- **servers-page.tsx**: Servers 主页面与整体布局
+- **servers-page.tsx**: Servers 主页面与整体布局（远程连接时只读）
 - **atoms.ts**: 服务器选择状态的 jotai atoms
-- **hooks.ts**: 服务器与运行态数据获取 hooks
+- **hooks.ts**: 服务器与运行态数据获取 hooks（支持远程 RPC）
 
 ## Directories
 

@@ -46,6 +46,24 @@ export function GetInfo(): $CancellablePromise<$models.InfoResponse> {
 }
 
 /**
+ * GetLocalCoreState returns the local core state from the embedded manager.
+ */
+export function GetLocalCoreState(): $CancellablePromise<$models.CoreStateResponse> {
+    return $Call.ByID(1666369342).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
+ * GetRemoteCoreState returns the remote core state using core connection settings.
+ */
+export function GetRemoteCoreState(): $CancellablePromise<$models.CoreStateResponse> {
+    return $Call.ByID(837123167).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
  * RestartCore restarts the core.
  */
 export function RestartCore(): $CancellablePromise<void> {

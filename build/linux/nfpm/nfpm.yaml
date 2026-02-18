@@ -19,6 +19,8 @@ release: "1"
 contents:
   - src: "./bin/mcpvui"
     dst: "/usr/local/bin/mcpvui"
+  - src: "./bin/mcpv"
+    dst: "/usr/local/bin/mcpv"
   - src: "./build/appicon.png"
     dst: "/usr/share/icons/hicolor/128x128/apps/mcpvui.png"
   - src: "./build/linux/mcpvui.desktop"

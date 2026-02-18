@@ -9,6 +9,7 @@ vars:
   # KEYCHAIN_PROFILE: "my-notarize-profile"
   # ENTITLEMENTS: "build/darwin/entitlements.plist"
   CLI_NAME: '{{.CLI_NAME | default "mcpvmcp"}}'
+  CORE_NAME: '{{.CORE_NAME | default "mcpv"}}'
 
   # Docker image for cross-compilation (used when building on non-macOS)
   CROSS_IMAGE: wails-cross
@@ -54,12 +55,20 @@ tasks:
           OUTPUT: '{{.CLI_OUTPUT | default .CLI_OUTPUT_DEFAULT}}'
           DEV: '{{.DEV}}'
           LDFLAGS: '{{.VERSION_LDFLAGS}}'
+      - task: common:build:core
+        vars:
+          GOOS: darwin
+          GOARCH: '{{.ARCH | default ARCH}}'
+          OUTPUT: '{{.CORE_OUTPUT | default .CORE_OUTPUT_DEFAULT}}'
+          DEV: '{{.DEV}}'
+          LDFLAGS: '{{.VERSION_LDFLAGS}}'
       - go build {{.BUILD_FLAGS}} -o {{.OUTPUT}}
     vars:
       EFFECTIVE_LDFLAGS: '{{if eq .DEV "true"}}{{.VERSION_LDFLAGS}}{{else}}-w -s {{.VERSION_LDFLAGS}}{{end}}'
       BUILD_FLAGS: '-ldflags="{{.EFFECTIVE_LDFLAGS}}" {{if eq .DEV "true"}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production -trimpath -buildvcs=false{{end}}'
       DEFAULT_OUTPUT: '{{.BIN_DIR}}/{{.APP_NAME}}'
       CLI_OUTPUT_DEFAULT: '{{printf "%s/%s" .BIN_DIR .CLI_NAME}}'
+      CORE_OUTPUT_DEFAULT: '{{printf "%s/%s" .BIN_DIR .CORE_NAME}}'
       OUTPUT: '{{ .OUTPUT | default .DEFAULT_OUTPUT }}'
     env:
       GOOS: darwin
@@ -77,11 +86,13 @@ tasks:
           ARCH: amd64
           OUTPUT: "{{.BIN_DIR}}/{{.APP_NAME}}-amd64"
           CLI_OUTPUT: "{{.BIN_DIR}}/{{.CLI_NAME}}-amd64"
+          CORE_OUTPUT: "{{.BIN_DIR}}/{{.CORE_NAME}}-amd64"
       - task: build
         vars:
           ARCH: arm64
           OUTPUT: "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
           CLI_OUTPUT: "{{.BIN_DIR}}/{{.CLI_NAME}}-arm64"
+          CORE_OUTPUT: "{{.BIN_DIR}}/{{.CORE_NAME}}-arm64"
     cmds:
       - task: '{{if eq OS "darwin"}}build:universal:lipo:native{{else}}build:universal:lipo:go{{end}}'
 
@@ -93,6 +104,8 @@ tasks:
       - rm "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
       - lipo -create -output "{{.BIN_DIR}}/{{.CLI_NAME}}" "{{.BIN_DIR}}/{{.CLI_NAME}}-amd64" "{{.BIN_DIR}}/{{.CLI_NAME}}-arm64"
       - rm "{{.BIN_DIR}}/{{.CLI_NAME}}-amd64" "{{.BIN_DIR}}/{{.CLI_NAME}}-arm64"
+      - lipo -create -output "{{.BIN_DIR}}/{{.CORE_NAME}}" "{{.BIN_DIR}}/{{.CORE_NAME}}-amd64" "{{.BIN_DIR}}/{{.CORE_NAME}}-arm64"
+      - rm "{{.BIN_DIR}}/{{.CORE_NAME}}-amd64" "{{.BIN_DIR}}/{{.CORE_NAME}}-arm64"
 
   build:universal:lipo:go:
     summary: Creates universal binary using wails3 tool lipo (Linux/Windows)
@@ -102,6 +115,8 @@ tasks:
       - rm -f "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
       - '{{.WAILS}} tool lipo -o "{{.BIN_DIR}}/{{.CLI_NAME}}" -i "{{.BIN_DIR}}/{{.CLI_NAME}}-amd64" -i "{{.BIN_DIR}}/{{.CLI_NAME}}-arm64"'
       - rm -f "{{.BIN_DIR}}/{{.CLI_NAME}}-amd64" "{{.BIN_DIR}}/{{.CLI_NAME}}-arm64"
+      - '{{.WAILS}} tool lipo -o "{{.BIN_DIR}}/{{.CORE_NAME}}" -i "{{.BIN_DIR}}/{{.CORE_NAME}}-amd64" -i "{{.BIN_DIR}}/{{.CORE_NAME}}-arm64"'
+      - rm -f "{{.BIN_DIR}}/{{.CORE_NAME}}-amd64" "{{.BIN_DIR}}/{{.CORE_NAME}}-arm64"
 
   package:
     summary: Packages the application into a `.app` bundle
@@ -125,6 +140,7 @@ tasks:
       - cp build/darwin/icons.icns {{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources
       - cp {{.BIN_DIR}}/{{.APP_NAME}} {{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS
       - cp {{.BIN_DIR}}/{{.CLI_NAME}} {{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS
+      - cp {{.BIN_DIR}}/{{.CORE_NAME}} {{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS
       - cp build/darwin/Info.plist {{.BIN_DIR}}/{{.APP_NAME}}.app/Contents
       - task: '{{if eq OS "darwin"}}codesign:adhoc{{else}}codesign:skip{{end}}'
 
@@ -146,6 +162,7 @@ tasks:
       - cp build/darwin/icons.icns {{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources
       - cp {{.BIN_DIR}}/{{.APP_NAME}} {{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS
       - cp {{.BIN_DIR}}/{{.CLI_NAME}} {{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS
+      - cp {{.BIN_DIR}}/{{.CORE_NAME}} {{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS
       - cp build/darwin/Info.dev.plist {{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist
       - codesign --force --deep --sign - {{.BIN_DIR}}/{{.APP_NAME}}.dev.app
       - '{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS/{{.APP_NAME}}'

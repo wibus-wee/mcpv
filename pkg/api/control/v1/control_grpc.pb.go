@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	ControlPlaneService_GetInfo_FullMethodName               = "/mcpv.control.v1.ControlPlaneService/GetInfo"
+	ControlPlaneService_GetCatalog_FullMethodName            = "/mcpv.control.v1.ControlPlaneService/GetCatalog"
 	ControlPlaneService_RegisterCaller_FullMethodName        = "/mcpv.control.v1.ControlPlaneService/RegisterCaller"
 	ControlPlaneService_UnregisterCaller_FullMethodName      = "/mcpv.control.v1.ControlPlaneService/UnregisterCaller"
 	ControlPlaneService_ListTools_FullMethodName             = "/mcpv.control.v1.ControlPlaneService/ListTools"
@@ -49,6 +50,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ControlPlaneServiceClient interface {
 	GetInfo(ctx context.Context, in *GetInfoRequest, opts ...grpc.CallOption) (*GetInfoResponse, error)
+	GetCatalog(ctx context.Context, in *GetCatalogRequest, opts ...grpc.CallOption) (*GetCatalogResponse, error)
 	RegisterCaller(ctx context.Context, in *RegisterCallerRequest, opts ...grpc.CallOption) (*RegisterCallerResponse, error)
 	UnregisterCaller(ctx context.Context, in *UnregisterCallerRequest, opts ...grpc.CallOption) (*UnregisterCallerResponse, error)
 	ListTools(ctx context.Context, in *ListToolsRequest, opts ...grpc.CallOption) (*ListToolsResponse, error)
@@ -86,6 +88,16 @@ func (c *controlPlaneServiceClient) GetInfo(ctx context.Context, in *GetInfoRequ
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetInfoResponse)
 	err := c.cc.Invoke(ctx, ControlPlaneService_GetInfo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) GetCatalog(ctx context.Context, in *GetCatalogRequest, opts ...grpc.CallOption) (*GetCatalogResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetCatalogResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_GetCatalog_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -371,6 +383,7 @@ func (c *controlPlaneServiceClient) IsSubAgentEnabled(ctx context.Context, in *I
 // for forward compatibility.
 type ControlPlaneServiceServer interface {
 	GetInfo(context.Context, *GetInfoRequest) (*GetInfoResponse, error)
+	GetCatalog(context.Context, *GetCatalogRequest) (*GetCatalogResponse, error)
 	RegisterCaller(context.Context, *RegisterCallerRequest) (*RegisterCallerResponse, error)
 	UnregisterCaller(context.Context, *UnregisterCallerRequest) (*UnregisterCallerResponse, error)
 	ListTools(context.Context, *ListToolsRequest) (*ListToolsResponse, error)
@@ -406,6 +419,9 @@ type UnimplementedControlPlaneServiceServer struct{}
 
 func (UnimplementedControlPlaneServiceServer) GetInfo(context.Context, *GetInfoRequest) (*GetInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetInfo not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) GetCatalog(context.Context, *GetCatalogRequest) (*GetCatalogResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCatalog not implemented")
 }
 func (UnimplementedControlPlaneServiceServer) RegisterCaller(context.Context, *RegisterCallerRequest) (*RegisterCallerResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RegisterCaller not implemented")
@@ -508,6 +524,24 @@ func _ControlPlaneService_GetInfo_Handler(srv interface{}, ctx context.Context, 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControlPlaneServiceServer).GetInfo(ctx, req.(*GetInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_GetCatalog_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetCatalogRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).GetCatalog(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_GetCatalog_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).GetCatalog(ctx, req.(*GetCatalogRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -876,6 +910,10 @@ var ControlPlaneService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetInfo",
 			Handler:    _ControlPlaneService_GetInfo_Handler,
+		},
+		{
+			MethodName: "GetCatalog",
+			Handler:    _ControlPlaneService_GetCatalog_Handler,
 		},
 		{
 			MethodName: "RegisterCaller",

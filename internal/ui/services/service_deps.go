@@ -1,8 +1,11 @@
 package services
 
 import (
+	"context"
+	"encoding/json"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"go.uber.org/zap"
@@ -10,6 +13,7 @@ import (
 	"mcpv/internal/app"
 	"mcpv/internal/app/controlplane"
 	catalogeditor "mcpv/internal/infra/catalog/editor"
+	"mcpv/internal/infra/rpc"
 	"mcpv/internal/ui"
 	"mcpv/internal/ui/uiconfig"
 )
@@ -22,6 +26,10 @@ type ServiceDeps struct {
 	logger     *zap.Logger
 	wails      *application.App
 	managerRef *ui.Manager
+
+	remoteMu          sync.Mutex
+	remoteControl     *rpc.RemoteControlPlane
+	remoteFingerprint string
 }
 
 func NewServiceDeps(coreApp *app.App, logger *zap.Logger) *ServiceDeps {
@@ -85,6 +93,13 @@ func (d *ServiceDeps) getControlPlane() (controlplane.API, error) {
 	if manager == nil {
 		return nil, ui.NewError(ui.ErrCodeInternal, "Manager not initialized")
 	}
+
+	settings, err := d.coreConnectionSettings()
+	if err == nil && settings.Mode == ui.CoreConnectionModeRemote {
+		return d.getRemoteControlPlane(settings)
+	}
+
+	d.closeRemoteControlPlane()
 	return manager.GetControlPlane()
 }
 
@@ -142,4 +157,117 @@ func (d *ServiceDeps) trayController() *ui.TrayController {
 		return nil
 	}
 	return manager.TrayController()
+}
+
+func (d *ServiceDeps) coreConnectionSettings() (ui.CoreConnectionSettings, error) {
+	store, err := d.uiSettingsStore()
+	if err != nil {
+		return ui.DefaultCoreConnectionSettings(), err
+	}
+	snapshot, err := store.Get(uiconfig.ScopeGlobal, "")
+	if err != nil {
+		return ui.DefaultCoreConnectionSettings(), err
+	}
+	settings, err := ui.ParseCoreConnectionSettings(snapshot.Sections[ui.CoreConnectionSectionKey])
+	if err != nil {
+		return ui.DefaultCoreConnectionSettings(), err
+	}
+	return settings, nil
+}
+
+func (d *ServiceDeps) isRemoteMode() bool {
+	settings, err := d.coreConnectionSettings()
+	if err != nil {
+		return false
+	}
+	return settings.Mode == ui.CoreConnectionModeRemote
+}
+
+func (d *ServiceDeps) getRemoteControlPlane(settings ui.CoreConnectionSettings) (controlplane.API, error) {
+	if strings.TrimSpace(settings.Address) == "" {
+		return nil, ui.NewError(ui.ErrCodeInvalidConfig, "Remote RPC address is required")
+	}
+
+	fingerprint := coreConnectionFingerprint(settings)
+
+	d.remoteMu.Lock()
+	if d.remoteControl != nil && d.remoteFingerprint == fingerprint {
+		cp := d.remoteControl
+		d.remoteMu.Unlock()
+		return cp, nil
+	}
+	old := d.remoteControl
+	d.remoteControl = nil
+	d.remoteFingerprint = ""
+	d.remoteMu.Unlock()
+
+	if old != nil {
+		_ = old.Close()
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+	defer cancel()
+
+	cp, err := rpc.NewRemoteControlPlane(ctx, rpc.RemoteControlPlaneConfig{
+		ClientConfig: rpc.ClientConfig{
+			Address:                 settings.Address,
+			MaxRecvMsgSize:          settings.MaxRecvMsgSize,
+			MaxSendMsgSize:          settings.MaxSendMsgSize,
+			KeepaliveTimeSeconds:    settings.KeepaliveTimeSeconds,
+			KeepaliveTimeoutSeconds: settings.KeepaliveTimeoutSeconds,
+			TLS:                     settings.TLS,
+			Auth:                    settings.Auth,
+		},
+		Caller: settings.Caller,
+	}, d.loggerNamed("remote-control-plane"))
+	if err != nil {
+		return nil, ui.NewErrorWithDetails(ui.ErrCodeCoreFailed, "Failed to connect to remote core", err.Error())
+	}
+
+	d.remoteMu.Lock()
+	d.remoteControl = cp
+	d.remoteFingerprint = fingerprint
+	d.remoteMu.Unlock()
+
+	return cp, nil
+}
+
+func (d *ServiceDeps) closeRemoteControlPlane() {
+	d.remoteMu.Lock()
+	cp := d.remoteControl
+	d.remoteControl = nil
+	d.remoteFingerprint = ""
+	d.remoteMu.Unlock()
+	if cp != nil {
+		_ = cp.Close()
+	}
+}
+
+func coreConnectionFingerprint(settings ui.CoreConnectionSettings) string {
+	payload := map[string]any{
+		"mode":                    settings.Mode,
+		"address":                 settings.Address,
+		"caller":                  settings.Caller,
+		"maxRecvMsgSize":          settings.MaxRecvMsgSize,
+		"maxSendMsgSize":          settings.MaxSendMsgSize,
+		"keepaliveTimeSeconds":    settings.KeepaliveTimeSeconds,
+		"keepaliveTimeoutSeconds": settings.KeepaliveTimeoutSeconds,
+		"tls": map[string]any{
+			"enabled":  settings.TLS.Enabled,
+			"certFile": settings.TLS.CertFile,
+			"keyFile":  settings.TLS.KeyFile,
+			"caFile":   settings.TLS.CAFile,
+		},
+		"auth": map[string]any{
+			"enabled":  settings.Auth.Enabled,
+			"mode":     settings.Auth.Mode,
+			"token":    settings.Auth.Token,
+			"tokenEnv": settings.Auth.TokenEnv,
+		},
+	}
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return ""
+	}
+	return string(raw)
 }

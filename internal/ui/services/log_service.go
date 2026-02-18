@@ -56,13 +56,7 @@ func (s *logSession) markDone() {
 func (s *LogService) StartLogStream(ctx context.Context, minLevel string) error {
 	s.logger.Info("StartLogStream called", zap.String("minLevel", minLevel))
 
-	manager := s.deps.manager()
-	if manager == nil {
-		s.logger.Error("StartLogStream failed: Manager not initialized")
-		return ui.NewError(ui.ErrCodeInternal, "Manager not initialized")
-	}
-
-	cp, err := manager.GetControlPlane()
+	cp, err := s.deps.getControlPlane()
 	if err != nil {
 		s.logger.Error("StartLogStream failed: GetControlPlane error", zap.Error(err))
 		return err

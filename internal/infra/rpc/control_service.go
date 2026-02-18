@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"encoding/json"
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
@@ -40,6 +41,22 @@ func (s *ControlService) GetInfo(ctx context.Context, _ *controlv1.GetInfoReques
 		Name:    info.Name,
 		Version: info.Version,
 		Build:   info.Build,
+	}, nil
+}
+
+func (s *ControlService) GetCatalog(_ context.Context, _ *controlv1.GetCatalogRequest) (*controlv1.GetCatalogResponse, error) {
+	catalog := s.control.GetCatalog()
+	payload := map[string]any{
+		"specs":   catalog.Specs,
+		"plugins": catalog.Plugins,
+		"runtime": catalog.Runtime,
+	}
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "failed to encode catalog")
+	}
+	return &controlv1.GetCatalogResponse{
+		CatalogJson: raw,
 	}, nil
 }
 

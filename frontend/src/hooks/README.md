@@ -9,6 +9,8 @@
 ## Files
 
 - **use-core-state.ts**: Core 状态的 SWR hooks 与启动/停止/重启操作封装
+- **use-core-status-view.ts**: Core 状态显示视图（本地/远程）选择与状态解析 hook
+- **use-core-connection.ts**: Core 连接模式与设置的共享 hook
 - **use-active-clients.ts**: 活跃 client 状态的 SWR hook
 - **use-logs.ts**: 日志流缓存 hooks 与日志类型定义
 - **use-mobile.ts**: 设备尺寸判断的响应式 hooks

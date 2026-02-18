@@ -2,6 +2,7 @@ version: '3'
 
 vars:
   CLI_NAME: '{{.CLI_NAME | default "mcpvmcp"}}'
+  CORE_NAME: '{{.CORE_NAME | default "mcpv"}}'
   BIN_DIR: '{{.BIN_DIR | default "bin"}}'
   WAILS: '{{.WAILS | default (printf "%s/bin/wails3" .ROOT_DIR)}}'
 
@@ -17,6 +18,22 @@ tasks:
       BUILD_FLAGS: '-trimpath -buildvcs=false {{if .EFFECTIVE_LDFLAGS}}-ldflags="{{.EFFECTIVE_LDFLAGS}}"{{end}}'
       OUTPUT: '{{.OUTPUT | default (printf "%s/%s%s" .BIN_DIR .CLI_NAME .CLI_EXT)}}'
       CLI_EXT: '{{.CLI_EXT | default ""}}'
+    env:
+      GOOS: '{{.GOOS | default ""}}'
+      GOARCH: '{{.GOARCH | default ""}}'
+      CGO_ENABLED: '{{.CGO_ENABLED | default "0"}}'
+
+  build:core:
+    summary: Builds the core binary
+    deps:
+      - task: go:mod:tidy
+    cmds:
+      - go build {{.BUILD_FLAGS}} -o {{.OUTPUT}} ./cmd/mcpv
+    vars:
+      EFFECTIVE_LDFLAGS: '{{if eq .DEV "true"}}{{.LDFLAGS}}{{else}}-s -w {{.LDFLAGS}}{{end}}'
+      BUILD_FLAGS: '-trimpath -buildvcs=false {{if .EFFECTIVE_LDFLAGS}}-ldflags="{{.EFFECTIVE_LDFLAGS}}"{{end}}'
+      OUTPUT: '{{.OUTPUT | default (printf "%s/%s%s" .BIN_DIR .CORE_NAME .CORE_EXT)}}'
+      CORE_EXT: '{{.CORE_EXT | default ""}}'
     env:
       GOOS: '{{.GOOS | default ""}}'
       GOARCH: '{{.GOARCH | default ""}}'

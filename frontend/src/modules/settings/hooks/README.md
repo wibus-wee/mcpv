@@ -10,5 +10,6 @@ Settings 模块的数据获取与保存逻辑集中于此。
 
 - **use-runtime-settings.ts**: Runtime 配置加载与保存处理（含 observability 与保存埋点）
 - **use-gateway-settings.ts**: Gateway UI settings 表单与保存处理（含路由基址校验）
+- **use-core-connection-settings.ts**: Core 连接 UI settings 表单与保存处理
 - **use-subagent-settings.ts**: SubAgent 配置加载、模型拉取与保存处理（包含埋点）
 - **use-update-settings.ts**: Update 偏好读取与保存处理（含 pre-release 开关）

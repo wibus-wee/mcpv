@@ -1,4 +1,4 @@
-// Input: Config hooks, tools hooks, SWR, analytics
+// Input: Config hooks, core connection hook, tools hooks, SWR, analytics
 // Output: Combined data hooks for servers module
 // Position: Data layer for unified servers module
 
@@ -19,6 +19,7 @@ import useSWR from 'swr'
 import { AnalyticsEvents, track } from '@/lib/analytics'
 import { withSWRPreset } from '@/lib/swr-config'
 import { swrKeys } from '@/lib/swr-keys'
+import { useCoreConnectionMode } from '@/hooks/use-core-connection'
 
 import { reloadConfig } from './lib/reload-config'
 
@@ -66,9 +67,7 @@ export function useServerDetails(servers: ServerSummary[] | undefined) {
   return useSWR<ServerDetail[]>(
     serverNames.length > 0 ? [swrKeys.serverDetails, ...serverNames] : null,
     async () => {
-      const results = await Promise.all(
-        serverNames.map(name => ServerService.GetServer(name)),
-      )
+      const results = await Promise.all(serverNames.map(name => ServerService.GetServer(name)))
 
       return results.filter(
         (server): server is ServerDetail => server !== null,
@@ -78,10 +77,11 @@ export function useServerDetails(servers: ServerSummary[] | undefined) {
 }
 
 export function useClients() {
+  const { isRemote } = useCoreConnectionMode()
   return useSWR<ActiveClient[]>(
-    'active-clients',
+    swrKeys.activeClients,
     () => RuntimeService.GetActiveClients(),
-    withSWRPreset('cached'),
+    withSWRPreset('cached', isRemote ? { refreshInterval: 8000, dedupingInterval: 4000 } : undefined),
   )
 }
 
@@ -107,18 +107,20 @@ export function useOpenConfigInEditor() {
 }
 
 export function useRuntimeStatus() {
+  const { isRemote } = useCoreConnectionMode()
   return useSWR<ServerRuntimeStatus[]>(
     swrKeys.runtimeStatus,
     () => RuntimeService.GetRuntimeStatus(),
-    withSWRPreset('cached'),
+    withSWRPreset('cached', isRemote ? { refreshInterval: 5000, dedupingInterval: 3000 } : undefined),
   )
 }
 
 export function useServerInitStatus() {
+  const { isRemote } = useCoreConnectionMode()
   return useSWR<ServerInitStatus[]>(
     swrKeys.serverInitStatus,
     () => RuntimeService.GetServerInitStatus(),
-    withSWRPreset('cached'),
+    withSWRPreset('cached', isRemote ? { refreshInterval: 7000, dedupingInterval: 4000 } : undefined),
   )
 }
 

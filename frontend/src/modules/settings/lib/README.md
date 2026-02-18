@@ -10,6 +10,8 @@ Settings 模块的配置结构、模型与文案集合。
 
 - **runtime-config.ts**: 运行时配置表单结构与默认值（含 observability 与 proxy）
 - **runtime-help.ts**: 运行时配置字段帮助文案（含 observability 与 proxy）
+- **core-connection-config.ts**: Core 连接设置表单结构、默认值与解析
+- **core-connection-help.ts**: Core 连接字段帮助文案
 - **gateway-config.ts**: Gateway 设置表单结构、默认值与路由基址辅助
 - **gateway-help.ts**: Gateway 设置字段帮助文案（含路由基址说明）
 - **subagent-config.ts**: SubAgent 配置表单结构与默认值

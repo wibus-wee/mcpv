@@ -14,6 +14,7 @@ vars:
   # Docker image for cross-compilation with CGO (used when CGO_ENABLED=1 on non-Windows)
   CROSS_IMAGE: wails-cross
   CLI_NAME: '{{.CLI_NAME | default "mcpvmcp"}}'
+  CORE_NAME: '{{.CORE_NAME | default "mcpv"}}'
   WAILS: '{{.WAILS | default (printf "%s/bin/wails3" .ROOT_DIR)}}'
 
   # Version configuration - aligned with root Makefile
@@ -56,6 +57,14 @@ tasks:
           CLI_EXT: ".exe"
           OUTPUT: '{{.CLI_OUTPUT | default .CLI_OUTPUT_DEFAULT}}'
           LDFLAGS: '{{.VERSION_LDFLAGS}}'
+      - task: common:build:core
+        vars:
+          GOOS: windows
+          GOARCH: '{{.ARCH | default ARCH}}'
+          DEV: '{{.DEV}}'
+          CORE_EXT: ".exe"
+          OUTPUT: '{{.CORE_OUTPUT | default .CORE_OUTPUT_DEFAULT}}'
+          LDFLAGS: '{{.VERSION_LDFLAGS}}'
       - go build {{.BUILD_FLAGS}} -o {{.BIN_DIR}}/{{.APP_NAME}}.exe
       - cmd: powershell Remove-item *.syso
         platforms: [windows]
@@ -64,6 +73,7 @@ tasks:
     vars:
       BUILD_FLAGS: '{{if eq .DEV "true"}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui {{.VERSION_LDFLAGS}}"{{end}}'
       CLI_OUTPUT_DEFAULT: '{{printf "%s/%s.exe" .BIN_DIR .CLI_NAME}}'
+      CORE_OUTPUT_DEFAULT: '{{printf "%s/%s.exe" .BIN_DIR .CORE_NAME}}'
     env:
       GOOS: windows
       CGO_ENABLED: '{{.CGO_ENABLED | default "0"}}'
@@ -92,6 +102,14 @@ tasks:
           CLI_EXT: ".exe"
           OUTPUT: '{{.CLI_OUTPUT | default .CLI_OUTPUT_DEFAULT}}'
           LDFLAGS: '{{.VERSION_LDFLAGS}}'
+      - task: common:build:core
+        vars:
+          GOOS: windows
+          GOARCH: '{{.ARCH | default ARCH}}'
+          DEV: '{{.DEV}}'
+          CORE_EXT: ".exe"
+          OUTPUT: '{{.CORE_OUTPUT | default .CORE_OUTPUT_DEFAULT}}'
+          LDFLAGS: '{{.VERSION_LDFLAGS}}'
       - docker run --rm -v "{{.ROOT_DIR}}:/app" {{.GO_CACHE_MOUNT}} {{.REPLACE_MOUNTS}} -e APP_NAME={{.APP_NAME}} {{.CROSS_IMAGE}} windows {{.DOCKER_ARCH}}
       - docker run --rm -v "{{.ROOT_DIR}}:/app" alpine chown -R $(id -u):$(id -g) /app/bin
       - rm -f *.syso
@@ -115,6 +133,7 @@ tasks:
             fi
           done | tr '\n' ' '
       CLI_OUTPUT_DEFAULT: '{{printf "%s/%s.exe" .BIN_DIR .CLI_NAME}}'
+      CORE_OUTPUT_DEFAULT: '{{printf "%s/%s.exe" .BIN_DIR .CORE_NAME}}'
 
   package:
     summary: Packages the application

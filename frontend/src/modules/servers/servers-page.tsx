@@ -1,4 +1,4 @@
-// Input: Hooks, child components, UI primitives, analytics
+// Input: Hooks, core connection mode, child components, UI primitives, analytics
 // Output: ServersPage component - Full-width table with expandable rows and right-side drawer
 // Position: Main page for servers module
 
@@ -14,6 +14,7 @@ import { Separator } from '@/components/ui/separator'
 import { AnalyticsEvents, track } from '@/lib/analytics'
 import { Spring } from '@/lib/spring'
 import { ImportMcpServersSheet } from '@/modules/servers/components/import-mcp-servers-sheet'
+import { useCoreConnectionMode } from '@/hooks/use-core-connection'
 
 import { ServerDetailDrawer } from './components/server-detail-drawer'
 import { ServerEditSheet } from './components/server-edit-sheet'
@@ -23,6 +24,7 @@ import { useConfigMode, useFilteredServers, useServer, useServers } from './hook
 export function ServersPage() {
   const { data: servers, mutate } = useServers()
   const { data: configMode } = useConfigMode()
+  const { isRemote } = useCoreConnectionMode()
 
   const [selectedServer, setSelectedServer] = useState<string | null>(null)
   const [editSheetOpen, setEditSheetOpen] = useState(false)
@@ -37,7 +39,7 @@ export function ServersPage() {
     isLoading: isEditingServerLoading,
   } = useServer(editingServerName)
 
-  const isWritable = configMode?.isWritable ?? false
+  const isWritable = !isRemote && (configMode?.isWritable ?? false)
   const serverCount = servers?.length ?? 0
 
   const filteredServers = useFilteredServers(servers ?? [], searchQuery)

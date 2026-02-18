@@ -192,7 +192,7 @@ export const GatewaySettingsCard = ({
               <SettingsCard.TextField<GatewayFormState>
                 name="caller"
                 label="Caller name"
-                description="Used to resolve profiles and logs."
+                description="Used to resolve tag visibility and logs."
                 help={GATEWAY_FIELD_HELP.caller}
               />
               <SettingsCard.TextField<GatewayFormState>

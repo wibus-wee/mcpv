@@ -1,4 +1,4 @@
-// Input: CoreService bindings, SWR hooks
+// Input: CoreService bindings, core connection hook, SWR hooks
 // Output: Core state hooks and actions with CoreStatus type
 // Position: Shared core state accessors for app-wide status
 
@@ -7,6 +7,7 @@ import type { CoreStateResponse } from '@bindings/mcpv/internal/ui/types'
 import { useCallback } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 
+import { useCoreConnectionMode } from '@/hooks/use-core-connection'
 import { swrPresets } from '@/lib/swr-config'
 import { swrKeys } from '@/lib/swr-keys'
 
@@ -19,6 +20,8 @@ type StartCoreOptions = {
 }
 
 export const coreStateKey = swrKeys.coreState
+export const coreStateLocalKey = swrKeys.coreStateLocal
+export const coreStateRemoteKey = swrKeys.coreStateRemote
 
 const toCoreStatus = (state?: string): CoreStatus => {
   return state ? (state as CoreStatus) : 'stopped'
@@ -39,29 +42,74 @@ export function useCoreState() {
   }
 }
 
+export function useLocalCoreState() {
+  const swr = useSWR<CoreStateResponse>(
+    coreStateLocalKey,
+    () => CoreService.GetLocalCoreState(),
+    swrPresets.realtime,
+  )
+  const coreStatus = toCoreStatus(swr.data?.state)
+
+  return {
+    ...swr,
+    coreStatus,
+  }
+}
+
+export function useRemoteCoreState(enabled = true) {
+  const key = enabled ? coreStateRemoteKey : null
+  const swr = useSWR<CoreStateResponse>(
+    key,
+    () => CoreService.GetRemoteCoreState(),
+    swrPresets.realtime,
+  )
+  const coreStatus = toCoreStatus(swr.data?.state)
+
+  return {
+    ...swr,
+    coreStatus,
+  }
+}
+
 export function useCoreActions() {
   const { cache, mutate } = useSWRConfig()
+  const { isRemote } = useCoreConnectionMode()
 
   const updateCoreState = useCallback(
     (status: CoreStatus) => {
       mutate(
-        coreStateKey,
+        coreStateLocalKey,
         (current?: CoreStateResponse) => ({
           ...(current ?? { state: status, uptime: 0 }),
           state: status,
         }),
         { revalidate: false },
       )
+      if (!isRemote) {
+        mutate(
+          coreStateKey,
+          (current?: CoreStateResponse) => ({
+            ...(current ?? { state: status, uptime: 0 }),
+            state: status,
+          }),
+          { revalidate: false },
+        )
+      }
     },
-    [mutate],
+    [isRemote, mutate],
   )
 
   const getCurrentStatus = useCallback(() => {
-    const cached = cache.get(coreStateKey) as CoreStateResponse | undefined
+    const cached = cache.get(coreStateLocalKey) as CoreStateResponse | undefined
     return toCoreStatus(cached?.state)
   }, [cache])
 
-  const refreshCoreState = useCallback(() => mutate(coreStateKey), [mutate])
+  const refreshCoreState = useCallback(async () => {
+    const tasks = [mutate(coreStateLocalKey)]
+    tasks.push(mutate(coreStateKey))
+    tasks.push(mutate(coreStateRemoteKey))
+    return Promise.all(tasks)
+  }, [mutate])
 
   const startCore = useCallback(async () => {
     updateCoreState('starting')
@@ -85,11 +133,13 @@ export function useCoreActions() {
       await CoreService.StopCore()
     }
     catch (error) {
-      updateCoreState(previousStatus)
+      if (!isRemote) {
+        updateCoreState(previousStatus)
+      }
       throw error
     }
     await refreshCoreState()
-  }, [getCurrentStatus, refreshCoreState, updateCoreState])
+  }, [getCurrentStatus, isRemote, refreshCoreState, updateCoreState])
 
   const restartCore = useCallback(async () => {
     updateCoreState('starting')
@@ -97,11 +147,13 @@ export function useCoreActions() {
       await CoreService.RestartCore()
     }
     catch (error) {
-      updateCoreState('error')
+      if (!isRemote) {
+        updateCoreState('error')
+      }
       throw error
     }
     await refreshCoreState()
-  }, [refreshCoreState, updateCoreState])
+  }, [isRemote, refreshCoreState, updateCoreState])
 
   return {
     refreshCoreState,

@@ -10,7 +10,7 @@
 
 - **active-clients-indicator.tsx**: 展示当前连接客户端数量的指示器
 - **app-sidebar.tsx**: 应用主侧边栏与导航入口
-- **app-topbar.tsx**: 顶部栏，展示核心状态与主题切换
+- **app-topbar.tsx**: 顶部栏，展示核心状态、连接模式与主题切换
 - **client-chip-group.tsx**: 以标签形式展示客户端信息的组件
 - **connect-ide-sheet.tsx**: IDE 连接配置抽屉与预设输出（含 HTTP 路由选择）
 - **error-boundary.tsx**: 组件级错误边界与回退 UI

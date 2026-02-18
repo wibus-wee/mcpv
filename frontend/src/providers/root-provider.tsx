@@ -22,7 +22,8 @@ import { SWRConfig, useSWRConfig } from 'swr'
 import { logStreamTokenAtom } from '@/atoms/logs'
 import { AnchoredToastProvider, toastManager, ToastProvider } from '@/components/ui/toast'
 import { activeClientsKey } from '@/hooks/use-active-clients'
-import { coreStateKey, useCoreState } from '@/hooks/use-core-state'
+import { useCoreConnectionMode } from '@/hooks/use-core-connection'
+import { coreStateKey, useLocalCoreState } from '@/hooks/use-core-state'
 import type { LogEntry } from '@/hooks/use-logs'
 import { logsKey, maxLogEntries } from '@/hooks/use-logs'
 import { AnalyticsEvents, track, trackPageView } from '@/lib/analytics'
@@ -81,7 +82,8 @@ const parseLogData = (input: unknown): { message: string, fields: Record<string,
 
 function WailsEventsBridge() {
   const { mutate } = useSWRConfig()
-  const { coreStatus } = useCoreState()
+  const { coreStatus } = useLocalCoreState()
+  const { isRemote } = useCoreConnectionMode()
   const stopRef = useRef<(() => void) | null>(null)
   const logStreamToken = useAtomValue(logStreamTokenAtom)
   const router = useRouter()
@@ -149,6 +151,7 @@ function WailsEventsBridge() {
 
   // Listen for core:state events from backend
   useEffect(() => {
+    if (isRemote) return
     const unbind = Events.On('core:state', (event) => {
       const data = event?.data as { state?: string } | undefined
       const state = data?.state as
@@ -170,10 +173,11 @@ function WailsEventsBridge() {
       }
     })
     return () => unbind()
-  }, [mutate])
+  }, [isRemote, mutate])
 
   // Listen for runtime:status events from backend
   useEffect(() => {
+    if (isRemote) return
     const unbind = Events.On('runtime:status', (event) => {
       const data = event?.data as { statuses?: ServerRuntimeStatus[] } | undefined
       if (data?.statuses) {
@@ -181,10 +185,11 @@ function WailsEventsBridge() {
       }
     })
     return () => unbind()
-  }, [mutate])
+  }, [isRemote, mutate])
 
   // Listen for server-init:status events from backend
   useEffect(() => {
+    if (isRemote) return
     const unbind = Events.On('server-init:status', (event) => {
       const data = event?.data as { statuses?: ServerInitStatus[] } | undefined
       if (data?.statuses) {
@@ -192,10 +197,11 @@ function WailsEventsBridge() {
       }
     })
     return () => unbind()
-  }, [mutate])
+  }, [isRemote, mutate])
 
   // Listen for clients:active events from backend
   useEffect(() => {
+    if (isRemote) return
     const unbind = Events.On('clients:active', (event) => {
       const data = event?.data as { clients?: ActiveClient[] } | undefined
       if (data?.clients) {
@@ -203,7 +209,7 @@ function WailsEventsBridge() {
       }
     })
     return () => unbind()
-  }, [mutate])
+  }, [isRemote, mutate])
 
   // Listen for update:available events from backend
   useEffect(() => {

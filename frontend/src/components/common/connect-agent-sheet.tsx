@@ -1,4 +1,4 @@
-// Input: motion/react, lucide-react icons, UI components, server hooks, core state, UI settings, analytics, mcpvmcp config helpers
+// Input: motion/react, lucide-react icons, UI components, server hooks, local core state, UI settings, analytics, mcpvmcp config helpers
 // Output: ConnectIdeSheet component for IDE connection presets with comprehensive configuration options
 // Position: Shared UI component for configuring IDE connections in the app
 
@@ -41,7 +41,7 @@ import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { useCoreState } from '@/hooks/use-core-state'
+import { useLocalCoreState } from '@/hooks/use-core-state'
 import { useMcpvmcpPath } from '@/hooks/use-mcpvmcp-path'
 import { useRpcAddress } from '@/hooks/use-rpc-address'
 import { useUISettings } from '@/hooks/use-ui-settings'
@@ -232,7 +232,7 @@ export function ConnectIdeSheet() {
 
   const { path } = useMcpvmcpPath()
   const { rpcAddress } = useRpcAddress()
-  const { coreStatus } = useCoreState()
+  const { coreStatus } = useLocalCoreState()
   const { sections: uiSections } = useUISettings({ scope: 'global' })
   const { data: servers } = useServers()
   const sidebar = useSidebar()

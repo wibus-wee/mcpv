@@ -1,9 +1,10 @@
-// Input: Dashboard components, cards/buttons, core/app hooks, analytics, toast
+// Input: Dashboard components, cards/buttons, core/app + connection hooks, analytics, toast, router
 // Output: DashboardPage component - main dashboard view with insights
 // Position: Main dashboard page in dashboard module
 
 import {
   AlertCircleIcon,
+  LinkIcon,
   Loader2Icon,
   PlayIcon,
   RefreshCwIcon,
@@ -14,6 +15,8 @@ import {
 } from 'lucide-react'
 import { m } from 'motion/react'
 import { useCallback, useEffect, useRef } from 'react'
+
+import { useRouter } from '@tanstack/react-router'
 
 import { ConnectIdeSheet } from '@/components/common/connect-agent-sheet'
 import { UniversalEmptyState } from '@/components/common/universal-empty-state'
@@ -27,7 +30,9 @@ import {
 } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { toastManager } from '@/components/ui/toast'
-import { useCoreActions, useCoreState } from '@/hooks/use-core-state'
+import { useCoreConnectionMode } from '@/hooks/use-core-connection'
+import { useCoreStatusViewState } from '@/hooks/use-core-status-view'
+import { useCoreActions, useLocalCoreState } from '@/hooks/use-core-state'
 import { AnalyticsEvents, track } from '@/lib/analytics'
 import { Spring } from '@/lib/spring'
 
@@ -35,14 +40,16 @@ import { ActiveClientsPanel } from './components/active-clients-panel'
 import { ActivityInsights } from './components/activity-insights'
 import { BootstrapProgressPanel } from './components/bootstrap-progress'
 import { LocalCoreDaemonCard } from './components/local-core-daemon-card'
-import { RemoteGatewayCard } from './components/remote-gateway-card'
+import { RemoteCoreConnectionCard } from './components/remote-core-connection-card'
 import { ServerHealthOverview } from './components/server-health-overview'
 import { StatusCards } from './components/status-cards'
 import { useAppInfo, useBootstrapProgress } from './hooks'
 
 function DashboardHeader() {
   const { appInfo } = useAppInfo()
-  const { coreStatus } = useCoreState()
+  const router = useRouter()
+  const { coreStatus: localCoreStatus } = useLocalCoreState()
+  const { isRemote } = useCoreConnectionMode()
   const { refreshCoreState, restartCore, startCore, stopCore } = useCoreActions()
 
   const appLabel = appInfo?.name
@@ -89,6 +96,10 @@ function DashboardHeader() {
     }
   }, [refreshCoreState])
 
+  const handleOpenConnection = useCallback(() => {
+    router.navigate({ to: '/settings/core-connection' })
+  }, [router])
+
   return (
     <m.div
       initial={{ opacity: 0, y: 10, filter: 'blur(8px)' }}
@@ -102,54 +113,60 @@ function DashboardHeader() {
       </div>
 
       <div className="flex items-center gap-2">
-        {coreStatus === 'stopped'
-          ? (
-              <Button onClick={() => void handleStartCore()} size="sm">
-                <PlayIcon className="size-4" />
-                Start Core
-              </Button>
-            )
-          : coreStatus === 'starting'
+        {isRemote && (
+          <Button onClick={handleOpenConnection} variant="outline" size="sm">
+            <LinkIcon className="size-4" />
+            Connection
+          </Button>
+        )}
+        {localCoreStatus === 'stopped'
             ? (
-                <Button onClick={() => void handleStopCore()} variant="outline" size="sm">
-                  <SquareIcon className="size-4" />
-                  Cancel
+                <Button onClick={() => void handleStartCore()} size="sm">
+                  <PlayIcon className="size-4" />
+                  Start Core
                 </Button>
               )
-            : coreStatus === 'stopping'
+            : localCoreStatus === 'starting'
               ? (
-                  <Button variant="outline" size="sm" disabled>
-                    <Loader2Icon className="size-4 animate-spin" />
-                    Stopping...
+                  <Button onClick={() => void handleStopCore()} variant="outline" size="sm">
+                    <SquareIcon className="size-4" />
+                    Cancel
                   </Button>
                 )
-              : coreStatus === 'running'
+              : localCoreStatus === 'stopping'
                 ? (
-                    <>
-                      <Button onClick={() => void handleStopCore()} variant="outline" size="sm">
-                        <SquareIcon className="size-4" />
-                        Stop
-                      </Button>
-                      <Button onClick={() => void handleRestartCore()} variant="outline" size="sm">
-                        <RefreshCwIcon className="size-4" />
-                        Restart
-                      </Button>
-                    </>
+                    <Button variant="outline" size="sm" disabled>
+                      <Loader2Icon className="size-4 animate-spin" />
+                      Stopping...
+                    </Button>
                   )
-                : coreStatus === 'error'
+                : localCoreStatus === 'running'
                   ? (
                       <>
-                        <Button onClick={() => void handleRestartCore()} size="sm">
-                          <RefreshCwIcon className="size-4" />
-                          Retry
-                        </Button>
                         <Button onClick={() => void handleStopCore()} variant="outline" size="sm">
                           <SquareIcon className="size-4" />
                           Stop
                         </Button>
+                        <Button onClick={() => void handleRestartCore()} variant="outline" size="sm">
+                          <RefreshCwIcon className="size-4" />
+                          Restart
+                        </Button>
                       </>
                     )
-                  : null}
+                  : localCoreStatus === 'error'
+                    ? (
+                        <>
+                          <Button onClick={() => void handleRestartCore()} size="sm">
+                            <RefreshCwIcon className="size-4" />
+                            Retry
+                          </Button>
+                          <Button onClick={() => void handleStopCore()} variant="outline" size="sm">
+                            <SquareIcon className="size-4" />
+                            Stop
+                          </Button>
+                        </>
+                      )
+                    : null}
 
         <Button
           variant="ghost"
@@ -227,7 +244,7 @@ function StoppedCorePanel({ onStartCore }: { onStartCore: () => void }) {
       initial={{ opacity: 0, y: 12, filter: 'blur(6px)' }}
       animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
       transition={Spring.smooth(0.4)}
-      className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
+      className="grid gap-6 md:grid-cols-2"
     >
       <Card className="relative overflow-hidden">
         <CardHeader className="relative">
@@ -236,9 +253,9 @@ function StoppedCorePanel({ onStartCore }: { onStartCore: () => void }) {
               <ServerIcon className="size-5 text-muted-foreground" />
             </div>
             <div className="space-y-1">
-              <CardTitle className="text-base">Core is not running</CardTitle>
+              <CardTitle className="text-base">Local core is not running</CardTitle>
               <CardDescription>
-                Start the mcpv core to see your dashboard and manage MCP servers.
+                Start the local mcpv core to manage servers or keep it running via the daemon.
               </CardDescription>
             </div>
           </div>
@@ -263,13 +280,16 @@ function StoppedCorePanel({ onStartCore }: { onStartCore: () => void }) {
         </CardContent>
       </Card>
       <LocalCoreDaemonCard />
-      <RemoteGatewayCard />
+      <RemoteCoreConnectionCard />
     </m.div>
   )
 }
 
 export function DashboardPage() {
-  const { coreStatus, data: coreState } = useCoreState()
+  const { coreStatus: localCoreStatus } = useLocalCoreState()
+  const { coreStatus: displayCoreStatus, data: displayCoreState } = useCoreStatusViewState()
+  const { isRemote } = useCoreConnectionMode()
+  const router = useRouter()
   const { startCore, restartCore } = useCoreActions()
   const errorToastRef = useRef<string | null>(null)
 
@@ -294,11 +314,11 @@ export function DashboardPage() {
   }, [restartCore])
 
   useEffect(() => {
-    if (coreStatus !== 'error') {
+    if (displayCoreStatus !== 'error') {
       errorToastRef.current = null
       return
     }
-    const message = coreState?.error || 'The mcpv core encountered an error. Check the logs for details.'
+    const message = displayCoreState?.error || 'The mcpv core encountered an error. Check the logs for details.'
     if (errorToastRef.current === message) {
       return
     }
@@ -308,9 +328,9 @@ export function DashboardPage() {
       title: 'Core error',
       description: message,
     })
-  }, [coreStatus, coreState?.error])
+  }, [displayCoreStatus, displayCoreState?.error])
 
-  if (coreStatus === 'stopped') {
+  if (!isRemote && localCoreStatus === 'stopped') {
     return (
       <div className="flex flex-1 flex-col p-6 overflow-auto">
         <DashboardHeader />
@@ -320,7 +340,7 @@ export function DashboardPage() {
     )
   }
 
-  if (coreStatus === 'starting') {
+  if (!isRemote && localCoreStatus === 'starting') {
     return (
       <div className="flex flex-1 flex-col p-6 overflow-auto">
         <DashboardHeader />
@@ -330,7 +350,7 @@ export function DashboardPage() {
     )
   }
 
-  if (coreStatus === 'error') {
+  if (!isRemote && localCoreStatus === 'error') {
     return (
       <div className="flex flex-1 flex-col p-6 overflow-auto">
         <DashboardHeader />
@@ -338,7 +358,7 @@ export function DashboardPage() {
         <UniversalEmptyState
           icon={AlertCircleIcon}
           title="Core error"
-          description={coreState?.error || 'The mcpv core encountered an error. Check the logs for details.'}
+          description={displayCoreState?.error || 'The mcpv core encountered an error. Check the logs for details.'}
           action={{
             label: 'Retry',
             onClick: () => void handleRestartCore(),
@@ -349,10 +369,16 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col p-6 overflow-scroll">
-      <DashboardHeader />
-      <Separator className="my-6" />
-      <DashboardContent />
-    </div>
-  )
-}
+      <div className="flex flex-1 flex-col p-6 overflow-scroll">
+        <DashboardHeader />
+        <Separator className="my-6" />
+        {isRemote && localCoreStatus === 'stopped' && (
+          <div className="space-y-6">
+            <StoppedCorePanel onStartCore={() => void handleStartCore()} />
+            <DashboardContent />
+          </div>
+        )}
+        {(!isRemote || localCoreStatus !== 'stopped') && <DashboardContent />}
+      </div>
+    )
+  }

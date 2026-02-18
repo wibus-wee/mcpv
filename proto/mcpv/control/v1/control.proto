@@ -6,6 +6,7 @@ option go_package = "mcpv/pkg/api/control/v1;controlv1";
 
 service ControlPlaneService {
   rpc GetInfo(GetInfoRequest) returns (GetInfoResponse);
+  rpc GetCatalog(GetCatalogRequest) returns (GetCatalogResponse);
   rpc RegisterCaller(RegisterCallerRequest) returns (RegisterCallerResponse);
   rpc UnregisterCaller(UnregisterCallerRequest) returns (UnregisterCallerResponse);
   rpc ListTools(ListToolsRequest) returns (ListToolsResponse);
@@ -37,6 +38,12 @@ message GetInfoResponse {
   string name = 1;
   string version = 2;
   string build = 3;
+}
+
+message GetCatalogRequest {}
+
+message GetCatalogResponse {
+  bytes catalog_json = 1;
 }
 
 message RegisterCallerRequest {
