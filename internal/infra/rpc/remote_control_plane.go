@@ -143,14 +143,48 @@ func (r *RemoteControlPlane) UnregisterClient(ctx context.Context, client string
 	return mapRPCError("unregister client", err)
 }
 
-func (r *RemoteControlPlane) ListActiveClients(_ context.Context) ([]domain.ActiveClient, error) {
-	return []domain.ActiveClient{}, nil
+func (r *RemoteControlPlane) ListActiveClients(ctx context.Context) ([]domain.ActiveClient, error) {
+	resp, err := withCaller(ctx, r, "list active clients", func(client controlv1.ControlPlaneServiceClient, _ string) (*controlv1.ListActiveClientsResponse, error) {
+		return client.ListActiveClients(ctx, &controlv1.ListActiveClientsRequest{})
+	})
+	if err != nil {
+		return nil, err
+	}
+	snapshot, err := fromProtoActiveClientsSnapshot(resp.GetSnapshot())
+	if err != nil {
+		return nil, err
+	}
+	return snapshot.Clients, nil
 }
 
-func (r *RemoteControlPlane) WatchActiveClients(_ context.Context) (<-chan domain.ActiveClientSnapshot, error) {
-	ch := make(chan domain.ActiveClientSnapshot)
-	close(ch)
-	return ch, nil
+func (r *RemoteControlPlane) WatchActiveClients(ctx context.Context) (<-chan domain.ActiveClientSnapshot, error) {
+	stream, err := withCallerStream(ctx, r, "watch active clients", func(client controlv1.ControlPlaneServiceClient, _ string) (controlv1.ControlPlaneService_WatchActiveClientsClient, error) {
+		return client.WatchActiveClients(ctx, &controlv1.WatchActiveClientsRequest{})
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make(chan domain.ActiveClientSnapshot)
+	go func() {
+		defer close(out)
+		for {
+			resp, err := stream.Recv()
+			if err != nil {
+				if shouldSilenceStreamError(err) {
+					return
+				}
+				r.logger.Debug("watch active clients stream ended", zap.Error(err))
+				return
+			}
+			snapshot, err := fromProtoActiveClientsSnapshot(resp)
+			if err != nil {
+				r.logger.Warn("watch active clients decode failed", zap.Error(err))
+				continue
+			}
+			out <- snapshot
+		}
+	}()
+	return out, nil
 }
 
 func (r *RemoteControlPlane) ListTools(ctx context.Context, _ string) (domain.ToolSnapshot, error) {
@@ -593,23 +627,10 @@ func (r *RemoteControlPlane) GetCatalog() domain.Catalog {
 		return emptyCatalog()
 	}
 
-	var payload map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &payload); err != nil {
+	var catalog domain.Catalog
+	if err := json.Unmarshal(raw, &catalog); err != nil {
 		r.logger.Warn("catalog decode failed", zap.Error(err))
 		return emptyCatalog()
-	}
-	catalog := emptyCatalog()
-	if data := payload["specs"]; len(data) > 0 {
-		if err := json.Unmarshal(data, &catalog.Specs); err != nil {
-			r.logger.Warn("catalog specs decode failed", zap.Error(err))
-			return emptyCatalog()
-		}
-	}
-	if data := payload["plugins"]; len(data) > 0 {
-		if err := json.Unmarshal(data, &catalog.Plugins); err != nil {
-			r.logger.Warn("catalog plugins decode failed", zap.Error(err))
-			return emptyCatalog()
-		}
 	}
 	if catalog.Specs == nil {
 		catalog.Specs = map[string]domain.ServerSpec{}

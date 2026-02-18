@@ -46,12 +46,7 @@ func (s *ControlService) GetInfo(ctx context.Context, _ *controlv1.GetInfoReques
 
 func (s *ControlService) GetCatalog(_ context.Context, _ *controlv1.GetCatalogRequest) (*controlv1.GetCatalogResponse, error) {
 	catalog := s.control.GetCatalog()
-	payload := map[string]any{
-		"specs":   catalog.Specs,
-		"plugins": catalog.Plugins,
-		"runtime": catalog.Runtime,
-	}
-	raw, err := json.Marshal(payload)
+	raw, err := json.Marshal(catalog)
 	if err != nil {
 		return nil, status.Error(codes.Internal, "failed to encode catalog")
 	}

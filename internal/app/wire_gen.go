@@ -68,9 +68,10 @@ func InitializeApplication(ctx context.Context, cfg ServeConfig, logging Logging
 	if err != nil {
 		return nil, err
 	}
-	executor := NewGovernanceExecutor(engine)
-	server := NewRPCServer(controlPlane, executor, catalogState, logger)
 	reloadManager := controlplane.NewReloadManager(dynamicCatalogProvider, controlplaneState, clientRegistry, scheduler, serverStartupOrchestrator, managerManager, engine, metrics, healthTracker, metadataCache, listChangeHub, logger)
+	rpcControlPlane := NewRPCControlPlane(controlPlane, string2, reloadManager, managerManager)
+	executor := NewGovernanceExecutor(engine)
+	server := NewRPCServer(rpcControlPlane, executor, catalogState, logger)
 	applicationOptions := ApplicationOptions{
 		Context:           ctx,
 		ServeConfig:       cfg,

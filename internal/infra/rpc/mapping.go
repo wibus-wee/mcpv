@@ -202,3 +202,25 @@ func toProtoServerInitStatusSnapshot(snapshot domain.ServerInitStatusSnapshot) *
 		GeneratedAtUnixNano: snapshot.GeneratedAt.UnixNano(),
 	}
 }
+
+func toProtoActiveClientsSnapshot(snapshot domain.ActiveClientSnapshot) *controlv1.ActiveClientsSnapshot {
+	clients := mapping.MapSlice(snapshot.Clients, toProtoActiveClient)
+	return &controlv1.ActiveClientsSnapshot{
+		Clients:             clients,
+		GeneratedAtUnixNano: snapshot.GeneratedAt.UnixNano(),
+	}
+}
+
+func toProtoActiveClient(client domain.ActiveClient) *controlv1.ActiveClient {
+	lastHeartbeat := int64(0)
+	if !client.LastHeartbeat.IsZero() {
+		lastHeartbeat = client.LastHeartbeat.UnixNano()
+	}
+	return &controlv1.ActiveClient{
+		Client:                client.Client,
+		Pid:                   int64(client.PID),
+		Tags:                  append([]string(nil), client.Tags...),
+		Server:                client.Server,
+		LastHeartbeatUnixNano: lastHeartbeat,
+	}
+}

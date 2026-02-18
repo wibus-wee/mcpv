@@ -183,7 +183,7 @@ func (d *ServiceDeps) isRemoteMode() bool {
 	return settings.Mode == ui.CoreConnectionModeRemote
 }
 
-func (d *ServiceDeps) getRemoteControlPlane(settings ui.CoreConnectionSettings) (controlplane.API, error) {
+func (d *ServiceDeps) getRemoteControlPlane(settings ui.CoreConnectionSettings) (*rpc.RemoteControlPlane, error) {
 	if strings.TrimSpace(settings.Address) == "" {
 		return nil, ui.NewError(ui.ErrCodeInvalidConfig, "Remote RPC address is required")
 	}
@@ -241,6 +241,17 @@ func (d *ServiceDeps) closeRemoteControlPlane() {
 	if cp != nil {
 		_ = cp.Close()
 	}
+}
+
+func (d *ServiceDeps) remoteControlPlane() (*rpc.RemoteControlPlane, error) {
+	settings, err := d.coreConnectionSettings()
+	if err != nil {
+		return nil, err
+	}
+	if settings.Mode != ui.CoreConnectionModeRemote {
+		return nil, ui.NewError(ui.ErrCodeInvalidState, "Remote mode is not enabled")
+	}
+	return d.getRemoteControlPlane(settings)
 }
 
 func coreConnectionFingerprint(settings ui.CoreConnectionSettings) string {

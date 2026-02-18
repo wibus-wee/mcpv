@@ -6,6 +6,8 @@ import (
 	"go.uber.org/zap"
 
 	catalogeditor "mcpv/internal/infra/catalog/editor"
+	"mcpv/internal/infra/rpc"
+	"mcpv/internal/ui"
 )
 
 // SubAgentService exposes SubAgent configuration APIs.
@@ -22,7 +24,28 @@ func NewSubAgentService(deps *ServiceDeps) *SubAgentService {
 }
 
 // GetSubAgentConfig returns the runtime-level SubAgent configuration.
-func (s *SubAgentService) GetSubAgentConfig(_ context.Context) (SubAgentConfigDetail, error) {
+func (s *SubAgentService) GetSubAgentConfig(ctx context.Context) (SubAgentConfigDetail, error) {
+	if s.deps.isRemoteMode() {
+		remote, err := s.deps.remoteControlPlane()
+		if err != nil {
+			return SubAgentConfigDetail{}, err
+		}
+		cfg, err := remote.GetSubAgentConfig(ctx)
+		if err != nil {
+			return SubAgentConfigDetail{}, ui.MapDomainError(err)
+		}
+		return SubAgentConfigDetail{
+			Enabled:            cfg.Enabled,
+			EnabledTags:        append([]string(nil), cfg.EnabledTags...),
+			Model:              cfg.Model,
+			Provider:           cfg.Provider,
+			APIKeyEnvVar:       cfg.APIKeyEnvVar,
+			BaseURL:            cfg.BaseURL,
+			MaxToolsPerRequest: cfg.MaxToolsPerRequest,
+			FilterPrompt:       cfg.FilterPrompt,
+		}, nil
+	}
+
 	cp, err := s.deps.getControlPlane()
 	if err != nil {
 		return SubAgentConfigDetail{}, err
@@ -44,6 +67,28 @@ func (s *SubAgentService) GetSubAgentConfig(_ context.Context) (SubAgentConfigDe
 
 // UpdateSubAgentConfig updates the runtime-level SubAgent config.
 func (s *SubAgentService) UpdateSubAgentConfig(ctx context.Context, req UpdateSubAgentConfigRequest) error {
+	if s.deps.isRemoteMode() {
+		remote, err := s.deps.remoteControlPlane()
+		if err != nil {
+			return err
+		}
+		payload := rpc.SubAgentUpdatePayload{
+			Enabled:            req.Enabled,
+			EnabledTags:        append([]string(nil), req.EnabledTags...),
+			Model:              req.Model,
+			Provider:           req.Provider,
+			APIKey:             req.APIKey,
+			APIKeyEnvVar:       req.APIKeyEnvVar,
+			BaseURL:            req.BaseURL,
+			MaxToolsPerRequest: req.MaxToolsPerRequest,
+			FilterPrompt:       req.FilterPrompt,
+		}
+		if err := remote.UpdateSubAgentConfig(ctx, payload); err != nil {
+			return ui.MapDomainError(err)
+		}
+		return nil
+	}
+
 	editor, err := s.deps.catalogEditor()
 	if err != nil {
 		return err

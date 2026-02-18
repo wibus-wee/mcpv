@@ -21,8 +21,26 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	ControlPlaneService_GetInfo_FullMethodName               = "/mcpv.control.v1.ControlPlaneService/GetInfo"
 	ControlPlaneService_GetCatalog_FullMethodName            = "/mcpv.control.v1.ControlPlaneService/GetCatalog"
+	ControlPlaneService_GetConfigMode_FullMethodName         = "/mcpv.control.v1.ControlPlaneService/GetConfigMode"
+	ControlPlaneService_GetRuntimeConfig_FullMethodName      = "/mcpv.control.v1.ControlPlaneService/GetRuntimeConfig"
+	ControlPlaneService_UpdateRuntimeConfig_FullMethodName   = "/mcpv.control.v1.ControlPlaneService/UpdateRuntimeConfig"
+	ControlPlaneService_ReloadConfig_FullMethodName          = "/mcpv.control.v1.ControlPlaneService/ReloadConfig"
+	ControlPlaneService_CreateServer_FullMethodName          = "/mcpv.control.v1.ControlPlaneService/CreateServer"
+	ControlPlaneService_UpdateServer_FullMethodName          = "/mcpv.control.v1.ControlPlaneService/UpdateServer"
+	ControlPlaneService_SetServerDisabled_FullMethodName     = "/mcpv.control.v1.ControlPlaneService/SetServerDisabled"
+	ControlPlaneService_DeleteServer_FullMethodName          = "/mcpv.control.v1.ControlPlaneService/DeleteServer"
+	ControlPlaneService_ImportServers_FullMethodName         = "/mcpv.control.v1.ControlPlaneService/ImportServers"
+	ControlPlaneService_GetSubAgentConfig_FullMethodName     = "/mcpv.control.v1.ControlPlaneService/GetSubAgentConfig"
+	ControlPlaneService_UpdateSubAgentConfig_FullMethodName  = "/mcpv.control.v1.ControlPlaneService/UpdateSubAgentConfig"
+	ControlPlaneService_GetPluginStatus_FullMethodName       = "/mcpv.control.v1.ControlPlaneService/GetPluginStatus"
+	ControlPlaneService_CreatePlugin_FullMethodName          = "/mcpv.control.v1.ControlPlaneService/CreatePlugin"
+	ControlPlaneService_UpdatePlugin_FullMethodName          = "/mcpv.control.v1.ControlPlaneService/UpdatePlugin"
+	ControlPlaneService_DeletePlugin_FullMethodName          = "/mcpv.control.v1.ControlPlaneService/DeletePlugin"
+	ControlPlaneService_TogglePlugin_FullMethodName          = "/mcpv.control.v1.ControlPlaneService/TogglePlugin"
 	ControlPlaneService_RegisterCaller_FullMethodName        = "/mcpv.control.v1.ControlPlaneService/RegisterCaller"
 	ControlPlaneService_UnregisterCaller_FullMethodName      = "/mcpv.control.v1.ControlPlaneService/UnregisterCaller"
+	ControlPlaneService_ListActiveClients_FullMethodName     = "/mcpv.control.v1.ControlPlaneService/ListActiveClients"
+	ControlPlaneService_WatchActiveClients_FullMethodName    = "/mcpv.control.v1.ControlPlaneService/WatchActiveClients"
 	ControlPlaneService_ListTools_FullMethodName             = "/mcpv.control.v1.ControlPlaneService/ListTools"
 	ControlPlaneService_WatchTools_FullMethodName            = "/mcpv.control.v1.ControlPlaneService/WatchTools"
 	ControlPlaneService_CallTool_FullMethodName              = "/mcpv.control.v1.ControlPlaneService/CallTool"
@@ -51,8 +69,26 @@ const (
 type ControlPlaneServiceClient interface {
 	GetInfo(ctx context.Context, in *GetInfoRequest, opts ...grpc.CallOption) (*GetInfoResponse, error)
 	GetCatalog(ctx context.Context, in *GetCatalogRequest, opts ...grpc.CallOption) (*GetCatalogResponse, error)
+	GetConfigMode(ctx context.Context, in *GetConfigModeRequest, opts ...grpc.CallOption) (*GetConfigModeResponse, error)
+	GetRuntimeConfig(ctx context.Context, in *GetRuntimeConfigRequest, opts ...grpc.CallOption) (*GetRuntimeConfigResponse, error)
+	UpdateRuntimeConfig(ctx context.Context, in *UpdateRuntimeConfigRequest, opts ...grpc.CallOption) (*UpdateRuntimeConfigResponse, error)
+	ReloadConfig(ctx context.Context, in *ReloadConfigRequest, opts ...grpc.CallOption) (*ReloadConfigResponse, error)
+	CreateServer(ctx context.Context, in *CreateServerRequest, opts ...grpc.CallOption) (*CreateServerResponse, error)
+	UpdateServer(ctx context.Context, in *UpdateServerRequest, opts ...grpc.CallOption) (*UpdateServerResponse, error)
+	SetServerDisabled(ctx context.Context, in *SetServerDisabledRequest, opts ...grpc.CallOption) (*SetServerDisabledResponse, error)
+	DeleteServer(ctx context.Context, in *DeleteServerRequest, opts ...grpc.CallOption) (*DeleteServerResponse, error)
+	ImportServers(ctx context.Context, in *ImportServersRequest, opts ...grpc.CallOption) (*ImportServersResponse, error)
+	GetSubAgentConfig(ctx context.Context, in *GetSubAgentConfigRequest, opts ...grpc.CallOption) (*GetSubAgentConfigResponse, error)
+	UpdateSubAgentConfig(ctx context.Context, in *UpdateSubAgentConfigRequest, opts ...grpc.CallOption) (*UpdateSubAgentConfigResponse, error)
+	GetPluginStatus(ctx context.Context, in *GetPluginStatusRequest, opts ...grpc.CallOption) (*GetPluginStatusResponse, error)
+	CreatePlugin(ctx context.Context, in *CreatePluginRequest, opts ...grpc.CallOption) (*CreatePluginResponse, error)
+	UpdatePlugin(ctx context.Context, in *UpdatePluginRequest, opts ...grpc.CallOption) (*UpdatePluginResponse, error)
+	DeletePlugin(ctx context.Context, in *DeletePluginRequest, opts ...grpc.CallOption) (*DeletePluginResponse, error)
+	TogglePlugin(ctx context.Context, in *TogglePluginRequest, opts ...grpc.CallOption) (*TogglePluginResponse, error)
 	RegisterCaller(ctx context.Context, in *RegisterCallerRequest, opts ...grpc.CallOption) (*RegisterCallerResponse, error)
 	UnregisterCaller(ctx context.Context, in *UnregisterCallerRequest, opts ...grpc.CallOption) (*UnregisterCallerResponse, error)
+	ListActiveClients(ctx context.Context, in *ListActiveClientsRequest, opts ...grpc.CallOption) (*ListActiveClientsResponse, error)
+	WatchActiveClients(ctx context.Context, in *WatchActiveClientsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ActiveClientsSnapshot], error)
 	ListTools(ctx context.Context, in *ListToolsRequest, opts ...grpc.CallOption) (*ListToolsResponse, error)
 	WatchTools(ctx context.Context, in *WatchToolsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ToolsSnapshot], error)
 	CallTool(ctx context.Context, in *CallToolRequest, opts ...grpc.CallOption) (*CallToolResponse, error)
@@ -104,6 +140,166 @@ func (c *controlPlaneServiceClient) GetCatalog(ctx context.Context, in *GetCatal
 	return out, nil
 }
 
+func (c *controlPlaneServiceClient) GetConfigMode(ctx context.Context, in *GetConfigModeRequest, opts ...grpc.CallOption) (*GetConfigModeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetConfigModeResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_GetConfigMode_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) GetRuntimeConfig(ctx context.Context, in *GetRuntimeConfigRequest, opts ...grpc.CallOption) (*GetRuntimeConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetRuntimeConfigResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_GetRuntimeConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) UpdateRuntimeConfig(ctx context.Context, in *UpdateRuntimeConfigRequest, opts ...grpc.CallOption) (*UpdateRuntimeConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateRuntimeConfigResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_UpdateRuntimeConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) ReloadConfig(ctx context.Context, in *ReloadConfigRequest, opts ...grpc.CallOption) (*ReloadConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReloadConfigResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_ReloadConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) CreateServer(ctx context.Context, in *CreateServerRequest, opts ...grpc.CallOption) (*CreateServerResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateServerResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_CreateServer_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) UpdateServer(ctx context.Context, in *UpdateServerRequest, opts ...grpc.CallOption) (*UpdateServerResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateServerResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_UpdateServer_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) SetServerDisabled(ctx context.Context, in *SetServerDisabledRequest, opts ...grpc.CallOption) (*SetServerDisabledResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetServerDisabledResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_SetServerDisabled_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) DeleteServer(ctx context.Context, in *DeleteServerRequest, opts ...grpc.CallOption) (*DeleteServerResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteServerResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_DeleteServer_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) ImportServers(ctx context.Context, in *ImportServersRequest, opts ...grpc.CallOption) (*ImportServersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ImportServersResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_ImportServers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) GetSubAgentConfig(ctx context.Context, in *GetSubAgentConfigRequest, opts ...grpc.CallOption) (*GetSubAgentConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetSubAgentConfigResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_GetSubAgentConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) UpdateSubAgentConfig(ctx context.Context, in *UpdateSubAgentConfigRequest, opts ...grpc.CallOption) (*UpdateSubAgentConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateSubAgentConfigResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_UpdateSubAgentConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) GetPluginStatus(ctx context.Context, in *GetPluginStatusRequest, opts ...grpc.CallOption) (*GetPluginStatusResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetPluginStatusResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_GetPluginStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) CreatePlugin(ctx context.Context, in *CreatePluginRequest, opts ...grpc.CallOption) (*CreatePluginResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreatePluginResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_CreatePlugin_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) UpdatePlugin(ctx context.Context, in *UpdatePluginRequest, opts ...grpc.CallOption) (*UpdatePluginResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdatePluginResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_UpdatePlugin_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) DeletePlugin(ctx context.Context, in *DeletePluginRequest, opts ...grpc.CallOption) (*DeletePluginResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeletePluginResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_DeletePlugin_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) TogglePlugin(ctx context.Context, in *TogglePluginRequest, opts ...grpc.CallOption) (*TogglePluginResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TogglePluginResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_TogglePlugin_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *controlPlaneServiceClient) RegisterCaller(ctx context.Context, in *RegisterCallerRequest, opts ...grpc.CallOption) (*RegisterCallerResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RegisterCallerResponse)
@@ -124,6 +320,35 @@ func (c *controlPlaneServiceClient) UnregisterCaller(ctx context.Context, in *Un
 	return out, nil
 }
 
+func (c *controlPlaneServiceClient) ListActiveClients(ctx context.Context, in *ListActiveClientsRequest, opts ...grpc.CallOption) (*ListActiveClientsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListActiveClientsResponse)
+	err := c.cc.Invoke(ctx, ControlPlaneService_ListActiveClients_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlPlaneServiceClient) WatchActiveClients(ctx context.Context, in *WatchActiveClientsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ActiveClientsSnapshot], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &ControlPlaneService_ServiceDesc.Streams[0], ControlPlaneService_WatchActiveClients_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[WatchActiveClientsRequest, ActiveClientsSnapshot]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ControlPlaneService_WatchActiveClientsClient = grpc.ServerStreamingClient[ActiveClientsSnapshot]
+
 func (c *controlPlaneServiceClient) ListTools(ctx context.Context, in *ListToolsRequest, opts ...grpc.CallOption) (*ListToolsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListToolsResponse)
@@ -136,7 +361,7 @@ func (c *controlPlaneServiceClient) ListTools(ctx context.Context, in *ListTools
 
 func (c *controlPlaneServiceClient) WatchTools(ctx context.Context, in *WatchToolsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ToolsSnapshot], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &ControlPlaneService_ServiceDesc.Streams[0], ControlPlaneService_WatchTools_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &ControlPlaneService_ServiceDesc.Streams[1], ControlPlaneService_WatchTools_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +450,7 @@ func (c *controlPlaneServiceClient) ListResources(ctx context.Context, in *ListR
 
 func (c *controlPlaneServiceClient) WatchResources(ctx context.Context, in *WatchResourcesRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ResourcesSnapshot], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &ControlPlaneService_ServiceDesc.Streams[1], ControlPlaneService_WatchResources_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &ControlPlaneService_ServiceDesc.Streams[2], ControlPlaneService_WatchResources_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -264,7 +489,7 @@ func (c *controlPlaneServiceClient) ListPrompts(ctx context.Context, in *ListPro
 
 func (c *controlPlaneServiceClient) WatchPrompts(ctx context.Context, in *WatchPromptsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[PromptsSnapshot], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &ControlPlaneService_ServiceDesc.Streams[2], ControlPlaneService_WatchPrompts_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &ControlPlaneService_ServiceDesc.Streams[3], ControlPlaneService_WatchPrompts_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -293,7 +518,7 @@ func (c *controlPlaneServiceClient) GetPrompt(ctx context.Context, in *GetPrompt
 
 func (c *controlPlaneServiceClient) StreamLogs(ctx context.Context, in *StreamLogsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[LogEntry], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &ControlPlaneService_ServiceDesc.Streams[3], ControlPlaneService_StreamLogs_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &ControlPlaneService_ServiceDesc.Streams[4], ControlPlaneService_StreamLogs_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +537,7 @@ type ControlPlaneService_StreamLogsClient = grpc.ServerStreamingClient[LogEntry]
 
 func (c *controlPlaneServiceClient) WatchRuntimeStatus(ctx context.Context, in *WatchRuntimeStatusRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[RuntimeStatusSnapshot], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &ControlPlaneService_ServiceDesc.Streams[4], ControlPlaneService_WatchRuntimeStatus_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &ControlPlaneService_ServiceDesc.Streams[5], ControlPlaneService_WatchRuntimeStatus_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -331,7 +556,7 @@ type ControlPlaneService_WatchRuntimeStatusClient = grpc.ServerStreamingClient[R
 
 func (c *controlPlaneServiceClient) WatchServerInitStatus(ctx context.Context, in *WatchServerInitStatusRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ServerInitStatusSnapshot], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &ControlPlaneService_ServiceDesc.Streams[5], ControlPlaneService_WatchServerInitStatus_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &ControlPlaneService_ServiceDesc.Streams[6], ControlPlaneService_WatchServerInitStatus_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -384,8 +609,26 @@ func (c *controlPlaneServiceClient) IsSubAgentEnabled(ctx context.Context, in *I
 type ControlPlaneServiceServer interface {
 	GetInfo(context.Context, *GetInfoRequest) (*GetInfoResponse, error)
 	GetCatalog(context.Context, *GetCatalogRequest) (*GetCatalogResponse, error)
+	GetConfigMode(context.Context, *GetConfigModeRequest) (*GetConfigModeResponse, error)
+	GetRuntimeConfig(context.Context, *GetRuntimeConfigRequest) (*GetRuntimeConfigResponse, error)
+	UpdateRuntimeConfig(context.Context, *UpdateRuntimeConfigRequest) (*UpdateRuntimeConfigResponse, error)
+	ReloadConfig(context.Context, *ReloadConfigRequest) (*ReloadConfigResponse, error)
+	CreateServer(context.Context, *CreateServerRequest) (*CreateServerResponse, error)
+	UpdateServer(context.Context, *UpdateServerRequest) (*UpdateServerResponse, error)
+	SetServerDisabled(context.Context, *SetServerDisabledRequest) (*SetServerDisabledResponse, error)
+	DeleteServer(context.Context, *DeleteServerRequest) (*DeleteServerResponse, error)
+	ImportServers(context.Context, *ImportServersRequest) (*ImportServersResponse, error)
+	GetSubAgentConfig(context.Context, *GetSubAgentConfigRequest) (*GetSubAgentConfigResponse, error)
+	UpdateSubAgentConfig(context.Context, *UpdateSubAgentConfigRequest) (*UpdateSubAgentConfigResponse, error)
+	GetPluginStatus(context.Context, *GetPluginStatusRequest) (*GetPluginStatusResponse, error)
+	CreatePlugin(context.Context, *CreatePluginRequest) (*CreatePluginResponse, error)
+	UpdatePlugin(context.Context, *UpdatePluginRequest) (*UpdatePluginResponse, error)
+	DeletePlugin(context.Context, *DeletePluginRequest) (*DeletePluginResponse, error)
+	TogglePlugin(context.Context, *TogglePluginRequest) (*TogglePluginResponse, error)
 	RegisterCaller(context.Context, *RegisterCallerRequest) (*RegisterCallerResponse, error)
 	UnregisterCaller(context.Context, *UnregisterCallerRequest) (*UnregisterCallerResponse, error)
+	ListActiveClients(context.Context, *ListActiveClientsRequest) (*ListActiveClientsResponse, error)
+	WatchActiveClients(*WatchActiveClientsRequest, grpc.ServerStreamingServer[ActiveClientsSnapshot]) error
 	ListTools(context.Context, *ListToolsRequest) (*ListToolsResponse, error)
 	WatchTools(*WatchToolsRequest, grpc.ServerStreamingServer[ToolsSnapshot]) error
 	CallTool(context.Context, *CallToolRequest) (*CallToolResponse, error)
@@ -423,11 +666,65 @@ func (UnimplementedControlPlaneServiceServer) GetInfo(context.Context, *GetInfoR
 func (UnimplementedControlPlaneServiceServer) GetCatalog(context.Context, *GetCatalogRequest) (*GetCatalogResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCatalog not implemented")
 }
+func (UnimplementedControlPlaneServiceServer) GetConfigMode(context.Context, *GetConfigModeRequest) (*GetConfigModeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetConfigMode not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) GetRuntimeConfig(context.Context, *GetRuntimeConfigRequest) (*GetRuntimeConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetRuntimeConfig not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) UpdateRuntimeConfig(context.Context, *UpdateRuntimeConfigRequest) (*UpdateRuntimeConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateRuntimeConfig not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) ReloadConfig(context.Context, *ReloadConfigRequest) (*ReloadConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReloadConfig not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) CreateServer(context.Context, *CreateServerRequest) (*CreateServerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateServer not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) UpdateServer(context.Context, *UpdateServerRequest) (*UpdateServerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateServer not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) SetServerDisabled(context.Context, *SetServerDisabledRequest) (*SetServerDisabledResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetServerDisabled not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) DeleteServer(context.Context, *DeleteServerRequest) (*DeleteServerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteServer not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) ImportServers(context.Context, *ImportServersRequest) (*ImportServersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ImportServers not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) GetSubAgentConfig(context.Context, *GetSubAgentConfigRequest) (*GetSubAgentConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSubAgentConfig not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) UpdateSubAgentConfig(context.Context, *UpdateSubAgentConfigRequest) (*UpdateSubAgentConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateSubAgentConfig not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) GetPluginStatus(context.Context, *GetPluginStatusRequest) (*GetPluginStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPluginStatus not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) CreatePlugin(context.Context, *CreatePluginRequest) (*CreatePluginResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreatePlugin not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) UpdatePlugin(context.Context, *UpdatePluginRequest) (*UpdatePluginResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdatePlugin not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) DeletePlugin(context.Context, *DeletePluginRequest) (*DeletePluginResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeletePlugin not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) TogglePlugin(context.Context, *TogglePluginRequest) (*TogglePluginResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TogglePlugin not implemented")
+}
 func (UnimplementedControlPlaneServiceServer) RegisterCaller(context.Context, *RegisterCallerRequest) (*RegisterCallerResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RegisterCaller not implemented")
 }
 func (UnimplementedControlPlaneServiceServer) UnregisterCaller(context.Context, *UnregisterCallerRequest) (*UnregisterCallerResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UnregisterCaller not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) ListActiveClients(context.Context, *ListActiveClientsRequest) (*ListActiveClientsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListActiveClients not implemented")
+}
+func (UnimplementedControlPlaneServiceServer) WatchActiveClients(*WatchActiveClientsRequest, grpc.ServerStreamingServer[ActiveClientsSnapshot]) error {
+	return status.Errorf(codes.Unimplemented, "method WatchActiveClients not implemented")
 }
 func (UnimplementedControlPlaneServiceServer) ListTools(context.Context, *ListToolsRequest) (*ListToolsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListTools not implemented")
@@ -546,6 +843,294 @@ func _ControlPlaneService_GetCatalog_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ControlPlaneService_GetConfigMode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetConfigModeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).GetConfigMode(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_GetConfigMode_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).GetConfigMode(ctx, req.(*GetConfigModeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_GetRuntimeConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetRuntimeConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).GetRuntimeConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_GetRuntimeConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).GetRuntimeConfig(ctx, req.(*GetRuntimeConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_UpdateRuntimeConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateRuntimeConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).UpdateRuntimeConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_UpdateRuntimeConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).UpdateRuntimeConfig(ctx, req.(*UpdateRuntimeConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_ReloadConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReloadConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).ReloadConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_ReloadConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).ReloadConfig(ctx, req.(*ReloadConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_CreateServer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateServerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).CreateServer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_CreateServer_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).CreateServer(ctx, req.(*CreateServerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_UpdateServer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateServerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).UpdateServer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_UpdateServer_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).UpdateServer(ctx, req.(*UpdateServerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_SetServerDisabled_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetServerDisabledRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).SetServerDisabled(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_SetServerDisabled_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).SetServerDisabled(ctx, req.(*SetServerDisabledRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_DeleteServer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteServerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).DeleteServer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_DeleteServer_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).DeleteServer(ctx, req.(*DeleteServerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_ImportServers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ImportServersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).ImportServers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_ImportServers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).ImportServers(ctx, req.(*ImportServersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_GetSubAgentConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSubAgentConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).GetSubAgentConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_GetSubAgentConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).GetSubAgentConfig(ctx, req.(*GetSubAgentConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_UpdateSubAgentConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateSubAgentConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).UpdateSubAgentConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_UpdateSubAgentConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).UpdateSubAgentConfig(ctx, req.(*UpdateSubAgentConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_GetPluginStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPluginStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).GetPluginStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_GetPluginStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).GetPluginStatus(ctx, req.(*GetPluginStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_CreatePlugin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreatePluginRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).CreatePlugin(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_CreatePlugin_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).CreatePlugin(ctx, req.(*CreatePluginRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_UpdatePlugin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdatePluginRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).UpdatePlugin(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_UpdatePlugin_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).UpdatePlugin(ctx, req.(*UpdatePluginRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_DeletePlugin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeletePluginRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).DeletePlugin(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_DeletePlugin_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).DeletePlugin(ctx, req.(*DeletePluginRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_TogglePlugin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TogglePluginRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).TogglePlugin(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_TogglePlugin_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).TogglePlugin(ctx, req.(*TogglePluginRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ControlPlaneService_RegisterCaller_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RegisterCallerRequest)
 	if err := dec(in); err != nil {
@@ -581,6 +1166,35 @@ func _ControlPlaneService_UnregisterCaller_Handler(srv interface{}, ctx context.
 	}
 	return interceptor(ctx, in, info, handler)
 }
+
+func _ControlPlaneService_ListActiveClients_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListActiveClientsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlPlaneServiceServer).ListActiveClients(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlPlaneService_ListActiveClients_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlPlaneServiceServer).ListActiveClients(ctx, req.(*ListActiveClientsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControlPlaneService_WatchActiveClients_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(WatchActiveClientsRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ControlPlaneServiceServer).WatchActiveClients(m, &grpc.GenericServerStream[WatchActiveClientsRequest, ActiveClientsSnapshot]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ControlPlaneService_WatchActiveClientsServer = grpc.ServerStreamingServer[ActiveClientsSnapshot]
 
 func _ControlPlaneService_ListTools_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListToolsRequest)
@@ -916,12 +1530,80 @@ var ControlPlaneService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ControlPlaneService_GetCatalog_Handler,
 		},
 		{
+			MethodName: "GetConfigMode",
+			Handler:    _ControlPlaneService_GetConfigMode_Handler,
+		},
+		{
+			MethodName: "GetRuntimeConfig",
+			Handler:    _ControlPlaneService_GetRuntimeConfig_Handler,
+		},
+		{
+			MethodName: "UpdateRuntimeConfig",
+			Handler:    _ControlPlaneService_UpdateRuntimeConfig_Handler,
+		},
+		{
+			MethodName: "ReloadConfig",
+			Handler:    _ControlPlaneService_ReloadConfig_Handler,
+		},
+		{
+			MethodName: "CreateServer",
+			Handler:    _ControlPlaneService_CreateServer_Handler,
+		},
+		{
+			MethodName: "UpdateServer",
+			Handler:    _ControlPlaneService_UpdateServer_Handler,
+		},
+		{
+			MethodName: "SetServerDisabled",
+			Handler:    _ControlPlaneService_SetServerDisabled_Handler,
+		},
+		{
+			MethodName: "DeleteServer",
+			Handler:    _ControlPlaneService_DeleteServer_Handler,
+		},
+		{
+			MethodName: "ImportServers",
+			Handler:    _ControlPlaneService_ImportServers_Handler,
+		},
+		{
+			MethodName: "GetSubAgentConfig",
+			Handler:    _ControlPlaneService_GetSubAgentConfig_Handler,
+		},
+		{
+			MethodName: "UpdateSubAgentConfig",
+			Handler:    _ControlPlaneService_UpdateSubAgentConfig_Handler,
+		},
+		{
+			MethodName: "GetPluginStatus",
+			Handler:    _ControlPlaneService_GetPluginStatus_Handler,
+		},
+		{
+			MethodName: "CreatePlugin",
+			Handler:    _ControlPlaneService_CreatePlugin_Handler,
+		},
+		{
+			MethodName: "UpdatePlugin",
+			Handler:    _ControlPlaneService_UpdatePlugin_Handler,
+		},
+		{
+			MethodName: "DeletePlugin",
+			Handler:    _ControlPlaneService_DeletePlugin_Handler,
+		},
+		{
+			MethodName: "TogglePlugin",
+			Handler:    _ControlPlaneService_TogglePlugin_Handler,
+		},
+		{
 			MethodName: "RegisterCaller",
 			Handler:    _ControlPlaneService_RegisterCaller_Handler,
 		},
 		{
 			MethodName: "UnregisterCaller",
 			Handler:    _ControlPlaneService_UnregisterCaller_Handler,
+		},
+		{
+			MethodName: "ListActiveClients",
+			Handler:    _ControlPlaneService_ListActiveClients_Handler,
 		},
 		{
 			MethodName: "ListTools",
@@ -981,6 +1663,11 @@ var ControlPlaneService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "WatchActiveClients",
+			Handler:       _ControlPlaneService_WatchActiveClients_Handler,
+			ServerStreams: true,
+		},
 		{
 			StreamName:    "WatchTools",
 			Handler:       _ControlPlaneService_WatchTools_Handler,

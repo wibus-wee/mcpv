@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"mcpv/internal/domain"
+	pluginmanager "mcpv/internal/infra/plugin/manager"
 	"mcpv/internal/infra/scheduler"
 	controlv1 "mcpv/pkg/api/control/v1"
 )
@@ -378,6 +379,18 @@ func (f *fakeControlPlane) StreamLogsAllServers(_ context.Context, minLevel doma
 
 func (f *fakeControlPlane) GetCatalog() domain.Catalog {
 	return domain.Catalog{}
+}
+
+func (f *fakeControlPlane) ConfigPath() string {
+	return ""
+}
+
+func (f *fakeControlPlane) ReloadConfig(_ context.Context) error {
+	return nil
+}
+
+func (f *fakeControlPlane) PluginStatus(_ []domain.PluginSpec) []pluginmanager.Status {
+	return nil
 }
 
 func (f *fakeControlPlane) GetPoolStatus(_ context.Context) ([]domain.PoolInfo, error) {

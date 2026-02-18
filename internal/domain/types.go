@@ -166,13 +166,13 @@ type RPCAuthConfig struct {
 
 // RPCConfig configures the RPC server.
 type RPCConfig struct {
-	ListenAddress           string `json:"listenAddress"`
-	MaxRecvMsgSize          int    `json:"maxRecvMsgSize"`
-	MaxSendMsgSize          int    `json:"maxSendMsgSize"`
-	KeepaliveTimeSeconds    int    `json:"keepaliveTimeSeconds"`
-	KeepaliveTimeoutSeconds int    `json:"keepaliveTimeoutSeconds"`
-	SocketMode              string `json:"socketMode"`
-	TLS                     RPCTLSConfig
+	ListenAddress           string        `json:"listenAddress"`
+	MaxRecvMsgSize          int           `json:"maxRecvMsgSize"`
+	MaxSendMsgSize          int           `json:"maxSendMsgSize"`
+	KeepaliveTimeSeconds    int           `json:"keepaliveTimeSeconds"`
+	KeepaliveTimeoutSeconds int           `json:"keepaliveTimeoutSeconds"`
+	SocketMode              string        `json:"socketMode"`
+	TLS                     RPCTLSConfig  `json:"tls"`
 	Auth                    RPCAuthConfig `json:"auth"`
 }
 
@@ -187,9 +187,9 @@ type RPCTLSConfig struct {
 
 // Catalog groups runtime and server spec configuration.
 type Catalog struct {
-	Specs   map[string]ServerSpec
-	Plugins []PluginSpec
-	Runtime RuntimeConfig
+	Specs   map[string]ServerSpec `json:"specs"`
+	Plugins []PluginSpec          `json:"plugins,omitempty"`
+	Runtime RuntimeConfig         `json:"runtime"`
 }
 
 // ServerCapabilities describes the capabilities reported by a server.

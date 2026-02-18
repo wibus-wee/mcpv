@@ -27,7 +27,7 @@ func NewPluginService(deps *ServiceDeps) *PluginService {
 }
 
 // GetPluginList returns all configured plugins with their current state and metrics.
-func (s *PluginService) GetPluginList(_ context.Context) ([]PluginListEntry, error) {
+func (s *PluginService) GetPluginList(ctx context.Context) ([]PluginListEntry, error) {
 	cp, err := s.deps.getControlPlane()
 	if err != nil {
 		return nil, err
@@ -38,14 +38,29 @@ func (s *PluginService) GetPluginList(_ context.Context) ([]PluginListEntry, err
 		return []PluginListEntry{}, nil
 	}
 
-	// Get plugin runtime status from coreApp
-	var statusMap map[string]bool
-	coreApp, coreErr := s.deps.getCoreApp()
-	if coreErr == nil && coreApp != nil {
-		statusList := coreApp.GetPluginStatus()
-		statusMap = make(map[string]bool, len(statusList))
-		for _, st := range statusList {
-			statusMap[st.Name] = st.Running
+	// Get plugin runtime status from coreApp or remote RPC
+	type pluginState struct {
+		running bool
+		errMsg  string
+	}
+	statusMap := map[string]pluginState{}
+	if s.deps.isRemoteMode() {
+		remote, remoteErr := s.deps.remoteControlPlane()
+		if remoteErr == nil {
+			statusList, err := remote.GetPluginStatus(ctx)
+			if err == nil {
+				for _, st := range statusList {
+					statusMap[st.Name] = pluginState{running: st.Running, errMsg: st.Error}
+				}
+			}
+		}
+	} else {
+		coreApp, coreErr := s.deps.getCoreApp()
+		if coreErr == nil && coreApp != nil {
+			statusList := coreApp.GetPluginStatus()
+			for _, st := range statusList {
+				statusMap[st.Name] = pluginState{running: st.Running, errMsg: st.Error}
+			}
 		}
 	}
 
@@ -66,12 +81,16 @@ func (s *PluginService) GetPluginList(_ context.Context) ([]PluginListEntry, err
 		if !enabled {
 			status = "stopped"
 			statusError = ""
-		} else if statusMap != nil {
-			if running, ok := statusMap[spec.Name]; ok && running {
+		} else if len(statusMap) > 0 {
+			if state, ok := statusMap[spec.Name]; ok && state.running {
 				status = "running"
-			} else {
+			} else if ok {
 				status = "error"
-				statusError = "Plugin failed to start or is not running"
+				if state.errMsg != "" {
+					statusError = state.errMsg
+				} else {
+					statusError = "Plugin failed to start or is not running"
+				}
 			}
 		}
 
@@ -100,6 +119,21 @@ func (s *PluginService) GetPluginList(_ context.Context) ([]PluginListEntry, err
 
 // CreatePlugin adds a plugin to the config file.
 func (s *PluginService) CreatePlugin(ctx context.Context, req CreatePluginRequest) error {
+	if s.deps.isRemoteMode() {
+		remote, err := s.deps.remoteControlPlane()
+		if err != nil {
+			return err
+		}
+		spec, err := mapPluginSpecDetailToDomain(req.Spec)
+		if err != nil {
+			return ui.NewError(ui.ErrCodeInvalidRequest, err.Error())
+		}
+		if err := remote.CreatePlugin(ctx, spec); err != nil {
+			return ui.MapDomainError(err)
+		}
+		return nil
+	}
+
 	editor, err := s.deps.catalogEditor()
 	if err != nil {
 		return err
@@ -116,6 +150,21 @@ func (s *PluginService) CreatePlugin(ctx context.Context, req CreatePluginReques
 
 // UpdatePlugin updates an existing plugin in the config file.
 func (s *PluginService) UpdatePlugin(ctx context.Context, req UpdatePluginRequest) error {
+	if s.deps.isRemoteMode() {
+		remote, err := s.deps.remoteControlPlane()
+		if err != nil {
+			return err
+		}
+		spec, err := mapPluginSpecDetailToDomain(req.Spec)
+		if err != nil {
+			return ui.NewError(ui.ErrCodeInvalidRequest, err.Error())
+		}
+		if err := remote.UpdatePlugin(ctx, spec); err != nil {
+			return ui.MapDomainError(err)
+		}
+		return nil
+	}
+
 	editor, err := s.deps.catalogEditor()
 	if err != nil {
 		return err
@@ -136,6 +185,16 @@ func (s *PluginService) DeletePlugin(ctx context.Context, req DeletePluginReques
 	if name == "" {
 		return ui.NewError(ui.ErrCodeInvalidRequest, "Plugin name is required")
 	}
+	if s.deps.isRemoteMode() {
+		remote, err := s.deps.remoteControlPlane()
+		if err != nil {
+			return err
+		}
+		if err := remote.DeletePlugin(ctx, name); err != nil {
+			return ui.MapDomainError(err)
+		}
+		return nil
+	}
 	editor, err := s.deps.catalogEditor()
 	if err != nil {
 		return err
@@ -151,6 +210,17 @@ func (s *PluginService) TogglePlugin(ctx context.Context, req TogglePluginReques
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
 		return ui.NewError(ui.ErrCodeInvalidRequest, "Plugin name is required")
+	}
+
+	if s.deps.isRemoteMode() {
+		remote, err := s.deps.remoteControlPlane()
+		if err != nil {
+			return err
+		}
+		if err := remote.TogglePlugin(ctx, name, req.Enabled); err != nil {
+			return ui.MapDomainError(err)
+		}
+		return nil
 	}
 
 	editor, err := s.deps.catalogEditor()

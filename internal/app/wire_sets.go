@@ -61,10 +61,11 @@ var ReloadableAppSet = wire.NewSet(
 	controlplane.NewObservabilityService,
 	controlplane.NewAutomationService,
 	controlplane.NewControlPlane,
+	NewRPCControlPlane,
 	NewRPCServer,
 	controlplane.NewReloadManager,
 	wire.Bind(new(controlplane.API), new(*controlplane.ControlPlane)),
-	wire.Bind(new(rpc.ControlPlaneAPI), new(*controlplane.ControlPlane)),
+	wire.Bind(new(rpc.ControlPlaneAPI), new(*RPCControlPlane)),
 )
 
 // AppSet wires the full application dependency set.

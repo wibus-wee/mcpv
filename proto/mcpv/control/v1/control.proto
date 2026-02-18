@@ -7,8 +7,26 @@ option go_package = "mcpv/pkg/api/control/v1;controlv1";
 service ControlPlaneService {
   rpc GetInfo(GetInfoRequest) returns (GetInfoResponse);
   rpc GetCatalog(GetCatalogRequest) returns (GetCatalogResponse);
+  rpc GetConfigMode(GetConfigModeRequest) returns (GetConfigModeResponse);
+  rpc GetRuntimeConfig(GetRuntimeConfigRequest) returns (GetRuntimeConfigResponse);
+  rpc UpdateRuntimeConfig(UpdateRuntimeConfigRequest) returns (UpdateRuntimeConfigResponse);
+  rpc ReloadConfig(ReloadConfigRequest) returns (ReloadConfigResponse);
+  rpc CreateServer(CreateServerRequest) returns (CreateServerResponse);
+  rpc UpdateServer(UpdateServerRequest) returns (UpdateServerResponse);
+  rpc SetServerDisabled(SetServerDisabledRequest) returns (SetServerDisabledResponse);
+  rpc DeleteServer(DeleteServerRequest) returns (DeleteServerResponse);
+  rpc ImportServers(ImportServersRequest) returns (ImportServersResponse);
+  rpc GetSubAgentConfig(GetSubAgentConfigRequest) returns (GetSubAgentConfigResponse);
+  rpc UpdateSubAgentConfig(UpdateSubAgentConfigRequest) returns (UpdateSubAgentConfigResponse);
+  rpc GetPluginStatus(GetPluginStatusRequest) returns (GetPluginStatusResponse);
+  rpc CreatePlugin(CreatePluginRequest) returns (CreatePluginResponse);
+  rpc UpdatePlugin(UpdatePluginRequest) returns (UpdatePluginResponse);
+  rpc DeletePlugin(DeletePluginRequest) returns (DeletePluginResponse);
+  rpc TogglePlugin(TogglePluginRequest) returns (TogglePluginResponse);
   rpc RegisterCaller(RegisterCallerRequest) returns (RegisterCallerResponse);
   rpc UnregisterCaller(UnregisterCallerRequest) returns (UnregisterCallerResponse);
+  rpc ListActiveClients(ListActiveClientsRequest) returns (ListActiveClientsResponse);
+  rpc WatchActiveClients(WatchActiveClientsRequest) returns (stream ActiveClientsSnapshot);
   rpc ListTools(ListToolsRequest) returns (ListToolsResponse);
   rpc WatchTools(WatchToolsRequest) returns (stream ToolsSnapshot);
   rpc CallTool(CallToolRequest) returns (CallToolResponse);
@@ -46,6 +64,110 @@ message GetCatalogResponse {
   bytes catalog_json = 1;
 }
 
+message GetConfigModeRequest {}
+
+message GetConfigModeResponse {
+  string mode = 1;
+  string path = 2;
+  bool is_writable = 3;
+}
+
+message GetRuntimeConfigRequest {}
+
+message GetRuntimeConfigResponse {
+  bytes runtime_json = 1;
+}
+
+message UpdateRuntimeConfigRequest {
+  bytes runtime_json = 1;
+}
+
+message UpdateRuntimeConfigResponse {}
+
+message ReloadConfigRequest {}
+
+message ReloadConfigResponse {}
+
+message CreateServerRequest {
+  bytes server_json = 1;
+}
+
+message CreateServerResponse {}
+
+message UpdateServerRequest {
+  bytes server_json = 1;
+}
+
+message UpdateServerResponse {}
+
+message SetServerDisabledRequest {
+  string server = 1;
+  bool disabled = 2;
+}
+
+message SetServerDisabledResponse {}
+
+message DeleteServerRequest {
+  string server = 1;
+}
+
+message DeleteServerResponse {}
+
+message ImportServersRequest {
+  bytes servers_json = 1;
+}
+
+message ImportServersResponse {}
+
+message GetSubAgentConfigRequest {}
+
+message GetSubAgentConfigResponse {
+  bytes config_json = 1;
+}
+
+message UpdateSubAgentConfigRequest {
+  bytes config_json = 1;
+}
+
+message UpdateSubAgentConfigResponse {}
+
+message GetPluginStatusRequest {}
+
+message PluginStatus {
+  string name = 1;
+  bool running = 2;
+  string error = 3;
+}
+
+message GetPluginStatusResponse {
+  repeated PluginStatus statuses = 1;
+}
+
+message CreatePluginRequest {
+  bytes plugin_json = 1;
+}
+
+message CreatePluginResponse {}
+
+message UpdatePluginRequest {
+  bytes plugin_json = 1;
+}
+
+message UpdatePluginResponse {}
+
+message DeletePluginRequest {
+  string name = 1;
+}
+
+message DeletePluginResponse {}
+
+message TogglePluginRequest {
+  string name = 1;
+  bool enabled = 2;
+}
+
+message TogglePluginResponse {}
+
 message RegisterCallerRequest {
   string caller = 1;
   int64 pid = 2;
@@ -62,6 +184,27 @@ message UnregisterCallerRequest {
 }
 
 message UnregisterCallerResponse {}
+
+message ListActiveClientsRequest {}
+
+message ListActiveClientsResponse {
+  ActiveClientsSnapshot snapshot = 1;
+}
+
+message WatchActiveClientsRequest {}
+
+message ActiveClient {
+  string client = 1;
+  int64 pid = 2;
+  repeated string tags = 3;
+  string server = 4;
+  int64 last_heartbeat_unix_nano = 5;
+}
+
+message ActiveClientsSnapshot {
+  repeated ActiveClient clients = 1;
+  int64 generated_at_unix_nano = 2;
+}
 
 message ListToolsRequest {
   string caller = 1;

@@ -182,6 +182,18 @@ func (s *ServerService) ListServerGroups(ctx context.Context) ([]ServerGroup, er
 
 // CreateServer adds a server to the config file.
 func (s *ServerService) CreateServer(ctx context.Context, req CreateServerRequest) error {
+	if s.deps.isRemoteMode() {
+		remote, err := s.deps.remoteControlPlane()
+		if err != nil {
+			return err
+		}
+		spec := mapping.MapServerSpecDetailToDomain(req.Spec)
+		if err := remote.CreateServer(ctx, spec); err != nil {
+			return ui.MapDomainError(err)
+		}
+		return nil
+	}
+
 	editor, err := s.deps.catalogEditor()
 	if err != nil {
 		return err
@@ -195,6 +207,18 @@ func (s *ServerService) CreateServer(ctx context.Context, req CreateServerReques
 
 // UpdateServer updates an existing server in the config file.
 func (s *ServerService) UpdateServer(ctx context.Context, req UpdateServerRequest) error {
+	if s.deps.isRemoteMode() {
+		remote, err := s.deps.remoteControlPlane()
+		if err != nil {
+			return err
+		}
+		spec := mapping.MapServerSpecDetailToDomain(req.Spec)
+		if err := remote.UpdateServer(ctx, spec); err != nil {
+			return ui.MapDomainError(err)
+		}
+		return nil
+	}
+
 	editor, err := s.deps.catalogEditor()
 	if err != nil {
 		return err
@@ -208,6 +232,17 @@ func (s *ServerService) UpdateServer(ctx context.Context, req UpdateServerReques
 
 // SetServerDisabled updates the disabled state for a server.
 func (s *ServerService) SetServerDisabled(ctx context.Context, req UpdateServerStateRequest) error {
+	if s.deps.isRemoteMode() {
+		remote, err := s.deps.remoteControlPlane()
+		if err != nil {
+			return err
+		}
+		if err := remote.SetServerDisabled(ctx, req.Server, req.Disabled); err != nil {
+			return ui.MapDomainError(err)
+		}
+		return nil
+	}
+
 	editor, err := s.deps.catalogEditor()
 	if err != nil {
 		return err
@@ -220,6 +255,17 @@ func (s *ServerService) SetServerDisabled(ctx context.Context, req UpdateServerS
 
 // DeleteServer removes a server from the config file.
 func (s *ServerService) DeleteServer(ctx context.Context, req DeleteServerRequest) error {
+	if s.deps.isRemoteMode() {
+		remote, err := s.deps.remoteControlPlane()
+		if err != nil {
+			return err
+		}
+		if err := remote.DeleteServer(ctx, req.Server); err != nil {
+			return ui.MapDomainError(err)
+		}
+		return nil
+	}
+
 	editor, err := s.deps.catalogEditor()
 	if err != nil {
 		return err

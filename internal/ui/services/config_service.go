@@ -6,12 +6,14 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 
 	"go.uber.org/zap"
 
 	"mcpv/internal/domain"
 	catalogeditor "mcpv/internal/infra/catalog/editor"
 	catalogloader "mcpv/internal/infra/catalog/loader"
+	"mcpv/internal/infra/rpc"
 	"mcpv/internal/ui"
 	"mcpv/internal/ui/mapping"
 )
@@ -40,6 +42,25 @@ func (s *ConfigService) GetConfigPath() string {
 
 // GetConfigMode returns configuration mode metadata.
 func (s *ConfigService) GetConfigMode() ConfigModeResponse {
+	if s.deps.isRemoteMode() {
+		ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+		defer cancel()
+
+		remote, err := s.deps.remoteControlPlane()
+		if err != nil {
+			return ConfigModeResponse{Mode: "unknown", Path: ""}
+		}
+		mode, err := remote.GetConfigMode(ctx)
+		if err != nil {
+			return ConfigModeResponse{Mode: "unknown", Path: ""}
+		}
+		return ConfigModeResponse{
+			Mode:       mode.Mode,
+			Path:       mode.Path,
+			IsWritable: mode.IsWritable,
+		}
+	}
+
 	manager := s.deps.manager()
 	if manager == nil {
 		return ConfigModeResponse{Mode: "unknown", Path: ""}
@@ -64,6 +85,18 @@ func (s *ConfigService) GetConfigMode() ConfigModeResponse {
 
 // GetRuntimeConfig loads runtime configuration from the config file.
 func (s *ConfigService) GetRuntimeConfig(ctx context.Context) (RuntimeConfigDetail, error) {
+	if s.deps.isRemoteMode() {
+		remote, err := s.deps.remoteControlPlane()
+		if err != nil {
+			return RuntimeConfigDetail{}, err
+		}
+		runtimeCfg, err := remote.GetRuntimeConfig(ctx)
+		if err != nil {
+			return RuntimeConfigDetail{}, ui.MapDomainError(err)
+		}
+		return mapping.MapRuntimeConfigDetail(runtimeCfg), nil
+	}
+
 	manager := s.deps.manager()
 	if manager == nil {
 		return RuntimeConfigDetail{}, ui.NewError(ui.ErrCodeInternal, "Manager not initialized")
@@ -87,6 +120,9 @@ func (s *ConfigService) GetRuntimeConfig(ctx context.Context) (RuntimeConfigDeta
 
 // OpenConfigInEditor opens config path in system editor.
 func (s *ConfigService) OpenConfigInEditor(ctx context.Context) error {
+	if s.deps.isRemoteMode() {
+		return ui.NewError(ui.ErrCodeInvalidState, "Remote configuration cannot be opened locally")
+	}
 	manager := s.deps.manager()
 	if manager == nil {
 		return ui.NewError(ui.ErrCodeInternal, "Manager not initialized")
@@ -120,6 +156,16 @@ func (s *ConfigService) OpenConfigInEditor(ctx context.Context) error {
 
 // ReloadConfig triggers a configuration reload in the running Core.
 func (s *ConfigService) ReloadConfig(ctx context.Context) error {
+	if s.deps.isRemoteMode() {
+		remote, err := s.deps.remoteControlPlane()
+		if err != nil {
+			return err
+		}
+		if err := remote.ReloadConfig(ctx); err != nil {
+			return ui.MapDomainError(err)
+		}
+		return nil
+	}
 	manager := s.deps.manager()
 	if manager == nil {
 		return ui.NewError(ui.ErrCodeInternal, "Manager not initialized")
@@ -129,6 +175,41 @@ func (s *ConfigService) ReloadConfig(ctx context.Context) error {
 
 // UpdateRuntimeConfig writes runtime updates into the config file.
 func (s *ConfigService) UpdateRuntimeConfig(ctx context.Context, req UpdateRuntimeConfigRequest) error {
+	if s.deps.isRemoteMode() {
+		remote, err := s.deps.remoteControlPlane()
+		if err != nil {
+			return err
+		}
+		payload := rpc.RuntimeConfigUpdatePayload{
+			RouteTimeoutSeconds:         req.RouteTimeoutSeconds,
+			PingIntervalSeconds:         req.PingIntervalSeconds,
+			ToolRefreshSeconds:          req.ToolRefreshSeconds,
+			ToolRefreshConcurrency:      req.ToolRefreshConcurrency,
+			ClientCheckSeconds:          req.ClientCheckSeconds,
+			ClientInactiveSeconds:       req.ClientInactiveSeconds,
+			ServerInitRetryBaseSeconds:  req.ServerInitRetryBaseSeconds,
+			ServerInitRetryMaxSeconds:   req.ServerInitRetryMaxSeconds,
+			ServerInitMaxRetries:        req.ServerInitMaxRetries,
+			ReloadMode:                  req.ReloadMode,
+			BootstrapMode:               req.BootstrapMode,
+			BootstrapConcurrency:        req.BootstrapConcurrency,
+			BootstrapTimeoutSeconds:     req.BootstrapTimeoutSeconds,
+			DefaultActivationMode:       req.DefaultActivationMode,
+			ExposeTools:                 req.ExposeTools,
+			ToolNamespaceStrategy:       req.ToolNamespaceStrategy,
+			ProxyMode:                   req.ProxyMode,
+			ProxyURL:                    req.ProxyURL,
+			ProxyNoProxy:                req.ProxyNoProxy,
+			ObservabilityListenAddress:  req.ObservabilityListenAddress,
+			ObservabilityMetricsEnabled: req.ObservabilityMetricsEnabled,
+			ObservabilityHealthzEnabled: req.ObservabilityHealthzEnabled,
+		}
+		if err := remote.UpdateRuntimeConfig(ctx, payload); err != nil {
+			return ui.MapDomainError(err)
+		}
+		return nil
+	}
+
 	editor, err := s.deps.catalogEditor()
 	if err != nil {
 		return err
@@ -165,11 +246,6 @@ func (s *ConfigService) UpdateRuntimeConfig(ctx context.Context, req UpdateRunti
 
 // ImportMcpServers writes imported MCP servers into the config file.
 func (s *ConfigService) ImportMcpServers(ctx context.Context, req ImportMcpServersRequest) error {
-	editor, err := s.deps.catalogEditor()
-	if err != nil {
-		return err
-	}
-
 	importReq := catalogeditor.ImportRequest{
 		Servers: make([]domain.ServerSpec, 0, len(req.Servers)),
 	}
@@ -184,6 +260,22 @@ func (s *ConfigService) ImportMcpServers(ctx context.Context, req ImportMcpServe
 			ProtocolVersion: strings.TrimSpace(server.ProtocolVersion),
 			HTTP:            mapStreamableHTTPConfig(server.HTTP),
 		})
+	}
+
+	if s.deps.isRemoteMode() {
+		remote, err := s.deps.remoteControlPlane()
+		if err != nil {
+			return err
+		}
+		if err := remote.ImportServers(ctx, importReq.Servers); err != nil {
+			return ui.MapDomainError(err)
+		}
+		return nil
+	}
+
+	editor, err := s.deps.catalogEditor()
+	if err != nil {
+		return err
 	}
 
 	if err := editor.ImportServers(ctx, importReq); err != nil {

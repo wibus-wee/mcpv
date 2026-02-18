@@ -243,6 +243,29 @@ func fromProtoLogEntry(entry *controlv1.LogEntry) (domain.LogEntry, error) {
 	}, nil
 }
 
+func fromProtoActiveClientsSnapshot(snapshot *controlv1.ActiveClientsSnapshot) (domain.ActiveClientSnapshot, error) {
+	if snapshot == nil {
+		return domain.ActiveClientSnapshot{}, nil
+	}
+	clients := make([]domain.ActiveClient, 0, len(snapshot.GetClients()))
+	for _, client := range snapshot.GetClients() {
+		if client == nil {
+			continue
+		}
+		clients = append(clients, domain.ActiveClient{
+			Client:        client.GetClient(),
+			PID:           int(client.GetPid()),
+			Tags:          append([]string(nil), client.GetTags()...),
+			Server:        client.GetServer(),
+			LastHeartbeat: unixNanoToTime(client.GetLastHeartbeatUnixNano()),
+		})
+	}
+	return domain.ActiveClientSnapshot{
+		Clients:     clients,
+		GeneratedAt: unixNanoToTime(snapshot.GetGeneratedAtUnixNano()),
+	}, nil
+}
+
 func fromProtoAutomaticMCPResponse(resp *controlv1.AutomaticMCPResponse) (domain.AutomaticMCPResult, error) {
 	if resp == nil {
 		return domain.AutomaticMCPResult{}, nil
